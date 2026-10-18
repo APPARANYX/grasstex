@@ -44,6 +44,46 @@ function check_role($g,$role) {
     $stored=isset($g['key_hashes'][$role])?$g['key_hashes'][$role]:'';
     if (!is_string($stored) || !match_secret(header_key(),$stored)) fail_api(401,'Invalid role key');
 }
+function check_admin() {
+    if (!match_secret(header_key(),host_key())) fail_api(401,'Invalid administrator key');
+}
+function public_events($events,$side=null) {
+    $safe=array();
+    foreach ((array)$events as $event) {
+        if (!is_string($event)) continue;
+        if (preg_match('/^(US|GE)-[0-9]+:/', $event, $m)) {
+            if ($side===null || strtoupper($side)!==$m[1]) continue;
+        } elseif (preg_match('/^(us|ge):/', $event, $m)) {
+            if ($side===null || $side!==$m[1]) continue;
+        }
+        $safe[]=$event;
+    }
+    return $safe;
+}
+function history_for($g,$side=null,$admin=false) {
+    $history=array();
+    foreach ($g['history'] as $round) {
+        $r=isset($round['resolution']) && is_array($round['resolution'])?$round['resolution']:array();
+        // All pre-V2 historical events and orders MUST pass through this filter too.
+        $r['events']=public_events(isset($r['events'])?$r['events']:array(),$admin?'all':$side);
+        if ($admin) $r['events']=isset($round['resolution']['events'])?$round['resolution']['events']:array();
+        $item=array('turn'=>$round['turn'],'resolution'=>$r,
+            'capabilities'=>isset($round['capabilities'])?$round['capabilities']:array(),
+            'winner'=>isset($round['winner'])?$round['winner']:null,
+            'resolved_at'=>isset($round['resolved_at'])?$round['resolved_at']:null);
+        // A commander sees only its own complete orders. Never publish enemy missions
+        // just because a round resolved: planned travel may span several more turns.
+        if ($side!==null && $side!=='all' && isset($round['orders'][$side]))
+            $item['own_order']=$round['orders'][$side];
+        if ($admin) {
+            $item['orders']=isset($round['orders'])?$round['orders']:array();
+            if (isset($round['world_snapshot'])) $item['world_snapshot']=$round['world_snapshot'];
+        }
+        if (isset($round['public_snapshot'])) $item['public_snapshot']=$round['public_snapshot'];
+        $history[]=$item;
+    }
+    return $history;
+}
 function json_body() {
     $raw=file_get_contents('php://input');
     if (!is_string($raw) || strlen($raw)<2 || strlen($raw)>90000) fail_api(400,'Invalid request size');
@@ -93,19 +133,15 @@ function with_game($id,$mutator) {
     flock($f,LOCK_UN);fclose($f);
     return $result['body'];
 }
-function public_game($g) {
-    $history=array();
-    foreach ($g['history'] as $round) $history[]=array(
-        'turn'=>$round['turn'],'orders'=>$round['orders'],'resolution'=>$round['resolution'],
-        'capabilities'=>$round['capabilities'],'winner'=>$round['winner'],'resolved_at'=>$round['resolved_at']);
-    $ready=false;
+function public_game($g,$side=null,$admin=false) {
     $count=array('us'=>$g['current']['us']!==null,'ge'=>$g['current']['ge']!==null);
     return array('ok'=>true,'id'=>$g['id'],'title'=>$g['title'],'rules'=>$g['rules'],
         'scenario'=>$g['scenario'],'mode'=>$g['mode'],'turn_limit'=>$g['turn_limit'],
         'turn'=>$g['turn'],'phase'=>$g['phase'],'winner'=>$g['winner'],
         'public_brief'=>$g['public_brief'],'submitted'=>$count,
-        'current_orders'=>null, 'public_world'=>ie_public_world($g['world']),
-        'history'=>$history,'revision'=>$g['revision'],'updated_at'=>$g['updated_at']);
+        'current_orders'=>null,'public_world'=>ie_public_world($g['world']),
+        'history'=>history_for($g,$side,$admin),'revision'=>$g['revision'],
+        'updated_at'=>$g['updated_at']);
 }
 function request_value($body,$field,$max,$required=true) {
     return limited(isset($body[$field])?$body[$field]:'',$max,$field,$required);
@@ -138,7 +174,7 @@ if ($method==='GET') {
         reply(200,with_game($id,function(&$g)use($role){
             if (!in_array($role,array('us','ge'),true)) fail_api(400,'Invalid side');
             check_role($g,$role);
-            $public=public_game($g);
+            $public=public_game($g,$role);
             $public['side']=$role;
             $public['private_brief']=$g['private_briefs'][$role];
             $public['own_state']=ie_side_view($g['world'],$role);
@@ -146,6 +182,12 @@ if ($method==='GET') {
             return array('body'=>$public);
         }));
     }
+    if ($op==='observer') reply(200,with_game($id,function(&$g){
+        check_admin();
+        $data=public_game($g,null,true);
+        $data['observer_world']=$g['world'];
+        return array('body'=>$data);
+    }));
     fail_api(404,'Unknown GET operation');
 }
 if ($method!=='POST') fail_api(405,'GET or POST required');
@@ -171,6 +213,7 @@ if ($op==='create') {
       'private_briefs'=>array('us'=>request_value($body,'us_brief',10000,false),
                               'ge'=>request_value($body,'ge_brief',10000,false)),
       'current'=>array('us'=>null,'ge'=>null),'history'=>array(),'revision'=>0,
+      'rules_revision'=>2,
       'key_hashes'=>array('us'=>hash('sha256',$tokens['us']),'ge'=>hash('sha256',$tokens['ge'])),
       'updated_at'=>gmdate('c'));
     $path=game_path($g['id']);
@@ -206,7 +249,10 @@ if ($op==='submit') {
             $resolved=ie_resolve($g);
         $g['revision']++;$g['updated_at']=gmdate('c');
         return array('updated'=>true,'body'=>array('ok'=>true,'accepted'=>true,
-            'resolved'=>$resolved!==null,'resolution'=>$resolved,
+            'resolved'=>$resolved!==null,
+            'public_result'=>$resolved===null?null:array(
+                'turn'=>$resolved['turn'],'objective_points'=>$resolved['objective_points'],
+                'outcome'=>$resolved['outcome']),
             'turn'=>$g['turn'],'phase'=>$g['phase'],'winner'=>$g['winner']));
     });
     reply(200,$result);
