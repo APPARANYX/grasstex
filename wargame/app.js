@@ -121,6 +121,21 @@
       el('role').value === 'admin' && data.termination
         ? json(data.pending_sealed_orders || {})
         : '';
+    const finish = data.termination;
+    el('terminationSummary').classList.toggle('hidden', !finish);
+    if (finish) {
+      const points = finish.objective_points || { us: 0, ge: 0 };
+      el('terminationSummary').textContent =
+        'REFEREE FINAL RECORD · ' +
+        (finish.kind === 'cancelled' ? 'CANCELLED / UNSCORED' : 'EARLY SCORING') +
+        ' · Last resolved round ' +
+        finish.last_resolved_turn +
+        ' · Objectives US ' +
+        points.us +
+        ' / GE ' +
+        points.ge +
+        (finish.reason ? ' · Reason: ' + finish.reason : '');
+    }
     const mechanics = data.effective_rules || {};
     el('effectiveRules').textContent = mechanics.notice || 'Referee rules revision unavailable.';
     el('effectiveRules').classList.toggle('warning', (data.rules_revision || 1) < 5);
