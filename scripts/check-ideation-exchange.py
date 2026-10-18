@@ -67,7 +67,7 @@ try:
         time.sleep(0.1)
     assert code == 200 and template["ok"] and template["template"]["config"], template
     code, version = call("version")
-    assert code == 200 and version["api_version"] == "0.4.0", version
+    assert code == 200 and version["api_version"] == "0.5.0", version
     code, new = call("create", "POST", {"title": "Automated contract smoke", "turn_limit": 3}, PASSWORD)
     assert code == 201 and new["ok"], new
     match_id = new["id"]
@@ -76,7 +76,7 @@ try:
     us_key, ge_key = new["keys"]["us"], new["keys"]["ge"]
     code, public = call("public", query=f"&id={match_id}")
     assert code == 200 and public["phase"] == "orders" and public["turn"] == 1
-    assert public["api_version"] == "0.4.0"
+    assert public["api_version"] == "0.5.0"
     assert public["current_orders"] is None and "key_hashes" not in public
     assert "units" not in public and "intel" not in public
     code, wrong = call("brief", key=ge_key, query=f"&id={match_id}&side=us")
@@ -89,6 +89,8 @@ try:
     us_order = {"turn": 1, "side": "us", "intent": "Advance from south",
         "actions": [{"squad": "US-1", "type": "transport", "target": "south"}],
         "support": "recon",
+        "activities": [{"squad": "US-1", "kind": "wire",
+            "description": "Private US wire activity at its actual squad position"}],
         "proposals": [{"name": "Conditional reserve", "reason": "Need event-based orders"}]}
     code, submitted = call("submit", "POST",
         {"id": match_id, "turn": 1, "side": "us", "order": us_order}, us_key)
@@ -102,7 +104,10 @@ try:
     assert code == 200 and repeat["duplicate"], repeat
     ge_order = {"turn": 1, "side": "ge", "intent": "Defend the east",
         "actions": [{"squad": "GE-1", "type": "reserve"}],
-        "support": "none", "proposals": []}
+        "support": "none",
+        "activities": [{"squad": "GE-1", "kind": "roadblock",
+            "description": "SECRET GE east roadblock at actual squad position"}],
+        "proposals": []}
     code, resolved = call("submit", "POST",
         {"id": match_id, "turn": 1, "side": "ge", "order": ge_order}, ge_key)
     assert code == 200 and resolved["resolved"] and resolved["turn"] == 2, resolved
@@ -114,11 +119,23 @@ try:
     assert "US-1:" not in json.dumps(public["history"])
     assert "GE-1:" not in json.dumps(public["history"])
     assert "Conditional reserve" not in json.dumps(public["history"])
+    assert "SECRET GE" not in json.dumps(public)
+    assert "field_contacts" not in json.dumps(public)
     assert public["public_world"]["clock_minutes"] == 10
     code, intel = call("brief", key=us_key, query=f"&id={match_id}&side=us")
     assert code == 200 and intel["own_state"]["intel_reports"][0]["source"] == "limited_aerial"
     code, hidden = call("brief", key=ge_key, query=f"&id={match_id}&side=ge")
     assert code == 200 and not hidden["own_state"]["intel_reports"]
+    us_contacts = intel["own_state"]["field_contacts"]
+    ge_contacts = hidden["own_state"]["field_contacts"]
+    assert len(us_contacts) == 2, us_contacts  # own wire + GE roadblock via recon
+    assert len(ge_contacts) == 1, ge_contacts  # only own roadblock, US is too far
+    assert us_contacts[0]["confidence"] == "confirmed_friendly"
+    assert any(c["source"] == "aerial" and c["kind"] == "roadblock" for c in us_contacts)
+    assert "SECRET GE" not in json.dumps(intel)
+    assert "Private US wire" not in json.dumps(hidden)
+    assert len(intel["history"][0]["field_contacts"]) == 2
+    assert len(hidden["history"][0]["field_contacts"]) == 1
     assert "own_order" in intel["history"][0]
     assert "own_order" in hidden["history"][0]
     assert "GE-1:" not in json.dumps(intel["history"][0])
@@ -131,6 +148,8 @@ try:
     assert code == 200 and observer["observer_world"]["units"], observer
     assert "orders" in observer["history"][0]
     assert observer["history"][0]["world_snapshot"]["units"]
+    assert len(observer["history"][0]["world_snapshot"]["field_objects"]) == 2
+    assert "SECRET GE east roadblock" in json.dumps(observer["history"][0])
     # Second-order response must never return other-side events.
     assert "resolution" not in resolved and "public_result" in resolved, resolved
     assert "events" not in json.dumps(resolved), resolved
