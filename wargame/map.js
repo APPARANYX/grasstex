@@ -465,8 +465,15 @@
   });
   el('mapPlay').addEventListener('click', () => {
     playing = !playing;
-    if (playing && Number(slider.value) === 0) followLive = true;
-    if (playing && Number(slider.value) > 0) followLive = false;
+    if (!playing && followLive) {
+      // A pause freezes the *last resolved round*. New polls should not
+      // silently return the viewer to the live board.
+      followLive = false;
+      slider.value = slider.max;
+      render();
+    } else if (playing) {
+      followLive = Number(slider.value) === 0;
+    }
     if (playing && !timer) timer = setInterval(tickReplay, 1700);
     setButtons();
   });
