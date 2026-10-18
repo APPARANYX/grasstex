@@ -6,7 +6,7 @@
  */
 require_once __DIR__.'/engine.php';
 // Increment for client/server contract releases, independently of match rules.
-const IDEATION_API_VERSION = '0.5.0';
+const IDEATION_API_VERSION = '0.6.0';
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store, max-age=0');
 header('X-Ideation-API-Version: '.IDEATION_API_VERSION);
@@ -322,7 +322,7 @@ if ($op==='create') {
       'private_briefs'=>array('us'=>request_value($body,'us_brief',10000,false),
                               'ge'=>request_value($body,'ge_brief',10000,false)),
       'current'=>array('us'=>null,'ge'=>null),'history'=>array(),'revision'=>0,
-      'rules_revision'=>2,
+      'rules_revision'=>4,
       'initial_public_brief'=>isset($body['public_brief'])?request_value($body,'public_brief',10000):$tpl['public_brief'],
       'series'=>array('id'=>null,'game_number'=>1,'attempt'=>1,
         'base_title'=>request_value($body,'title',180),
@@ -379,7 +379,7 @@ if ($op==='rematch') {
             'private_briefs'=>isset($g['private_briefs'])?$g['private_briefs']:
                 array('us'=>'','ge'=>''),
             'current'=>array('us'=>null,'ge'=>null),'history'=>array(),
-            'revision'=>0,'rules_revision'=>2,'series'=>$newSeries,
+            'revision'=>0,'rules_revision'=>isset($g['rules_revision'])?$g['rules_revision']:1,'series'=>$newSeries,
             'key_hashes'=>array('us'=>hash('sha256',$tokens['us']),
                 'ge'=>hash('sha256',$tokens['ge'])),
             'updated_at'=>gmdate('c'));

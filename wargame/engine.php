@@ -46,7 +46,8 @@ function ie_world($config) {
     return array('objectives'=>$objectives,'units'=>$units,'trucks'=>$trucks,
         'recon_used'=>array('us'=>false,'ge'=>false),'intel'=>$intel,
         'history'=>array(),'clock_minutes'=>0,'outcome'=>'ongoing',
-        'field_objects'=>array(),'field_contacts'=>array('us'=>array(),'ge'=>array()));
+        'field_objects'=>array(),'field_contacts'=>array('us'=>array(),'ge'=>array()),
+        'field_effects_enabled'=>false);
 }
 function ie_validate_order($order,$side,$turn,$world,$mode) {
     if (!is_array($order) || ($order['side']??null)!==$side ||
@@ -77,7 +78,7 @@ function ie_validate_order($order,$side,$turn,$world,$mode) {
             !is_string($p['reason']) || strlen($p['reason'])<4 || strlen($p['reason'])>600)
             ie_fail('Proposals must have a short name and reason');
     }
-    // Activities are observational proposals, not simulated engineering abilities.
+    // V4 activities use fixed abstract effects; older rules remain observational.
     // The location is always the squad's referee-owned position after movement.
     $activities=isset($order['activities'])?$order['activities']:array();
     if (!is_array($activities) || count($activities)>3) ie_fail('Maximum three field activities per turn');
@@ -114,6 +115,87 @@ function ie_move(&$u,$goal,$meters) {
     $u['z']+=(($goal['z']-$u['z'])/$d)*$step;
     return $step;
 }
+// Fixed V4 field effects, in abstract strength points and metres.
+// These are NOT projectile LOS, soldier hit points or terrain simulation.
+function ie_field_stats($kind) {
+    $table=array(
+        'wire'=>array('effect'=>'foot_slow','range_m'=>100,'speed_multiplier'=>0.5,
+            'damage_strength'=>0,'duration_turns'=>0,'blocks_fire'=>false),
+        'roadblock'=>array('effect'=>'vehicle_slow','range_m'=>120,'speed_multiplier'=>0.5,
+            'damage_strength'=>0,'duration_turns'=>0,'blocks_fire'=>false),
+        'fortification'=>array('effect'=>'defense','range_m'=>150,'speed_multiplier'=>1,
+            'damage_strength'=>0,'defense_strength'=>1,'duration_turns'=>0,'blocks_fire'=>false),
+        'smoke'=>array('effect'=>'concealment','range_m'=>150,'speed_multiplier'=>1,
+            'damage_strength'=>0,'defense_strength'=>1,'duration_turns'=>2,'blocks_fire'=>false),
+        'minefield'=>array('effect'=>'hazard','range_m'=>80,'speed_multiplier'=>1,
+            'damage_strength'=>1,'duration_turns'=>0,'blocks_fire'=>false),
+        'vehicle'=>array('effect'=>'information','range_m'=>0,'speed_multiplier'=>1,
+            'damage_strength'=>0,'duration_turns'=>0,'blocks_fire'=>false),
+        'other'=>array('effect'=>'information','range_m'=>0,'speed_multiplier'=>1,
+            'damage_strength'=>0,'duration_turns'=>0,'blocks_fire'=>false));
+    return isset($table[$kind])?$table[$kind]:$table['other'];
+}
+function ie_field_active($object,$turn) {
+    $stats=ie_field_stats($object['kind']);
+    if (!isset($object['created_turn']) || $turn<=(int)$object['created_turn']) return false;
+    return $stats['duration_turns']===0 ||
+        $turn<=(int)$object['created_turn']+$stats['duration_turns'];
+}
+function ie_near_path($from,$to,$object,$radius) {
+    $dx=$to['x']-$from['x'];$dz=$to['z']-$from['z'];
+    $length2=$dx*$dx+$dz*$dz;
+    $t=$length2>0?max(0,min(1,(($object['x']-$from['x'])*$dx+
+        ($object['z']-$from['z'])*$dz)/$length2)):0;
+    return hypot($object['x']-($from['x']+$t*$dx),
+        $object['z']-($from['z']+$t*$dz))<=$radius;
+}
+function ie_field_speed($world,$u,$goal,$base,$turn,$vehicle) {
+    foreach (isset($world['field_objects'])?$world['field_objects']:array() as $object) {
+        if ($object['side']===$u['side'] || !ie_field_active($object,$turn)) continue;
+        $stats=ie_field_stats($object['kind']);
+        if (($vehicle && $stats['effect']!=='vehicle_slow') ||
+            (!$vehicle && $stats['effect']!=='foot_slow')) continue;
+        // A hindrance must intersect the intended travel segment, not simply
+        // exist somewhere on the map. Apply a single capped multiplier.
+        $to=$u;
+        ie_move($to,$goal,$base);
+        if (ie_near_path($u,$to,$object,$stats['range_m']))
+            return (int)floor($base*$stats['speed_multiplier']);
+    }
+    return $base;
+}
+function ie_field_damage(&$world,$turn,$priorPositions,&$events) {
+    foreach ($world['field_objects'] as $id=>$object) {
+        if (!ie_field_active($object,$turn) || $object['kind']!=='minefield') continue;
+        $stats=ie_field_stats($object['kind']);
+        foreach ($world['units'] as $uid=>&$u) {
+            if ($u['side']===$object['side'] || $u['strength']<=0 ||
+                !ie_near_path(isset($priorPositions[$uid])?$priorPositions[$uid]:$u,
+                    $u,$object,$stats['range_m'])) continue;
+            // One trigger per squad per object; avoid indefinite damage while
+            // standing in the same hazard. Damage is strength, never HP.
+            if (!isset($world['field_triggers'][$id])) $world['field_triggers'][$id]=array();
+            if (isset($world['field_triggers'][$id][$uid])) continue;
+            $world['field_triggers'][$id][$uid]=true;
+            $u['strength']=max(0,$u['strength']-$stats['damage_strength']);
+            $events[]=$uid.': field hazard strength loss '.$stats['damage_strength'];
+        }
+        unset($u);
+    }
+}
+function ie_field_defense($world,$unit,$objective,$turn) {
+    $best=0;
+    foreach (isset($world['field_objects'])?$world['field_objects']:array() as $object) {
+        if (!ie_field_active($object,$turn)) continue;
+        $stats=ie_field_stats($object['kind']);
+        if ($stats['effect']!=='defense' && $stats['effect']!=='concealment') continue;
+        if ($stats['effect']==='defense' && $object['side']!==$unit['side']) continue;
+        if (ie_distance($unit,$object)<=$stats['range_m'] &&
+            ie_distance($objective,$object)<=150+$stats['range_m'])
+            $best=max($best,$stats['defense_strength']);
+    }
+    return $best;
+}
 function ie_field_contacts(&$world,$orders,$turn,&$events) {
     if (!isset($world['field_objects'])) $world['field_objects']=array();
     if (!isset($world['field_contacts'])) $world['field_contacts']=array('us'=>array(),'ge'=>array());
@@ -128,11 +210,19 @@ function ie_field_contacts(&$world,$orders,$turn,&$events) {
             $world['field_objects'][$id]=array('id'=>$id,'side'=>$side,
                 'squad'=>$u['id'],'x'=>$u['x'],'z'=>$u['z'],
                 'kind'=>$a['kind'],'description'=>trim($a['description']),
-                'created_turn'=>$turn,'status'=>'reported_activity_only',
-                'gameplay_effect'=>'none');
-            $events[]=$u['id'].': field activity '.$a['kind'].' recorded (no automatic gameplay effect)';
+                'created_turn'=>$turn,'status'=>'building',
+                'stats'=>ie_field_stats($a['kind']),
+                'effects_enabled'=>isset($world['field_effects_enabled']) && $world['field_effects_enabled']);
+            $events[]=$u['id'].': field activity '.$a['kind'].' recorded; effect begins next turn';
         }
     }
+    foreach ($world['field_objects'] as &$object) {
+        $stats=ie_field_stats($object['kind']);
+        $object['status']=ie_field_active($object,$turn)?'active':
+            ($stats['duration_turns']>0 && $turn>(int)$object['created_turn']+$stats['duration_turns']
+                ? 'expired':'building');
+    }
+    unset($object);
     foreach (array('us','ge') as $side) {
         $other=$side==='us'?'ge':'us';
         foreach ($world['field_objects'] as $id=>$object) {
@@ -140,7 +230,10 @@ function ie_field_contacts(&$world,$orders,$turn,&$events) {
                 $world['field_contacts'][$side][$id]=array('id'=>$id,'kind'=>$object['kind'],
                     'x'=>$object['x'],'z'=>$object['z'],'confidence'=>'confirmed_friendly',
                     'source'=>'own_report','first_seen_turn'=>$object['created_turn'],
-                    'last_seen_turn'=>$turn,'description'=>$object['description']);
+                    'last_seen_turn'=>$turn,'description'=>$object['description'],
+                    'stats'=>ie_field_stats($object['kind']),
+                    'effects_enabled'=>!empty($world['field_effects_enabled']),
+                    'active'=>!empty($world['field_effects_enabled']) && ie_field_active($object,$turn));
                 continue;
             }
             $source=null;
@@ -162,7 +255,10 @@ function ie_field_contacts(&$world,$orders,$turn,&$events) {
                 'confidence'=>$source==='ground'?'probable':'coarse',
                 'source'=>$source,'first_seen_turn'=>$previous?
                     $previous['first_seen_turn']:$turn,'last_seen_turn'=>$turn,
-                'description'=>$names[$object['kind']]);
+                'description'=>$names[$object['kind']],
+                'stats'=>ie_field_stats($object['kind']),
+                'effects_enabled'=>!empty($world['field_effects_enabled']),
+                'active'=>!empty($world['field_effects_enabled']) && ie_field_active($object,$turn));
             if ($previous===null) $events[]=$side.': field contact '.$id.
                 ' detected; consult private intelligence';
         }
@@ -186,6 +282,7 @@ function ie_public_world($world) {
 }
 function ie_resolve(&$g) {
     $w=&$g['world'];
+    $w['field_effects_enabled']=isset($g['rules_revision']) && intval($g['rules_revision'])>=4;
     $turn=$g['turn'];
     $orders=array('us'=>$g['current']['us']['order'],'ge'=>$g['current']['ge']['order']);
     $events=array();$proposals=array();
@@ -204,6 +301,7 @@ function ie_resolve(&$g) {
         }
     }
     $w['clock_minutes']+=10;
+    $priorPositions=$w['units'];
     // Gameplay abstraction: foot 800 m/turn; truck up to 2500 m/turn. Truck dismounts
     // around 180 m from an objective; the remaining approach needs foot travel.
     foreach ($w['units'] as $id=>&$u) {
@@ -229,7 +327,9 @@ function ie_resolve(&$g) {
         if ($usingTruck) {
             $dx=$u['x']-$o['x']; $dz=$u['z']-$o['z']; $len=max(0.0001,hypot($dx,$dz));
             $stop=array('x'=>$o['x']+$dx/$len*180,'z'=>$o['z']+$dz/$len*180);
-            $distance=ie_move($u,$stop,2500);
+            $speed=(isset($g['rules_revision']) && intval($g['rules_revision'])>=4)?
+                ie_field_speed($w,$u,$stop,2500,$turn,true):2500;
+            $distance=ie_move($u,$stop,$speed);
             $w['trucks'][$truckId]['x']=$u['x'];$w['trucks'][$truckId]['z']=$u['z'];
             if (ie_distance($u,$stop)<1) {
                 $w['trucks'][$truckId]['squad']=null;
@@ -240,7 +340,9 @@ function ie_resolve(&$g) {
                 $events[]=$id.': vehicle advance '.(int)$distance.' m toward '.$target;
             }
         } else {
-            $distance=ie_move($u,$o,800);
+            $speed=(isset($g['rules_revision']) && intval($g['rules_revision'])>=4)?
+                ie_field_speed($w,$u,$o,800,$turn,false):800;
+            $distance=ie_move($u,$o,$speed);
             if (ie_distance($u,$o)<=150) {
                 $u['arrived']=true;
                 $events[]=$id.': within objective control area of '.$target;
@@ -250,6 +352,8 @@ function ie_resolve(&$g) {
         }
     }
     unset($u);
+    if (isset($g['rules_revision']) && intval($g['rules_revision'])>=4)
+        ie_field_damage($w,$turn,$priorPositions,$events);
     // For matches created under rules V2, contested positions suffer fixed-rule
     // abstract strength losses. This represents declining combat effectiveness,
     // NOT simulated casualties or historical weapons modeling. V1 matches are
@@ -273,6 +377,13 @@ function ie_resolve(&$g) {
                 'ge'=>min($totals['ge'],max(1,(int)floor($totals['us']/15))));
             foreach (array('us','ge') as $side) {
                 $remaining=$losses[$side];$participants=$here[$side];
+                if (intval($g['rules_revision'])>=4) {
+                    $protection=0;
+                    foreach ($participants as $uid)
+                        $protection=max($protection,ie_field_defense($w,$w['units'][$uid],$o,$turn));
+                    $remaining=max(0,$remaining-$protection);
+                }
+                $actualLoss=$remaining;
                 // Round-robin distributes pressure without targeting any one
                 // squad beyond those actually inside the contested objective.
                 while ($remaining>0) {
@@ -286,7 +397,7 @@ function ie_resolve(&$g) {
                     if (!$changed) break;
                 }
                 $events[]=$side.': abstract effectiveness loss '.
-                    $losses[$side].' at contested '.$o['name'].
+                    $actualLoss.' at contested '.$o['name'].
                     ' (distributed among friendly squads; inspect your squad strengths)';
             }
         }

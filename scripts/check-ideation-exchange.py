@@ -67,7 +67,7 @@ try:
         time.sleep(0.1)
     assert code == 200 and template["ok"] and template["template"]["config"], template
     code, version = call("version")
-    assert code == 200 and version["api_version"] == "0.5.0", version
+    assert code == 200 and version["api_version"] == "0.6.0", version
     code, new = call("create", "POST", {"title": "Automated contract smoke", "turn_limit": 3}, PASSWORD)
     assert code == 201 and new["ok"], new
     match_id = new["id"]
@@ -76,7 +76,7 @@ try:
     us_key, ge_key = new["keys"]["us"], new["keys"]["ge"]
     code, public = call("public", query=f"&id={match_id}")
     assert code == 200 and public["phase"] == "orders" and public["turn"] == 1
-    assert public["api_version"] == "0.5.0"
+    assert public["api_version"] == "0.6.0"
     assert public["current_orders"] is None and "key_hashes" not in public
     assert "units" not in public and "intel" not in public
     code, wrong = call("brief", key=ge_key, query=f"&id={match_id}&side=us")
@@ -131,6 +131,12 @@ try:
     assert len(us_contacts) == 2, us_contacts  # own wire + GE roadblock via recon
     assert len(ge_contacts) == 1, ge_contacts  # only own roadblock, US is too far
     assert us_contacts[0]["confidence"] == "confirmed_friendly"
+    assert us_contacts[0]["stats"]["effect"] == "foot_slow"
+    assert us_contacts[0]["stats"]["speed_multiplier"] == 0.5
+    assert us_contacts[0]["stats"]["blocks_fire"] is False
+    assert us_contacts[0]["effects_enabled"] is True
+    assert us_contacts[0]["active"] is False  # builds on creation turn
+    assert ge_contacts[0]["stats"]["effect"] == "vehicle_slow"
     assert any(c["source"] == "aerial" and c["kind"] == "roadblock" for c in us_contacts)
     assert "SECRET GE" not in json.dumps(intel)
     assert "Private US wire" not in json.dumps(hidden)
@@ -181,6 +187,7 @@ try:
     assert discovered[0]["confidence"] == "probable"
     assert "SECRET GE" not in json.dumps(ground_us)
     assert ground_us["history"][2]["field_contacts"][0]["last_seen_turn"] == 3
+    assert ground_us["history"][2]["field_contacts"][0]["stats"]["defense_strength"] == 1
     code, ground_public = call("public", query=f"&id={ground_id}")
     assert code == 200 and "field_contacts" not in json.dumps(ground_public)
     # Finish game 1 with US still controlling the south objective.
