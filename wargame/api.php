@@ -328,15 +328,19 @@ function debrief_rows($g,$side=null) {
     return $rows;
 }
 // Open agent debriefs: any agent holding the ID of an existing match may post
-// a reflection at any time, without a commander key. They are stored on the
-// live match record (they survive rematches), flagged unverified, and are
-// readable only through the administrator views.
+// a reflection at any time, without a commander key. They live in a sidecar
+// file next to the match, never in the match record itself, so they cannot
+// grow, freeze or visibly change the match (no revision or updated_at bump),
+// and archives never copy them. Flagged unverified; administrator views only.
 const AGENT_DEBRIEF_LIMIT = 200;
-function agent_debrief_record($body,$g) {
+const AGENT_DEBRIEF_BYTES = 262144;
+function agent_debrief_path($id) {
+    return substr(game_path($id),0,-4).'-agent-debriefs.php';
+}
+function agent_debrief_record($body,$id,$current) {
     $notes=debrief_record($body);
     $side=isset($body['side'])?$body['side']:'';
     if (!in_array($side,array('','us','ge'),true)) fail_api(400,'Invalid debrief side');
-    $current=(int)($g['series']['attempt']??1);
     $attempt=isset($body['attempt'])?$body['attempt']:null;
     if ($attempt!==null && (!is_int($attempt) || $attempt<1 || $attempt>$current))
         fail_api(400,'Invalid attempt');
@@ -346,7 +350,7 @@ function agent_debrief_record($body,$g) {
     if (!is_array($related) || count($related)>20) fail_api(400,'Invalid related_ids');
     $ids=array();
     foreach ($related as $other) {
-        if ($other===$g['id']) continue;
+        if ($other===$id) continue;
         if (!is_file(game_path($other))) fail_api(404,'Related match not found');
         $ids[]=$other;
     }
@@ -354,11 +358,54 @@ function agent_debrief_record($body,$g) {
         'side'=>$side===''?null:$side,'attempt'=>$attempt,'turn'=>$turn,
         'related_ids'=>array_values(array_unique($ids))),$notes);
 }
-function agent_debrief_rows($g) {
+function decode_agent_debriefs($raw) {
+    $prefix="<?php http_response_code(404); exit; ?>\n";
+    if (!is_string($raw) || $raw==='') return array();
+    if (substr($raw,0,strlen($prefix))!==$prefix) fail_api(500,'Invalid agent debrief storage');
+    $list=json_decode(substr($raw,strlen($prefix)),true);
+    if (!is_array($list)) fail_api(500,'Invalid agent debrief storage');
+    return $list;
+}
+function agent_debrief_rows($id) {
+    $raw=@file_get_contents(agent_debrief_path($id));
     $rows=array();
-    foreach ((array)($g['agent_debriefs']??array()) as $record)
-        if (is_array($record)) $rows[]=array_merge(array('id'=>$g['id'],'verified'=>false),$record);
+    foreach (decode_agent_debriefs($raw) as $record)
+        if (is_array($record)) $rows[]=array_merge(array('id'=>$id,'verified'=>false),$record);
     return $rows;
+}
+function add_agent_debrief($id,$notes) {
+    $f=@fopen(agent_debrief_path($id),'c+');
+    if (!$f) fail_api(503,'Agent debrief storage unavailable');
+    if (!flock($f,LOCK_EX)) { fclose($f); fail_api(503,'Unable to lock agent debriefs'); }
+    rewind($f);
+    $list=decode_agent_debriefs(stream_get_contents($f));
+    foreach ($list as $index=>$prior) {
+        $priorNotes=$prior;
+        unset($priorNotes['submitted_at']);
+        if ($priorNotes===$notes) {
+            flock($f,LOCK_UN);fclose($f);
+            return array('ok'=>true,'duplicate'=>true,'id'=>$id,'index'=>$index,'verified'=>false);
+        }
+    }
+    if (count($list)>=AGENT_DEBRIEF_LIMIT) {
+        flock($f,LOCK_UN);fclose($f);
+        fail_api(429,'Agent debrief limit reached for this match');
+    }
+    $list[]=array_merge($notes,array('submitted_at'=>gmdate('c')));
+    $encoded=json_encode($list,JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);
+    $serialized="<?php http_response_code(404); exit; ?>\n".$encoded;
+    if (!is_string($encoded) || strlen($serialized)>AGENT_DEBRIEF_BYTES) {
+        flock($f,LOCK_UN);fclose($f);
+        fail_api(413,'Agent debrief storage full for this match');
+    }
+    rewind($f);
+    if (fwrite($f,$serialized)!==strlen($serialized) || !ftruncate($f,strlen($serialized))) {
+        flock($f,LOCK_UN);fclose($f);fail_api(500,'Could not save agent debrief');
+    }
+    fflush($f);
+    flock($f,LOCK_UN);fclose($f);
+    @chmod(agent_debrief_path($id),0600);
+    return array('ok'=>true,'accepted'=>true,'id'=>$id,'index'=>count($list)-1,'verified'=>false);
 }
 function archive_for_export($id,$attempt) {
     $raw=@file_get_contents(archive_path($id,$attempt));
@@ -400,7 +447,7 @@ if ($method==='GET') {
             $data=array('ok'=>true,'id'=>$g['id'],
                 'attempt'=>(int)($g['series']['attempt']??1),
                 'side'=>$side,'debriefs'=>debrief_rows($g,$side==='all'?null:$side));
-            if ($side==='all') $data['agent_debriefs']=agent_debrief_rows($g);
+            if ($side==='all') $data['agent_debriefs']=agent_debrief_rows($g['id']);
             return array('body'=>$data);
         }));
     }
@@ -425,7 +472,7 @@ if ($method==='GET') {
             return array('body'=>array('ok'=>true,'id'=>$g['id'],
                 'title'=>$g['title'],'series'=>series_info($g),
                 'exported_at'=>gmdate('c'),'games'=>$games,
-                'agent_debriefs'=>agent_debrief_rows($g),
+                'agent_debriefs'=>agent_debrief_rows($g['id']),
                 'notice'=>'Voluntary commander summaries only; not chat transcripts or private reasoning.'));
         }));
     }
@@ -630,24 +677,12 @@ if ($op==='debrief' && !isset($_SERVER['HTTP_X_IDEATION_KEY'])) {
     // No commander key: an open agent debrief, accepted at any time for any
     // existing match ID, current or with archived attempts, in any phase.
     $id=isset($body['id'])?$body['id']:'';
-    $result=with_game($id,function(&$g)use($body) {
-        $notes=agent_debrief_record($body,$g);
-        $list=(array)($g['agent_debriefs']??array());
-        foreach ($list as $index=>$prior) {
-            $priorNotes=$prior;
-            unset($priorNotes['submitted_at']);
-            if ($priorNotes===$notes)
-                return array('body'=>array('ok'=>true,'duplicate'=>true,
-                    'id'=>$g['id'],'index'=>$index,'verified'=>false));
-        }
-        if (count($list)>=AGENT_DEBRIEF_LIMIT) fail_api(429,'Agent debrief limit reached for this match');
-        $list[]=array_merge($notes,array('submitted_at'=>gmdate('c')));
-        $g['agent_debriefs']=$list;
-        $g['revision']++;
-        $g['updated_at']=gmdate('c');
-        return array('updated'=>true,'body'=>array('ok'=>true,'accepted'=>true,
-            'id'=>$g['id'],'index'=>count($list)-1,'verified'=>false));
+    // Read-only look at the match: it must exist, and attempt labels are
+    // checked against its current attempt. The match record is never written.
+    $current=with_game($id,function(&$g) {
+        return array('body'=>(int)($g['series']['attempt']??1));
     });
+    $result=add_agent_debrief($id,agent_debrief_record($body,$id,$current));
     reply(200,$result);
 }
 if ($op==='debrief') {

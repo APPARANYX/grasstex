@@ -507,6 +507,31 @@ try:
     assert len(call("debrief_export", key=PASSWORD,
         query=f"&id={halted_id}")[1]["games"][0]["debriefs"]) == 1
     assert call("public", query=f"&id={halted_id}")[1]["termination"] is None
+    # A keyless flood fills only the capped sidecar: the match never grows,
+    # its revision never moves, and both commanders can still play.
+    code, flood = call("create", "POST", {"title": "Open debrief flood", "turn_limit": 3}, PASSWORD)
+    assert code == 201
+    flood_id = flood["id"]
+    match_ids.append(flood_id)
+    before = call("public", query=f"&id={flood_id}")[1]["revision"]
+    heavy = "\u0001" * 2900
+    stored = 0
+    for n in range(250):
+        code, body = call("debrief", "POST", {"id": flood_id, "author": f"Flooder {n}",
+            "learned": heavy, "worked": heavy, "failed": heavy,
+            "capability_gaps": heavy, "next_time": heavy})
+        if code != 200:
+            break
+        stored += 1
+    assert code == 413 and 0 < stored < 200, (code, stored)
+    sidecar = STATE / "ideation-v1" / (flood_id + "-agent-debriefs.php")
+    assert sidecar.stat().st_size <= 262144
+    assert call("public", query=f"&id={flood_id}")[1]["revision"] == before
+    assert call("submit", "POST", {"id": flood_id, "turn": 1, "side": "us",
+        "order": {"turn": 1, "side": "us", "intent": "Hold after the flood",
+            "actions": [], "support": "none", "proposals": []}}, flood["keys"]["us"])[0] == 200
+    assert len(call("debrief_export", key=PASSWORD,
+        query=f"&id={flood_id}")[1]["agent_debriefs"]) == stored
     # An early score uses only the last referee-owned state: no fictional
     # final round, no fabricated combat or objective turnover.
     code, scored = call("create", "POST",
@@ -545,4 +570,5 @@ finally:
         (STATE / "ideation-v1" / (path_id + ".php")).unlink(missing_ok=True)
         for archived in (STATE / "ideation-v1").glob(path_id + "-attempt-*.php"):
             archived.unlink(missing_ok=True)
+        (STATE / "ideation-v1" / (path_id + "-agent-debriefs.php")).unlink(missing_ok=True)
     ADMIN.unlink(missing_ok=True)
