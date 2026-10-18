@@ -275,6 +275,16 @@ if ($method==='GET') {
                     $turn['world_snapshot']=$replay['snapshots'][$index];
             unset($turn);
             $data['replay_source']='reconstructed_verified_v1';
+        } else if (isset($replay['snapshots']) && is_array($replay['snapshots'])) {
+            // Only the password-protected observer receives an illustrative
+            // trace. Do not present re-simulated positions as historic facts.
+            foreach ($data['history'] as $index=>&$turn) {
+                if (!isset($turn['world_snapshot']) && isset($replay['snapshots'][$index]))
+                    $turn['world_snapshot']=$replay['snapshots'][$index];
+            }
+            unset($turn);
+            $data['replay_source']='illustrative_unverified_v1';
+            $data['replay_note']='UNVERIFIED movement reconstruction: the original V1 game did not save exact turn-by-turn unit positions. This trace is a what-if replay of sealed orders and diverges from the recorded outcome; original objective ownership and final result remain authoritative.';
         } else {
             $data['replay_source']=isset($g['history'][0]['world_snapshot'])?
                 'stored_snapshots':'latest_only';
