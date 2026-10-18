@@ -50,7 +50,7 @@ footer{padding:16px 24px 35px;text-align:center;color:var(--muted);font-size:12p
 .tacticalPanel.expanded #mapBoard svg{max-height:calc(100dvh - 140px)}
 @media(max-width:700px){.tacticalLayout,.tacticalPanel.expanded .tacticalLayout{grid-template-columns:1fr}.tacticalSidebar{border-left:0;border-top:1px solid #536b60}.tacticalPanel.expanded #mapBoard svg{max-height:70dvh}.tacticalHeader h2{font-size:15px}}
 </style></head><body>
-<header><small>GRASSTEX / RESEARCH TOOLS · WARGAME v1.2.0</small><h1>Commander Ideation Exchange</h1>
+<header><small>GRASSTEX / RESEARCH TOOLS · WARGAME v1.3.0</small><h1>Commander Ideation Exchange</h1>
 <p class="intro">Two commanders. One sealed turn each. One deterministic referee. Site-hosted strategy wargames for discovering missing game-command capabilities—without running the soldier simulator or using paid AI APIs.</p></header>
 <main>
 <div class="panel">
@@ -67,7 +67,7 @@ footer{padding:16px 24px 35px;text-align:center;color:var(--muted);font-size:12p
   <div id="liveStatus" class="quiet" role="status" aria-live="polite">Load a match to begin live updates.</div>
   <button id="copyPacket">Copy briefing for your AI chat</button>
   <p id="message" role="status" aria-live="polite"></p>
-  <p id="buildDiagnostic" class="quiet">Browser v1.2.0 · API not yet checked</p>
+  <p id="buildDiagnostic" class="quiet">Browser v1.3.0 · API not yet checked</p>
   <div class="quiet">Public spectator needs no key; Protected observer requires your administrator password. The match and map check for updates every 2 seconds while this tab is visible; the page itself does not reload. Chat sessions do not automatically wake up to take turns.</div>
 </div>
 
@@ -134,8 +134,23 @@ footer{padding:16px 24px 35px;text-align:center;color:var(--muted);font-size:12p
     <button id="seriesNextButton" type="button">Open next game</button>
   </div>
 </div>
+<div class="panel hidden" id="endMatchPanel">
+  <h2>Referee · Finish match early</h2>
+  <p class="quiet">Administrator only. This permanently ends the current attempt without simulating another round. Resolved turns, tactical snapshots, capability proposals, existing debriefs, and any currently sealed orders are preserved. Both commanders will be asked for a final match debrief.</p>
+  <div class="grid">
+    <div><label for="endMatchKind">How should this game end?</label>
+      <select id="endMatchKind">
+        <option value="cancelled">Cancel match — no winner or series point</option>
+        <option id="endMatchScore" value="early_scored">End early — score the last resolved objective state</option>
+      </select></div>
+    <div><label for="endMatchReason">Reason (optional, visible to match viewers)</label>
+      <input id="endMatchReason" maxlength="400" placeholder="e.g. Session ended, commander unavailable"></div>
+  </div>
+  <button type="button" id="endMatchButton">Finish this match early…</button>
+</div>
 <div class="panel hidden" id="dashboard">
   <h2 id="matchTitle">Match</h2>
+  <p id="refereeDebriefNotice" class="notice hidden" role="status" aria-live="polite"></p>
   <div id="meta" class="quiet"></div>
   <p id="effectiveRules" class="notice" role="status" aria-live="polite"></p>
   <div class="grid">
@@ -145,14 +160,15 @@ footer{padding:16px 24px 35px;text-align:center;color:var(--muted);font-size:12p
   <details><summary>Full rules and starting scenario (site-hosted)</summary><h3>Rules</h3><pre id="rules"></pre><h3>Scenario</h3><pre id="scenario"></pre></details>
   <h3>Current orders</h3><div id="orderStatus" class="quiet"></div><pre id="currentOrders"></pre>
   <details><summary>Completed round history</summary><pre id="history"></pre></details>
+  <details id="pendingSealedPanel" class="hidden"><summary>Administrator: sealed orders from unfinished final round (not adjudicated)</summary><pre id="pendingSealedOrders"></pre></details>
 </div>
 
 <div class="panel hidden" id="debriefPanel">
   <h2>AI commander debrief · What did you learn?</h2>
-  <p class="quiet">Capture each chat session's voluntary tactical observations after a resolved round. This site cannot read AI chat transcripts automatically. Copy the reflection prompt into the commander's chat, paste its JSON response below, and submit using that commander's existing key. Notes are private to that commander and the administrator.</p>
+  <p class="quiet">At match completion the referee requests a final debrief (round 0), including for canceled games with no resolved rounds. You can also document individual resolved rounds. This site cannot read AI chat transcripts automatically. Copy the reflection prompt into the commander's chat, paste its JSON response below, and submit using that commander's existing key. Notes are private to that commander and the administrator.</p>
   <div id="debriefCommander">
     <div class="grid">
-      <div><label for="debriefTurn">Resolved round to reflect on</label><input id="debriefTurn" type="number" min="1" value="1"></div>
+      <div><label for="debriefTurn">Debrief: round 0 = full match; 1+ = resolved round</label><input id="debriefTurn" type="number" min="0" value="1"></div>
       <div><label>Reflection prompt</label><button type="button" id="copyDebriefPrompt">Copy “What did you learn?” prompt</button></div>
     </div>
     <label for="debriefInput">Paste the AI chat's JSON debrief</label>
@@ -193,4 +209,4 @@ footer{padding:16px 24px 35px;text-align:center;color:var(--muted);font-size:12p
 </details>
 </main><footer>GRASSTEX Commander Ideation Lab · Qualitative design exercise, not a runtime battle benchmark</footer>
 <script src="./map.js?v=204f618f944c"></script>
-<script src="./app.js?v=785de03e5199"></script></body></html>
+<script src="./app.js?v=7173e2c8ef4d"></script></body></html>
