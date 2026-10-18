@@ -6,7 +6,7 @@
  */
 require_once __DIR__.'/engine.php';
 // Increment for client/server contract releases, independently of match rules.
-const IDEATION_API_VERSION = '0.6.0';
+const IDEATION_API_VERSION = '0.7.0';
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store, max-age=0');
 header('X-Ideation-API-Version: '.IDEATION_API_VERSION);
@@ -215,10 +215,30 @@ function write_new_game($g) {
     @chmod($path,0600);
 }
 
+function match_rules_revision($g) {
+    return isset($g['rules_revision']) ? (int)$g['rules_revision'] : 1;
+}
+function effective_rules($g) {
+    $rev=match_rules_revision($g);
+    $attrition=$rev>=2;
+    return array(
+        'revision'=>$rev,
+        'name'=>$rev===1?'V1 legacy capture':('V'.$rev.' deterministic referee'),
+        'contested_attrition'=>$attrition,
+        'neutral_contested_siege'=>$rev>=5,
+        'owned_contested_siege'=>$attrition,
+        'field_effects'=>$rev>=4,
+        'notice'=>$rev===1
+            ? 'LEGACY V1 MATCH: No contested-objective attrition or sustained siege. The stored rules text may describe later mechanics, but those do NOT apply to this match. A contested neutral objective requires more than 1.5x opposing strength to capture.'
+            : ($rev<5
+                ? 'PINNED V'.$rev.' MATCH: Contested attrition applies from V2 onward, but neutral contested objectives do not use the V5 two-turn superiority rule. Rules are not upgraded during a match or rematch.'
+                : 'V5 MATCH: Contested attrition and two-turn superiority resolve both neutral and owned contested objectives. Rules remain pinned throughout the series.'));
+}
 function public_game($g,$side=null,$admin=false) {
     $count=array('us'=>$g['current']['us']!==null,'ge'=>$g['current']['ge']!==null);
     return array('ok'=>true,'api_version'=>IDEATION_API_VERSION,
         'id'=>$g['id'],'title'=>$g['title'],'rules'=>$g['rules'],
+        'rules_revision'=>match_rules_revision($g),'effective_rules'=>effective_rules($g),
         'scenario'=>$g['scenario'],'mode'=>$g['mode'],'turn_limit'=>$g['turn_limit'],
         'turn'=>$g['turn'],'phase'=>$g['phase'],'winner'=>$g['winner'],
         'public_brief'=>$g['public_brief'],'submitted'=>$count,
@@ -322,7 +342,7 @@ if ($op==='create') {
       'private_briefs'=>array('us'=>request_value($body,'us_brief',10000,false),
                               'ge'=>request_value($body,'ge_brief',10000,false)),
       'current'=>array('us'=>null,'ge'=>null),'history'=>array(),'revision'=>0,
-      'rules_revision'=>4,
+      'rules_revision'=>5,
       'initial_public_brief'=>isset($body['public_brief'])?request_value($body,'public_brief',10000):$tpl['public_brief'],
       'series'=>array('id'=>null,'game_number'=>1,'attempt'=>1,
         'base_title'=>request_value($body,'title',180),
@@ -365,7 +385,7 @@ if ($op==='rematch') {
             'us_player'=>$s['ge_player'],'ge_player'=>$s['us_player'],
             'prior_results'=>$info['results']);
         // Deterministically reset the same scenario, not the completed battle.
-        // Upgrading a legacy V1 match to new V2 rules happens only on rematch.
+        // A rematch preserves the original rules revision; create a NEW match for V5.
         $new=array('id'=>bin2hex(random_bytes(12)),'v'=>1,
             'title'=>$s['base_title'].' — Game '.$newNumber.'/3',
             'config'=>$g['config'],'world'=>ie_world($g['config']),
