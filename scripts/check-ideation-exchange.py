@@ -172,6 +172,17 @@ try:
     assert code == 200 and older_admin["replay_source"] == "reconstructed_verified_v1", older_admin.get("replay_note")
     assert len(older_admin["history"]) == 3
     assert all("world_snapshot" in row for row in older_admin["history"])
+    # Force a divergent archived end-state. The administrator can watch an
+    # explicitly unverified re-simulation, but public history stays redacted.
+    archived["world"]["units"]["US-1"]["x"] += 17
+    archive_path.write_text(guard + "\n" + json.dumps(archived))
+    code, illustrative = call("observer", key=PASSWORD, query=f"&id={match_id}")
+    assert code == 200 and illustrative["replay_source"] == "illustrative_unverified_v1", illustrative
+    assert "UNVERIFIED" in illustrative["replay_note"]
+    assert len(illustrative["history"]) == 3
+    assert all("world_snapshot" in row for row in illustrative["history"])
+    code, redacted = call("public", query=f"&id={match_id}")
+    assert code == 200 and "world_snapshot" not in json.dumps(redacted["history"])
     # A bot key cannot spawn a series; admin alone may.
     bad_code, _ = call("rematch", "POST", {"id": match_id}, ge_key)
     assert bad_code == 401
