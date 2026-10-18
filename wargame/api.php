@@ -6,7 +6,7 @@
  */
 require_once __DIR__.'/engine.php';
 // Increment for client/server contract releases, independently of match rules.
-const IDEATION_API_VERSION = '0.9.0';
+const IDEATION_API_VERSION = '1.0.0';
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store, max-age=0');
 header('X-Ideation-API-Version: '.IDEATION_API_VERSION);
@@ -152,6 +152,45 @@ function decode_game($raw) {
     if (!is_array($g) || !isset($g['id']) || !isset($g['turn'])) fail_api(500,'Invalid private match state');
     return $g;
 }
+// Immutable completed attempts share the stable series ID but live in guarded
+// sidecar files. Only the active attempt is writable; historical GET views use
+// their original side-key mapping and the same observer authorization.
+function archive_path($id,$attempt) {
+    game_path($id); // validates ID and initializes private protected directory
+    if (!is_int($attempt) || $attempt<1 || $attempt>9999)
+        fail_api(400,'Invalid archived attempt');
+    return storage_dir().'/'.$id.'-attempt-'.$attempt.'.php';
+}
+function archive_completed_attempt($g) {
+    $attempt=(int)($g['series']['attempt']??1);
+    $path=archive_path($g['id'],$attempt);
+    $f=@fopen($path,'x');
+    if (!$f) fail_api(500,'Could not archive completed attempt');
+    $encoded=encode_game($g);
+    $written=fwrite($f,$encoded);
+    fclose($f);
+    if ($written!==strlen($encoded)) {
+        @unlink($path);
+        fail_api(500,'Could not save completed attempt');
+    }
+    @chmod($path,0600);
+}
+function with_view_game($id,$mutator) {
+    if (!isset($_GET['attempt']) || $_GET['attempt']==='') return with_game($id,$mutator);
+    $raw=$_GET['attempt'];
+    if (!is_string($raw) || !preg_match('/^[1-9][0-9]{0,3}$/D',$raw))
+        fail_api(400,'Invalid archived attempt');
+    $path=archive_path($id,(int)$raw);
+    $contents=@file_get_contents($path);
+    if (!is_string($contents)) fail_api(404,'Archived attempt not found');
+    $g=decode_game($contents);
+    if ($g['id']!==$id || (int)($g['series']['attempt']??1)!==(int)$raw)
+        fail_api(500,'Archived attempt mismatch');
+    $g['archive_view']=true;
+    $result=$mutator($g);
+    if (!empty($result['updated'])) fail_api(405,'Archived attempts are read-only');
+    return $result['body'];
+}
 function with_game($id,$mutator) {
     $f=@fopen(game_path($id),'r+');
     if (!$f) fail_api(404,'Match not found');
@@ -173,7 +212,7 @@ function with_game($id,$mutator) {
 
 /* A best-of-three series counts decisive results only. Draws replay the same
    numbered leg, and faction assignments alternate after every match attempt.
-   Admin-only rematches never mutate a completed game's winner or world state. */
+   Admin-only rematches archive completed attempts before resetting active play. */
 function series_info($g) {
     $s=isset($g['series']) && is_array($g['series'])?$g['series']:array(
         'id'=>$g['id'], 'attempt'=>1, 'game_number'=>1,
@@ -198,7 +237,9 @@ function series_info($g) {
         'assignments'=>array('us'=>$s['us_player'],'ge'=>$s['ge_player']),
         'score'=>$scores,'results'=>$results,'champion'=>$champion,
         'next_match_id'=>isset($g['next_match_id'])?$g['next_match_id']:null,
-        'can_rematch'=>$g['phase']==='complete' && $champion===null &&
+        'archive_attempts'=>isset($g['archived_attempts'])?$g['archived_attempts']:array(),
+        'stable_identity'=>!empty($g['stable_identity']),
+        'can_rematch'=>empty($g['archive_view']) && $g['phase']==='complete' && $champion===null &&
             empty($g['next_match_id']));
 }
 function write_new_game($g) {
@@ -249,6 +290,7 @@ function public_game($g,$side=null,$admin=false) {
         'current_orders'=>null,'public_world'=>ie_public_world($g['world']),
         'objective_candidates'=>isset($g['config']['objective_candidates'])?$g['config']['objective_candidates']:array(),
         'history'=>history_for($g,$side,$admin),'series'=>series_info($g),
+        'archive_view'=>!empty($g['archive_view']),
         'revision'=>$g['revision'],
         'updated_at'=>$g['updated_at']);
 }
@@ -276,12 +318,12 @@ if ($method==='GET') {
         reply(200,array('ok'=>true,'template'=>$tpl));
     }
     $id=isset($_GET['id'])?$_GET['id']:'';
-    if ($op==='public') reply(200,with_game($id,function(&$g){
+    if ($op==='public') reply(200,with_view_game($id,function(&$g){
         return array('body'=>public_game($g));
     }));
     if ($op==='brief') {
         $role=isset($_GET['side'])?$_GET['side']:'';
-        reply(200,with_game($id,function(&$g)use($role){
+        reply(200,with_view_game($id,function(&$g)use($role){
             if ($role==='admin') fail_api(426,'Outdated spectator script. Reload the latest wargame page and use Protected observer; administrator credentials belong in X-Ideation-Key.');
             if (!in_array($role,array('us','ge'),true)) fail_api(400,'Invalid side');
             check_role($g,$role);
@@ -293,7 +335,7 @@ if ($method==='GET') {
             return array('body'=>$public);
         }));
     }
-    if ($op==='observer') reply(200,with_game($id,function(&$g){
+    if ($op==='observer') reply(200,with_view_game($id,function(&$g){
         check_admin();
         $data=public_game($g,null,true);
         $data['observer_world']=$g['world'];
@@ -378,7 +420,6 @@ if ($op==='rematch') {
             $s['player_a']=isset($body['player_a'])?request_value($body,'player_a',60):$s['player_a'];
             $s['player_b']=isset($body['player_b'])?request_value($body,'player_b',60):$s['player_b'];
         }
-        $tokens=array('us'=>bin2hex(random_bytes(24)),'ge'=>bin2hex(random_bytes(24)));
         $tpl=json_decode(@file_get_contents(__DIR__.'/scenario.json'),true);
         if (!is_array($tpl)) fail_api(500,'No site rules template available');
         $decisive=0;
@@ -391,33 +432,36 @@ if ($op==='rematch') {
             'player_a'=>$s['player_a'],'player_b'=>$s['player_b'],
             'us_player'=>$s['ge_player'],'ge_player'=>$s['us_player'],
             'prior_results'=>$info['results']);
-        // Deterministically reset the same scenario, not the completed battle.
-        // A rematch preserves the original rules revision; create a NEW match for V5.
-        $new=array('id'=>bin2hex(random_bytes(12)),'v'=>1,
-            'title'=>$s['base_title'].' — Game '.$newNumber.'/3',
-            'config'=>$g['config'],'world'=>ie_world($g['config']),
-            'rules'=>$tpl['rules'],'scenario'=>$g['scenario'],
-            'mode'=>$g['mode'],'turn_limit'=>$g['turn_limit'],
-            'turn'=>1,'phase'=>'orders','winner'=>null,
-            'public_brief'=>isset($g['initial_public_brief'])?
-                $g['initial_public_brief']:$tpl['public_brief'],
-            'initial_public_brief'=>isset($g['initial_public_brief'])?
-                $g['initial_public_brief']:$tpl['public_brief'],
-            'private_briefs'=>isset($g['private_briefs'])?$g['private_briefs']:
-                array('us'=>'','ge'=>''),
-            'current'=>array('us'=>null,'ge'=>null),'history'=>array(),
-            'revision'=>0,'rules_revision'=>isset($g['rules_revision'])?$g['rules_revision']:1,'series'=>$newSeries,
-            'key_hashes'=>array('us'=>hash('sha256',$tokens['us']),
-                'ge'=>hash('sha256',$tokens['ge'])),
-            'updated_at'=>gmdate('c'));
-        $g['series']=$s;
-        $g['next_match_id']=$new['id'];
+        // Archive the entire completed attempt BEFORE resetting the live state.
+        // Old faction keys remain valid for viewing its archived private briefing.
+        archive_completed_attempt($g);
+        $oldHashes=$g['key_hashes'];
+        $archives=isset($g['archived_attempts'])?$g['archived_attempts']:array();
+        $archives[]=array('attempt'=>(int)$s['attempt'],
+            'game_number'=>(int)$s['game_number']);
+        $g['title']=$s['base_title'].' — Game '.$newNumber.'/3';
+        $g['world']=ie_world($g['config']);
+        // Preserve pinned referee revision, geometry and original scenario prose.
+        $g['rules']=isset($g['initial_rules'])?$g['initial_rules']:$g['rules'];
+        $g['turn']=1;
+        $g['phase']='orders';
+        $g['winner']=null;
+        $g['public_brief']=isset($g['initial_public_brief'])?
+            $g['initial_public_brief']:$tpl['public_brief'];
+        $g['current']=array('us'=>null,'ge'=>null);
+        $g['history']=array();
+        $g['series']=$newSeries;
+        $g['archived_attempts']=$archives;
+        $g['stable_identity']=true;
+        // Each credential belongs to its COMMANDER, not the US/GE faction.
+        // Swap role mappings so the same secrets work on the opposite sides.
+        $g['key_hashes']=array('us'=>$oldHashes['ge'],'ge'=>$oldHashes['us']);
         $g['revision']++;
         $g['updated_at']=gmdate('c');
-        write_new_game($new);
-        return array('updated'=>true,'body'=>array('ok'=>true,'id'=>$new['id'],
-            'game_number'=>$newNumber,'series'=>series_info($new),
-            'keys'=>$tokens,'notice'=>'Save new role keys now; they cannot be recovered.'));
+        return array('updated'=>true,'body'=>array('ok'=>true,'id'=>$g['id'],
+            'game_number'=>$newNumber,'series'=>series_info($g),
+            'keys_reused'=>true,
+            'notice'=>'Same match ID and commander keys. Commanders swap sides; use the existing key under the opposite faction. Previous attempts remain available in read-only archives.'));
     });
     reply(201,$result);
 }
