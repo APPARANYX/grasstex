@@ -67,7 +67,7 @@ try:
         time.sleep(0.1)
     assert code == 200 and template["ok"] and template["template"]["config"], template
     code, version = call("version")
-    assert code == 200 and version["api_version"] == "0.3.1", version
+    assert code == 200 and version["api_version"] == "0.4.0", version
     code, new = call("create", "POST", {"title": "Automated contract smoke", "turn_limit": 3}, PASSWORD)
     assert code == 201 and new["ok"], new
     match_id = new["id"]
@@ -76,7 +76,7 @@ try:
     us_key, ge_key = new["keys"]["us"], new["keys"]["ge"]
     code, public = call("public", query=f"&id={match_id}")
     assert code == 200 and public["phase"] == "orders" and public["turn"] == 1
-    assert public["api_version"] == "0.3.1"
+    assert public["api_version"] == "0.4.0"
     assert public["current_orders"] is None and "key_hashes" not in public
     assert "units" not in public and "intel" not in public
     code, wrong = call("brief", key=ge_key, query=f"&id={match_id}&side=us")
@@ -172,6 +172,17 @@ try:
     assert code == 200 and older_admin["replay_source"] == "reconstructed_verified_v1", older_admin.get("replay_note")
     assert len(older_admin["history"]) == 3
     assert all("world_snapshot" in row for row in older_admin["history"])
+    # Force a divergent archived end-state. The administrator can watch an
+    # explicitly unverified re-simulation, but public history stays redacted.
+    archived["world"]["units"]["US-1"]["x"] += 17
+    archive_path.write_text(guard + "\n" + json.dumps(archived))
+    code, illustrative = call("observer", key=PASSWORD, query=f"&id={match_id}")
+    assert code == 200 and illustrative["replay_source"] == "illustrative_unverified_v1", illustrative
+    assert "UNVERIFIED" in illustrative["replay_note"]
+    assert len(illustrative["history"]) == 3
+    assert all("world_snapshot" in row for row in illustrative["history"])
+    code, redacted = call("public", query=f"&id={match_id}")
+    assert code == 200 and "world_snapshot" not in json.dumps(redacted["history"])
     # A bot key cannot spawn a series; admin alone may.
     bad_code, _ = call("rematch", "POST", {"id": match_id}, ge_key)
     assert bad_code == 401

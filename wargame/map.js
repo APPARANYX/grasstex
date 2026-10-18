@@ -130,8 +130,9 @@
       {
         x: (from ? from[0] : x) + 12,
         y: (from ? from[1] : y) + 5,
-        fill: '#eaf1f9',
+        fill: '#142c2a',
         'font-size': 12,
+        'font-weight': 700,
         'font-family': 'system-ui'
       },
       text
@@ -154,6 +155,136 @@
     const ownWorld = (role === 'us' || role === 'ge') && chosen === 0 ? data.own_state : null;
     return { chosen, round, prior, publicWorld, completeWorld, ownWorld };
   }
+
+  // Cartographic language shared with the GRASSTEX tactical map: field parcels,
+  // hedgerows, tactical grid and NATO-inspired formation symbols. This is a
+  // deterministic illustration, NOT a terrain import from the 2 x 1.2 km sim.
+  function cartography(svg) {
+    svg.appendChild(make('rect', { x: 40, y: 40, width: 620, height: 620, fill: '#a1a58a' }));
+    const parcels = ['#a1a589', '#afb094', '#999e81', '#b5b69a', '#8e9c83'];
+    for (let row = 0; row < 7; row++) {
+      for (let col = 0; col < 7; col++) {
+        const x = 40 + col * 88.6;
+        const y = 40 + row * 88.6;
+        const n = (row * 13 + col * 19 + row * col * 3) % 5;
+        svg.appendChild(
+          make('rect', {
+            x,
+            y,
+            width: 89,
+            height: 89,
+            fill: parcels[n],
+            opacity: 0.62
+          })
+        );
+        if ((row + col) % 3 === 0) {
+          svg.appendChild(
+            make('path', {
+              d: 'M' + (x + 12) + ' ' + (y + 10) + 'l63 -7 M' + (x + 8) + ' ' + (y + 72) + 'l69 6',
+              stroke: '#7f8f76',
+              'stroke-width': 1,
+              opacity: 0.33,
+              fill: 'none'
+            })
+          );
+        }
+      }
+    }
+    // Field boundaries are schematic, consistent for every observer and turn.
+    for (let i = 1; i < 7; i++) {
+      const p = 40 + (i * 620) / 7;
+      segment(svg, [p, 40], [p, 660], '#667d67', 1.5, '18 5 27 6');
+      segment(svg, [40, p], [660, p], '#667d67', 1.5, '26 6 15 7');
+    }
+    // Reproducible tree clusters; decorative only, never tactical cover.
+    for (let i = 0; i < 112; i++) {
+      const x = 48 + ((i * 173 + i * i * 17) % 602);
+      const y = 48 + ((i * 229 + i * i * 11) % 602);
+      const radius = 1.8 + (i % 3) * 0.45;
+      svg.appendChild(
+        make('circle', {
+          cx: x,
+          cy: y,
+          r: radius,
+          fill: '#3c6551',
+          opacity: 0.64
+        })
+      );
+    }
+    // Scenario-defined conceptual junction roads, not physical sim geometry.
+    for (const [a, b, thickness] of [
+      [[500, 2500], [4500, 2500], 8],
+      [[2500, 1250], [2500, 3750], 7]
+    ]) {
+      segment(svg, xy(...a), xy(...b), '#d9d5b7', thickness);
+      segment(svg, xy(...a), xy(...b), '#8b8c78', 1.3, '14 9');
+    }
+    // Tactical reference grid A-G / 1-7.
+    for (let i = 0; i <= 7; i++) {
+      const p = 40 + (620 * i) / 7;
+      segment(svg, [p, 40], [p, 660], '#3f5548', 0.75);
+      segment(svg, [40, p], [660, p], '#3f5548', 0.75);
+      if (i < 7) {
+        svg.appendChild(
+          make(
+            'text',
+            {
+              x: p + 44.3,
+              y: 29,
+              'text-anchor': 'middle',
+              fill: '#eee3bd',
+              'font-size': 12,
+              'font-weight': 700
+            },
+            'ABCDEFG'[i]
+          )
+        );
+        svg.appendChild(
+          make(
+            'text',
+            {
+              x: 29,
+              y: p + 48,
+              'text-anchor': 'middle',
+              fill: '#eee3bd',
+              'font-size': 12,
+              'font-weight': 700
+            },
+            String(i + 1)
+          )
+        );
+      }
+    }
+    svg.appendChild(
+      make(
+        'text',
+        {
+          x: 55,
+          y: 68,
+          fill: '#172e2d',
+          'font-size': 19,
+          'font-weight': 700
+        },
+        'N ↑'
+      )
+    );
+    segment(svg, [54, 638], [116, 638], '#172e2d', 3);
+    segment(svg, [54, 634], [54, 642], '#172e2d', 2);
+    segment(svg, [116, 634], [116, 642], '#172e2d', 2);
+    svg.appendChild(
+      make(
+        'text',
+        {
+          x: 55,
+          y: 630,
+          fill: '#172e2d',
+          'font-size': 10
+        },
+        '0                 500 m'
+      )
+    );
+  }
+
   function render(animate = false, sourceWorld = null) {
     if (!data) return;
     stopAnimation();
@@ -166,25 +297,18 @@
         ? 'Older match positions verified by deterministic replay'
         : data.replay_note || '';
     const publicNote = publicWorld?.note ? ' · ' + publicWorld.note : '';
-    el('replaySource').textContent = replayStatus + publicNote;
+    const legacyLimit =
+      chosen > 0 && role === 'admin' && !completeWorld
+        ? ' · This original game has no verified historical unit coordinates. The map shows objective control only for past rounds.'
+        : '';
+    el('replaySource').textContent = replayStatus + publicNote + legacyLimit;
     const svg = make('svg', {
       viewBox: '0 0 700 700',
       role: 'img',
-      'aria-label': 'Abstract GRASSTEX commander map; 5km by 5km',
-      style: 'width:100%;max-width:680px;display:block;margin:auto;aspect-ratio:1/1'
+      'aria-label': 'GRASSTEX-style tactical intelligence map of the abstract 5km by 5km wargame',
+      style: 'width:100%;display:block;margin:auto;aspect-ratio:1/1'
     });
-    svg.appendChild(
-      make('rect', {
-        x: 40,
-        y: 40,
-        width: 620,
-        height: 620,
-        rx: 8,
-        fill: '#122638',
-        stroke: '#627389',
-        'stroke-width': 2
-      })
-    );
+    cartography(svg);
     for (let n = 0; n <= 5000; n += 1000) {
       const [x] = xy(n, 0);
       const [, y] = xy(0, n);
@@ -241,10 +365,7 @@
         'GE rear'
       )
     );
-    segment(svg, xy(500, 2500), xy(4500, 2500), '#a5997b', 10);
-    segment(svg, xy(500, 2500), xy(4500, 2500), '#ded6b5', 3, '15 9');
-    segment(svg, xy(2500, 1250), xy(2500, 3750), '#a5997b', 8);
-    segment(svg, xy(2500, 1250), xy(2500, 3750), '#ded6b5', 2, '13 8');
+
     const objectiveList = publicWorld?.objectives || [];
     const objectives = Array.isArray(objectiveList) ? objectiveList : Object.values(objectiveList);
     for (const o of objectives) {
@@ -270,7 +391,7 @@
           {
             x,
             y: y - 23,
-            fill: '#eff4fa',
+            fill: '#142722',
             'font-size': 13,
             'text-anchor': 'middle',
             'font-weight': 600
@@ -366,8 +487,8 @@
       us +
       ' pts  ·  GE ' +
       ge +
-      ' pts  ·  Amber ring: contested  ·  Squares: objectives' +
-      (role === 'public' ? '  ·  Enemy positions concealed' : '');
+      ' pts  ·  Yellow ring: contested  ·  Diamonds: objectives' +
+      (role === 'public' ? '  ·  Unit positions concealed' : '');
     el('replayEvents').textContent = round
       ? JSON.stringify(round.resolution, null, 2)
       : 'Showing current objective status. Drag the timeline to inspect resolved rounds.';
@@ -478,6 +599,18 @@
     }
     if (playing && !timer) timer = setInterval(tickReplay, 1700);
     setButtons();
+  });
+  el('mapExpand').addEventListener('click', () => {
+    const expanded = panel.classList.toggle('expanded');
+    el('mapExpand').textContent = expanded ? 'Close expanded map' : 'Expand map';
+    el('mapExpand').setAttribute('aria-pressed', String(expanded));
+  });
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && panel.classList.contains('expanded')) {
+      panel.classList.remove('expanded');
+      el('mapExpand').textContent = 'Expand map';
+      el('mapExpand').setAttribute('aria-pressed', 'false');
+    }
   });
   el('mapSound').addEventListener('click', async () => {
     soundEnabled = !soundEnabled;
