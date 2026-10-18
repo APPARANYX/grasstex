@@ -6,7 +6,7 @@
  */
 require_once __DIR__.'/engine.php';
 // Increment for client/server contract releases, independently of match rules.
-const IDEATION_API_VERSION = '0.4.0';
+const IDEATION_API_VERSION = '0.5.0';
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store, max-age=0');
 header('X-Ideation-API-Version: '.IDEATION_API_VERSION);
@@ -102,6 +102,10 @@ function history_for($g,$side=null,$admin=false) {
         // just because a round resolved: planned travel may span several more turns.
         if ($side!==null && $side!=='all' && isset($round['orders'][$side]))
             $item['own_order']=$round['orders'][$side];
+        if ($side!==null && isset($round['field_contact_snapshots'][$side])) {
+            // Only contacts legitimately discovered by THIS faction at THIS turn.
+            $item['field_contacts']=array_values($round['field_contact_snapshots'][$side]);
+        }
         if ($admin) {
             $item['orders']=isset($round['orders'])?$round['orders']:array();
             if (isset($round['world_snapshot'])) $item['world_snapshot']=$round['world_snapshot'];

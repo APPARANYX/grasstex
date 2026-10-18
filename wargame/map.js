@@ -427,6 +427,73 @@
         );
       }
     }
+    // Field objects are only exact for protected observers. Commanders
+    // receive their own activity or bounded, rounded, potentially stale contacts.
+    const exactObjects = role === 'admin' ? completeWorld?.field_objects || {} : {};
+    const contacts =
+      role === 'us' || role === 'ge'
+        ? chosen > 0
+          ? round?.field_contacts || []
+          : ownWorld?.field_contacts || []
+        : [];
+    const markers = role === 'admin' ? Object.values(exactObjects) : contacts;
+    const contactLines = [];
+    for (const contact of markers) {
+      if (!Number.isFinite(Number(contact.x)) || !Number.isFinite(Number(contact.z))) continue;
+      const [cx, cy] = xy(Number(contact.x), Number(contact.z));
+      const isExact = role === 'admin';
+      const label = contact.id + ' · ' + contact.kind;
+      const detail = isExact
+        ? contact.squad +
+          ': ' +
+          contact.description +
+          ' (turn ' +
+          contact.created_turn +
+          '; no gameplay effect)'
+        : contact.description + ' · ' + contact.confidence + ' · last seen turn ' + contact.last_seen_turn;
+      const shape = make('path', {
+        d:
+          'M' +
+          cx +
+          ' ' +
+          (cy - 10) +
+          'L' +
+          (cx + 10) +
+          ' ' +
+          cy +
+          'L' +
+          cx +
+          ' ' +
+          (cy + 10) +
+          'L' +
+          (cx - 10) +
+          ' ' +
+          cy +
+          'Z',
+        fill: isExact ? '#f2d283' : '#f9d58c',
+        stroke: '#24392d',
+        'stroke-width': 2,
+        tabindex: 0,
+        role: 'button',
+        'aria-label': label + ': ' + detail
+      });
+      shape.appendChild(make('title', {}, label + ': ' + detail));
+      const show = () => {
+        el('fieldDetails').textContent = label + ' — ' + detail;
+      };
+      shape.addEventListener('click', show);
+      shape.addEventListener('keydown', event => {
+        if (event.key === 'Enter' || event.key === ' ') show();
+      });
+      svg.appendChild(shape);
+      contactLines.push(label + ' — ' + detail);
+    }
+    el('fieldContacts').textContent = contactLines.length
+      ? contactLines.join('\n')
+      : role === 'public'
+        ? 'Field activities are hidden from public spectators.'
+        : 'No field contacts reported for this turn.';
+    el('fieldDetails').textContent = 'Tap a field marker to inspect its report.';
     const units = completeWorld?.units || ownWorld?.squads || null;
     const trucks = completeWorld?.trucks || ownWorld?.trucks || null;
     const priorUnits = sourceWorld?.units || sourceWorld?.squads || null;

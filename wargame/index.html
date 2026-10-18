@@ -45,7 +45,7 @@ footer{padding:16px 24px 35px;text-align:center;color:var(--muted);font-size:12p
 .tacticalPanel.expanded #mapBoard svg{max-height:calc(100dvh - 140px)}
 @media(max-width:700px){.tacticalLayout,.tacticalPanel.expanded .tacticalLayout{grid-template-columns:1fr}.tacticalSidebar{border-left:0;border-top:1px solid #536b60}.tacticalPanel.expanded #mapBoard svg{max-height:70dvh}.tacticalHeader h2{font-size:15px}}
 </style></head><body>
-<header><small>GRASSTEX / RESEARCH TOOLS · WARGAME v0.4.0</small><h1>Commander Ideation Exchange</h1>
+<header><small>GRASSTEX / RESEARCH TOOLS · WARGAME v0.5.0</small><h1>Commander Ideation Exchange</h1>
 <p class="intro">Two commanders. One sealed turn each. One deterministic referee. Site-hosted strategy wargames for discovering missing game-command capabilities—without running the soldier simulator or using paid AI APIs.</p></header>
 <main>
 <div class="panel">
@@ -58,7 +58,7 @@ footer{padding:16px 24px 35px;text-align:center;color:var(--muted);font-size:12p
   <button class="primary" id="load">Load / refresh match</button>
   <button id="copyPacket">Copy briefing for your AI chat</button>
   <p id="message" role="status" aria-live="polite"></p>
-  <p id="buildDiagnostic" class="quiet">Browser v0.4.0 · API not yet checked</p>
+  <p id="buildDiagnostic" class="quiet">Browser v0.5.0 · API not yet checked</p>
   <div class="quiet">Public spectator needs no key; Protected observer requires your administrator password. This page refreshes automatically while open. Chat sessions do not automatically wake up to take turns.</div>
 </div>
 
@@ -78,6 +78,9 @@ footer{padding:16px 24px 35px;text-align:center;color:var(--muted);font-size:12p
       <h3>MAP LEGEND</h3>
       <p class="quiet">🔷 US formation · 🔶 German formation · ◇ Capture objective · ◌ Contested objective · ▪ Truck</p>
       <p class="quiet">Full force positions require Protected observer. Commanders see only authorized intelligence.</p>
+      <h3>FIELD CONTACTS</h3>
+      <pre id="fieldContacts" class="quiet">No field contacts yet.</pre>
+      <p id="fieldDetails" class="quiet" aria-live="polite">Tap a field marker for details.</p>
       <h3 id="replayLabel">Current board</h3>
       <label for="replayTurn">Turn replay — 0 = current board</label>
       <input type="range" id="replayTurn" min="0" max="0" step="1" value="0">
@@ -157,5 +160,5 @@ footer{padding:16px 24px 35px;text-align:center;color:var(--muted);font-size:12p
   <div id="created" class="hidden"><p class="notice">Copy and save these keys now. They cannot be retrieved later. Never paste one side's key into the other side's chat.</p><pre id="createdOutput" class="key"></pre></div>
 </details>
 </main><footer>GRASSTEX Commander Ideation Lab · Qualitative design exercise, not a runtime battle benchmark</footer>
-<script src="./map.js?v=b6ffc51c7ff4"></script>
-<script src="./app.js?v=5fb7e3292719"></script></body></html>
+<script src="./map.js?v=b73950da099b"></script>
+<script src="./app.js?v=5bae7c258072"></script></body></html>
