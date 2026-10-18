@@ -130,7 +130,7 @@ function ie_resolve(&$g) {
     // Gameplay abstraction: foot 800 m/turn; truck up to 2500 m/turn. Truck dismounts
     // around 180 m from an objective; the remaining approach needs foot travel.
     foreach ($w['units'] as $id=>&$u) {
-        if (!$u['mission'] || in_array($u['mission']['type'],array('hold','reserve'),true)) continue;
+        if ($u['strength']<=0 || !$u['mission'] || in_array($u['mission']['type'],array('hold','reserve'),true)) continue;
         $target=$u['mission']['target'];
         if (!$target || !isset($w['objectives'][$target])) continue;
         $o=$w['objectives'][$target];$usingTruck=false;$truckId=null;
@@ -208,7 +208,7 @@ function ie_resolve(&$g) {
                     }
                     if (!$changed) break;
                 }
-                $events[]=strtoupper($side).'-1: abstract effectiveness loss '.
+                $events[]=$side.': abstract effectiveness loss '.
                     $losses[$side].' at contested '.$o['name'].
                     ' (distributed among friendly squads; inspect your squad strengths)';
             }
