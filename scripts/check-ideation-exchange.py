@@ -67,7 +67,7 @@ try:
         time.sleep(0.1)
     assert code == 200 and template["ok"] and template["template"]["config"], template
     code, version = call("version")
-    assert code == 200 and version["api_version"] == "1.3.0", version
+    assert code == 200 and version["api_version"] == "1.4.0", version
     # Preserve the original three-objective smoke fixture; the default
     # template below separately exercises the new nine-objective V6 board.
     legacy_config = {"objectives": [
@@ -108,7 +108,7 @@ try:
     us_key, ge_key = new["keys"]["us"], new["keys"]["ge"]
     code, public = call("public", query=f"&id={match_id}")
     assert code == 200 and public["phase"] == "orders" and public["turn"] == 1
-    assert public["api_version"] == "1.3.0"
+    assert public["api_version"] == "1.4.0"
     assert public["rules_revision"] == 6
     assert public["effective_rules"]["neutral_contested_siege"] is True
     assert public["effective_rules"]["contested_attrition"] is True
@@ -184,6 +184,36 @@ try:
     assert len(exported["games"][0]["debriefs"]) == 2
     assert "key_hashes" not in json.dumps(exported) and "private_briefs" not in json.dumps(exported)
     assert "SECRET GE" not in json.dumps(exported)
+    # Open agent debriefs: no key, any time, any phase, only an existing match ID.
+    agent_note = {"id": match_id, "author": "Example agent", "side": "us",
+        "learned": "Open reflections can arrive mid-match.", "worked": "",
+        "failed": "", "capability_gaps": "", "next_time": ""}
+    assert call("debrief", "POST", {**agent_note, "id": "0" * 24})[0] == 404
+    assert call("debrief", "POST", {**agent_note, "id": "bad"})[0] == 400
+    assert call("debrief", "POST", {**agent_note, "author": ""})[0] == 400
+    assert call("debrief", "POST", {**agent_note, "learned": ""})[0] == 400
+    assert call("debrief", "POST", {**agent_note, "side": "both"})[0] == 400
+    assert call("debrief", "POST", {**agent_note, "attempt": 2})[0] == 400
+    assert call("debrief", "POST", {**agent_note, "related_ids": ["f" * 24]})[0] == 404
+    code, open_saved = call("debrief", "POST", agent_note)
+    assert code == 200 and open_saved["accepted"] and open_saved["verified"] is False, open_saved
+    assert call("debrief", "POST", agent_note)[1]["duplicate"]
+    code, second = call("debrief", "POST", {**agent_note, "turn": 9, "learned": "A second note."})
+    assert code == 200 and second["index"] == 1
+    assert call("debrief", "POST", agent_note, "wrong-key")[0] == 401  # a key is still checked
+    assert "Open reflections" not in json.dumps(call("public", query=f"&id={match_id}")[1])
+    assert "Open reflections" not in json.dumps(call("brief", key=us_key,
+        query=f"&id={match_id}&side=us")[1])
+    assert "Open reflections" not in json.dumps(call("brief", key=ge_key,
+        query=f"&id={match_id}&side=ge")[1])
+    assert "Open reflections" not in json.dumps(call("debrief", key=us_key,
+        query=f"&id={match_id}&side=us")[1])
+    code, all_notes = call("debrief", key=PASSWORD, query=f"&id={match_id}&side=all")
+    assert code == 200 and len(all_notes["agent_debriefs"]) == 2
+    code, exported = call("debrief_export", key=PASSWORD, query=f"&id={match_id}")
+    assert exported["agent_debriefs"][0]["author"] == "Example agent"
+    assert exported["agent_debriefs"][0]["verified"] is False
+    assert len(exported["games"][0]["debriefs"]) == 2
     code, public = call("public", query=f"&id={match_id}")
     assert code == 200 and public["turn"] == 2 and len(public["history"]) == 1, public
     # No enemy order, capability or movement may be delivered to public or side-private views.
@@ -363,6 +393,13 @@ try:
     assert len(archived_export["games"][0]["debriefs"]) == 3
     assert archived_export["games"][1]["debriefs"] == []
     assert call("debrief", "POST", us_debrief, us_key)[0] == 401  # key changed sides
+    # Open agent debriefs survive the rematch and can name the archived attempt.
+    assert len(archived_export["agent_debriefs"]) == 2
+    code, late = call("debrief", "POST", {**agent_note, "attempt": 1,
+        "turn": 0, "learned": "Debrief of the archived game.", "related_ids": [ground_id, match_id]})
+    assert code == 200 and late["index"] == 2, late
+    late_rows = call("debrief_export", key=PASSWORD, query=f"&id={match_id}")[1]["agent_debriefs"]
+    assert late_rows[2]["attempt"] == 1 and late_rows[2]["related_ids"] == [ground_id]
 
     assert call("public", query=f"&id={match_id}&attempt=2")[0] == 404
     assert call("public", query=f"&id={match_id}&attempt=../../private")[0] == 400
@@ -470,6 +507,31 @@ try:
     assert len(call("debrief_export", key=PASSWORD,
         query=f"&id={halted_id}")[1]["games"][0]["debriefs"]) == 1
     assert call("public", query=f"&id={halted_id}")[1]["termination"] is None
+    # A keyless flood fills only the capped sidecar: the match never grows,
+    # its revision never moves, and both commanders can still play.
+    code, flood = call("create", "POST", {"title": "Open debrief flood", "turn_limit": 3}, PASSWORD)
+    assert code == 201
+    flood_id = flood["id"]
+    match_ids.append(flood_id)
+    before = call("public", query=f"&id={flood_id}")[1]["revision"]
+    heavy = "\u0001" * 2900
+    stored = 0
+    for n in range(250):
+        code, body = call("debrief", "POST", {"id": flood_id, "author": f"Flooder {n}",
+            "learned": heavy, "worked": heavy, "failed": heavy,
+            "capability_gaps": heavy, "next_time": heavy})
+        if code != 200:
+            break
+        stored += 1
+    assert code == 413 and 0 < stored < 200, (code, stored)
+    sidecar = STATE / "ideation-v1" / (flood_id + "-agent-debriefs.php")
+    assert sidecar.stat().st_size <= 262144
+    assert call("public", query=f"&id={flood_id}")[1]["revision"] == before
+    assert call("submit", "POST", {"id": flood_id, "turn": 1, "side": "us",
+        "order": {"turn": 1, "side": "us", "intent": "Hold after the flood",
+            "actions": [], "support": "none", "proposals": []}}, flood["keys"]["us"])[0] == 200
+    assert len(call("debrief_export", key=PASSWORD,
+        query=f"&id={flood_id}")[1]["agent_debriefs"]) == stored
     # An early score uses only the last referee-owned state: no fictional
     # final round, no fabricated combat or objective turnover.
     code, scored = call("create", "POST",
@@ -508,4 +570,5 @@ finally:
         (STATE / "ideation-v1" / (path_id + ".php")).unlink(missing_ok=True)
         for archived in (STATE / "ideation-v1").glob(path_id + "-attempt-*.php"):
             archived.unlink(missing_ok=True)
+        (STATE / "ideation-v1" / (path_id + "-agent-debriefs.php")).unlink(missing_ok=True)
     ADMIN.unlink(missing_ok=True)
