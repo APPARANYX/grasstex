@@ -342,7 +342,8 @@ function ie_legacy_replay($g) {
             unset($obj);
         }
         if (json_encode($a)!==json_encode($b))
-            return array('ok'=>false,'reason'=>'historical world diverged: '.$kind);
+            return array('ok'=>false,'reason'=>'historical world diverged: '.$kind,
+                'snapshots'=>$trace,'verified'=>false);
     }
     return array('ok'=>true,'snapshots'=>$trace);
 }
