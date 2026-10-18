@@ -24,6 +24,7 @@ p.notice{padding:11px 13px;border-left:3px solid var(--gold);background:#262c32;
 .badge{display:inline-block;padding:4px 10px;border-radius:20px;border:1px solid #55708d;margin-left:8px;font-size:12px;color:var(--muted)}
 details{margin:10px 0}summary{cursor:pointer;color:var(--gold);font-weight:600}
 .hidden{display:none!important}.key{color:#f0d1a5}hr{border:0;border-top:1px solid var(--line);margin:18px 0}
+.replayTools{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}.replayTools button{margin-top:0;padding:8px 11px;font-size:13px}
 footer{padding:16px 24px 35px;text-align:center;color:var(--muted);font-size:12px}
 @media(max-width:700px){.grid,.grid3{grid-template-columns:1fr}.panel{padding:16px}main{padding:15px}}
 </style></head><body>
@@ -53,8 +54,16 @@ footer{padding:16px 24px 35px;text-align:center;color:var(--muted);font-size:12p
     </div>
     <div>
       <h3 id="replayLabel">Current board</h3>
-      <label for="replayTurn">Turn replay — 0 = latest state</label>
+      <label for="replayTurn">Turn replay — 0 = current board</label>
       <input type="range" id="replayTurn" min="0" max="0" step="1" value="0">
+      <div class="replayTools">
+        <button type="button" id="mapBack" aria-label="Previous turn">◀ Back</button>
+        <button type="button" id="mapPlay" class="primary" aria-pressed="true">❚❚ Pause</button>
+        <button type="button" id="mapForward" aria-label="Next turn">Forward ▶</button>
+        <button type="button" id="mapLive">● Live</button>
+        <button type="button" id="mapSound" aria-pressed="false">Sound off</button>
+      </div>
+      <p class="quiet">Playback follows new resolved rounds automatically. Back/forward pauses; Play resumes. Sound activates after you tap the button.</p>
       <h3>Resolution / point ledger</h3><pre id="replayEvents"></pre>
       <h3>Authorized orders</h3><pre id="replayOrders"></pre>
       <p class="quiet">Public: objectives only. Each commander: its own exact squad positions. Protected observer: both forces and turn-by-turn paths.</p>
