@@ -47,7 +47,9 @@
         oscillator.start(now + offset);
         oscillator.stop(now + offset + 0.1);
       }
-    } catch (_) { /* Unsupported audio must never break a game. */ }
+    } catch (_) {
+      /* Unsupported audio must never break a game. */
+    }
   }
   function setButtons() {
     el('mapPlay').textContent = playing ? '❚❚ Pause' : '▶ Play';
@@ -73,15 +75,21 @@
         const x = m.from[0] + (m.to[0] - m.from[0]) * ease;
         const y = m.from[1] + (m.to[1] - m.from[1]) * ease;
         if (m.type === 'circle') {
-          m.element.setAttribute('cx', x); m.element.setAttribute('cy', y);
+          m.element.setAttribute('cx', x);
+          m.element.setAttribute('cy', y);
         } else if (m.type === 'text') {
-          m.element.setAttribute('x', x + 12); m.element.setAttribute('y', y + 5);
+          m.element.setAttribute('x', x + 12);
+          m.element.setAttribute('y', y + 5);
         } else {
-          m.element.setAttribute('x', x - 5); m.element.setAttribute('y', y - 5);
+          m.element.setAttribute('x', x - 5);
+          m.element.setAttribute('y', y - 5);
         }
       }
       if (t < 1) animation = requestAnimationFrame(step);
-      else { animation = null; moveMarkers = []; }
+      else {
+        animation = null;
+        moveMarkers = [];
+      }
     }
     animation = requestAnimationFrame(step);
   }
@@ -96,20 +104,38 @@
     return [40 + (Number(x) / 5000) * 620, 660 - (Number(z) / 5000) * 620];
   }
   function segment(svg, a, b, color, thickness = 2, dash = '') {
-    svg.appendChild(make('line', {
-      x1: a[0], y1: a[1], x2: b[0], y2: b[1],
-      stroke: color, 'stroke-width': thickness, 'stroke-dasharray': dash
-    }));
+    svg.appendChild(
+      make('line', {
+        x1: a[0],
+        y1: a[1],
+        x2: b[0],
+        y2: b[1],
+        stroke: color,
+        'stroke-width': thickness,
+        'stroke-dasharray': dash
+      })
+    );
   }
   function marker(svg, x, y, color, text, r = 9, from = null) {
     const circle = make('circle', {
-      cx: from ? from[0] : x, cy: from ? from[1] : y, r,
-      fill: color, stroke: '#0c1420', 'stroke-width': 2
+      cx: from ? from[0] : x,
+      cy: from ? from[1] : y,
+      r,
+      fill: color,
+      stroke: '#0c1420',
+      'stroke-width': 2
     });
-    const label = make('text', {
-      x: (from ? from[0] : x) + 12, y: (from ? from[1] : y) + 5,
-      fill: '#eaf1f9', 'font-size': 12, 'font-family': 'system-ui'
-    }, text);
+    const label = make(
+      'text',
+      {
+        x: (from ? from[0] : x) + 12,
+        y: (from ? from[1] : y) + 5,
+        fill: '#eaf1f9',
+        'font-size': 12,
+        'font-family': 'system-ui'
+      },
+      text
+    );
     svg.appendChild(circle);
     svg.appendChild(label);
     if (from && Math.hypot(from[0] - x, from[1] - y) > 1) {
@@ -122,12 +148,10 @@
     const chosen = Math.max(0, Math.min(Number(slider.value), rounds.length));
     const round = chosen > 0 ? rounds[chosen - 1] : null;
     const prior = chosen > 1 ? rounds[chosen - 2] : null;
-    const publicWorld = chosen > 0 ? (round.public_snapshot || null) : data.public_world;
-    const completeWorld = role === 'admin'
-      ? chosen > 0 ? (round.world_snapshot || null) : data.observer_world
-      : null;
-    const ownWorld = (role === 'us' || role === 'ge') && chosen === 0
-      ? data.own_state : null;
+    const publicWorld = chosen > 0 ? round.public_snapshot || null : data.public_world;
+    const completeWorld =
+      role === 'admin' ? (chosen > 0 ? round.world_snapshot || null : data.observer_world) : null;
+    const ownWorld = (role === 'us' || role === 'ge') && chosen === 0 ? data.own_state : null;
     return { chosen, round, prior, publicWorld, completeWorld, ownWorld };
   }
   function render(animate = false, sourceWorld = null) {
@@ -135,70 +159,149 @@
     stopAnimation();
     const state = roundData();
     const { chosen, round, prior, publicWorld, completeWorld, ownWorld } = state;
-    el('replayLabel').textContent = chosen === 0
-      ? 'Current board · Turn ' + data.turn
-      : 'After round ' + chosen;
-    el('replaySource').textContent = data.replay_source === 'reconstructed_verified_v1'
-      ? 'Older match positions verified by deterministic replay'
-      : data.replay_note || '';
+    el('replayLabel').textContent =
+      chosen === 0 ? 'Current board · Turn ' + data.turn : 'After round ' + chosen;
+    el('replaySource').textContent =
+      data.replay_source === 'reconstructed_verified_v1'
+        ? 'Older match positions verified by deterministic replay'
+        : data.replay_note || '';
     const svg = make('svg', {
-      viewBox: '0 0 700 700', role: 'img',
+      viewBox: '0 0 700 700',
+      role: 'img',
       'aria-label': 'Abstract GRASSTEX commander map; 5km by 5km',
       style: 'width:100%;max-width:680px;display:block;margin:auto;aspect-ratio:1/1'
     });
-    svg.appendChild(make('rect', {
-      x: 40, y: 40, width: 620, height: 620,
-      rx: 8, fill: '#122638', stroke: '#627389', 'stroke-width': 2
-    }));
+    svg.appendChild(
+      make('rect', {
+        x: 40,
+        y: 40,
+        width: 620,
+        height: 620,
+        rx: 8,
+        fill: '#122638',
+        stroke: '#627389',
+        'stroke-width': 2
+      })
+    );
     for (let n = 0; n <= 5000; n += 1000) {
       const [x] = xy(n, 0);
       const [, y] = xy(0, n);
       segment(svg, [x, 40], [x, 660], '#385065', 1, '3 8');
       segment(svg, [40, y], [660, y], '#385065', 1, '3 8');
-      svg.appendChild(make('text', {
-        x, y: 680, fill: '#9daec0', 'font-size': 11,
-        'text-anchor': 'middle'
-      }, String(n / 1000)));
+      svg.appendChild(
+        make(
+          'text',
+          {
+            x,
+            y: 680,
+            fill: '#9daec0',
+            'font-size': 11,
+            'text-anchor': 'middle'
+          },
+          String(n / 1000)
+        )
+      );
     }
-    svg.appendChild(make('text', {
-      x: 350, y: 696, fill: '#9daec0', 'font-size': 12, 'text-anchor': 'middle'
-    }, 'Kilometers east'));
-    svg.appendChild(make('text', {
-      x: 58, y: 58, fill: '#95bdef', 'font-size': 12
-    }, 'US rear'));
-    svg.appendChild(make('text', {
-      x: 585, y: 58, fill: '#e8a4a4', 'font-size': 12
-    }, 'GE rear'));
+    svg.appendChild(
+      make(
+        'text',
+        {
+          x: 350,
+          y: 696,
+          fill: '#9daec0',
+          'font-size': 12,
+          'text-anchor': 'middle'
+        },
+        'Kilometers east'
+      )
+    );
+    svg.appendChild(
+      make(
+        'text',
+        {
+          x: 58,
+          y: 58,
+          fill: '#95bdef',
+          'font-size': 12
+        },
+        'US rear'
+      )
+    );
+    svg.appendChild(
+      make(
+        'text',
+        {
+          x: 585,
+          y: 58,
+          fill: '#e8a4a4',
+          'font-size': 12
+        },
+        'GE rear'
+      )
+    );
     segment(svg, xy(500, 2500), xy(4500, 2500), '#a5997b', 10);
     segment(svg, xy(500, 2500), xy(4500, 2500), '#ded6b5', 3, '15 9');
     segment(svg, xy(2500, 1250), xy(2500, 3750), '#a5997b', 8);
     segment(svg, xy(2500, 1250), xy(2500, 3750), '#ded6b5', 2, '13 8');
     const objectiveList = publicWorld?.objectives || [];
-    const objectives = Array.isArray(objectiveList)
-      ? objectiveList : Object.values(objectiveList);
+    const objectives = Array.isArray(objectiveList) ? objectiveList : Object.values(objectiveList);
     for (const o of objectives) {
       if (!Number.isFinite(Number(o.x)) || !Number.isFinite(Number(o.z))) continue;
       const [x, y] = xy(o.x, o.z);
-      const color = o.owner === 'us' ? '#74b2f3'
-        : o.owner === 'ge' ? '#ec9691' : '#c4c9cd';
-      svg.appendChild(make('rect', {
-        x: x - 12, y: y - 12, width: 24, height: 24,
-        rx: 3, transform: 'rotate(45 ' + x + ' ' + y + ')',
-        fill: color, stroke: '#081019', 'stroke-width': 2
-      }));
-      svg.appendChild(make('text', {
-        x, y: y - 23, fill: '#eff4fa', 'font-size': 13,
-        'text-anchor': 'middle', 'font-weight': 600
-      }, o.name || o.id));
-      svg.appendChild(make('text', {
-        x, y: y + 4, fill: '#152033', 'font-size': 11,
-        'text-anchor': 'middle', 'font-weight': 700
-      }, String(o.points || '')));
+      const color = o.owner === 'us' ? '#74b2f3' : o.owner === 'ge' ? '#ec9691' : '#c4c9cd';
+      svg.appendChild(
+        make('rect', {
+          x: x - 12,
+          y: y - 12,
+          width: 24,
+          height: 24,
+          rx: 3,
+          transform: 'rotate(45 ' + x + ' ' + y + ')',
+          fill: color,
+          stroke: '#081019',
+          'stroke-width': 2
+        })
+      );
+      svg.appendChild(
+        make(
+          'text',
+          {
+            x,
+            y: y - 23,
+            fill: '#eff4fa',
+            'font-size': 13,
+            'text-anchor': 'middle',
+            'font-weight': 600
+          },
+          o.name || o.id
+        )
+      );
+      svg.appendChild(
+        make(
+          'text',
+          {
+            x,
+            y: y + 4,
+            fill: '#152033',
+            'font-size': 11,
+            'text-anchor': 'middle',
+            'font-weight': 700
+          },
+          String(o.points || '')
+        )
+      );
       if (o.contested) {
-        svg.appendChild(make('circle', {
-          cx: x, cy: y, r: 21, fill: 'none',
-          stroke: '#f4c871', 'stroke-width': 2, 'stroke-dasharray': '3 4'
-        }));
+        svg.appendChild(
+          make('circle', {
+            cx: x,
+            cy: y,
+            r: 21,
+            fill: 'none',
+            stroke: '#f4c871',
+            'stroke-width': 2,
+            'stroke-dasharray': '3 4'
+          })
+        );
       }
     }
     const units = completeWorld?.units || ownWorld?.squads || null;
@@ -209,8 +312,8 @@
       const oldWorld = prior?.world_snapshot || null;
       if (oldWorld) sourceWorld = oldWorld;
     }
-    const animateUnits = animate && !reduceMotion
-      ? sourceWorld?.units || sourceWorld?.squads || priorUnits : null;
+    const animateUnits =
+      animate && !reduceMotion ? sourceWorld?.units || sourceWorld?.squads || priorUnits : null;
     const animateTrucks = animate && !reduceMotion ? sourceWorld?.trucks || priorTrucks : null;
     if (units) {
       for (const unit of Object.values(units)) {
@@ -219,8 +322,7 @@
         if (role === 'admin' && prior?.world_snapshot?.units?.[unit.id]) {
           const previous = prior.world_snapshot.units[unit.id];
           const from = xy(previous.x, previous.z);
-          if (Math.hypot(from[0] - pos[0], from[1] - pos[1]) > 3)
-            segment(svg, from, pos, col, 2, '6 4');
+          if (Math.hypot(from[0] - pos[0], from[1] - pos[1]) > 3) segment(svg, from, pos, col, 2, '6 4');
         }
         const lastUnit = animateUnits?.[unit.id];
         const from = lastUnit ? xy(lastUnit.x, lastUnit.z) : null;
@@ -235,9 +337,13 @@
         const lastTruck = animateTrucks?.[truck.id];
         const from = lastTruck ? xy(lastTruck.x, lastTruck.z) : null;
         const truckNode = make('rect', {
-          x: (from ? from[0] : x) - 5, y: (from ? from[1] : y) - 5,
-          width: 10, height: 10, fill: '#e9ca79',
-          stroke: '#141a21', 'stroke-width': 1
+          x: (from ? from[0] : x) - 5,
+          y: (from ? from[1] : y) - 5,
+          width: 10,
+          height: 10,
+          fill: '#e9ca79',
+          stroke: '#141a21',
+          'stroke-width': 1
         });
         svg.appendChild(truckNode);
         if (from && Math.hypot(from[0] - x, from[1] - y) > 1) {
@@ -253,15 +359,22 @@
     const values = Array.isArray(ledger) ? ledger : Object.values(ledger);
     const us = values.filter(x => x.owner === 'us').reduce((a, x) => a + x.points, 0);
     const ge = values.filter(x => x.owner === 'ge').reduce((a, x) => a + x.points, 0);
-    el('mapLegend').textContent = 'US ' + us + ' pts  ·  GE ' + ge
-      + ' pts  ·  Amber ring: contested  ·  Squares: objectives'
-      + (role === 'public' ? '  ·  Enemy positions concealed' : '');
+    el('mapLegend').textContent =
+      'US ' +
+      us +
+      ' pts  ·  GE ' +
+      ge +
+      ' pts  ·  Amber ring: contested  ·  Squares: objectives' +
+      (role === 'public' ? '  ·  Enemy positions concealed' : '');
     el('replayEvents').textContent = round
       ? JSON.stringify(round.resolution, null, 2)
       : 'Showing current objective status. Drag the timeline to inspect resolved rounds.';
     el('replayOrders').textContent = round
-      ? JSON.stringify(role === 'admin' ? (round.orders || {})
-        : round.own_order ? { own_order: round.own_order } : {}, null, 2)
+      ? JSON.stringify(
+          role === 'admin' ? round.orders || {} : round.own_order ? { own_order: round.own_order } : {},
+          null,
+          2
+        )
       : 'Unresolved orders remain sealed.';
   }
   function refresh(payload, viewerRole) {
@@ -298,11 +411,11 @@
     if (same && !newRound && (newUS || newGE)) signal('submission');
     lastReportedTurn = newRounds;
     lastSubmitted = {
-      us: !!payload.submitted?.us, ge: !!payload.submitted?.ge
+      us: !!payload.submitted?.us,
+      ge: !!payload.submitted?.ge
     };
-    const previousWorld = same && newRound && viewerRole === 'admin'
-      ? oldOmniscient : same && newRound && oldOwn
-        ? oldOwn : null;
+    const previousWorld =
+      same && newRound && viewerRole === 'admin' ? oldOmniscient : same && newRound && oldOwn ? oldOwn : null;
     const animated = newRound && playing && followLive;
     // No intermediate snapshots? Don't create invented piece trajectories.
     render(animated, previousWorld);
@@ -312,9 +425,9 @@
   function navigate(delta) {
     playing = false;
     followLive = false;
-    slider.value = String(Math.max(1, Math.min(
-      Number(slider.max), (Number(slider.value) || Number(slider.max)) + delta
-    )));
+    slider.value = String(
+      Math.max(1, Math.min(Number(slider.max), (Number(slider.value) || Number(slider.max)) + delta))
+    );
     render();
     setButtons();
   }
@@ -365,7 +478,9 @@
         soundEnabled = false;
       } else {
         audio = audio || new Audio();
-        await audio.resume().catch(() => { soundEnabled = false; });
+        await audio.resume().catch(() => {
+          soundEnabled = false;
+        });
         if (soundEnabled) signal('submission');
       }
     }
