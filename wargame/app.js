@@ -1,13 +1,14 @@
 'use strict';
 /* No LLM API or browser-side referee. The site stores all state in the PHP backend. */
 (function () {
-  const CLIENT_VERSION = '0.9.0';
+  const CLIENT_VERSION = '1.0.0';
   const el = id => document.getElementById(id);
   let last = null,
     template = null,
     timer = null,
     viewEpoch = 0,
-    autoPollInFlight = false;
+    autoPollInFlight = false,
+    archiveAttempt = new URL(location.href).searchParams.get('attempt');
   function status(message, error = false) {
     el('message').textContent = message || '';
     el('message').className = error ? 'error' : 'good';
@@ -58,7 +59,7 @@
     if (window.GRASSTEXIdeationMap) window.GRASSTEXIdeationMap.refresh(data, el('role').value);
     el('copyPacket').disabled = el('role').value === 'admin';
     el('matchTitle').textContent = data.title;
-    el('phase').textContent = data.phase.toUpperCase() + ' · Round ' + data.turn + '/' + data.turn_limit;
+    el('phase').textContent = (data.archive_view ? 'ARCHIVED · ' : '') + data.phase.toUpperCase() + ' · Round ' + data.turn + '/' + data.turn_limit;
     el('meta').textContent =
       'Match ID ' +
       data.id +
@@ -98,7 +99,7 @@
       privateInfo && data.own_pending_order
         ? 'Your submitted order (sealed):\n' + json(data.own_pending_order)
         : 'No orders are publicly visible until resolution.';
-    const canSubmit = privateInfo && data.phase === 'orders' && !data.submitted[role];
+    const canSubmit = privateInfo && !data.archive_view && data.phase === 'orders' && !data.submitted[role];
     el('commander').classList.toggle('hidden', !canSubmit);
     if (canSubmit) {
       let prev = null;
@@ -148,7 +149,19 @@
         (r.winner_player ? named[r.winner_player] + ' won' : 'draw')
     );
     el('seriesResults').textContent = games.join('   |   ') || 'First game in the series';
-    el('rematchControls').classList.toggle('hidden', !s.can_rematch);
+    const archiveLinks = el('seriesArchives');
+    archiveLinks.replaceChildren();
+    for (const entry of s.archive_attempts || []) {
+      const link = document.createElement('a');
+      const url = new URL('./index.html', location.href);
+      url.searchParams.set('id', data.id);
+      url.searchParams.set('attempt', entry.attempt);
+      link.href = url.toString();
+      link.textContent = 'View Game ' + entry.game_number + ' (attempt ' + entry.attempt + ')';
+      link.style.marginRight = '14px';
+      archiveLinks.appendChild(link);
+    }
+    el('rematchControls').classList.toggle('hidden', !s.can_rematch || data.archive_view);
     el('seriesNext').classList.toggle('hidden', !s.next_match_id);
     if (s.can_rematch && s.attempt > 1) {
       el('seriesPlayerA').value = named.a;
@@ -164,8 +177,13 @@
   }
   function openMatch(id) {
     if (!/^[a-f0-9]{24}$/.test(id)) return;
+    const changed = el('match').value !== id;
     el('match').value = id;
-    el('key').value = '';
+    archiveAttempt = null;
+    const url = new URL(location.href);
+    url.searchParams.delete('attempt');
+    history.replaceState(null, '', url.toString());
+    if (changed) el('key').value = '';
     el('role').value = 'public';
     el('orders').value = '';
     el('rematchIssued').classList.add('hidden');
@@ -180,7 +198,7 @@
       status('Enter the administrator password before creating a rematch.', true);
       return;
     }
-    if (!confirm('Create the next best-of-three game with the commanders on OPPOSITE sides?')) return;
+    if (!confirm('Start the next game on this SAME match ID? Commanders switch sides and keep their existing keys. The completed game will be archived.')) return;
     el('rematchButton').disabled = true;
     try {
       const payload = {
@@ -197,13 +215,12 @@
         game: result.game_number,
         scoreboard: result.series.score,
         us_commander: players[assignments.us],
-        us_key: result.keys.us,
         german_commander: players[assignments.ge],
-        ge_key: result.keys.ge,
+        keys: 'UNCHANGED: each commander uses their original key on their NEW side',
         browser_url: new URL('./index.html?id=' + result.id, location.href).toString()
       });
       el('rematchOpen').dataset.nextId = result.id;
-      status('New game created with sides switched. Save both NEW keys before opening it.');
+      status('Rematch started on the SAME match ID. Commanders swap sides and KEEP their original keys.');
       await load(true);
     } catch (e) {
       status('Rematch failed: ' + e.message, true);
@@ -225,7 +242,11 @@
     const op = role === 'public' ? 'public' : role === 'admin' ? 'observer' : 'brief';
     if (automatic) autoPollInFlight = true;
     try {
-      const data = await request(op, { id, ...(role === 'us' || role === 'ge' ? { side: role } : {}) });
+      const data = await request(op, {
+        id,
+        ...(archiveAttempt ? { attempt: archiveAttempt } : {}),
+        ...(role === 'us' || role === 'ge' ? { side: role } : {})
+      });
       if (
         epoch !== viewEpoch ||
         id !== el('match').value.trim() ||
@@ -246,7 +267,7 @@
       if (!unchanged) render(data);
       el('liveStatus').textContent =
         data.phase === 'complete'
-          ? 'Match complete · live polling stopped · use Load / refresh match to check again'
+          ? 'Match complete · awaiting rematch or series finish'
           : 'LIVE · checking every 5 seconds while this tab is visible · last checked ' +
             new Date().toLocaleTimeString();
       el('buildDiagnostic').textContent =
@@ -262,6 +283,8 @@
       if (!automatic) {
         const url = new URL(location.href);
         url.searchParams.set('id', id);
+        if (archiveAttempt) url.searchParams.set('attempt', archiveAttempt);
+        else url.searchParams.delete('attempt');
         history.replaceState(null, '', url.toString());
       }
     } catch (e) {
@@ -377,6 +400,7 @@
       guide:
         'GRASSTEX hypothetical board-game benchmark. Your action is to produce JSON orders only. Do not infer hidden opponent information.',
       match_id: last.id,
+      series: last.series,
       round: last.turn,
       role: role === 'public' ? 'spectator' : role,
       mode: last.mode,
@@ -442,7 +466,8 @@
   timer = setInterval(() => {
     if (
       last &&
-      last.phase !== 'complete' &&
+      !archiveAttempt &&
+      !last.series?.champion &&
       last.id === el('match').value.trim() &&
       el('dashboard').offsetParent !== null &&
       !document.hidden
@@ -450,6 +475,6 @@
       load(true, true);
   }, 5000);
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden && last && last.phase !== 'complete') load(true, true);
+    if (!document.hidden && last && !archiveAttempt && !last.series?.champion) load(true, true);
   });
 })();
