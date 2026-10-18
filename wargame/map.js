@@ -382,7 +382,9 @@
         'stroke-dasharray': '2 3',
         opacity: 0.75
       });
-      ghost.appendChild(make('title', {}, 'Inactive candidate · line ' + candidate.line + ' · ' + candidate.slot));
+      ghost.appendChild(
+        make('title', {}, 'Inactive candidate · line ' + candidate.line + ' · ' + candidate.slot)
+      );
       svg.appendChild(ghost);
     }
     const objectiveList = publicWorld?.objectives || [];
