@@ -1,34 +1,83 @@
 {
-  "rules": "GRASSTEX COMMANDER IDEATION EXCHANGE — RULES V5\nThis is a fictional, qualitative command-level thought wargame, not the real GRASSTEX simulation. No narrative outcome counts as a passed engine benchmark.\nROLES: US commander (e.g. ChatGPT), German commander (e.g. Claude), and the site-hosted deterministic referee. Each commander receives only public state plus faction-private intel. The referee retains full hidden state.\nTURN PROTOCOL:\n1. The site provides a common public brief and separate authenticated faction views.\n2. Each side independently submits one structured JSON order through the 50web form/API. Orders are sealed and immutable while only one is received.\n3. Only after BOTH orders arrive does the server resolve a simultaneous turn. Enemy orders and exact movement remain hidden from commanders even in the completed-round history; only the protected observer sees both.\n4. When the second order arrives, PHP automatically resolves both missions using fixed and disclosed abstract rules, then updates public objectives and authenticated faction views.\n5. Continue to the declared victory condition or turn limit.\nORDERS: maximum five squad/asset mission orders per commander per turn and one strategic support request. One primary mission per squad at a time. Include intent, target, constraints, contingencies and evidence sources.\nFOG OF WAR: enemy exact locations, commitments and resources are not visible without legitimate reports. Contacts age; concealment and uncertainty are meaningful. No omniscient intelligence, teleporting squads or costless replanning.\nAVAILABLE ACTIONS: a command is NATIVE only if verified in the match's pinned GRASSTEX code ref. All other actions must be labeled PROPOSED, even if mentioned in draft PRs.\nFIELD ACTIVITIES (V3 EXTENSION): Optional `activities` array, up to 3 per side per turn, each `{ \"squad\": \"US-1\", \"kind\": \"wire|roadblock|fortification|smoke|minefield|vehicle|other\", \"description\": \"8-180 characters\" }`. RULES V4 AND NEWER: Field activities have fixed, inspectable stat cards and referee effects starting on the turn AFTER construction. Wire: enemy infantry movement x0.5 within 100m of travel path; roadblock: enemy truck movement x0.5 within 120m of travel path; minefield: enemy squad loses 1 abstract strength point upon crossing within 80m, at most once per squad per minefield; fortification: reduces contested objective strength losses by up to 1 point for the owning side within 150m; smoke: reduces contested losses by up to 1 for either side within 150m and expires after 2 turns; vehicle and other: information only. Defensive modifiers do not stack; all effects are abstract and no object blocks projectile fire because LOS/projectiles are not modeled. No individual HP. Previous matches and their rematches preserve original rules revisions; V2/V3 activities remain informational. Activities are pinned to the referee-owned position of that friendly squad AFTER its normal movement. They create persistent field markers; effects apply only in new V4 games with the fixed referee stats described above. Opponents learn only canonical descriptions and 250m-rounded locations if a living friendly squad comes within 300m, or if their one-time aerial recon observes the activity. Contacts remain but become stale after the last observation. Neither public views nor the opponent receive raw activity descriptions or exact enemy coordinates. The protected observer can inspect the full truth and per-turn history. New kinds or stronger effects require explicit future referee rules and tests.\nDISCOVERY MODE: both sides may propose new commander capabilities, but the deterministic referee LOGS them with NO automatic in-game effect. A human may later implement bounded candidate rules in the abstraction for symmetric testing. Native-only mode likewise logs proposals without effects.\nREFEREE V5: 10-minute turns, walking 800 m/turn, trucks 2500 m/turn with 180 m dismount; objectives have 150 m control zones. A clear >1.5x numerical advantage captures immediately. For newly created V5 matches, a contested neutral objective is captured after two consecutive turns of numerical superiority, even without a 1.5x margin. For an already-owned contested objective, a superior challenger captures after two consecutive turns of superiority. Contested strengths degrade by a deterministic abstract effectiveness attrition per turn: each side loses max(1,floor(opponent_strength/15)) distributed across participating squads, capped by its remaining strength. This is not a casualty/ballistics simulation. One side controlling Central and another objective for two uncontested rounds wins, else objective points at turn limit. Each match and its rematches retain their original referee revision. Older V1 matches do not have attrition or two-turn siege; V2-V4 matches have attrition but not the V5 neutral-objective siege. The API's effective_rules field is authoritative over any mismatched prose.\nEVIDENCE: log proposed capability, owning command layer, problem solved, what happened hypothetically, and how to test in the real runtime. Report paired battles with faction/model swaps before comparing models.\nMATCH HYGIENE: do not share role keys in chats intended for public posting. Never reveal the other side's private briefing to a commander. Site-hosted history is canonical; GitHub merely tracks code/deployment. Normal browser chats still require a human or HTTP-capable agent to submit and retrieve turns.",
-  "scenario": "JUNCTION CORRIDOR 001 — STANDARD STARTER\nFictional open-country battlefield, 5 km × 5 km. Each faction starts with five ten-person squads, three distributed rear bases and two trucks. This is a theoretical scenario roster, not a statement about what is merged on main.\nOBJECTIVES:\n- Central Junction (2500,2500), 3 points, neutral.\n- North Crossing (2500,3750), 1 point, neutral.\n- South Crossing (2500,1250), 1 point, neutral.\nROUTES/TERRAIN: east-west trunk road toward Central Junction, branching secondary roads to the crossings, intermittent woods, rolling open fields. No instant objective capture: a squad must spend credible travel/setup/control time.\nWIN: control Central Junction and either crossing through two consecutively adjudicated rounds. At the turn limit, compare point control, sustained hold, then effective remaining squad strength; otherwise draw.\nTURN: 10 abstract minutes; time and information latency matter. Commanders cannot see opponent current orders until both submit.\nASSETS: each side's two trucks remain where left, and one optional aerial reconnaissance event per side for this thought-game; whether these are native in a given GRASSTEX branch must be checked.\nSTANDARD AVAILABLE ABSTRACT COMMANDS (not claims about native engine support): assign squad mission, hold, redirect, request limited reconnaissance, request available truck. Label native vs proposed using actual pinned code before each match.\nMODEL SWAP: replay same starting conditions with ChatGPT on GE and Claude on US for fairness.",
-  "public_brief": "TURN 1 PUBLIC: Central Junction, North Crossing and South Crossing are neutral. Exact opposing squad deployments and intended objectives are unknown. Each General commands five squads from their own three rear bases. Two trucks per side are initially available at home; their movement takes time. Umpire must provide each side's own exact initial squad/base assignment as a private briefing.",
+  "rules": "GRASSTEX COMMANDER IDEATION EXCHANGE — RULES V6\nThis is a fictional, qualitative command-level thought wargame, not the real GRASSTEX simulation. No narrative outcome counts as a passed engine benchmark.\nROLES: US commander (e.g. ChatGPT), German commander (e.g. Claude), and the site-hosted deterministic referee. Each commander receives only public state plus faction-private intel. The referee retains full hidden state.\nTURN PROTOCOL:\n1. The site provides a common public brief and separate authenticated faction views.\n2. Each side independently submits one structured JSON order through the 50web form/API. Orders are sealed and immutable while only one is received.\n3. Only after BOTH orders arrive does the server resolve a simultaneous turn. Enemy orders and exact movement remain hidden from commanders even in the completed-round history; only the protected observer sees both.\n4. When the second order arrives, PHP automatically resolves both missions using fixed and disclosed abstract rules, then updates public objectives and authenticated faction views.\n5. Continue to the declared victory condition or turn limit.\nORDERS: maximum five squad/asset mission orders per commander per turn and one strategic support request. One primary mission per squad at a time. Include intent, target, constraints, contingencies and evidence sources.\nFOG OF WAR: enemy exact locations, commitments and resources are not visible without legitimate reports. Contacts age; concealment and uncertainty are meaningful. No omniscient intelligence, teleporting squads or costless replanning.\nAVAILABLE ACTIONS: a command is NATIVE only if verified in the match's pinned GRASSTEX code ref. All other actions must be labeled PROPOSED, even if mentioned in draft PRs.\nFIELD ACTIVITIES (V3 EXTENSION): Optional `activities` array, up to 3 per side per turn, each `{ \"squad\": \"US-1\", \"kind\": \"wire|roadblock|fortification|smoke|minefield|vehicle|other\", \"description\": \"8-180 characters\" }`. RULES V4 AND NEWER: Field activities have fixed, inspectable stat cards and referee effects starting on the turn AFTER construction. Wire: enemy infantry movement x0.5 within 100m of travel path; roadblock: enemy truck movement x0.5 within 120m of travel path; minefield: enemy squad loses 1 abstract strength point upon crossing within 80m, at most once per squad per minefield; fortification: reduces contested objective strength losses by up to 1 point for the owning side within 150m; smoke: reduces contested losses by up to 1 for either side within 150m and expires after 2 turns; vehicle and other: information only. Defensive modifiers do not stack; all effects are abstract and no object blocks projectile fire because LOS/projectiles are not modeled. No individual HP. Previous matches and their rematches preserve original rules revisions; V2/V3 activities remain informational. Activities are pinned to the referee-owned position of that friendly squad AFTER its normal movement. They create persistent field markers; effects apply only in new V4 games with the fixed referee stats described above. Opponents learn only canonical descriptions and 250m-rounded locations if a living friendly squad comes within 300m, or if their one-time aerial recon observes the activity. Contacts remain but become stale after the last observation. Neither public views nor the opponent receive raw activity descriptions or exact enemy coordinates. The protected observer can inspect the full truth and per-turn history. New kinds or stronger effects require explicit future referee rules and tests.\nDISCOVERY MODE: both sides may propose new commander capabilities, but the deterministic referee LOGS them with NO automatic in-game effect. A human may later implement bounded candidate rules in the abstraction for symmetric testing. Native-only mode likewise logs proposals without effects.\nREFEREE V6: 10-minute turns, walking 800 m/turn, trucks 2500 m/turn with 180 m dismount; objectives have 150 m control zones. A clear >1.5x numerical advantage captures immediately. For newly created V5 matches, a contested neutral objective is captured after two consecutive turns of numerical superiority, even without a 1.5x margin. For an already-owned contested objective, a superior challenger captures after two consecutive turns of superiority. Contested strengths degrade by a deterministic abstract effectiveness attrition per turn: each side loses max(1,floor(opponent_strength/15)) distributed across participating squads, capped by its remaining strength. This is not a casualty/ballistics simulation. One side controlling Central and another objective for two uncontested rounds wins, else objective points at turn limit. Each match and its rematches retain their original referee revision. Older V1 matches do not have attrition or two-turn siege; V2-V4 matches have attrition but not the V5 neutral-objective siege. The API's effective_rules field is authoritative over any mismatched prose.\nEVIDENCE: log proposed capability, owning command layer, problem solved, what happened hypothetically, and how to test in the real runtime. Report paired battles with faction/model swaps before comparing models.\nMATCH HYGIENE: do not share role keys in chats intended for public posting. Never reveal the other side's private briefing to a commander. Site-hosted history is canonical; GitHub merely tracks code/deployment. Normal browser chats still require a human or HTTP-capable agent to submit and retrieve turns.\nV6 OBJECTIVE LAYOUT: 5 progression lines, each with 3 possible lateral slots (15 candidate locations). US and GE spawn lines have all 3 home objectives active and initially owned by their faction. Exactly 1 neutral objective per interior line is selected deterministically at match creation (9 active total). The chosen positions are public, and a side-swapped rematch uses the identical positions. V6 victory on this layout requires uncontested control of at least 5 of 9 objectives for 2 consecutive turns; otherwise score 1 point per controlled objective at the turn limit. Existing matches keep their saved objective layout and rules revision.",
+  "scenario": "FIVE-LINE CORRIDOR — V6 STANDARD STARTER\nFictional 5 km × 5 km open-country board. Five parallel objective lines from US west spawn to GE east spawn. Each line has three candidate positions: north, center and south (15 possible).\nACTIVE OBJECTIVES: All 3 US home positions (Line 1) and all 3 GE home positions (Line 5) start active and owned. Each interior line (Lines 2, 3 and 4) activates ONE of its three positions using a deterministic seed at match creation. Nine active objectives total; inactive candidates have no control zone, score or capture action.\nFive 10-strength squads per faction start distributed across their home line. Two trucks per side start at home. All 9 active objectives score 1 point each.\nWIN: Control at least five active objectives without contest for two consecutive rounds; otherwise compare objective points at the turn limit. Each match in a best-of-three side swap reuses the same objective positions.\nTURN: 10 abstract minutes. Movement, recon, attrition, field activities, hidden orders and intel follow the match's pinned referee rules. This is not the real-time GRASSTEX engine.",
+  "public_brief": "TURN 1 PUBLIC: Both sides hold their three home objectives on opposite outer lines. Three neutral interior objectives are active, one on each line; their chosen positions are visible on the board. Each side has five squads and two trucks at home. Exact enemy squad assignments and intended moves remain hidden.",
   "us_brief": "US squad positions, truck status and reconnaissance intel are served securely from the game engine.",
   "ge_brief": "GE squad positions, truck status and reconnaissance intel are served securely from the game engine.",
   "turn_limit": 8,
   "mode": "discovery",
   "config": {
-    "objectives": [
-      {
-        "id": "central",
-        "name": "Central Junction",
-        "x": 2500,
-        "z": 2500,
-        "points": 3
-      },
-      {
-        "id": "north",
-        "name": "North Crossing",
-        "x": 2500,
-        "z": 3750,
-        "points": 1
-      },
-      {
-        "id": "south",
-        "name": "South Crossing",
-        "x": 2500,
-        "z": 1250,
-        "points": 1
-      }
+    "objective_lines": [
+      [
+        {
+          "x": 450,
+          "z": 1200
+        },
+        {
+          "x": 450,
+          "z": 2500
+        },
+        {
+          "x": 450,
+          "z": 3800
+        }
+      ],
+      [
+        {
+          "x": 1450,
+          "z": 1200
+        },
+        {
+          "x": 1450,
+          "z": 2500
+        },
+        {
+          "x": 1450,
+          "z": 3800
+        }
+      ],
+      [
+        {
+          "x": 2500,
+          "z": 1200
+        },
+        {
+          "x": 2500,
+          "z": 2500
+        },
+        {
+          "x": 2500,
+          "z": 3800
+        }
+      ],
+      [
+        {
+          "x": 3550,
+          "z": 1200
+        },
+        {
+          "x": 3550,
+          "z": 2500
+        },
+        {
+          "x": 3550,
+          "z": 3800
+        }
+      ],
+      [
+        {
+          "x": 4550,
+          "z": 1200
+        },
+        {
+          "x": 4550,
+          "z": 2500
+        },
+        {
+          "x": 4550,
+          "z": 3800
+        }
+      ]
     ]
   }
 }
