@@ -12,6 +12,12 @@
   let followLive = true;
   let playing = true;
   let soundEnabled = false;
+  const SOUND_PREF = 'grasstex-wargame-sound-v1';
+  try {
+    soundEnabled = localStorage.getItem(SOUND_PREF) === 'on';
+  } catch (_) {
+    /* Browser storage may be disabled. */
+  }
   let audio = null;
   let lastReportedTurn = 0;
   let lastSubmitted = { us: false, ge: false };
@@ -22,12 +28,16 @@
   let moveMarkers = [];
   const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   function signal(type) {
-    if (!soundEnabled) return;
+    if (!soundEnabled || document.hidden) return;
     try {
       const Audio = window.AudioContext || window.webkitAudioContext;
       if (!Audio) return;
       if (!audio) audio = new Audio();
-      if (audio.state === 'suspended') return;
+      if (audio.state === 'suspended') {
+        // Browser gesture policy: never try to play through a suspended context.
+        // The Sound button resumes it, and subsequent turns chime automatically.
+        return;
+      }
       const now = audio.currentTime;
       // Subtle two-tone wooden chess tap; synthesized, no external sound assets.
       for (const [offset, frequency, volume] of [
@@ -54,7 +64,7 @@
   function setButtons() {
     el('mapPlay').textContent = playing ? '❚❚ Pause' : '▶ Play';
     el('mapPlay').setAttribute('aria-pressed', String(playing));
-    el('mapSound').textContent = soundEnabled ? '♪ Sound on' : 'Sound off';
+    el('mapSound').textContent = soundEnabled ? '♪ Sound on' : '♪ Enable sound';
     el('mapSound').setAttribute('aria-pressed', String(soundEnabled));
     el('mapLive').textContent = followLive ? '● Live' : '○ Live';
   }
@@ -66,7 +76,7 @@
   function tween() {
     if (reduceMotion || moveMarkers.length === 0) return;
     let start;
-    const duration = 1000;
+    const duration = 2600;
     function step(now) {
       if (start === undefined) start = now;
       const t = Math.min(1, (now - start) / duration);
@@ -555,6 +565,13 @@
     el('fieldDetails').textContent = 'Tap a field marker to inspect its report.';
     const units = completeWorld?.units || ownWorld?.squads || null;
     const trucks = completeWorld?.trucks || ownWorld?.trucks || null;
+    // Leave the latest verified movement trails visible between polls.
+    // A one-second tween was easy to miss, especially when polling in the background.
+    const latestHistory = data.history || [];
+    const lastPriorSnapshot =
+      role === 'admin' && chosen === 0 && latestHistory.length >= 2
+        ? latestHistory[latestHistory.length - 2]?.world_snapshot
+        : null;
     const priorUnits = sourceWorld?.units || sourceWorld?.squads || null;
     const priorTrucks = sourceWorld?.trucks || null;
     if (animate && !sourceWorld && role === 'admin' && chosen > 0) {
@@ -568,8 +585,9 @@
       for (const unit of Object.values(units)) {
         const pos = xy(unit.x, unit.z);
         const col = unit.side === 'us' ? '#88baf0' : '#eda1a1';
-        if (role === 'admin' && prior?.world_snapshot?.units?.[unit.id]) {
-          const previous = prior.world_snapshot.units[unit.id];
+        const trailFrom = prior?.world_snapshot || lastPriorSnapshot;
+        if (role === 'admin' && trailFrom?.units?.[unit.id]) {
+          const previous = trailFrom.units[unit.id];
           const from = xy(previous.x, previous.z);
           if (Math.hypot(from[0] - pos[0], from[1] - pos[1]) > 3) segment(svg, from, pos, col, 2, '6 4');
         }
@@ -584,6 +602,12 @@
       for (const truck of Object.values(trucks)) {
         const [x, y] = xy(truck.x, truck.z);
         const lastTruck = animateTrucks?.[truck.id];
+        const lastTrailTruck = lastPriorSnapshot?.trucks?.[truck.id];
+        if (lastTrailTruck && role === 'admin') {
+          const prev = xy(lastTrailTruck.x, lastTrailTruck.z);
+          if (Math.hypot(prev[0] - x, prev[1] - y) > 3)
+            segment(svg, prev, [x, y], '#e9ca79', 2, '5 5');
+        }
         const from = lastTruck ? xy(lastTruck.x, lastTruck.z) : null;
         const truckNode = make('rect', {
           x: (from ? from[0] : x) - 5,
@@ -749,11 +773,34 @@
         await audio.resume().catch(() => {
           soundEnabled = false;
         });
-        if (soundEnabled) signal('submission');
+        if (soundEnabled) signal('round');
       }
+    }
+    try {
+      localStorage.setItem(SOUND_PREF, soundEnabled ? 'on' : 'off');
+    } catch (_) {
+      /* Preference storage is optional. */
     }
     setButtons();
   });
+  // A remembered sound preference still requires a user gesture on some browsers.
+  // Unlock it on the next explicit interaction; never play sound automatically
+  // from page load or a background tab.
+  document.addEventListener(
+    'pointerdown',
+    () => {
+      if (!soundEnabled) return;
+      const Audio = window.AudioContext || window.webkitAudioContext;
+      if (!Audio) return;
+      try {
+        audio = audio || new Audio();
+        if (audio.state === 'suspended') audio.resume().catch(() => {});
+      } catch (_) {
+        /* Unsupported audio is nonfatal. */
+      }
+    },
+    { capture: true }
+  );
   // Playback advances at a comfortable viewing pace; live polling is handled
   // by app.js and never reads secret data for another role.
   timer = setInterval(tickReplay, 1700);
