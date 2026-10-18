@@ -49,3 +49,8 @@ assert 'id="fieldDetails"' in page, "Field marker detail panel missing"
 assert "role === 'admin' ? completeWorld?.field_objects" in map_script, "Field truth must be observer-only"
 assert "round?.field_contacts || []" in map_script, "Replay must use per-turn authorized contacts"
 print(f"PASS: Wargame v{version} matches browser and PHP, asset URLs match Git blobs")
+
+# TEMPORARY PR DIAGNOSTIC — removed once the exact Prettier diff is applied.
+import subprocess
+subprocess.run(['npx', '--yes', 'prettier@3.3.3', '--write', 'wargame/app.js'], cwd=root, check=True)
+subprocess.run(['git', 'diff', '--', 'wargame/app.js'], cwd=root, check=True)
