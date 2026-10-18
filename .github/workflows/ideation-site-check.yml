@@ -4,6 +4,7 @@ on:
     paths:
       - 'wargame/**'
       - 'scripts/check-ideation-exchange.py'
+      - 'scripts/check-ideation-assets.py'
       - 'scripts/prepare_incremental_deploy.py'
       - '.github/workflows/ideation-site-check.yml'
   workflow_dispatch:
@@ -15,6 +16,8 @@ jobs:
     timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
+      - name: Verify browser/API versions and cache-busted asset URLs
+        run: python3 scripts/check-ideation-assets.py
       - name: Check PHP syntax
         run: |
           php -l wargame/api.php
