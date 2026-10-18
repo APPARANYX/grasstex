@@ -416,6 +416,11 @@ if ($method==='GET') {
         check_admin();
         $data=public_game($g,null,true);
         $data['observer_world']=$g['world'];
+        // Incomplete sealed orders are retained without adjudication.
+        // They remain visible to the administrator only.
+        $data['pending_sealed_orders']=array(
+            'us'=>$g['current']['us']['order']??null,
+            'ge'=>$g['current']['ge']['order']??null);
         $replay=ie_legacy_replay($g);
         if ($replay['ok']) {
             foreach ($data['history'] as $index=>&$turn)
@@ -644,7 +649,9 @@ if ($op==='submit') {
             'public_result'=>$resolved===null?null:array(
                 'turn'=>$resolved['turn'],'objective_points'=>$resolved['objective_points'],
                 'outcome'=>$resolved['outcome']),
-            'turn'=>$g['turn'],'phase'=>$g['phase'],'winner'=>$g['winner']));
+            'turn'=>$g['turn'],'phase'=>$g['phase'],'winner'=>$g['winner'],
+            'referee_debrief_notice'=>$g['phase']==='complete'?
+                'REFEREE: Match concluded. Both commanders must submit a final match debrief (round 0).':null));
     });
     reply(200,$result);
 }
