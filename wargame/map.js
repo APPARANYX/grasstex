@@ -242,7 +242,11 @@
         ? 'Older match positions verified by deterministic replay'
         : data.replay_note || '';
     const publicNote = publicWorld?.note ? ' · ' + publicWorld.note : '';
-    el('replaySource').textContent = replayStatus + publicNote;
+    const legacyLimit =
+      chosen > 0 && role === 'admin' && !completeWorld
+        ? ' · This original game has no verified historical unit coordinates. The map shows objective control only for past rounds.'
+        : '';
+    el('replaySource').textContent = replayStatus + publicNote + legacyLimit;
     const svg = make('svg', {
       viewBox: '0 0 700 700',
       role: 'img',
@@ -540,6 +544,18 @@
     }
     if (playing && !timer) timer = setInterval(tickReplay, 1700);
     setButtons();
+  });
+  el('mapExpand').addEventListener('click', () => {
+    const expanded = panel.classList.toggle('expanded');
+    el('mapExpand').textContent = expanded ? 'Close expanded map' : 'Expand map';
+    el('mapExpand').setAttribute('aria-pressed', String(expanded));
+  });
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && panel.classList.contains('expanded')) {
+      panel.classList.remove('expanded');
+      el('mapExpand').textContent = 'Expand map';
+      el('mapExpand').setAttribute('aria-pressed', 'false');
+    }
   });
   el('mapSound').addEventListener('click', async () => {
     soundEnabled = !soundEnabled;
