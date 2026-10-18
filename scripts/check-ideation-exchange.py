@@ -155,6 +155,34 @@ try:
     assert "events" not in json.dumps(resolved), resolved
     assert "Conditional reserve" not in json.dumps(resolved), resolved
 
+    # Ground detection requires actual post-movement proximity, not public omniscience.
+    code, ground_game = call("create", "POST",
+        {"title": "Ground contact discovery", "turn_limit": 3}, PASSWORD)
+    assert code == 201, ground_game
+    ground_id = ground_game["id"]
+    match_ids.append(ground_id)
+    for turn in (1, 2, 3):
+        for side in ("us", "ge"):
+            order = {"turn": turn, "side": side, "intent": "Approach south crossing",
+                "actions": [{"squad": side.upper() + "-1", "type": "move", "target": "south"}],
+                "support": "none", "proposals": []}
+            if side == "ge" and turn == 3:
+                order["activities"] = [{"squad": "GE-1", "kind": "fortification",
+                    "description": "SECRET GE works under construction at crossing"}]
+            code, result = call("submit", "POST",
+                {"id": ground_id, "turn": turn, "side": side, "order": order},
+                ground_game["keys"][side])
+            assert code == 200, result
+    code, ground_us = call("brief", key=ground_game["keys"]["us"],
+        query=f"&id={ground_id}&side=us")
+    assert code == 200, ground_us
+    discovered = ground_us["own_state"]["field_contacts"]
+    assert len(discovered) == 1 and discovered[0]["source"] == "ground", discovered
+    assert discovered[0]["confidence"] == "probable"
+    assert "SECRET GE" not in json.dumps(ground_us)
+    assert ground_us["history"][2]["field_contacts"][0]["last_seen_turn"] == 3
+    code, ground_public = call("public", query=f"&id={ground_id}")
+    assert code == 200 and "field_contacts" not in json.dumps(ground_public)
     # Finish game 1 with US still controlling the south objective.
     for turn in (2, 3):
         u = {"turn": turn, "side": "us", "intent": "Stay and secure",
