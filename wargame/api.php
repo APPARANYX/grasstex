@@ -68,7 +68,12 @@ function history_for($g,$side=null,$admin=false) {
         $r['events']=public_events(isset($r['events'])?$r['events']:array(),$admin?'all':$side);
         if ($admin) $r['events']=isset($round['resolution']['events'])?$round['resolution']['events']:array();
         $item=array('turn'=>$round['turn'],'resolution'=>$r,
-            'capabilities'=>isset($round['capabilities'])?$round['capabilities']:array(),
+            'capabilities'=>array_values(array_filter(
+                isset($round['capabilities'])?$round['capabilities']:array(),
+                function($cap)use($side,$admin){
+                    if ($admin) return true;
+                    return $side!==null && isset($cap['side']) && $cap['side']===$side;
+                })),
             'winner'=>isset($round['winner'])?$round['winner']:null,
             'resolved_at'=>isset($round['resolved_at'])?$round['resolved_at']:null);
         // A commander sees only its own complete orders. Never publish enemy missions
