@@ -66,7 +66,8 @@
       data.mode +
       ' · Revision ' +
       data.revision +
-      ' · REFEREE V' + (data.rules_revision || 1) +
+      ' · REFEREE V' +
+      (data.rules_revision || 1) +
       (data.winner ? ' · Result ' + data.winner.toUpperCase() : '');
     const mechanics = data.effective_rules || {};
     el('effectiveRules').textContent = mechanics.notice || 'Referee rules revision unavailable.';
@@ -81,8 +82,10 @@
       ? (data.private_brief || '') + '\n\n' + json(data.own_state || {})
       : 'Choose US or GE and enter that side’s role key to view its own private briefing.';
     el('rules').textContent =
-      'AUTHORITATIVE MATCH MECHANICS: ' + json(mechanics) +
-      '\n\nSTORED RULES PROSE (may describe a later version):\n' + data.rules;
+      'AUTHORITATIVE MATCH MECHANICS: ' +
+      json(mechanics) +
+      '\n\nSTORED RULES PROSE (may describe a later version):\n' +
+      data.rules;
     el('scenario').textContent = data.scenario;
     el('history').textContent = (data.history || []).length ? json(data.history) : 'No completed rounds yet.';
     el('orderStatus').textContent =
@@ -228,7 +231,8 @@
         id !== el('match').value.trim() ||
         role !== el('role').value ||
         (role !== 'public' && key !== el('key').value)
-      ) return;
+      )
+        return;
       const unchanged =
         automatic &&
         last?.id === data.id &&
@@ -261,7 +265,8 @@
         history.replaceState(null, '', url.toString());
       }
     } catch (e) {
-      if (automatic) el('liveStatus').textContent = 'LIVE · update failed: ' + e.message + ' · retrying in 5 seconds';
+      if (automatic)
+        el('liveStatus').textContent = 'LIVE · update failed: ' + e.message + ' · retrying in 5 seconds';
       else if (!silent) status(e.message, true);
     } finally {
       if (automatic) autoPollInFlight = false;
@@ -440,7 +445,8 @@
       last.id === el('match').value.trim() &&
       el('dashboard').offsetParent !== null &&
       !document.hidden
-    ) load(true, true);
+    )
+      load(true, true);
   }, 5000);
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden && last && last.phase !== 'complete') load(true, true);
