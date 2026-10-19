@@ -1073,6 +1073,12 @@ was denied or delayed, and that no asset controller changed an infantry destinat
 
 ### Phase H — Ground vehicles and anti-armor
 
+The current opt-in Strategic Interception truck prototype is a distinct, earlier
+system: its physical carrier cannot occupy an objective for embarked infantry.
+A forward screen must preserve every public-road junction before dismount, and
+any HOLD/PRECISION posture change belongs to Engagement, not the transport or
+movement planner. These contracts remain prerequisites for later vehicle plans.
+
 - Build a separate vehicle navigation/reservation layer, terrain/road/bridge constraints, recovery,
   fuel/readiness bands, and `VehicleTask` leases.
 - Introduce one direct-support armor profile and one anti-armor profile before expanding the roster.
