@@ -61,14 +61,31 @@ const flags = 'strategicInterception=1&motorTransport=1&aerialRecon=1&intercepti
       null,
       { timeout: 240000 }
     );
-    await page.waitForFunction(
-      () => {
-        const s = window.BattleTransportVehicleVisual.summary(window.__battle__);
-        return s.length === 12 && s.every(v => v.meshReady);
-      },
-      null,
-      { timeout: 240000 }
-    );
+    console.log('hosted-strategic-preview: battle ready');
+    await page
+      .waitForFunction(
+        () => {
+          const s = window.BattleTransportVehicleVisual.summary(window.__battle__);
+          return s.length === 12 && s.every(v => v.meshReady);
+        },
+        null,
+        { timeout: 240000 }
+      )
+      .catch(async error => {
+        console.error(
+          'truck readiness',
+          JSON.stringify(
+            await page.evaluate(() => ({
+              time: window.__battle__.time,
+              fleet: BattleSquadTransport.fleetSummary(window.__battle__),
+              visuals: BattleTransportVehicleVisual.summary(window.__battle__)
+            }))
+          ),
+          JSON.stringify({ fbx, errors })
+        );
+        throw error;
+      });
+    console.log('hosted-strategic-preview: twelve truck meshes ready');
     const world = await page.evaluate(() => ({
       fieldW: window.BattleSim.FIELD_W,
       fieldD: window.BattleSim.FIELD_D,
