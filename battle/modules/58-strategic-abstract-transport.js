@@ -693,6 +693,15 @@
     }
     return limit;
   }
+  /* ?truckReach=0 restores steering for a point `ahead` metres down the path. At a hairpin or a
+     turnout beside the truck that point could sit inside the circle of the truck's tightest
+     turn, which it can never drive onto, so it circled ("donuts") until the point moved on. The
+     driver now steers for where the path leaves a circle round the truck at least two turning
+     radii across (any point that far off is outside both of the truck's turning circles), and
+     counts a waypoint short of the stop as passed once it lies inside that circle. */
+  function reachOn() {
+    return !/(?:^|[?&])truckReach=0(?:&|$)/.test((root.location && root.location.search) || '');
+  }
   // The point the driver steers for: a little way down the path from where the truck is.
   function aimPoint(t, from, ahead) {
     var i = t.leg,
@@ -705,6 +714,24 @@
       ),
       p = { x: a.x + (b.x - a.x) * u, z: a.z + (b.z - a.z) * u },
       left = ahead;
+    if (reachOn())
+      for (;;) {
+        var end = t.path[i].point,
+          dir = heading(p, end);
+        if (dist(from, end) >= ahead || i === t.path.length - 1) {
+          // Where this leg leaves the circle of `ahead` round the truck (or its end).
+          var bx = dir.x * (p.x - from.x) + dir.z * (p.z - from.z),
+            c = Math.pow(dist(p, from), 2) - ahead * ahead,
+            s = c >= 0 ? 0 : -bx + Math.sqrt(Math.max(0, bx * bx - c));
+          return {
+            point: dist(from, end) >= ahead ? { x: p.x + dir.x * s, z: p.z + dir.z * s } : end,
+            dir: dir,
+            leg: i
+          };
+        }
+        p = end;
+        i++;
+      }
     for (;;) {
       var to = t.path[i].point,
         d = dist(p, to);
@@ -758,12 +785,17 @@
           b = t.path[t.leg].point,
           l2 = Math.pow(dist(a, b), 2) || 1,
           u = ((from.x - a.x) * (b.x - a.x) + (from.z - a.z) * (b.z - a.z)) / l2;
-        var reach = Math.max(0.6, t.speed * h * 2);
+        // Steering for a point `ahead` down the path, a waypoint short of the stop is passed once
+        // it lies within that reach; the truck could orbit one it can never drive over exactly.
+        var reach =
+          reachOn() && t.leg < t.path.length - 1
+            ? Math.max(2 * TRUCK_TURN_RADIUS, t.speed * 1.5)
+            : Math.max(0.6, t.speed * h * 2);
         if (u < 1 && dist(from, b) > reach) break;
         t.leg++;
       }
       if (t.leg >= t.path.length) break;
-      var ahead = Math.max(TRUCK_TURN_RADIUS, t.speed * 1.5),
+      var ahead = Math.max(reachOn() ? 2 * TRUCK_TURN_RADIUS : TRUCK_TURN_RADIUS, t.speed * 1.5),
         target = speedLimit(t, from, ahead),
         speed =
           t.speed < target

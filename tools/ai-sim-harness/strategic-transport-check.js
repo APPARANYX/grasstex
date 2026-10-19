@@ -566,6 +566,48 @@ assert.ok(
 assert.ok(blocked.squad._transport.position.z <= blocked.walls.after + 0.01);
 assert.ok(blocked.members.every(m => !blocked.api.isPassenger(m)));
 
+// A waypoint the truck can never drive over exactly (Ivan's 10-19 export: "trucks doing donuts around
+// objectives"): out of a bay with the road's join beside it, the old steering circled the waypoint on
+// full lock until something moved it on. ?truckReach=0 restores the old steering.
+function bayExit(flag) {
+  const h = make('strategic', flag);
+  assert.ok(h.api.considerMission(h.sim, h.squad, h.brief()));
+  h.squad._macroMission.status = 'executing';
+  while (h.squad._transport.phase === 'boarding' && h.sim.time < 60) h.run(0.15);
+  const t = h.squad._transport,
+    at = { ...t.position },
+    off = (x, z) => ({ x: at.x + x, z: at.z + z });
+  // The geometry of us-2's bay on seed meeting-0004: the join 12 m to the truck's right, the road's
+  // start 12 m on behind it, then the road at right angles to where the truck faces.
+  t.heading = { x: Math.sin(1.19), z: Math.cos(1.19) };
+  t.path = [
+    { point: off(4.5, -11.1), speed: 3.8 },
+    { point: off(-6.6, -15.6), speed: 12 },
+    { point: off(-15, 300), speed: 12 }
+  ];
+  t.leg = 0;
+  let yaw = 0,
+    prev = { ...t.heading };
+  while (t.phase === 'embarked' && h.sim.time < 200) {
+    h.run(0.15);
+    yaw += Math.abs(
+      Math.atan2(prev.x * t.heading.z - prev.z * t.heading.x, prev.x * t.heading.x + prev.z * t.heading.z)
+    );
+    prev = { ...t.heading };
+  }
+  return { t, turns: yaw / (2 * Math.PI) };
+}
+{
+  const on = bayExit('?motorTransport=1');
+  assert.equal(on.t.endReason, 'arrival', 'out of the bay and down the road');
+  assert.ok(
+    on.turns < 1.5,
+    'one loop out of the bay at most, never circling: ' + on.turns.toFixed(2) + ' turns'
+  );
+  const off = bayExit('?motorTransport=1&truckReach=0');
+  assert.ok(off.turns > 3, '?truckReach=0: the old steering circles the waypoint: ' + off.turns.toFixed(2));
+}
+
 // A truck reused where it stood stays there when the squad's new trip ends before it moves
 // (Ivan's 10-19 export: ge-3 came back to its truck, the order changed while it mounted, and the
 // truck vanished to its base bay). ?truckStaysPut=0 restores the jump back to the bay.
