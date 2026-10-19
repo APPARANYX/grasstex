@@ -718,11 +718,22 @@
     try {
       return {
         tuning: transport.tuning || null,
-        squads: safePlain(transport.summary(sim), 5)
+        squads: safePlain(transport.summary(sim), 5),
+        fleet: transport.fleetSummary ? safePlain(transport.fleetSummary(sim), 5) : null
       };
     } catch (_) {
       return null;
     }
+  }
+  function strategicPlanningSnapshot(sim) {
+    var I = root.BattleStrategicInterception;
+    if (!I && !sim._strategicInterception && !sim._strategicAerialRecon) return null;
+    // Read existing owner records: an export cannot request recon or issue missions.
+    return {
+      interceptionEnabled: !!(I && I.enabled(sim)),
+      aerialRecon: safePlain(sim._strategicAerialRecon, 8) || null,
+      interception: safePlain(sim._strategicInterception, 8) || null
+    };
   }
   function diagnosticFields(sim) {
     var out = {},
@@ -823,6 +834,7 @@
       modules: systems,
       objectives: objectives(sim),
       strategicTransport: strategicTransportSnapshot(sim),
+      strategicPlanning: strategicPlanningSnapshot(sim),
       objectiveControl: safePlain(sim.objectiveControl, 6),
       objectiveHold: safePlain(sim.objectiveHold, 4),
       ammunition: ammo,
@@ -1105,6 +1117,7 @@
       },
       objectives: objectives(sim),
       strategicTransport: strategicTransportSnapshot(sim),
+      strategicPlanning: strategicPlanningSnapshot(sim),
       reconstitution: safePlain(sim._macroMissionState && sim._macroMissionState.reconstitution, 5),
       commandReception:
         root.BattleCommandReception && root.BattleCommandReception.telemetry
@@ -1225,6 +1238,12 @@
       '## Reconstitution',
       '',
       markdownJson(payload.reconstitution),
+      '## Strategic transport',
+      '',
+      markdownJson(payload.strategicTransport),
+      '## Strategic planning',
+      '',
+      markdownJson(payload.strategicPlanning),
       '## Command Reception',
       '',
       markdownJson(payload.commandReception),
@@ -1296,6 +1315,18 @@
     (timeline.markers || []).forEach(function (marker) {
       rows.push(JSON.stringify({ type: 'marker', data: marker }));
     });
+    if (payload.strategicTransport || payload.strategicPlanning)
+      rows.push(
+        JSON.stringify({
+          type: 'strategic-snapshot',
+          data: {
+            format: 'grasstex-strategic-snapshot-v1',
+            time: payload.battle.time,
+            transport: payload.strategicTransport,
+            planning: payload.strategicPlanning
+          }
+        })
+      );
     if (payload.observations)
       rows.push(JSON.stringify({ type: 'tactical-snapshot', data: payload.observations }));
     if (timeline.observations) {
