@@ -277,7 +277,11 @@
           var baseId = sq.id + '-fled-' + s.id,
             loneId = baseId,
             suffix = 2;
-          while (list.some(function (other) { return other.id === loneId; })) {
+          while (
+            list.some(function (other) {
+              return other.id === loneId;
+            })
+          ) {
             loneId = baseId + '-' + suffix++;
           }
           var lone = root.SquadAI.createSquad(

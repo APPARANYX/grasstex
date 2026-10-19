@@ -49,7 +49,9 @@ assert.equal(row.stop, 'blocked');
 assert.equal(typeof row.homeM, 'number');
 assert.equal(row.pos.length, 2);
 assert.deepEqual(Object.keys(s1.retreatGate).sort(), ['casualtyFrac', 'floor', 'stress']);
-b._strategicInterception = { us: { last: { result: 'declined', rejectionEvidence: { failedTransportQuotes: 4 } } } };
+b._strategicInterception = {
+  us: { last: { result: 'declined', rejectionEvidence: { failedTransportQuotes: 4 } } }
+};
 b._strategicAerialRecon = { us: { used: true, event: { observedAt: 40, contacts: [] } } };
 r.BattleStrategicInterception = { enabled: () => true };
 r.BattleSquadTransport = {
@@ -58,8 +60,11 @@ r.BattleSquadTransport = {
 };
 const beforePlanning = JSON.stringify(b._strategicInterception),
   strategic = r.BattleDiagnosticsExport.compact(b),
-  strategicRow = r.BattleDiagnosticsExport.timelineJsonl(strategic).trim().split('\n')
-    .map(JSON.parse).find(x => x.type === 'strategic-snapshot');
+  strategicRow = r.BattleDiagnosticsExport.timelineJsonl(strategic)
+    .trim()
+    .split('\n')
+    .map(JSON.parse)
+    .find(x => x.type === 'strategic-snapshot');
 assert.ok(strategicRow, 'compact timeline retains planning and transport evidence');
 assert.equal(strategicRow.data.transport.squads[0].phase, 'embarked');
 assert.equal(strategicRow.data.transport.fleet[0].id, 'truck');

@@ -152,22 +152,41 @@ function tick(f) {
 }
 
 {
-  const f = fixture(), r = f.r, b = f.b;
+  const f = fixture(),
+    r = f.r,
+    b = f.b;
   r.location = { search: '?motorTransport=1' };
-  b.scene = { metadata: { battleScenario: {
-    profile: 'strategic', objectives: [{ id: 'a', x: 0, z: 0 }, { id: 'b', x: 0, z: 1400 }],
-    roads: [{ fromObjectiveId: 'a', toObjectiveId: 'b', ax: 0, az: 0, bx: 0, bz: 1400, width: 14 }],
-    spawnZones: { us: { bases: [{ id: 'us-base-0', objectiveId: 'a', x: 0, z: 0 }] }, ge: { bases: [] } }
-  } } };
+  b.scene = {
+    metadata: {
+      battleScenario: {
+        profile: 'strategic',
+        objectives: [
+          { id: 'a', x: 0, z: 0 },
+          { id: 'b', x: 0, z: 1400 }
+        ],
+        roads: [{ fromObjectiveId: 'a', toObjectiveId: 'b', ax: 0, az: 0, bx: 0, bz: 1400, width: 14 }],
+        spawnZones: { us: { bases: [{ id: 'us-base-0', objectiveId: 'a', x: 0, z: 0 }] }, ge: { bases: [] } }
+      }
+    }
+  };
   r.BattleSim = { moveTransportPassenger: () => true };
   r.BattleNavigation = { movementClear: () => true, invalidateNavPath() {} };
   const hooks = {};
-  r.BattleModules.registerSystem = (name, api) => { hooks[name] = api; };
+  r.BattleModules.registerSystem = (name, api) => {
+    hooks[name] = api;
+  };
   loadModule(r, 'battle/modules/58-strategic-abstract-transport.js');
   hooks['strategic-abstract-transport'].onBattleStart(b);
   r.BattleEngagement.commitStance(f.s, b, 'crawl', 5, 'fixture-prone');
-  const mission = { owner: 'force-command', intent: 'capture', status: 'issued', version: 1,
-    objectiveId: 'b', point: { x: 0, z: 1400 }, route: [] };
+  const mission = {
+    owner: 'force-command',
+    intent: 'capture',
+    status: 'issued',
+    version: 1,
+    objectiveId: 'b',
+    point: { x: 0, z: 1400 },
+    route: []
+  };
   f.q._macroMission = mission;
   assert.ok(r.BattleSquadTransport.considerMission(b, f.q, mission));
   mission.status = 'executing';

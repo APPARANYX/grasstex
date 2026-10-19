@@ -834,7 +834,10 @@ test('a soldier who flees twice never reuses a disbanded squad ID', () => {
   const next = man.squad;
   assert.notEqual(next.id, old.id, 'subsequent detachment gets a fresh ID');
   assert.equal(new Set(w.b.factions.us.squads.map(s => s.id)).size, w.b.factions.us.squads.length);
-  assert.ok(old.disbanded && old.members.length === 0, 'old detachment remains as an empty historical record');
+  assert.ok(
+    old.disbanded && old.members.length === 0,
+    'old detachment remains as an empty historical record'
+  );
 });
 
 console.log('fled-man-check: ' + n + ' tests passed');

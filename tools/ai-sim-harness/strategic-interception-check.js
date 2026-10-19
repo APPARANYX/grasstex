@@ -302,9 +302,13 @@ assert.equal(PT.fleetSummary(paired.sim).length, 12, 'screen quote does not inve
   const original = JSON.parse(JSON.stringify(sampleTown));
   sampleTown.objectives.push({ id: 'approach', x: 0, z: 0 });
   sampleTown.objectives.find(o => o.id === 'g0').x = 500;
-  sampleTown.roads = sampleTown.roads.filter(r => !(r.fromObjectiveId === 'u0' && r.toObjectiveId === 'crossing'));
-  sampleTown.roads.push({ fromObjectiveId: 'u0', toObjectiveId: 'approach', width: 14 },
-    { fromObjectiveId: 'approach', toObjectiveId: 'crossing', width: 14 });
+  sampleTown.roads = sampleTown.roads.filter(
+    r => !(r.fromObjectiveId === 'u0' && r.toObjectiveId === 'crossing')
+  );
+  sampleTown.roads.push(
+    { fromObjectiveId: 'u0', toObjectiveId: 'approach', width: 14 },
+    { fromObjectiveId: 'approach', toObjectiveId: 'crossing', width: 14 }
+  );
   sampleTown.roads.forEach(r => {
     const a = sampleTown.objectives.find(o => o.id === r.fromObjectiveId),
       b = sampleTown.objectives.find(o => o.id === r.toObjectiveId);
@@ -315,8 +319,10 @@ assert.equal(PT.fleetSummary(paired.sim).length, 12, 'screen quote does not inve
   paired.root.BattleCommanderRoutes = { missionRouteFor: () => [{ x: 0, z: 0 }] };
   const corner = P.screenOpportunity(paired.sim, 'us', P.pairs(paired.sim, 'us')[0]);
   assert.ok(corner, 'a bent public-road screen remains physically admissible');
-  assert.ok(corner.quote.route.path.some(p => p.point.x === 0 && p.point.z === 500),
-    'screen path retains the secured-objective road junction');
+  assert.ok(
+    corner.quote.route.path.some(p => p.point.x === 0 && p.point.z === 500),
+    'screen path retains the secured-objective road junction'
+  );
   Object.assign(sampleTown, original);
   delete paired.root.BattleCommanderRoutes;
 }
