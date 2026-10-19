@@ -571,6 +571,12 @@
           ? { x: from.x + ((point.x - from.x) * step) / d, z: from.z + ((point.z - from.z) * step) / d }
           : from;
     if (!safe(sim, from, p)) return false;
+    // Boarding is upright locomotion, not a prone/crawl animation at road speed.
+    // Engagement is the sole stance writer; it owns the transition before movement.
+    if (root.BattleEngagement && root.BattleEngagement.commitStance &&
+        (s.prone || s.crawling || s.tacticalCrouch)) {
+      root.BattleEngagement.commitStance(s, sim, 'stand', 0.6, 'transport-boarding');
+    }
     return !!(
       root.BattleSim &&
       root.BattleSim.moveTransportPassenger &&
