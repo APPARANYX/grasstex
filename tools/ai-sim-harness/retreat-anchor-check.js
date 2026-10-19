@@ -291,10 +291,17 @@ test('men who all arrived at their slots count as having reached the anchor desp
   assert.equal(held.data.reason, 'anchor reached', 'got ' + held.data.reason);
 });
 test('a slot offset alone is not arrival while any man is still walking, and ?retreatArrival=0 restores the old test', () => {
-  const walking = settleAtSlotOffset(fixture(), false);
-  assert.notEqual(walking.data.reason, 'anchor reached');
+  // Walking men near their slots now get the next stride (?retreatStride, below); the whole-squad test is
+  // the one this guards.
   const saved = global.location;
-  global.location = { search: '?retreatArrival=0' };
+  global.location = { search: '?retreatStride=0' };
+  try {
+    const walking = settleAtSlotOffset(fixture(), false);
+    assert.notEqual(walking.data.reason, 'anchor reached');
+  } finally {
+    global.location = saved;
+  }
+  global.location = { search: '?retreatArrival=0&retreatStride=0' };
   try {
     const w = fixture();
     // module flag is read at load time, so fixture() above loaded it under the flag
@@ -303,6 +310,52 @@ test('a slot offset alone is not arrival while any man is still walking, and ?re
   } finally {
     global.location = saved;
   }
+});
+// Ivan's 10-19 report: retreating men "run a bit, then stop, then run". The leading man stood at his slot
+// until the whole squad had closed on the anchor. The next stride now comes once one man is within the
+// march arrival radius of his slot while the centre is within a stride; ?retreatStride=0 restores waiting
+// for the whole squad.
+function leadAtSlot(w) {
+  command(w);
+  const a = p(w.q.orderAnchor),
+    men = live(w.q);
+  // The squad closes on the anchor (progress), then its first man comes within 8 m of his slot.
+  for (const [lead, rest] of [
+    [11, 12],
+    [6, 9]
+  ]) {
+    men.forEach((s, i) => {
+      s.root.position.x = a.x + (i === 0 ? lead : rest);
+      s.root.position.z = a.z;
+      s.orderDestination = { x: a.x, z: a.z };
+      s._movementStopReason = 'moving';
+    });
+    command(w, 0.45);
+  }
+  return w.L.get(w.q, 'retreat-anchor');
+}
+test('the next retreat stride comes as the first man nears his slot, and ?retreatStride=0 waits for the squad', () => {
+  assert.equal(leadAtSlot(fixture()).data.reason, 'anchor reached');
+  const saved = global.location;
+  global.location = { search: '?retreatStride=0' };
+  try {
+    assert.notEqual(leadAtSlot(fixture()).data.reason, 'anchor reached');
+  } finally {
+    global.location = saved;
+  }
+});
+test('a squad strung out more than a stride behind its anchor still waits for the centre', () => {
+  const w = fixture();
+  command(w);
+  const a = p(w.q.orderAnchor);
+  live(w.q).forEach((s, i) => {
+    s.root.position.x = a.x + (i === 0 ? 0.5 : 40);
+    s.root.position.z = a.z;
+    s.orderDestination = { x: a.x, z: a.z };
+    s._movementStopReason = i === 0 ? 'arrived' : 'moving';
+  });
+  command(w, 0.45);
+  assert.notEqual(w.L.get(w.q, 'retreat-anchor').data.reason, 'anchor reached');
 });
 // Terrain-aware actual movement proof. No synthetic _movementStopReason assignment:
 // the shipping stepMovement integrator determines physical arrival at the committed
