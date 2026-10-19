@@ -1,0 +1,35 @@
+name: TEMP Strategic 581 Prettier
+on:
+  push:
+    branches:
+      - work/strategic-capture-boarding-20261019
+    paths:
+      - .github/workflows/temp-strategic-581-formatter.yml
+permissions:
+  contents: write
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/strategic-capture-boarding-20261019
+          persist-credentials: true
+      - name: Format six changed JavaScript files
+        run: |
+          npx --yes prettier@3.3.3 --write \
+            battle/modules/15k-squad-leader-reconstitution.js \
+            battle/modules/58-strategic-abstract-transport.js \
+            tools/ai-sim-harness/autonomous-movement-handoff-check.js \
+            tools/ai-sim-harness/fled-man-check.js \
+            tools/ai-sim-harness/retreat-men-export-check.js \
+            tools/ai-sim-harness/strategic-interception-check.js
+      - name: Commit formatter output to this draft branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add battle/modules/15k-squad-leader-reconstitution.js battle/modules/58-strategic-abstract-transport.js tools/ai-sim-harness/autonomous-movement-handoff-check.js tools/ai-sim-harness/fled-man-check.js tools/ai-sim-harness/retreat-men-export-check.js tools/ai-sim-harness/strategic-interception-check.js
+          if ! git diff --cached --quiet; then
+            git commit -m "style(strategic): Prettier-format verified fixes and regressions"
+            git push origin HEAD:work/strategic-capture-boarding-20261019
+          fi
