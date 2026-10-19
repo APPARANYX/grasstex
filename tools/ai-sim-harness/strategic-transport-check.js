@@ -675,6 +675,33 @@ assert.equal(contact.api.considerMission(contact.sim, contact.squad, contact.bri
   assert.equal(p.api.considerMission(p.sim, p.squad, m), false, 'aborted ride cannot create a boarding loop');
   assert.strictEqual(p.squad._transport, t);
 }
+// A prone/crawling soldier cannot run prone into a truck: Engagement owns the
+// upright transition before the physical boarding movement/animation starts.
+{
+  const p = make();
+  const prone = p.members[0],
+    crouched = p.members[1],
+    transitions = [];
+  prone.prone = true;
+  prone.crawling = true;
+  crouched.tacticalCrouch = true;
+  p.root.BattleEngagement = {
+    commitStance(s, sim, stance, seconds, reason) {
+      transitions.push({ id: s.id, stance, reason });
+      s.prone = false;
+      s.crawling = false;
+      s.tacticalCrouch = false;
+    }
+  };
+  const m = p.brief();
+  assert.ok(p.api.considerMission(p.sim, p.squad, m));
+  m.status = 'executing';
+  p.run(0.3);
+  assert.equal(prone.prone, false, 'prone passenger stood before boarding');
+  assert.equal(prone.crawling, false, 'crawl pose cleared');
+  assert.equal(crouched.tacticalCrouch, false, 'crouching passenger also stands');
+  assert.ok(transitions.some(t => t.id === prone.id && t.reason === 'transport-boarding'));
+}
 console.log(
   'PASS six strategic depots with two persistent trucks each, exclusive allocation, real boarding/road travel, preserved parked/stopped trucks, collision-safe dismount and legacy isolation'
 );
