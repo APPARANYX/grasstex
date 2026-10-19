@@ -16,6 +16,13 @@ issues and releases the ordinary defense brief. Macro also considers nearby
 free transport for an existing accepted foot mission. Transport invalidates the
 suspended infantry navigation cache through Navigation, and the Squad Leader
 resumes its own route segment after either arrival or an interrupted ride.
+Capture zones count deployed infantry only: boarding/embarked passengers cannot
+capture, neutralize, or contest a flag while a truck crosses it. Screen transport
+keeps the secured objective as an explicit road junction before the forward post.
+Boarding requests an upright stance through Engagement before physically walking;
+Engagement retains HOLD/PRECISION preparation posture when another movement plan
+supersedes its hold proposal. Repeated fled detachments have distinct identities,
+including against retained empty squads in command history and diagnostics.
 
 **Fixed-policy baseline (October 2026; #360):** Genome v2 is stashed (`battle/ai-policy.js`), and
 commander *action doctrine* is independently disabled (`commander-doctrine.js`,
