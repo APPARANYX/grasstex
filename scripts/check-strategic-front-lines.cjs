@@ -296,6 +296,49 @@ function splitWorld(search) {
   assert.equal(off.F.approachFor(off.sim, a, L2, from), null, '?splitRoads=0 keeps the shortest road');
 }
 
+// A squad a truck left out on the side road, short of the centre, goes on from there (Ivan's
+// 10-19 export: re-briefed on the same objective, us-2 walked back to its base to "enter" the
+// side road). ?roadFromHere=0 restores the walk back.
+{
+  const goal = id => (w, x) => w.town.objectives.find(o => o.id === x || o.id === id);
+  for (const [search, back] of [
+    ['?strategicInterception=1&frontLines=1', false],
+    ['?strategicInterception=1&frontLines=1&roadFromHere=0', true]
+  ]) {
+    const w = splitWorld(search),
+      side = w.town.roads.find(
+        r =>
+          (r.fromObjectiveId === 'strategic-obj-2' && r.toObjectiveId === L2) ||
+          (r.toObjectiveId === 'strategic-obj-2' && r.fromObjectiveId === L2)
+      ),
+      base = goal('strategic-obj-2')(w),
+      centre = goal(L2)(w),
+      atBase = r => (r.fromObjectiveId === 'strategic-obj-2' ? 0 : 1),
+      t = Math.abs(atBase(side) - 0.85),
+      dropped = { x: side.ax + t * (side.bx - side.ax) + 6, z: side.az + t * (side.bz - side.az) },
+      sq = { id: 'us-a', faction: 'us', state: 'advance' };
+    w.sim.factions.us.squads = [sq];
+    const v = w.F.approachFor(w.sim, sq, L2, dropped),
+      walked = v
+        ? v.route.concat([centre]).reduce((acc, p, i, all) => {
+            const prev = i ? all[i - 1] : dropped;
+            return acc + Math.hypot(p.x - prev.x, p.z - prev.z);
+          }, 0)
+        : 0,
+      straight = Math.hypot(centre.x - dropped.x, centre.z - dropped.z);
+    assert.ok(v, 'a road from held ground');
+    assert.equal(
+      v.route.some(p => Math.hypot(p.x - base.x, p.z - base.z) < 8),
+      back,
+      back ? '?roadFromHere=0: back through the base' : 'never back to the base'
+    );
+    if (!back) {
+      assert.equal(v.roadId, side.id, 'keeps the road it stands on');
+      assert.ok(walked < straight + 20, 'goes straight on to the centre');
+    }
+  }
+}
+
 // A line changing hands earns each General one new sortie.
 function sortieWorld(search) {
   const w = world(null, search);

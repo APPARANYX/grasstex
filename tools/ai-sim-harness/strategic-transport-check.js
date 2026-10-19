@@ -462,6 +462,36 @@ for (const [flag, stops] of [
   if (stops) assert.equal(seen.squad._transport.endReason, 'crew-sighting');
 }
 
+// Two trucks briefed down the same road do not stop in one turnout (Ivan's 10-19 "clone" truck);
+// ?truckSpacing=0 restores the shared spot.
+for (const [flag, apart] of [
+  ['?motorTransport=1', true],
+  ['?motorTransport=1&truckSpacing=0', false]
+]) {
+  const two = make('strategic', flag);
+  assert.ok(two.api.considerMission(two.sim, two.squad, two.brief()));
+  const other = {
+    ...two.squad,
+    id: 'us-2',
+    _transport: null,
+    _macroMission: { ...two.squad._macroMission, version: 1 },
+    members: two.members.map((m, i) => ({
+      ...m,
+      id: 20 + i,
+      root: { position: { x: m.root.position.x, z: m.root.position.z, y: 0 } }
+    }))
+  };
+  other.members.forEach(m => {
+    m.squad = other;
+  });
+  two.sim.factions.us.squads.push(other);
+  assert.ok(two.api.considerMission(two.sim, other, other._macroMission), 'the base twin is granted');
+  const a = two.squad._transport.dismountPoint,
+    b = other._transport.dismountPoint,
+    gap = Math.hypot(a.x - b.x, a.z - b.z);
+  assert.equal(gap >= two.api.tuning.turnoutMetres - 0.01, apart, flag + ': gap ' + gap.toFixed(1));
+}
+
 // An issued but never accepted order cannot freeze its squad in boarding forever.
 const unaccepted = make();
 assert.ok(unaccepted.api.considerMission(unaccepted.sim, unaccepted.squad, unaccepted.brief()));

@@ -135,12 +135,52 @@
      live capture briefs on that objective use, the shorter on a tie; a brief re-issued on the
      same objective keeps its road. Null (shortest road, unchanged) when no road from held
      ground leads in. */
+  /* ?roadFromHere=0 restores routing a squad already out on a road into the line back through
+     that road's entry (a truck that dropped a squad short of the centre sent it back to base). */
+  function fromHereOn() {
+    return !/(?:^|[?&])roadFromHere=0(?:&|$)/.test((root.location && root.location.search) || '');
+  }
+  /* A squad already out on a road into the goal, past that road's entry objective (outside its
+     capture radius) and nearer to it than to any other road, keeps that road from where it
+     stands: a step onto the road if it is off it, then the road itself. */
+  function alreadyOn(sim, town, sq, goalId, origin) {
+    var best = null;
+    (town.roads || []).forEach(function (r) {
+      var dx = r.bx - r.ax,
+        dz = r.bz - r.az,
+        l2 = dx * dx + dz * dz;
+      if (!(l2 > 1)) return;
+      var t = Math.max(0, Math.min(1, ((origin.x - r.ax) * dx + (origin.z - r.az) * dz) / l2)),
+        p = { x: r.ax + t * dx, z: r.az + t * dz },
+        off = Math.hypot(origin.x - p.x, origin.z - p.z);
+      if (!best || off < best.off) best = { road: r, t: t, p: p, off: off, length: Math.sqrt(l2) };
+    });
+    if (!best) return null;
+    var r = best.road,
+      entryId =
+        r.fromObjectiveId === goalId
+          ? r.toObjectiveId
+          : r.toObjectiveId === goalId
+            ? r.fromObjectiveId
+            : null,
+      entry = entryId && objective(town, entryId);
+    if (!entry || owner(sim, entryId) !== sq.faction) return null;
+    var fromEntry = (r.fromObjectiveId === entryId ? best.t : 1 - best.t) * best.length;
+    if (fromEntry <= (+entry.radius || 0)) return null;
+    var route = best.off > (+r.width || 0) / 2 ? [{ x: best.p.x, z: best.p.z }] : [],
+      goal = objective(town, goalId);
+    return { roadId: r.id, entryId: entryId, route: route, length: routeLength(origin, route, goal) };
+  }
   function approachFor(sim, sq, goalId, origin) {
     var town = layout(sim),
       routes = root.BattleCommanderRoutes;
     if (!town || !splitOn() || !sq || !routes || !routes.missionRouteVia) return null;
     var goal = objective(town, goalId);
     if (!goal || goal.baseFaction) return null;
+    if (origin && fromHereOn()) {
+      var here = alreadyOn(sim, town, sq, goalId, origin);
+      if (here) return here;
+    }
     var options = [];
     (town.roads || []).forEach(function (road) {
       var entryId =

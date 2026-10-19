@@ -288,31 +288,69 @@
       vehicle.phase === 'stopped' ? 120 : MIN_TRIP
     );
   }
+  /* ?truckSpacing=0 restores parking on a turnout another truck of the side already holds (two
+     trucks briefed down the same road stopped in one spot and read as one truck "cloned"). */
+  function spacingOn() {
+    return !/(?:^|[?&])truckSpacing=0(?:&|$)/.test((root.location && root.location.search) || '');
+  }
+  /* A turnout holds one truck: one of the side's own trucks already stands there, or is driving
+     to it. Own side only; where enemy trucks stop is not the crew's to know. */
+  function turnoutTaken(sim, vehicle, point) {
+    if (!spacingOn()) return false;
+    var fleet = sim._strategicTransportFleet;
+    return ((fleet && fleet.vehicles) || []).some(function (v) {
+      if (v === vehicle || v.faction !== vehicle.faction) return false;
+      var sq =
+          v.squadId &&
+          sim.factions &&
+          sim.factions[v.faction] &&
+          (sim.factions[v.faction].squads || []).find(function (s) {
+            return s.id === v.squadId;
+          }),
+        t = sq && sq._transport && sq._transport.vehicleId === v.id ? sq._transport : null,
+        at =
+          t && (t.phase === 'boarding' || t.phase === 'embarked') && t.dismountPoint
+            ? t.dismountPoint
+            : v.position;
+      return !!at && dist(at, point) < TURNOUT_METRES;
+    });
+  }
   function pullOff(sim, town, route, vehicle) {
     // Preserve the public road until the last waypoint, then park on a
     // physically clear shoulder; no silent roadside teleport or traffic stop.
     var path = route.path,
-      last = path[path.length - 1].point,
+      end = path[path.length - 1].point,
       previous = path.length > 1 ? path[path.length - 2].point : vehicle.position,
-      dx = last.x - previous.x,
-      dz = last.z - previous.z,
+      dx = end.x - previous.x,
+      dz = end.z - previous.z,
       length = Math.hypot(dx, dz);
     if (length < 1) return null;
-    var side = { x: -dz / length, z: dx / length };
-    for (var direction of [vehicle.faction === 'us' ? 1 : -1, vehicle.faction === 'us' ? -1 : 1]) {
-      var shoulder = {
-        x: last.x + side.x * TURNOUT_METRES * direction,
-        z: last.z + side.z * TURNOUT_METRES * direction
-      };
-      if (!safe(sim, last, shoulder)) continue;
-      path.push({ point: shoulder, speed: SPEED_JOIN });
-      route.destination = shoulder;
-      route.pathMetres += TURNOUT_METRES;
-      route.estimatedDriveSeconds += TURNOUT_METRES / SPEED_JOIN;
-      route.roadExit = last;
-      return route;
+    var side = { x: -dz / length, z: dx / length },
+      back = { x: -dx / length, z: -dz / length };
+    // A taken turnout: the next one back down the same road, while the last leg is long enough.
+    for (var k = 0; k * TURNOUT_METRES < length - 1; k++) {
+      var last = { x: end.x + back.x * TURNOUT_METRES * k, z: end.z + back.z * TURNOUT_METRES * k };
+      for (var direction of [vehicle.faction === 'us' ? 1 : -1, vehicle.faction === 'us' ? -1 : 1]) {
+        var shoulder = {
+          x: last.x + side.x * TURNOUT_METRES * direction,
+          z: last.z + side.z * TURNOUT_METRES * direction
+        };
+        if (!safe(sim, last, shoulder) || turnoutTaken(sim, vehicle, shoulder)) continue;
+        if (k) path[path.length - 1] = { point: last, speed: path[path.length - 1].speed };
+        return turnInto(route, path, last, shoulder, TURNOUT_METRES * k);
+      }
+      if (!spacingOn()) break;
     }
     return null;
+  }
+  function turnInto(route, path, last, shoulder, shortened) {
+    path.push({ point: shoulder, speed: SPEED_JOIN });
+    route.destination = shoulder;
+    route.pathMetres += TURNOUT_METRES - shortened;
+    route.estimatedDriveSeconds +=
+      TURNOUT_METRES / SPEED_JOIN - shortened / (path[path.length - 2].speed || SPEED_JOIN);
+    route.roadExit = last;
+    return route;
   }
   function log(sim, sq, type, detail) {
     if (root.BattleTelemetry && root.BattleTelemetry.record)
