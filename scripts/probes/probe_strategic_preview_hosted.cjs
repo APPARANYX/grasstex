@@ -153,16 +153,42 @@ const flags = 'strategicInterception=1&motorTransport=1&aerialRecon=1&intercepti
     assert.equal(await page.evaluate(() => window.BattleTacticalMap.isOpen()), false, 'map closes');
     let transportDebug = null;
     if (process.env.PREVIEW_TRANSPORT_QA === '1') {
-      await page.evaluate(() => {
-        window.__battle__.timeScale = 4;
+      // Follow the native benchmark clock until a real squad rides. Front-line
+      // garrisons may need several simulated minutes before a transport brief.
+      // Keep the loaded FBX actors and all ordinary AI/transport admission.
+      const advancement = await page.evaluate(async () => {
+        const b = window.__battle__,
+          engine = b.scene.getEngine(),
+          renderLoop = window.__battleRenderLoop__,
+          tick = +BattleCommanderAI.commandTick || 0.45,
+          dt = 0.15;
+        if (renderLoop) engine.stopRenderLoop(renderLoop);
+        let accum = 0,
+          steps = 0;
+        const ride = () =>
+          BattleSquadTransport.summary(b).find(t => t.phase === 'embarked' && t.travelled >= 20);
+        try {
+          while (!b.paused && !b.winner && steps < 6000 && b.time < 900 && !(b.time >= 60 && ride())) {
+            b._trainerStepActive = true;
+            try {
+              b.step(dt);
+            } finally {
+              b._trainerStepActive = false;
+            }
+            accum += dt;
+            while (accum + 1e-9 >= tick && !b.winner) {
+              accum -= tick;
+              BattleCommanderAI.update(b, b.scene.metadata.battleScenario, tick);
+            }
+            if (++steps % 100 === 0) await new Promise(resolve => setTimeout(resolve, 0));
+          }
+          b.pause();
+          return { clock: 'native-fixed-step', steps, time: b.time, trip: ride() || null };
+        } finally {
+          if (renderLoop) engine.runRenderLoop(renderLoop);
+        }
       });
-      await page.waitForFunction(
-        () =>
-          window.__battle__.time >= 60 &&
-          BattleSquadTransport.summary(window.__battle__).some(t => t.phase === 'embarked'),
-        null,
-        { timeout: 120000 }
-      );
+      assert.ok(advancement.trip, 'ordinary AI must produce an actual moving transport within 900s');
       transportDebug = await page.evaluate(() => {
         const b = window.__battle__;
         b.pause();
@@ -192,6 +218,7 @@ const flags = 'strategicInterception=1&motorTransport=1&aerialRecon=1&intercepti
         b.scene.activeCamera.setTarget(new BABYLON.Vector3(p.x, y + 1, p.z));
         return { time: b.time, passengers: passengers.length, staleCaches, longestEdge, vehicle: truck.id };
       });
+      transportDebug.advancement = advancement;
       assert.ok(transportDebug.passengers >= 5, 'check actual live passengers');
       assert.deepEqual(transportDebug.staleCaches, [], 'boarding must release suspended infantry caches');
       assert.ok(
