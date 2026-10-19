@@ -593,7 +593,190 @@
       log(sim, sq, 'embarked', { passengers: seats.length, vehicleId: t.vehicleId });
     }
   }
+  /* Truck handling (?truckPhysics=0 restores the old constant-speed, snap-turning carrier). The
+     truck is a body with a heading that steers toward a point a little way down its path, so it
+     turns into corners instead of snapping, speeds up and brakes, slows for bends, and holds its
+     lane with the small corrections of a driver. Everything follows from the truck itself:
+     - length: the 6.2 m the visual scales the model to (59 TRUCK_LENGTH); wheelbase 0.6 of it;
+     - steering: front wheels lock at 35 degrees, so the tightest turn is wheelbase / tan(35);
+     - grip: a loaded truck on a dirt road holds about 0.25 g sideways and brakes at 0.3 g;
+     - power: it takes about twelve seconds to reach its road speed from a standstill;
+     - lane: the driver's corrections stay inside a tenth of the road width, a smooth function of
+       the truck's id and the distance it has driven, so seeded battles replay exactly.
+     Still the one carrier owner: the same path, safety checks and passenger moves as before; a
+     step the steering would make onto unsafe ground falls back to the exact path step. */
+  var TRUCK_BODY_LENGTH = 6.2,
+    TRUCK_WHEELBASE = TRUCK_BODY_LENGTH * 0.6,
+    TRUCK_TURN_RADIUS = TRUCK_WHEELBASE / Math.tan((35 * Math.PI) / 180),
+    GRAVITY = 9.81,
+    TRUCK_LATERAL = 0.25 * GRAVITY,
+    TRUCK_BRAKE = 0.3 * GRAVITY,
+    TRUCK_ACCEL = SPEED_ROAD / 12,
+    TRUCK_STEP = 0.05;
+  function physicsOn() {
+    return !/(?:^|[?&])truckPhysics=0(?:&|$)/.test((root.location && root.location.search) || '');
+  }
+  function legStart(t, i) {
+    return i > 0 ? t.path[i - 1].point : t.initialPosition || t.path[0].point;
+  }
+  function seed(id) {
+    var h = 0;
+    for (var i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) % 100003;
+    return h / 100003;
+  }
+  // The driver's drift across his lane, in metres: smooth in the distance driven.
+  function laneDrift(t, width) {
+    var s = t.travelled,
+      k = seed(String(t.vehicleId || ''));
+    return (width / 10) * (0.6 * Math.sin(s / 41 + k * 6.283) + 0.4 * Math.sin(s / 17 + k * 19.7));
+  }
+  function bend(a, b, c) {
+    var u = heading(a, b),
+      v = heading(b, c);
+    return Math.acos(Math.max(-1, Math.min(1, u.x * v.x + u.z * v.z)));
+  }
+  // Fastest the truck may go now so it can still brake for every bend and the stop ahead.
+  /* The truck steers `ahead` metres down the path, so it starts each bend that much before the
+     bend's point: it must be down to the bend's speed by then. */
+  function speedLimit(t, from, ahead) {
+    var limit = t.path[t.leg].speed,
+      along = dist(from, t.path[t.leg].point);
+    for (var j = t.leg; j < t.path.length && along < 400; j++) {
+      var here = t.path[j].point,
+        corner;
+      if (j === t.path.length - 1) corner = 0;
+      else {
+        var angle = bend(legStart(t, j), here, t.path[j + 1].point);
+        // A bend of angle a taken on the tightest circle: v^2 = lateral grip * radius / sin(a/2).
+        corner =
+          angle < 0.05
+            ? t.path[j + 1].speed
+            : Math.sqrt((TRUCK_LATERAL * TRUCK_TURN_RADIUS) / Math.max(Math.sin(angle / 2), 0.05));
+        corner = Math.min(corner, t.path[j].speed, t.path[j + 1].speed);
+      }
+      var room = j === t.path.length - 1 ? along : Math.max(0, along - ahead);
+      limit = Math.min(limit, Math.sqrt(corner * corner + 2 * TRUCK_BRAKE * room));
+      if (j + 1 < t.path.length) along += dist(here, t.path[j + 1].point);
+    }
+    return limit;
+  }
+  // The point the driver steers for: a little way down the path from where the truck is.
+  function aimPoint(t, from, ahead) {
+    var i = t.leg,
+      a = legStart(t, i),
+      b = t.path[i].point,
+      len = dist(a, b) || 1,
+      u = Math.max(
+        0,
+        Math.min(1, ((from.x - a.x) * (b.x - a.x) + (from.z - a.z) * (b.z - a.z)) / (len * len))
+      ),
+      p = { x: a.x + (b.x - a.x) * u, z: a.z + (b.z - a.z) * u },
+      left = ahead;
+    for (;;) {
+      var to = t.path[i].point,
+        d = dist(p, to);
+      if (d >= left || i === t.path.length - 1) {
+        var h = heading(p, to),
+          q = d >= left ? { x: p.x + h.x * left, z: p.z + h.z * left } : to;
+        return { point: q, dir: h, leg: i };
+      }
+      left -= d;
+      p = to;
+      i++;
+    }
+  }
+  function moveCarrier(sim, sq, t, members, next, newHeading, amount) {
+    if (!safe(sim, t.position, next)) return 'road-blocked';
+    var seats = members.map(function (s, i) {
+      return { s: s, next: memberSeat(i, members.length, next, newHeading) };
+    });
+    for (var j = 0; j < seats.length; j++)
+      if (!safe(sim, position(seats[j].s.root.position), seats[j].next)) return 'passenger-path-blocked';
+    seats.forEach(function (seat) {
+      root.BattleSim.moveTransportPassenger(sim, seat.s, seat.next, 'embarked-passenger');
+    });
+    t.heading = newHeading;
+    t.position = next;
+    var vehicle = vehicleFor(sim, t.vehicleId);
+    if (vehicle) {
+      vehicle.position = position(next);
+      vehicle.heading = newHeading;
+      vehicle.phase = 'moving';
+    }
+    t.travelled += amount;
+    return null;
+  }
+  function driveHandled(sim, sq, dt) {
+    var t = sq._transport,
+      members = alive(sq),
+      town = sim.scene && sim.scene.metadata && sim.scene.metadata.battleScenario,
+      width = (town && town.roads && town.roads[0] && +town.roads[0].width) || 0; /* lanes share one width */
+    if (!members.length || sq.inContact) {
+      finish(sim, sq, 'contact-or-no-passengers');
+      return;
+    }
+    if (t.speed == null) t.speed = 0;
+    for (var left = dt; left > EPS && t.leg < t.path.length; left -= TRUCK_STEP) {
+      var h = Math.min(TRUCK_STEP, left),
+        from = t.position;
+      // Past the end of this leg (or on its end point): the next one.
+      while (t.leg < t.path.length) {
+        var a = legStart(t, t.leg),
+          b = t.path[t.leg].point,
+          l2 = Math.pow(dist(a, b), 2) || 1,
+          u = ((from.x - a.x) * (b.x - a.x) + (from.z - a.z) * (b.z - a.z)) / l2;
+        var reach = Math.max(0.6, t.speed * h * 2);
+        if (u < 1 && dist(from, b) > reach) break;
+        t.leg++;
+      }
+      if (t.leg >= t.path.length) break;
+      var ahead = Math.max(TRUCK_TURN_RADIUS, t.speed * 1.5),
+        target = speedLimit(t, from, ahead),
+        speed =
+          t.speed < target
+            ? Math.min(target, t.speed + TRUCK_ACCEL * h)
+            : Math.max(target, t.speed - TRUCK_BRAKE * h);
+      // Never stall short of the stop: the last metres at a crawl.
+      speed = Math.max(speed, Math.min(1, dist(from, t.path[t.path.length - 1].point)));
+      var aim = aimPoint(t, from, ahead),
+        onRoad = t.path[aim.leg].speed >= SPEED_ROAD - EPS && t.path.length - 1 > aim.leg,
+        drift = onRoad ? laneDrift(t, width) : 0,
+        goal = { x: aim.point.x - aim.dir.z * drift, z: aim.point.z + aim.dir.x * drift },
+        want = heading(from, goal),
+        have = t.heading || want,
+        turn = Math.atan2(have.x * want.z - have.z * want.x, have.x * want.x + have.z * want.z),
+        most = (speed / TRUCK_TURN_RADIUS) * h,
+        yaw = Math.max(-most, Math.min(most, turn)),
+        c = Math.cos(yaw),
+        sn = Math.sin(yaw),
+        dir = { x: have.x * c - have.z * sn, z: have.x * sn + have.z * c },
+        amount = speed * h,
+        next = { x: from.x + dir.x * amount, z: from.z + dir.z * amount };
+      var blocked = moveCarrier(sim, sq, t, members, next, dir, amount);
+      if (blocked) {
+        // Steering would leave safe ground here: take the exact path step instead.
+        var exact = heading(from, t.path[t.leg].point),
+          step = Math.min(amount, dist(from, t.path[t.leg].point));
+        blocked = moveCarrier(
+          sim,
+          sq,
+          t,
+          members,
+          { x: from.x + exact.x * step, z: from.z + exact.z * step },
+          exact,
+          step
+        );
+        if (blocked) {
+          finish(sim, sq, blocked);
+          return;
+        }
+      }
+      t.speed = speed;
+    }
+    if (t.leg >= t.path.length) finish(sim, sq, 'arrival');
+  }
   function drive(sim, sq, dt) {
+    if (physicsOn()) return driveHandled(sim, sq, dt);
     var t = sq._transport,
       members = alive(sq),
       remaining = dt;
@@ -780,6 +963,7 @@
       dismountMetres: DISEMBARK_METRES,
       screenDismountMetres: SCREEN_STANDOFF,
       turnoutMetres: TURNOUT_METRES,
+      turnRadius: TRUCK_TURN_RADIUS,
       boardingStaggerSeconds: BOARD_STAGGER,
       minimumTrip: MIN_TRIP,
       vehiclesPerFaction: VEHICLES_PER_BASE * 3

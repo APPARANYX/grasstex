@@ -151,7 +151,7 @@ for (const args of [
   assert.equal(w.api.considerMission(w.sim, w.squad, w.brief()), false);
   assert.equal(w.squad._transport, null);
 }
-const w = make();
+const w = make(undefined, '?motorTransport=1&truckPhysics=0'); // the exact constant-speed carrier contract; handling below
 const initialFleet = w.api.fleetSummary(w.sim);
 assert.equal(initialFleet.length, 12, 'all six bases own two parked trucks before the first mission');
 assert.equal(new Set(initialFleet.map(v => v.id)).size, 12, 'every truck has a stable unique identity');
@@ -460,6 +460,55 @@ for (const [flag, stops] of [
   seen.run(0.15);
   assert.equal(seen.squad._transport.phase, stops ? 'aborted' : 'embarked', flag);
   if (stops) assert.equal(seen.squad._transport.endReason, 'crew-sighting');
+}
+
+// Truck handling (Ivan 10-19): the truck turns into its heading, speeds up and brakes, and holds
+// its lane with small corrections; seeded and identical run to run. ?truckPhysics=0 above keeps
+// the exact constant-speed carrier.
+function handledTrip() {
+  const h = make('strategic', '?motorTransport=1');
+  assert.ok(h.api.considerMission(h.sim, h.squad, h.brief()));
+  h.squad._macroMission.status = 'executing';
+  while (h.squad._transport.phase === 'boarding' && h.sim.time < 60) h.run(0.15);
+  assert.equal(h.squad._transport.phase, 'embarked');
+  const trace = [];
+  let prev = { ...h.squad._transport.position },
+    prevHeading = { ...h.squad._transport.heading };
+  while (h.squad._transport.phase === 'embarked' && h.sim.time < 400) {
+    h.run(0.15);
+    const t = h.squad._transport,
+      p = t.position,
+      turn = Math.acos(Math.max(-1, Math.min(1, t.heading.x * prevHeading.x + t.heading.z * prevHeading.z)));
+    trace.push({ x: p.x, z: p.z, v: Math.hypot(p.x - prev.x, p.z - prev.z) / 0.15, turn, phase: t.phase });
+    prev = { ...p };
+    prevHeading = { ...t.heading };
+  }
+  return { h, trace };
+}
+{
+  const { h, trace } = handledTrip(),
+    t = h.squad._transport,
+    R = h.api.tuning.turnRadius;
+  assert.equal(t.endReason, 'arrival', 'the handled truck still arrives');
+  assert.ok(trace[0].v < 2, 'pulls away from a standstill, not at road speed: ' + trace[0].v.toFixed(2));
+  assert.ok(Math.max(...trace.map(s => s.v)) > 11, 'reaches its road speed');
+  const moving = trace.slice(0, -1);
+  assert.ok(
+    moving.every((s, i) => s.turn <= ((i ? moving[i - 1].v : s.v) / R) * 0.15 + 0.02),
+    'turns no faster than its tightest circle allows: never a snap'
+  );
+  const road = trace.filter(s => s.z > 150 && s.z < 1100),
+    across = road.map(s => s.x);
+  assert.ok(Math.max(...across) - Math.min(...across) > 0.3, 'the driver drifts and corrects in his lane');
+  assert.ok(Math.max(...across.map(Math.abs)) < 14 / 10 + 1, 'and stays well inside the road');
+  const accel = trace.slice(1).map((s, i) => (s.v - trace[i].v) / 0.15);
+  assert.ok(Math.min(...accel) < -1, 'brakes before the stop');
+  assert.ok(
+    trace.slice(-3).every(s => s.v < 4),
+    'arrives slowly'
+  );
+  const again = handledTrip().trace;
+  assert.deepEqual(again, trace, 'seeded: the same trip twice is identical');
 }
 
 // Two trucks briefed down the same road do not stop in one turnout (Ivan's 10-19 "clone" truck);
