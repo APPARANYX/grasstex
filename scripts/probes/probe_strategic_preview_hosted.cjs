@@ -8,6 +8,7 @@
    PREVIEW_URL (battle_sim.php of the preview), PREVIEW_SHA (expected full or short SHA). */
 const assert = require('node:assert/strict');
 const path = require('node:path');
+const fs = require('node:fs');
 const { execSync } = require('node:child_process');
 function playwright() {
   try {
@@ -35,7 +36,11 @@ const flags = 'strategicInterception=1&motorTransport=1&aerialRecon=1&intercepti
     await page.route('**/*', route =>
       route.request().method() === 'POST' ? route.fulfill({ json: {} }) : route.continue()
     );
-    const response = await page.goto(url + '?' + flags + '&seed=hosted-preview-qa', {
+    const target = new URL(url);
+    for (const [key, value] of new URLSearchParams(flags)) target.searchParams.set(key, value);
+    target.searchParams.set('seed', process.env.PREVIEW_SEED || 'hosted-preview-qa');
+    target.searchParams.set('pinSeed', '1');
+    const response = await page.goto(target.href, {
       waitUntil: 'load',
       timeout: 300000
     });
@@ -129,7 +134,60 @@ const flags = 'strategicInterception=1&motorTransport=1&aerialRecon=1&intercepti
     if (!intel.geUsed) assert.equal(intel.geFixesOnGeMap, 0, 'US air report leaked onto the German map');
     await page.keyboard.press('Escape');
     assert.equal(await page.evaluate(() => window.BattleTacticalMap.isOpen()), false, 'map closes');
-    const result = { sha, world, fbx, intel, errors };
+    let transportDebug = null;
+    if (process.env.PREVIEW_TRANSPORT_QA === '1') {
+      await page.evaluate(() => {
+        window.__battle__.timeScale = 4;
+      });
+      await page.waitForFunction(
+        () =>
+          window.__battle__.time >= 60 &&
+          BattleSquadTransport.summary(window.__battle__).some(t => t.phase === 'embarked'),
+        null,
+        { timeout: 120000 }
+      );
+      transportDebug = await page.evaluate(() => {
+        const b = window.__battle__;
+        b.pause();
+        const passengers = [...b._roster.us, ...b._roster.ge].filter(
+          s => !s.dead && BattleSquadTransport.isPassenger(s)
+        );
+        const staleCaches = passengers.filter(s => s._physicalPath || s._navCache).map(s => s.id);
+        for (const setting of ['paths', 'waypoints', 'destinations']) BattleWorldDebug.set(setting, true);
+        BattleWorldDebug.refresh();
+        let longestEdge = 0;
+        for (const name of ['wd-dyn-path-us', 'wd-dyn-path-ge']) {
+          const mesh = b.scene.getMeshByName(name);
+          if (!mesh) continue;
+          const p = mesh.getVerticesData('position'),
+            indices = mesh.getIndices();
+          for (let i = 0; i < indices.length; i += 2) {
+            const a = indices[i] * 3,
+              c = indices[i + 1] * 3;
+            longestEdge = Math.max(longestEdge, Math.hypot(p[a] - p[c], p[a + 2] - p[c + 2]));
+          }
+        }
+        const trip = BattleSquadTransport.summary(b).find(t => t.phase === 'embarked');
+        const truck = BattleSquadTransport.fleetSummary(b).find(v => v.id === trip.vehicleId);
+        const p = truck.position,
+          y = b.heightAt(p.x, p.z);
+        b.scene.activeCamera.position.set(p.x + 24, y + 18, p.z - 28);
+        b.scene.activeCamera.setTarget(new BABYLON.Vector3(p.x, y + 1, p.z));
+        return { time: b.time, passengers: passengers.length, staleCaches, longestEdge, vehicle: truck.id };
+      });
+      assert.ok(transportDebug.passengers >= 5, 'check actual live passengers');
+      assert.deepEqual(transportDebug.staleCaches, [], 'boarding must release suspended infantry caches');
+      assert.ok(
+        transportDebug.longestEdge <= 150,
+        'rolling infantry routes cannot stretch back from moving trucks'
+      );
+      const out = path.resolve(process.env.PREVIEW_OUT || 'closeups/strategic-transport-native');
+      fs.mkdirSync(out, { recursive: true });
+      await page.waitForTimeout(500);
+      await page.screenshot({ path: path.join(out, 'embarked-debug.png') });
+      fs.writeFileSync(path.join(out, 'report.json'), JSON.stringify(transportDebug, null, 2));
+    }
+    const result = { sha, world, fbx, intel, transportDebug, errors };
     console.log('hosted-strategic-preview PASS ' + JSON.stringify(result));
     assert.deepEqual(errors, [], 'page logged a JavaScript error');
   } finally {
