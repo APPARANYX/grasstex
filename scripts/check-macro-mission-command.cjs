@@ -317,4 +317,17 @@ test('front lines: a lone garrison squad at an ambush post is recalled once its 
   kept.sq._macroMission={...kept.sq._macroMission,intent:'intercept',action:'intercept',objectiveId:null,status:'executing',key:'ambush',intercept:{garrisonObjectiveId:'a',loneGarrison:false,expiresAt:9999}};
   const held=kept.sq._macroMission;kept.tick();assert.strictEqual(kept.sq._macroMission,held,'a squad whose line kept a garrison holds its post');
 });
+test('General considers nearby transport on an unchanged accepted foot mission',()=>{
+  const f=fixture();f.tick();const m=f.sq._macroMission;let calls=0;
+  f.r.BattleSquadTransport={considerMission(sim,sq,mission){assert.strictEqual(mission,m);assert.equal(mission.status,'executing');calls++;return false;}};
+  f.tick();f.tick();assert.equal(calls,2,'a walking mission never reconsidered the trucks it passed');
+  assert.strictEqual(f.sq._macroMission,m,'transport availability must not churn the mission');
+});
+test('a threatened front-line garrison survives the short capture-security timer, then releases',()=>{
+  const f=fixture();f.sim._objectives[0].state.owner='us';
+  let exposed=true;f.r.BattleFrontLines={attackable:()=>true,garrisonFor:()=>exposed?{objectiveId:'a',point:{x:100,z:0}}:null};
+  f.tick();assert.equal(f.sq._macroMission.intent,'defend');assert.match(f.sq._macroMission.requestKey,/front-line-defense/);
+  const m=f.sq._macroMission;f.sim.time=45;f.tick();assert.strictEqual(f.sq._macroMission,m,'the exposed guard was sent away on a timer');
+  exposed=false;f.tick();assert.notStrictEqual(f.sq._macroMission,m,'guard was not released when the front advanced');
+});
 console.log(`macro-mission-command: ${passed} passed, ${failed} failed`);if(failed)process.exitCode=1;

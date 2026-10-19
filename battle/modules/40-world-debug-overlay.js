@@ -350,9 +350,17 @@
     return f === 'all' || s.faction === f;
   }
   function remainingPath(s) {
-    var c = s._physicalPath;
-    if (c && Array.isArray(c.points) && c.points.length) {
-      var si = Math.max(0, Math.min(c.points.length - 1, +c.index || 0)),
+    var c = s._physicalPath,
+      dest = point(s.destination);
+    if (c) {
+      if (
+        !dest ||
+        distance2(dest, point({ x: c.finalGoalX, z: c.finalGoalZ })) > 4 ||
+        !Array.isArray(c.points) ||
+        !c.points.length
+      )
+        return [];
+      var si = Math.max(0, +c.index || 0),
         p = [];
       for (var j = si; j < c.points.length; j++) {
         var q = point(c.points[j]);
@@ -361,8 +369,15 @@
       return p;
     }
     c = s._navCache;
-    if (!c || !Array.isArray(c.path) || !c.path.length) return [];
-    var start = Math.max(0, Math.min(c.path.length - 1, +c.index || 0)),
+    if (
+      !c ||
+      !dest ||
+      distance2(dest, point({ x: c.destX, z: c.destZ })) > 4 ||
+      !Array.isArray(c.path) ||
+      !c.path.length
+    )
+      return [];
+    var start = Math.max(0, +c.index || 0),
       out = [];
     for (var i = start; i < c.path.length; i++) {
       var n = point(c.path[i]);
@@ -536,6 +551,9 @@
     ['us', 'ge'].forEach(function (f) {
       (sim._roster[f] || []).forEach(function (s) {
         if (!includedSoldier(s) || !s.root) return;
+        // The carrier owns these men. Their suspended infantry cache and
+        // formation slots are history, not a path from the moving truck.
+        if (root.BattleSquadTransport && root.BattleSquadTransport.isPassenger(s)) return;
         var here = { x: +s.root.position.x, z: +s.root.position.z },
           nav = remainingPath(s),
           resolved = point(s.destination);

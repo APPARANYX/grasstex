@@ -425,7 +425,7 @@
       !mission ||
       mission.owner !== 'force-command' ||
       (mission.intent !== 'capture' && mission.intent !== 'intercept' && mission.intent !== 'screen') ||
-      (mission.status && mission.status !== 'issued') ||
+      (mission.status && mission.status !== 'issued' && mission.status !== 'executing') ||
       sq.state === 'retreat' ||
       sq.inContact ||
       sq.isPlayer ||
@@ -499,8 +499,12 @@
     return null;
   }
   function considerMission(sim, sq, mission) {
+    if (!sq || !mission || (mission.status !== 'issued' && mission.status !== 'executing')) return false;
+    // A newly discovered truck may serve an accepted foot mission. An ended
+    // ride on this same brief is not a new opportunity to repeat that ride.
+    if (sq._transport && sq._transport.missionVersion === mission.version) return false;
     var quote = quoteMission(sim, sq, mission);
-    if (!quote || mission.status !== 'issued') return false;
+    if (!quote) return false;
     var vehicle = quote.vehicle,
       route = quote.route,
       members = alive(sq);
@@ -543,6 +547,10 @@
       goal: route.goal,
       reusedTruck: reusedTruck
     };
+    members.forEach(function (s) {
+      if (root.BattleNavigation && root.BattleNavigation.invalidateNavPath)
+        root.BattleNavigation.invalidateNavPath(s);
+    });
     log(sim, sq, 'granted', {
       missionVersion: mission.version,
       vehicleId: vehicle.id,

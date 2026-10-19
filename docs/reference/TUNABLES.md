@@ -11,6 +11,9 @@ constant; `RETREAT_CASUALTY_FRAC` below is `squad-ai.js`'s fallback for a squad 
 
 ## Core
 
+### battle/modules/21b-strategic-front-lines.js
+- Exposed-line security retains **one** present squad while another active squad remains available and the enemy may attack that held line. Eligibility uses the objective's `minPresence` (fallback **2**) and `radius` (fallback **20 m**); the existing capture-security release band is **1.35 × radius**. An established defender is preferred, and front advancement/loss releases the guard without a new timer.
+
 ### battle/squad-ai.js
 - `RETREAT_CASUALTY_FRAC = 0.6` — flat retreat threshold (superseded by `?morale=1`)
 - `DESTINATION_COMMIT = 1.35` — seconds before destination commitment

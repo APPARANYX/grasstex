@@ -10,6 +10,13 @@ file needs an entry there, which a reviewer sees; a fix that removes a writer mu
 `General (Macro) → Squad Leader (Meso) → Engagement → Movement Resolver → Movement Execution → Navigation`.
 Intent flows down and status flows up. No layer rewrites another's state.
 
+In the opt-in front-lines scenario, `BattleFrontLines.garrisonFor` is a read-only
+request for one present squad to secure the exposed held line; Force Command
+issues and releases the ordinary defense brief. Macro also considers nearby
+free transport for an existing accepted foot mission. Transport invalidates the
+suspended infantry navigation cache through Navigation, and the Squad Leader
+resumes its own route segment after either arrival or an interrupted ride.
+
 **Fixed-policy baseline (October 2026; #360):** Genome v2 is stashed (`battle/ai-policy.js`), and
 commander *action doctrine* is independently disabled (`commander-doctrine.js`,
 `ACTION_DOCTRINE_ON = false`). The four legacy conditional action overrides do **not** decide

@@ -194,6 +194,10 @@
   function defenseRequest(sim, sq) {
     var r = sq._preparedDefenseRequest,
       source = 'prepared-defense';
+    if (!r && root.BattleFrontLines && root.BattleFrontLines.garrisonFor) {
+      r = root.BattleFrontLines.garrisonFor(sim, sq);
+      source = 'front-line-defense';
+    }
     if (!r) {
       r = sq._captureZoneDefenseRequest;
       source = 'objective-security';
@@ -428,7 +432,7 @@
       confidence: m.confidence,
       observations: JSON.parse(JSON.stringify(m.observations))
     });
-    /* Only Force Command can grant a vehicle to a fresh strategic brief.
+    /* Force Command can grant a vehicle when briefing or reconsider an accepted foot mission.
        The transport owner subsequently waits for Squad Leader acceptance,
        boards actual men, drives the public road, and returns them to foot AI. */
     if (root.BattleSquadTransport && root.BattleSquadTransport.considerMission)
@@ -605,10 +609,21 @@
     for (var i = 0; i < squads.length; i++) {
       var sq = squads[i],
         reason = wakeReason(sim, sq);
-      if (!reason) continue;
-      woke = true;
-      reasons[sq.id] = reason;
-      reconsiderMission(sim, sq, town, reason, null);
+      if (reason) {
+        woke = true;
+        reasons[sq.id] = reason;
+        reconsiderMission(sim, sq, town, reason, null);
+      }
+      // Transport is a Macro allocation decision even when the objective is
+      // unchanged: a marching squad can come across a truck after briefing.
+      var mission = sq._macroMission;
+      if (
+        mission &&
+        mission.status === 'executing' &&
+        root.BattleSquadTransport &&
+        root.BattleSquadTransport.considerMission
+      )
+        root.BattleSquadTransport.considerMission(sim, sq, mission);
     }
     general.lastTickAt = +sim.time || 0;
     return { wake: woke, reasons: reasons };

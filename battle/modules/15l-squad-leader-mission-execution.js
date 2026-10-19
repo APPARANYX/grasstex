@@ -52,23 +52,47 @@
     function transportHandoffOn() {
       return !/(?:^|[?&])transportHandoff=0(?:&|$)/.test((root.location && root.location.search) || '');
     }
-    /* While embarked the carrier, not this owner, moves the squad (squad-ai updateSquad returns early),
-       so route legs the truck drove past were never advanced. On the arrival dismount of THIS brief the
-       Squad Leader skips, once, the legs that lie farther from the brief's final point than the squad
-       already stands: they are behind it. A forward screen otherwise turned its men back toward the
-       secured objective 215-340 m behind its post. Legs still ahead are kept and walked normally. */
+    /* The carrier moved the squad past road legs while infantry command was suspended.
+       Resume this brief at the reached road segment after either arrival or an interrupted
+       ride. Distance to the final objective cannot tell which corners were passed on a
+       winding road; project onto the ordered route and keep its next corner. */
     function adoptTransportArrival(sim, sq, m, ex, legs) {
       var tr = sq._transport;
       if (!transportHandoffOn() || !m || !tr || ex.transportHandoff) return;
-      if (tr.phase !== 'dismounted' || tr.endReason !== 'arrival' || tr.missionVersion !== m.version) return;
-      ex.transportHandoff = true;
+      if (
+        (tr.phase !== 'dismounted' && tr.phase !== 'aborted') ||
+        tr.missionVersion !== m.version ||
+        !(tr.travelled > 0)
+      )
+        return;
       var pos = average(sq),
         last = legs.length - 1,
-        goal = legs[last],
         from = Math.max(0, +sq.routeIndex || 0),
-        idx = from;
-      if (!pos || !goal) return;
-      while (idx < last && dist(legs[idx], goal) > dist(pos, goal)) idx++;
+        idx = from,
+        origin =
+          (m.observations && m.observations.squad && m.observations.squad.position) ||
+          tr.initialPosition ||
+          sq.baseHome ||
+          sq.home,
+        nearest = Infinity;
+      if (!pos || !legs.length || !origin) return;
+      for (var i = from; i <= last; i++) {
+        var a = i ? legs[i - 1] : origin,
+          b = legs[i],
+          dx = b.x - a.x,
+          dz = b.z - a.z,
+          length2 = dx * dx + dz * dz;
+        if (!(length2 > 0)) continue;
+        var u = Math.max(0, Math.min(1, ((pos.x - a.x) * dx + (pos.z - a.z) * dz) / length2)),
+          off = Math.hypot(pos.x - a.x - u * dx, pos.z - a.z - u * dz);
+        if (off < nearest - 0.01) {
+          nearest = off;
+          idx = i;
+        }
+      }
+      ex.transportHandoff = true;
+      // A carrier routed on another corridor does not prove these legs passed.
+      if (nearest > (+cfg(sim, sq).cohesionRadius || 34)) return;
       if (idx === from) return;
       sq.routeIndex = idx;
       telemetry(sim, 'decision-route-transport-handoff', {
@@ -77,6 +101,7 @@
         missionVersion: m.version,
         from: from,
         to: idx,
+        endReason: tr.endReason,
         vehicleId: tr.vehicleId || null
       });
     }

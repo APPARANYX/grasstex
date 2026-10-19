@@ -208,6 +208,38 @@ same(
 const free = world(null, '?strategicInterception=1&frontLines=1&frontLineRule=0');
 assert.ok(free.F.attackable(free.sim, 'us', L3), '?frontLineRule=0 lifts the next-line rule');
 
+// After capture, retain one present squad at the exposed line. The rest may
+// exploit forward; no squad is pulled back from a different mission or road.
+{
+  const w = world(null);
+  w.own(L2, 'us');
+  const o = w.town.objectives.find(o => o.id === L2);
+  function guard(id, dx) {
+    return { id, faction: 'us', state: 'advance',
+      _macroMission: { intent: 'capture', objectiveId: L2, status: 'executing' },
+      members: Array.from({ length: 6 }, () => ({ dead: false, root: { position: { x: o.x + dx, z: o.z } } })) };
+  }
+  const a = guard('us-a', 0), b = guard('us-b', 10);
+  w.sim.factions.us.squads = [a, b];
+  assert.equal(w.F.garrisonFor(w.sim, a).objectiveId, L2, 'the captured exposed line keeps a guard');
+  assert.equal(w.F.garrisonFor(w.sim, b), null, 'one guard leaves the other squad free');
+  a._macroMission.intent = 'defend';
+  b.members.forEach(s => (s.root.position.x = o.x));
+  a.members.forEach(s => (s.root.position.x = o.x + 15));
+  assert.ok(w.F.garrisonFor(w.sim, a), 'closer arriving squads do not churn an established defender');
+  w.sim.factions.us.squads.push(guard('us-c', 1000));
+  a.state = 'retreat';
+  assert.ok(w.F.garrisonFor(w.sim, b), 'a present replacement takes over from a retreating guard');
+  const all = w.sim.factions.us.squads;
+  w.sim.factions.us.squads = [b];
+  assert.equal(w.F.garrisonFor(w.sim, b), null, 'the last active squad must not freeze the entire force on guard duty');
+  w.sim.factions.us.squads = all;
+  w.own(L3, 'us');
+  assert.equal(w.F.garrisonFor(w.sim, b), null, 'advancing the front releases the old line');
+  w.own(L2, 'ge');
+  assert.equal(w.F.garrisonFor(w.sim, b), null, 'a lost line cannot retain a friendly garrison request');
+}
+
 // Defender's prepared lines.
 const sidesRoot = {
   console: { log() {} },

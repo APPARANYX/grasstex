@@ -117,6 +117,64 @@
     }
     return [];
   }
+  /* A present squad secures the last held line while it is the enemy's next
+     legal attack. Macro consumes this read as an ordinary defense request.
+     One existing defender wins before other capturers; nobody is pulled back
+     from another objective, and advancing the front releases the old guard. */
+  function garrisonFor(sim, sq) {
+    var town = layout(sim);
+    if (!town || !ruleOn() || !sq) return null;
+    var lines = ordered(town, sq.faction),
+      front = frontIndex(sim, town, sq.faction);
+    if (front <= 0) return null;
+    var line = lines[front - 1],
+      enemy = sq.faction === 'us' ? 'ge' : 'us';
+    for (var i = 0; i < line.objectiveIds.length; i++) {
+      var o = objective(town, line.objectiveIds[i]);
+      if (!o || o.baseFaction || owner(sim, o.id) !== sq.faction || !attackable(sim, enemy, o.id)) continue;
+      var candidates = ((sim.factions[sq.faction] || {}).squads || []).filter(function (q) {
+        var m = q._macroMission,
+          tr = q._transport,
+          men = (q.members || []).filter(function (s) {
+            return s && !s.dead && s.root;
+          }),
+          p = centre(q);
+        return (
+          q.state !== 'retreat' &&
+          men.length >= (+o.minPresence || 2) &&
+          p &&
+          !(tr && (tr.phase === 'boarding' || tr.phase === 'embarked')) &&
+          m &&
+          (m.status === 'issued' || m.status === 'executing') &&
+          (m.intent === 'capture' || m.intent === 'defend') &&
+          m.objectiveId === o.id &&
+          Math.hypot(p.x - o.x, p.z - o.z) <= (+o.radius || 20) * 1.35
+        );
+      });
+      candidates.sort(function (a, b) {
+        var aDef = a._macroMission.intent === 'defend' ? 0 : 1,
+          bDef = b._macroMission.intent === 'defend' ? 0 : 1,
+          pa = centre(a),
+          pb = centre(b);
+        return (
+          aDef - bDef ||
+          Math.hypot(pa.x - o.x, pa.z - o.z) - Math.hypot(pb.x - o.x, pb.z - o.z) ||
+          a.id.localeCompare(b.id)
+        );
+      });
+      var spare = ((sim.factions[sq.faction] || {}).squads || []).some(function (q) {
+        return (
+          q !== sq &&
+          q.state !== 'retreat' &&
+          (q.members || []).filter(function (s) {
+            return s && !s.dead && s.root;
+          }).length >= (+o.minPresence || 2)
+        );
+      });
+      if (candidates[0] === sq && spare) return { objectiveId: o.id, point: { x: o.x, z: o.z } };
+    }
+    return null;
+  }
   /* ?splitRoads=0 sends every squad by the shortest road, as before. */
   function splitOn() {
     return !/(?:^|[?&])splitRoads=0(?:&|$)/.test((root.location && root.location.search) || '');
@@ -307,6 +365,7 @@
     attackable: attackable,
     rearFor: rearFor,
     rearmostHeld: rearmostHeld,
+    garrisonFor: garrisonFor,
     approachFor: approachFor,
     // The same "already out on a road into the goal" read, for a truck standing on that road.
     alreadyOn: function (sim, sq, goalId, origin) {

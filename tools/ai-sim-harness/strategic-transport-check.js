@@ -616,6 +616,23 @@ for (const [flag, staysPut] of [
 const contact = make();
 contact.squad.inContact = true;
 assert.equal(contact.api.considerMission(contact.sim, contact.squad, contact.brief()), false);
+// An existing, accepted foot mission can discover a truck after it was briefed.
+// Boarding remains tied to that mission and never repeatedly retries an ended ride.
+{
+  const p = make();
+  const m = p.brief();
+  m.status = 'executing';
+  assert.ok(
+    p.api.considerMission(p.sim, p.squad, m),
+    'accepted marching mission can claim a nearby free truck'
+  );
+  assert.strictEqual(p.squad._macroMission, m, 'pickup does not replace the accepted objective');
+  const t = p.squad._transport;
+  assert.equal(p.api.considerMission(p.sim, p.squad, m), false, 'one active ride per mission');
+  p.api.finish(p.sim, p.squad, 'road-blocked');
+  assert.equal(p.api.considerMission(p.sim, p.squad, m), false, 'aborted ride cannot create a boarding loop');
+  assert.strictEqual(p.squad._transport, t);
+}
 console.log(
   'PASS six strategic depots with two persistent trucks each, exclusive allocation, real boarding/road travel, preserved parked/stopped trucks, collision-safe dismount and legacy isolation'
 );
