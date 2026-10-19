@@ -820,4 +820,21 @@ test("a man in a fled phase is not part of the squad's cohesion: a squad that to
   assert.equal(S.assessment(q, limit).dispersed, false, 'back with the squad, nobody is');
 });
 
+test('a soldier who flees twice never reuses a disbanded squad ID', () => {
+  const w = world(),
+    q = squad(w, 0, 10, 150),
+    man = rifleman(q),
+    owner = w.r.BattleSquadStability;
+  owner.detachFled(q, w.b, [man]);
+  const old = man.squad;
+  assert.ok(old.id.includes('-fled-' + man.id), 'first flee has a stable detachment ID');
+  assert.equal(owner.absorb(q, old, w.b), true, 'man joins a recovering squad');
+  assert.equal(old.disbanded, true);
+  owner.detachFled(q, w.b, [man]);
+  const next = man.squad;
+  assert.notEqual(next.id, old.id, 'subsequent detachment gets a fresh ID');
+  assert.equal(new Set(w.b.factions.us.squads.map(s => s.id)).size, w.b.factions.us.squads.length);
+  assert.ok(old.disbanded && old.members.length === 0, 'old detachment remains as an empty historical record');
+});
+
 console.log('fled-man-check: ' + n + ' tests passed');
