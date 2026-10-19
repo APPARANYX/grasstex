@@ -255,22 +255,40 @@
       routed = entryId && via ? via(sq, town, goalId, from, entryId) : null;
     return routed || planner(sq, town, goalId, from);
   }
-  function parkingRoute(town, sq, vehicle, mission) {
+  /* ?truckOnRoad=0 restores re-planning a stopped truck through its road's entry even when it
+     already stands on that road into the goal: a truck that had dropped its squad 180 m short
+     drove back to the base end of the road and down again to the same spot. */
+  function onRoadOn() {
+    return !/(?:^|[?&])truckOnRoad=0(?:&|$)/.test((root.location && root.location.search) || '');
+  }
+  function parkingRoute(sim, town, sq, vehicle, mission) {
     var goalId = mission.objectiveId || (mission.screen && mission.screen.securedObjectiveId),
       roadStart = vehicle.phase === 'parked' ? vehicle.join : vehicle.position,
       planner = root.BattleCommanderRoutes && root.BattleCommanderRoutes.missionRouteFor,
       supplied =
         vehicle.phase === 'parked' ? [vehicle.join].concat(mission.route || []) : mission.route || [],
+      lines = root.BattleFrontLines,
+      // A stopped truck already on a road into the goal drives on down it from where it stands.
+      here =
+        vehicle.phase === 'stopped' && goalId && onRoadOn() && lines && lines.alreadyOn
+          ? lines.alreadyOn(sim, sq, goalId, vehicle.position)
+          : null,
       // The General may have briefed from the base before a truck was
       // assigned. Re-plan from the CURRENT truck/road join to prevent an
       // immediate 180-degree turn back toward that stale base waypoint.
-      regenerated = goalId && planner ? briefRoute(town, sq, mission, goalId, roadStart, planner) : null,
+      regenerated = here
+        ? null
+        : goalId && planner
+          ? briefRoute(town, sq, mission, goalId, roadStart, planner)
+          : null,
       stops =
         regenerated && regenerated.length
           ? vehicle.phase === 'parked'
             ? [vehicle.join].concat(regenerated)
             : regenerated
-          : supplied;
+          : here
+            ? here.route
+            : supplied;
     if (vehicle.phase === 'stopped') {
       var entry = nearestRoadEntry(town, vehicle.position);
       if (!entry) return null;
@@ -371,6 +389,11 @@
     if (root.BattleMovementResolver && root.BattleMovementResolver.restoreAfterTransport)
       root.BattleMovementResolver.restoreAfterTransport(s);
   }
+  /* ?truckStaysPut=0 restores sending a reused truck back to its base bay when the squad's trip
+     ends before it moves (it vanished from the road and reappeared at base). */
+  function staysPutOn() {
+    return !/(?:^|[?&])truckStaysPut=0(?:&|$)/.test((root.location && root.location.search) || '');
+  }
   function finish(sim, sq, why) {
     var t = sq._transport;
     if (!t || (t.phase !== 'boarding' && t.phase !== 'embarked')) return;
@@ -384,7 +407,8 @@
     if (vehicle) {
       // A cancelled order while still in its bay frees the SAME parked truck.
       // Once driven away, it remains physically stopped at its real location.
-      var unused = t.travelled <= EPS && t.embarkedAt == null;
+      // A truck reused where it stood stays there; only a base truck goes back to its bay.
+      var unused = t.travelled <= EPS && t.embarkedAt == null && !(t.reusedTruck && staysPutOn());
       vehicle.phase = unused ? 'parked' : 'stopped';
       vehicle.squadId = null;
       vehicle.position = unused ? position(vehicle.parking) : position(t.position);
@@ -450,7 +474,7 @@
         });
     for (var c = 0; c < candidates.length; c++) {
       var vehicle = candidates[c],
-        trial = parkingRoute(town, sq, vehicle, mission);
+        trial = parkingRoute(sim, town, sq, vehicle, mission);
       if (!trial || !trial.path.length) continue;
       trial = pullOff(sim, town, trial, vehicle);
       if (!trial) continue;
@@ -516,7 +540,8 @@
       estimatedDriveSeconds: route.estimatedDriveSeconds,
       dismountPoint: route.destination,
       standoffMetres: route.standoffMetres,
-      goal: route.goal
+      goal: route.goal,
+      reusedTruck: reusedTruck
     };
     log(sim, sq, 'granted', {
       missionVersion: mission.version,

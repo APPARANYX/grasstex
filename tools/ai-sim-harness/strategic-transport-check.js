@@ -566,6 +566,52 @@ assert.ok(
 assert.ok(blocked.squad._transport.position.z <= blocked.walls.after + 0.01);
 assert.ok(blocked.members.every(m => !blocked.api.isPassenger(m)));
 
+// A truck reused where it stood stays there when the squad's new trip ends before it moves
+// (Ivan's 10-19 export: ge-3 came back to its truck, the order changed while it mounted, and the
+// truck vanished to its base bay). ?truckStaysPut=0 restores the jump back to the bay.
+for (const [flag, staysPut] of [
+  ['?motorTransport=1', true],
+  ['?motorTransport=1&truckStaysPut=0', false]
+]) {
+  const r = make(undefined, flag);
+  r.town.objectives.push({ id: 'c', x: 0, z: 2450 });
+  r.town.roads.push({
+    fromObjectiveId: 'b',
+    toObjectiveId: 'c',
+    ax: 0,
+    az: 1400,
+    bx: 0,
+    bz: 2450,
+    width: 14
+  });
+  const truck = r.sim._strategicTransportFleet.vehicles.find(v => v.id === 'us-base-0-truck-0');
+  Object.assign(truck, { phase: 'stopped', position: { x: 11, z: 1000 }, heading: { x: 0, z: 1 } });
+  r.squad._transport = { vehicleId: truck.id, phase: 'dismounted' };
+  r.members.forEach(m => Object.assign(m.root.position, { x: 0, z: 1100 }));
+  const order = {
+    owner: 'force-command',
+    status: 'issued',
+    version: 2,
+    intent: 'capture',
+    objectiveId: 'c',
+    point: { x: 0, z: 2450 },
+    route: [{ x: 0, z: 1400 }]
+  };
+  r.squad._macroMission = order;
+  assert.ok(r.api.considerMission(r.sim, r.squad, order), 'the stopped truck is claimed again');
+  r.run(3);
+  r.squad._macroMission = { ...order, version: 3 };
+  r.run(0.3);
+  assert.equal(r.squad._transport.endReason, 'mission-changed-or-retreat');
+  assert.equal(r.squad._transport.travelled, 0, 'ended before the truck moved');
+  const at = staysPut ? { x: 11, z: 1000 } : truck.parking;
+  assert.ok(
+    Math.hypot(truck.position.x - at.x, truck.position.z - at.z) < 0.01,
+    staysPut ? 'the truck stays on the road where it stood' : '?truckStaysPut=0: back to its bay'
+  );
+  assert.equal(truck.phase, staysPut ? 'stopped' : 'parked');
+}
+
 // A squad already in contact cannot mount up in an arbitrary hidden fast mode.
 const contact = make();
 contact.squad.inContact = true;

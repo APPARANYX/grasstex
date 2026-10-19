@@ -308,6 +308,11 @@
     rearFor: rearFor,
     rearmostHeld: rearmostHeld,
     approachFor: approachFor,
+    // The same "already out on a road into the goal" read, for a truck standing on that road.
+    alreadyOn: function (sim, sq, goalId, origin) {
+      var town = layout(sim);
+      return town && splitOn() && sq && origin ? alreadyOn(sim, town, sq, goalId, origin) : null;
+    },
     summary: summary,
     seed: seed
   };

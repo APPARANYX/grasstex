@@ -339,6 +339,75 @@ function splitWorld(search) {
   }
 }
 
+// A truck that dropped its squad short of the centre on the side road, re-claimed for the same
+// objective, drives on from where it stands (Ivan's 10-19 export on 74e3da2: ge-2 and us-1
+// "turned around after loading back up"; the truck drove back to the base end of its road and
+// down again to the same spot). From 180 m out that leaves no ride worth taking, so the squad
+// walks on. ?truckOnRoad=0 restores the round trip.
+for (const [extra, roundTrip] of [
+  ['', false],
+  ['&truckOnRoad=0', true]
+]) {
+  const w = splitWorld('?strategicInterception=1&frontLines=1&motorTransport=1' + extra),
+    hooks = {};
+  Object.assign(w.root, {
+    GTLog() {},
+    BattleModules: { registerSystem: (id, api) => (hooks[id] = api) },
+    BattleNavigation: { movementClear: () => true, invalidateNavPath() {} }
+  });
+  loadModule(w.root, 'battle/modules/58-strategic-abstract-transport.js', { console: quietConsole });
+  w.sim.heightAt = () => 0;
+  w.sim.time = 400;
+  hooks['strategic-abstract-transport'].onBattleStart(w.sim);
+  const obj = id => w.town.objectives.find(o => o.id === id),
+    base = obj('strategic-obj-2'),
+    centre = obj(L2),
+    side = w.town.roads.find(
+      r => [r.fromObjectiveId, r.toObjectiveId].sort().join() === ['strategic-obj-2', L2].sort().join()
+    ),
+    len = Math.hypot(side.bx - side.ax, side.bz - side.az),
+    k = side.fromObjectiveId === L2 ? 200 / len : 1 - 200 / len,
+    stop = { x: side.ax + k * (side.bx - side.ax), z: side.az + k * (side.bz - side.az) },
+    truck = w.sim._strategicTransportFleet.vehicles.find(v => v.faction === 'us');
+  Object.assign(truck, {
+    phase: 'stopped',
+    position: { ...stop },
+    heading: { x: (centre.x - stop.x) / 200, z: (centre.z - stop.z) / 200 }
+  });
+  const sq = {
+    id: 'us-a',
+    faction: 'us',
+    state: 'advance',
+    inContact: false,
+    members: Array.from({ length: 6 }, (_, i) => ({
+      id: i,
+      dead: false,
+      suppressedUntil: 0,
+      root: { position: { x: stop.x + (i % 3) * 2, z: stop.z + Math.floor(i / 3) * 2, y: 0 } }
+    }))
+  };
+  w.sim.factions.us.squads = [sq];
+  const mission = {
+    owner: 'force-command',
+    version: 2,
+    status: 'issued',
+    intent: 'capture',
+    objectiveId: L2,
+    approachRoadId: side.id,
+    point: { x: centre.x, z: centre.z },
+    route: []
+  };
+  const quote = w.root.BattleSquadTransport.quoteMission(w.sim, sq, mission);
+  if (roundTrip) {
+    assert.ok(quote, '?truckOnRoad=0: the truck is claimed again');
+    assert.ok(
+      quote.route.path.some(p => Math.hypot(p.point.x - base.x, p.point.z - base.z) < 40),
+      '?truckOnRoad=0: back to the base end of the road and down again'
+    );
+  } else
+    assert.equal(quote, null, 'no truck ride back to base and down again; the squad walks the last 180 m');
+}
+
 // A line changing hands earns each General one new sortie.
 function sortieWorld(search) {
   const w = world(null, search);
@@ -427,5 +496,5 @@ function corridors(search, layout) {
   assert.ok(!plain.list.some(c => near(c, plain.dismount)), 'the ring layout is untouched');
 }
 console.log(
-  'PASS front-lines layout, next-line rule, start ownership, held-line rear point, prepared lines, line approach posts, split roads, line sorties'
+  'PASS front-lines layout, next-line rule, start ownership, held-line rear point, prepared lines, line approach posts, split roads, trucks on the road in, line sorties'
 );
