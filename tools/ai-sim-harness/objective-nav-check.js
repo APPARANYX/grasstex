@@ -364,6 +364,58 @@ section('capture progress survives a lapse in presence');
   );
 }
 
+/* Transport passengers travel through objectives but must not exert capture pressure. */
+section('only dismounted living infantry can capture');
+{
+  const transport = { phase: 'embarked' },
+    squad = { _transport: transport },
+    men = Array.from({ length: 5 }, (_, i) => ({
+      faction: 'us',
+      dead: false,
+      captureWeight: 1,
+      squad,
+      root: { position: { x: i, y: 0, z: 0 } }
+    })),
+    sim = {
+      time: 0,
+      factions: { us: { squads: [squad] }, ge: { squads: [] } },
+      _units: men,
+      heightAt: () => 0,
+      scene: { metadata: {} }
+    };
+  root.BattleObjectiveSystem.attach(
+    sim,
+    [{ id: 'obj-passengers', type: 'capture-zone', x: 0, z: 0, radius: 34, value: 1 }],
+    {}
+  );
+  for (let i = 0; i < 150; i++) {
+    sim.time += 0.15;
+    root.BattleObjectiveSystem.tick(sim, 0.15);
+  }
+  check(
+    'a fully loaded truck cannot capture while passing through',
+    root.BattleObjectiveSystem.status(sim, 'obj-passengers').owner === 'neutral'
+  );
+  transport.phase = 'boarding';
+  for (let i = 0; i < 100; i++) {
+    sim.time += 0.15;
+    root.BattleObjectiveSystem.tick(sim, 0.15);
+  }
+  check(
+    'boarding passengers cannot hold or contest a zone',
+    root.BattleObjectiveSystem.status(sim, 'obj-passengers').owner === 'neutral'
+  );
+  transport.phase = 'dismounted';
+  for (let i = 0; i < 150; i++) {
+    sim.time += 0.15;
+    root.BattleObjectiveSystem.tick(sim, 0.15);
+  }
+  check(
+    'the same soldiers can capture after physically dismounting',
+    root.BattleObjectiveSystem.status(sim, 'obj-passengers').owner === 'us'
+  );
+}
+
 /* Current expanded-benchmark regressions. Exercise shipping commander hooks, not a second
    implementation of their decisions. */
 function commandFixture() {
