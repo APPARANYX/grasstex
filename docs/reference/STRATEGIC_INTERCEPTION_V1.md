@@ -54,6 +54,18 @@ From the owner's phone test of the light trucks:
 - **Foot/vehicle handoff.** Force Command checks nearby free trucks on an accepted foot mission as well as at initial briefing; the objective and mission version stay unchanged. One ride attempt per brief prevents a stopped/blocked trip from repeatedly boarding itself. Boarding invalidates the suspended infantry navigation cache. After a driven trip ends on arrival or interruption under the same brief, the Squad Leader resumes the reached road segment, keeping untravelled corners instead of comparing distance to the final objective. World Debug omits passenger foot paths/slots and cached routes for superseded destinations.
 - **Reload breadcrumb (`?breadcrumb=0` off).** Every 5 s the page writes a small load record (scene meshes, textures, materials, trucks, battle time, heap where the browser reports it) to localStorage and marks it closed when left normally. If the page opens to an unclosed record from the last half hour, a banner shows it (tap to copy). Diagnostics only.
 
+**Capture and screening handoff (October 19 review).** Troops in boarding and
+embarked phases do not exert objective occupation, neutralization, or contest
+pressure; they count again once dismounted. Boarding transitions an old prone or
+crawl stance through Engagement before walking at the truck-approach pace. A
+screen truck's replanned path must include its secured objective as an intermediate
+road junction on the way to the forward post: the standard route planner omits
+its final objective and otherwise creates an invalid off-road shortcut on bends.
+The compact end-session diagnostic export now includes vehicle fleet, aerial recon,
+and interception decision records, including declined opportunities. Deterministic
+route and posture regressions are not proof of a naturally completed ambush; retain
+the native-seed end-to-end acceptance gate.
+
 ## Vehicle persistence and future garages — October 16, 2026
 
 Implementation proposal in [#558](https://github.com/APPARANYX/grasstex/pull/558), targeting the draft strategic parent #545:
