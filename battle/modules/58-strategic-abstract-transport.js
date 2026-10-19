@@ -289,6 +289,15 @@
           : here
             ? here.route
             : supplied;
+    // A screen continues beyond the secured objective; that objective is
+    // still a mandatory road junction even when missionRouteFor omits its end.
+    if (mission.screen && goalId) {
+      var secured = (town.objectives || []).find(function (o) {
+        return o.id === goalId;
+      });
+      if (secured && (!stops.length || dist(stops[stops.length - 1], secured) > EPS))
+        stops = stops.concat([position(secured)]);
+    }
     if (vehicle.phase === 'stopped') {
       var entry = nearestRoadEntry(town, vehicle.position);
       if (!entry) return null;
@@ -574,7 +583,7 @@
     // Boarding is upright locomotion, not a prone/crawl animation at road speed.
     // Engagement is the sole stance writer; it owns the transition before movement.
     if (root.BattleEngagement && root.BattleEngagement.commitStance &&
-        (s.prone || s.crawling || s.tacticalCrouch)) {
+        (s.prone || s.crawling || s.crouching || s.tacticalCrouch)) {
       root.BattleEngagement.commitStance(s, sim, 'stand', 0.6, 'transport-boarding');
     }
     return !!(
