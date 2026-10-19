@@ -337,7 +337,7 @@
        resets and stance history; the gait owner reads the same decision.
        This replaces drill-specified locomotion posture only for genuine
        authorized transit, never for a hold or preparation. */
-    if (E.settleTransitStance) E.settleTransitStance(s, sim, plan);
+    if (E.settleTransitStance) plan = E.settleTransitStance(s, sim, plan);
     else if (plan) E.commitStance(s, sim, plan.stance, 0.45, 'body-autonomy:' + plan.reason);
     if (!plan) return null;
     s._bodyAutonomyIntent = {
