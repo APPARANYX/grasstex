@@ -2,7 +2,7 @@
    Run one seed through run_probe.cjs; no orders, transforms or RNG are written. */
 (function (root) {
   'use strict';
-  var rows, captures, owners, last, next;
+  var rows, captures, owners, last, next, strategy, nextStrategy;
   function point(p) {
     return p ? [+p.x.toFixed(1), +p.z.toFixed(1)] : null;
   }
@@ -87,6 +87,10 @@
           state: s.eng && s.eng.state,
           squadState: s.squad && s.squad.state,
           intent: s.squad && s.squad._macroMission && s.squad._macroMission.intent,
+          passenger: !!(root.BattleSquadTransport && root.BattleSquadTransport.isPassenger(s)),
+          inside:
+            Math.hypot(s.root.position.x - obj.def.x, s.root.position.z - obj.def.z) <=
+            (+obj.def.radius || 20),
           targetObjective: s.squad && s.squad.targetObjective,
           position: point(s.root.position),
           destination: point(s.destination)
@@ -103,8 +107,41 @@
       owners = {};
       last = {};
       next = {};
+      strategy = [];
+      nextStrategy = 0;
     },
     sample: function (sim) {
+      if (sim.time >= nextStrategy) {
+        var I = root.BattleStrategicInterception,
+          A = root.BattleAerialRecon;
+        strategy.push(
+          JSON.parse(
+            JSON.stringify({
+              t: sim.time,
+              enabled: !!(I && I.enabled(sim)),
+              interception: sim._strategicInterception || null,
+              air: A ? { us: A.status(sim, 'us'), ge: A.status(sim, 'ge') } : null,
+              pairs: I
+                ? ['us', 'ge'].map(function (f) {
+                    return I.pairs(sim, f).map(function (p) {
+                      return {
+                        side: f,
+                        lead: p.lead.id,
+                        screen: p.screen.id,
+                        leadMission: p.lead._macroMission,
+                        screenMission: p.screen._macroMission,
+                        screenUsed: !!p.screen._transportUsed,
+                        screenFeasible: !!I.screenOpportunity(sim, f, p),
+                        supportFeasible: !!I.supportOpportunity(sim, f, p)
+                      };
+                    });
+                  })
+                : []
+            })
+          )
+        );
+        nextStrategy = sim.time + 30;
+      }
       (sim._objectives || []).forEach(function (obj) {
         var owner = obj.state.owner,
           old = owners[obj.id];
@@ -121,7 +158,7 @@
       });
       ['us', 'ge'].forEach(function (f) {
         ((sim.factions[f] || {}).squads || []).forEach(function (sq) {
-          if (!/^ge-inf-|^us-4$/.test(sq.id) || !living(sq).length) return;
+          if (!living(sq).length) return;
           var m = sq._macroMission || {},
             tr = sq._transport || {},
             signature = [m.version, sq.routeIndex, sq.state, tr.phase, tr.endReason].join('|');
@@ -134,7 +171,7 @@
       });
     },
     report: function () {
-      return { rows: rows, captures: captures };
+      return { rows: rows, captures: captures, strategy: strategy };
     }
   };
 })(window);
