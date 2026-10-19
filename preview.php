@@ -11,7 +11,7 @@
    Trust: only branches of this repository (and PRs whose head is one) are accepted. Never a bare
    sha, since GitHub resolves commits from any fork through the parent repo. The PHP loader is never
    taken from the branch: the host's own loader is copied in, so a branch can only change JS/HTML.
-   The branch's soldier models, clips, weapons and effect sprites come too (stage_assets: unchanged
+   The branch's soldier models, clips, weapons, vehicles and effect sprites come too (stage_assets: unchanged
    files are hard links to production, new ones are downloaded). A branch that changes the loader
    itself still needs the Actions preview (push to work/** or preview/**); the page says so.
 
@@ -253,7 +253,7 @@ function blob_sha($file, &$cache) {
     return $sha;
 }
 
-/* Soldier models, clips, weapons and effect sprites. The runtime reads them all from one base
+/* Soldier models, clips, weapons, vehicles and effect sprites. The runtime reads them all from one base
    (BATTLE_SOLDIER_ASSET_BASE), which is the preview's own Assets/ once it has Assets/soldiers, so a
    preview carries the full set: files identical to production are hard links to the production
    copy (no extra disk), new or changed ones are downloaded from the branch. Production's
@@ -282,7 +282,7 @@ function stage_assets($sha, $treeEntries, $root, $tmp, $previewRoot) {
         if ($failed) $problem = 'asset download failed for ' . implode(', ', array_slice($failed, 0, 3));
     }
     if (!$problem) {
-        foreach (array('soldiers', 'animations', 'weapons') as $d) {
+        foreach (array('soldiers', 'animations', 'weapons', 'vehicles') as $d) {
             foreach ((array)glob($root . '/Assets/' . $d . '/*.json') as $json) {
                 $to = $tmp . '/Assets/' . $d . '/' . basename($json);
                 if (!is_file($to) && is_dir(dirname($to)) && !@link($json, $to)) @copy($json, $to);
@@ -294,10 +294,10 @@ function stage_assets($sha, $treeEntries, $root, $tmp, $previewRoot) {
     return array(false, $problem);
 }
 
-/* A preview staged before assets were staged (no assetsStaged key) is restaged once. */
+/* Restage older soldier-only previews once so the shared asset base also serves vehicles. */
 function staged_current($dest) {
     $d = json_decode(@file_get_contents($dest . '/preview.json'), true);
-    return is_array($d) && array_key_exists('assetsStaged', $d);
+    return is_array($d) && isset($d['assetStagingVersion']) && $d['assetStagingVersion'] === 2;
 }
 
 /* Download the commit's runtime into preview/ref-<sha12>/ unless it is already there. */
@@ -321,7 +321,7 @@ function stage($branch, $sha, $root, $previewRoot, &$error) {
         $path = $e['path'];
         if ($path === 'battle_sim_local.php') $branchLoaderSha = $e['sha'];
         if (preg_match('#^battle/(battle_sim\.html|[A-Za-z0-9._-]+\.js|modules/[A-Za-z0-9._-]+\.js)$#', $path)) $files[$path] = $e;
-        elseif (preg_match('#^Assets/((soldiers|animations|weapons)/[^/]+\.fbx|weapons/[^/]+\.glb|animations/[^/]+\.bin|effects/.+\.png)$#', $path)
+        elseif (preg_match('#^Assets/((soldiers|animations|weapons|vehicles)/[^/]+\.fbx|(weapons|vehicles)/[^/]+\.glb|animations/[^/]+\.bin|effects/.+\.png)$#', $path)
             && strpos($path, '..') === false && strpos($path, '/.') === false && preg_match('#^[A-Za-z0-9 ._()/-]+$#', $path)) $assets[] = $e;
     }
     if (!isset($files['battle/battle_sim.html'])) { $error = 'this commit has no battle/battle_sim.html'; if ($lock) fclose($lock); return null; }
@@ -337,7 +337,7 @@ function stage($branch, $sha, $root, $previewRoot, &$error) {
     $hostLoaderSha = sha1('blob ' . strlen($loader) . "\0" . $loader);
     $meta = array('ref' => $branch, 'sha' => $sha, 'deployedAt' => gmdate('Y-m-d\TH:i:s\Z'), 'source' => 'preview.php',
                   'files' => count($files), 'runtimeReused' => $runtimeReused, 'runtimeDownloaded' => count($files) - $runtimeReused, 'loaderMatchesBranch' => $branchLoaderSha === null || $branchLoaderSha === $hostLoaderSha,
-                  'assetsStaged' => $assetsStaged, 'assets' => $assetNote);
+                  'assetsStaged' => $assetsStaged, 'assetStagingVersion' => 2, 'assets' => $assetNote);
     file_put_contents($tmp . '/battle_sim.php', $loader);
     file_put_contents($tmp . '/preview.json', json_encode($meta));
     file_put_contents($tmp . '/' . MARKER, $sha);
@@ -433,7 +433,7 @@ a{color:var(--accent)}code{font-size:13px;color:var(--muted)}.tag{font-size:11px
     <div style="flex:0 0 auto"><button type="submit">Launch</button></div>
   </div>
 </form>
-<p class="sub" style="margin-top:12px;font-size:13px">A link like <code>preview.php?ref=work/my-change</code> always opens that branch's latest commit. The first open of a commit takes a few seconds to copy its runtime. The branch's own models, clips, weapons and effect sprites come with it (unchanged files are linked from production). Branches that change <code>battle_sim_local.php</code> need the Actions preview (push to <code>work/**</code>).</p>
+<p class="sub" style="margin-top:12px;font-size:13px">A link like <code>preview.php?ref=work/my-change</code> always opens that branch's latest commit. The first open of a commit takes a few seconds to copy its runtime. The branch's own models, clips, weapons, vehicles and effect sprites come with it (unchanged files are linked from production). Branches that change <code>battle_sim_local.php</code> need the Actions preview (push to <code>work/**</code>).</p>
 <?php if ($recent): ?>
 <h2>Recent previews</h2>
 <table><?php foreach ($recent as $r): ?>
