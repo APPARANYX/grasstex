@@ -503,7 +503,7 @@
     return !!(
       root.BattleSim &&
       root.BattleSim.moveTransportPassenger &&
-      root.BattleSim.moveTransportPassenger(sim, s, p, 'transport-boarding')
+      root.BattleSim.moveTransportPassenger(sim, s, p, 'transport-boarding', dt > 0 ? step / dt : 0)
     );
   }
   function board(sim, sq, dt) {
@@ -607,6 +607,9 @@
     }
     if (t.leg >= t.path.length) finish(sim, sq, 'arrival');
   }
+  function crewEyesOn() {
+    return !/(?:^|[?&])crewEyes=0(?:&|$)/.test((root.location && root.location.search) || '');
+  }
   function step(sim, dt) {
     if (!enabled(sim) || !(dt > 0)) return;
     ['us', 'ge'].forEach(function (faction) {
@@ -629,6 +632,18 @@
         }
         if (sq.inContact) {
           finish(sim, sq, 'contact');
+          return;
+        }
+        /* A man on board who has an enemy in his own sight (squad-ai perceive runs for passengers)
+           stops the truck: the squad dismounts and fights on foot. Nobody else's knowledge counts.
+           `?crewEyes=0` keeps the previous blind passengers. */
+        if (
+          crewEyesOn() &&
+          alive(sq).some(function (s) {
+            return !!s.target;
+          })
+        ) {
+          finish(sim, sq, 'crew-sighting');
           return;
         }
         if (t.phase === 'boarding') {

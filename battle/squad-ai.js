@@ -2176,11 +2176,18 @@
     return role;
   }
 
+  var CREW_EYES = !/(?:^|[?&])crewEyes=0(?:&|$)/.test((root.location && root.location.search) || '');
   function updateSoldier(soldier, battle) {
     /* Passengers cannot acquire/shoot targets or select foot destinations until
        Meso atomically hands them back at dismount. The physical carrier moves
        their actual actors, not cloned vehicles or a fake faster infantry gait. */
-    if (root.BattleSquadTransport && root.BattleSquadTransport.isPassenger(soldier)) return;
+    if (root.BattleSquadTransport && root.BattleSquadTransport.isPassenger(soldier)) {
+      /* The men on the truck still look out. What they see is their own contact, so the squad's
+         contact stops the truck and the transport hands them back (58 step: 'contact'); they never
+         shoot or move from here. `?crewEyes=0` keeps passengers blind (the previous behaviour). */
+      if (CREW_EYES && !soldier.dead && !soldier.isPlayer) perceive(soldier, battle);
+      return;
+    }
     var resolver = root.BattleMovementResolver;
     /* isPlayer gates the entire soldier Micro branch. Do not run soldier-mind/sidearm before hooks,
        Perception, Engagement, or after hooks while possessed; only resolve the player's physical move. */

@@ -619,8 +619,22 @@
   /* Physical integrator remains the only actor-position and locomotion-state
      writer. The opt-in squad carrier may request a prevalidated passenger move
      through this API, never write root.position or locomotion fields itself. */
-  function moveTransportPassenger(sim, soldier, next, reason) {
+  /* `?boardFacing=0`: men walking to their truck slide without turning or a walk cycle (the
+     previous behaviour). */
+  var BOARD_FACING = !/(?:^|[?&])boardFacing=0(?:&|$)/.test((root.location && root.location.search) || '');
+  function moveTransportPassenger(sim, soldier, next, reason, speed) {
     if (!sim || !soldier || !soldier.root || !next || !isFinite(+next.x) || !isFinite(+next.z)) return false;
+    if (BOARD_FACING && reason === 'transport-boarding') {
+      // A man walking to his seat faces the way he walks and plays his walk (stepMovement).
+      var dx = +next.x - soldier.root.position.x,
+        dz = +next.z - soldier.root.position.z;
+      if (Math.hypot(dx, dz) > 0.001) {
+        var yaw = Math.atan2(dx, dz),
+          diff = Math.atan2(Math.sin(yaw - soldier.root.rotation.y), Math.cos(yaw - soldier.root.rotation.y));
+        soldier.root.rotation.y += diff * 0.35;
+      }
+      soldier._boardingWalk = { speed: +speed || 0, at: +sim.time || 0 };
+    }
     soldier.root.position.x = +next.x;
     soldier.root.position.z = +next.z;
     soldier.root.position.y = sim.heightAt(+next.x, +next.z);
@@ -638,7 +652,10 @@
       soldier.moving = false;
       soldier.moveSpeed = 0;
       soldier._movementStopReason = 'embarked-passenger';
-      BattleSoldierModel.animateWalk(soldier, dt, 0);
+      var walk = soldier._boardingWalk,
+        stride =
+          walk && (+self.time || 0) - walk.at <= 0.25 ? Math.min(1, walk.speed / (soldier.speed || 1)) : 0;
+      BattleSoldierModel.animateWalk(soldier, dt, stride);
       return;
     }
     if (root.PhaseCCombatLab && root.PhaseCCombatLab.stationary(soldier, self)) {

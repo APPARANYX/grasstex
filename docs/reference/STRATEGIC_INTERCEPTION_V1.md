@@ -36,6 +36,15 @@ The owner's iPhone reloads the page after a few minutes. Measured under phone em
 
 Phone emulation, start of a meeting battle: 1,893 draws to 365, truck textures about 101 MB to 19 MB.
 
+## Truck crews, boarding and the reload breadcrumb — October 19, 2026
+
+From the owner's phone test of the light trucks:
+
+- **Crew eyes (`?crewEyes=0` restores blind passengers).** Men on a truck still look out (squad-ai perceive runs for passengers; they never shoot or move from there). A man with an enemy in his own sight stops the truck and the squad dismounts (transport end reason `crew-sighting`). Two enemy trucks meeting on a road now stop for each other instead of driving past. Nothing beyond what that crew sees is used.
+- **Boarding (`?boardFacing=0` restores the slide).** A man walking to his seat turns to face the way he walks and plays his walk; the transport still moves him.
+- **The "second truck" at departure** is the base's other parked truck (two per base).
+- **Reload breadcrumb (`?breadcrumb=0` off).** Every 5 s the page writes a small load record (scene meshes, textures, materials, trucks, battle time, heap where the browser reports it) to localStorage and marks it closed when left normally. If the page opens to an unclosed record from the last half hour, a banner shows it (tap to copy). Diagnostics only.
+
 ## Vehicle persistence and future garages — October 16, 2026
 
 Implementation proposal in [#558](https://github.com/APPARANYX/grasstex/pull/558), targeting the draft strategic parent #545:

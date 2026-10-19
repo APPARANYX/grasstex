@@ -446,6 +446,22 @@ changed.run(0.15);
 assert.equal(changed.squad._transport.phase, 'aborted');
 assert.equal(changed.squad._transport.endReason, 'mission-changed-or-retreat');
 
+// A man on board with an enemy in his own sight stops the truck; ?crewEyes=0 keeps passengers blind.
+for (const [flag, stops] of [
+  ['?motorTransport=1', true],
+  ['?motorTransport=1&crewEyes=0', false]
+]) {
+  const seen = make('strategic', flag);
+  assert.ok(seen.api.considerMission(seen.sim, seen.squad, seen.brief()));
+  seen.squad._macroMission.status = 'executing';
+  seen.run(25);
+  assert.equal(seen.squad._transport.phase, 'embarked');
+  seen.squad.members[3].target = { id: 'enemy' };
+  seen.run(0.15);
+  assert.equal(seen.squad._transport.phase, stops ? 'aborted' : 'embarked', flag);
+  if (stops) assert.equal(seen.squad._transport.endReason, 'crew-sighting');
+}
+
 // An issued but never accepted order cannot freeze its squad in boarding forever.
 const unaccepted = make();
 assert.ok(unaccepted.api.considerMission(unaccepted.sim, unaccepted.squad, unaccepted.brief()));

@@ -3,7 +3,7 @@
   "reasons": {
     "garrison-setup": "Deployment: garrison() rewrites the defender squad inside `if (teleport)`, called once from deploy() at battle start before any AI tick. The runtime call only publishes request and post constraints.",
     "route-setup": "Initial route allocation (assignSquad, from initForce and from ensureAssignments for squads with no route yet) before the Squad Leader executes any mission.",
-    "spawn-stamp": "Spawn: stamps a fresh unit when it is created (battle-sim spawnAll at battle start, module 10 for operator reinforcements, module-registry addUnit defaults).",
+    "spawn-stamp": "Spawn: stamps a fresh unit when it is created (battle-sim spawnAll at battle start, module 10 for operator reinforcements, module 21c for front-lines reinforcement squads, module-registry addUnit defaults).",
     "restart-reset": "Restart: BattleSim.restart sweeps every soldier and squad through the module reset hooks.",
     "resolver-fallback": "Only when BattleMovementResolver is absent (isolated unit harness); production loads the resolver before any AI tick.",
     "engagement-fallback": "no-Engagement fallback (fallbackBehavior): only runs when engagement.js failed to load, so a broken deployment still fights.",
@@ -1006,6 +1006,32 @@
         "modules/44-combat-urgency.js": {
           "as": "slot",
           "why": "startUrgent sets it right after requestState('urgent-cover'), from the afterDrill slot."
+        }
+      }
+    },
+    "squad.homeBaseId": {
+      "owner": "battle-sim.js",
+      "writers": {
+        "battle-sim.js": {
+          "as": "owner",
+          "why": "spawnAll stamps each opening squad's base."
+        },
+        "modules/21c-strategic-reinforcements.js": {
+          "as": "setup",
+          "why": "spawn-stamp"
+        }
+      }
+    },
+    "squad.homeBaseObjectiveId": {
+      "owner": "battle-sim.js",
+      "writers": {
+        "battle-sim.js": {
+          "as": "owner",
+          "why": "spawnAll stamps each opening squad's base."
+        },
+        "modules/21c-strategic-reinforcements.js": {
+          "as": "setup",
+          "why": "spawn-stamp"
         }
       }
     }
