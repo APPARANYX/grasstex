@@ -110,4 +110,27 @@ function tick(f) {
   assert.equal(f.s.eng.stanceTrail.length, 0, 'no crouch/stand intermediate commits or aim-reset churn');
 }
 
-console.log('PASS native autonomous movement handoff: warning, final cover approach, stable contact gait');
+{
+  const f = fixture();
+  f.q.state = 'retreat';
+  f.q.inContact = true;
+  f.s.mind = { lastIncomingAt: f.b.time };
+  for (let i = 0; i < 12; i++) {
+    tick(f);
+    assert.equal(f.s.eng.stance, 'crouch', 'recent incoming fire keeps withdrawal low');
+    f.b.time += 0.15;
+  }
+  assert.equal(
+    f.s.eng.stanceTrail.length,
+    1,
+    'withdrawal must not commit crouch and stand between resolver decisions'
+  );
+  f.b.time += 6;
+  tick(f);
+  assert.equal(f.s.eng.stance, 'stand', 'withdrawal stands after the incoming-fire grace expires');
+  assert.equal(f.s.eng.stanceTrail.length, 2, 'a quiet withdrawal changes posture only once');
+}
+
+console.log(
+  'PASS native autonomous movement handoff: warning, final cover approach, stable contact gait and withdrawal'
+);

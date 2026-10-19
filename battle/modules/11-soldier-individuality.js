@@ -208,6 +208,9 @@
   };
   var SURVIVAL_STATES = {
     pinned: 1,
+    // Withdrawal owns its incoming-fire posture and quiet-gap hold. Replacing
+    // it after arbitration makes crouch/stand commit twice on every tick.
+    withdraw: 1,
     cower: 1,
     freeze: 1,
     flee: 1,

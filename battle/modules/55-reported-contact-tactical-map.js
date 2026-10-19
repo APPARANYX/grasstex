@@ -33,7 +33,8 @@
     backdropScenario = null,
     backdropFootprints = null;
   var viewport = { zoom: 1, cx: 500, cy: 300 },
-    drag = null;
+    pointers = Object.create(null),
+    gesture = null;
   var raf = 0,
     lastFrame = 0,
     keyListenerBound = false,
@@ -912,10 +913,31 @@
     viewport.cy = 300;
     applyViewport();
   }
+  function resetGesture() {
+    pointers = Object.create(null);
+    gesture = null;
+    if (svg && svg.classList) svg.classList.remove('gtm-dragging');
+  }
+  function pointerGesture() {
+    var points = Object.keys(pointers)
+      .slice(0, 2)
+      .map(function (id) {
+        return pointers[id];
+      });
+    if (!points.length) return null;
+    var a = points[0],
+      b = points[1] || a;
+    return {
+      x: (a.x + b.x) / 2,
+      y: (a.y + b.y) / 2,
+      span: points.length > 1 ? Math.hypot(a.x - b.x, a.y - b.y) : 0
+    };
+  }
   function setOpen(value) {
     var next = !!value;
     if (opened === next) return opened;
     opened = next;
+    if (!opened) resetGesture();
     /* The pointer must leave FPS mouse capture so the map can be interacted with.
        Restore it only if this map released it, and only when play resumes. */
     if (typeof document !== 'undefined' && opened) {
@@ -949,7 +971,8 @@
       '#battleTacticalMapButton.active{background:#52664b}',
       '#battleTacticalMap{position:fixed;inset:0;z-index:70;display:flex;align-items:center;justify-content:center;background:#0c1414e8;pointer-events:auto;color:#e8e5da;font-family:Arial,sans-serif}',
       '#battleTacticalMap[hidden]{display:none!important}',
-      '.gtm-shell{width:min(98vw,1570px);height:min(96vh,940px);min-height:0;display:grid;grid-template-rows:auto minmax(0,1fr) auto;background:#17201e;border:1px solid #69766b;box-shadow:0 18px 80px #000e;overflow:hidden}',
+      '#battleTacticalMap,#battleTacticalMap *{box-sizing:border-box}',
+      '.gtm-shell{width:min(98vw,1570px);height:min(96dvh,940px);min-width:0;min-height:0;display:grid;grid-template-rows:auto minmax(0,1fr) auto;background:#17201e;border:1px solid #69766b;box-shadow:0 18px 80px #000e;overflow:hidden}',
       '.gtm-toolbar{display:flex;align-items:center;gap:16px;padding:14px 22px;border-bottom:1px solid #526057;background:#17201f}',
       '.gtm-brand{display:flex;flex-direction:column;gap:4px;min-width:0;margin-right:auto}',
       '.gtm-toolbar strong{font:700 clamp(17px,2vw,26px) Arial;letter-spacing:.16em;color:#efe9d7}',
@@ -958,7 +981,8 @@
       '.gtm-toolbar select:disabled{opacity:.55;cursor:not-allowed}',
       '.gtm-body{display:grid;grid-template-columns:minmax(0,1fr) 290px;min-height:0}',
       '.gtm-map-column{display:flex;flex-direction:column;min-height:0;min-width:0;background:#1d2925;padding:16px 15px 8px 16px}',
-      '.gtm-map-head{display:flex;justify-content:space-between;gap:10px;margin:0 4px 9px;color:#d3d6c5;font:700 11px Arial;letter-spacing:.1em}',
+      '.gtm-map-head{display:flex;justify-content:space-between;gap:10px;margin:0 4px 9px;color:#d3d6c5;font:700 11px Arial;letter-spacing:.1em;overflow-wrap:anywhere}',
+      '.gtm-map-head>*{min-width:0}',
       '.gtm-map-surface{min-width:0;min-height:0;flex:1;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#242d26}',
       '#battleTacticalMap svg{display:block;max-width:100%;max-height:100%;width:100%;height:100%;aspect-ratio:5/3;cursor:grab;touch-action:none;user-select:none}',
       '#battleTacticalMap svg.gtm-dragging{cursor:grabbing}',
@@ -971,8 +995,8 @@
       '.gtm-map-actions{display:flex;align-items:center;gap:6px;justify-content:flex-end;margin-top:8px;color:#bfcbbe}',
       '.gtm-map-actions button{padding:5px 10px;min-width:32px}',
       '.gtm-zoom-label{font:700 10px Arial;min-width:42px;text-align:center}',
-      '.gtm-side{display:flex;flex-direction:column;gap:0;min-height:0;border-left:1px solid #68736a;background:#1a2222}',
-      '.gtm-side-section{padding:15px 15px 17px;border-bottom:1px solid #48534d}',
+      '.gtm-side{display:flex;flex-direction:column;gap:0;min-height:0;overflow-y:auto;border-left:1px solid #68736a;background:#1a2222}',
+      '.gtm-side-section{flex-shrink:0;padding:15px 15px 17px;border-bottom:1px solid #48534d}',
       '.gtm-side h3{font:700 13px Arial;letter-spacing:.12em;color:#eeece0;margin:0 0 13px}',
       '.gtm-legend-line{display:flex;align-items:center;gap:11px;margin:10px 0;color:#cbd2c6;font:12px Arial}',
       '.gtm-swatch{display:inline-flex;align-items:center;justify-content:center;width:28px;min-width:28px;height:19px;font-size:17px;font-weight:700}',
@@ -983,7 +1007,7 @@
       '.gtm-obj-id{width:23px;min-width:23px;height:23px;border:1px solid #ebdba7;display:inline-flex;align-items:center;justify-content:center;color:#ebdba7;font-weight:700;background:#28322a}',
       '.gtm-obj-id.friendly{color:#94c5fc;border-color:#94c5fc}.gtm-obj-id.hostile{color:#f5887c;border-color:#f5887c}',
       '.gtm-objective-row small{margin-left:auto;color:#adbcae;font-weight:700}',
-      '.gtm-reports{flex:1;min-height:0;overflow:auto}',
+      '.gtm-reports{flex:1 0 150px;min-height:0;overflow:auto}',
       '.gtm-report-row{display:flex;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid #39453f}',
       '.gtm-report-marker{background:#3d3331;border:1px solid #a46d5d;color:#ffd6c9;font:700 12px Arial;padding:8px 6px;min-width:30px;text-align:center}',
       '.gtm-report-row strong{display:block;color:#e2e3d8;font:700 11px Arial;margin-bottom:5px}',
@@ -999,8 +1023,8 @@
       '.gtm-legend{font:11px/1.45 Arial;color:#aab9ad;margin:8px 0 0}',
       '.gtm-footer{display:flex;align-items:center;flex-wrap:wrap;gap:18px;background:#101818;padding:10px 21px;border-top:1px solid #49574e;color:#c0cbc0;font:12px Arial}',
       '.gtm-key{display:inline-block;padding:3px 7px;border:1px solid #b3bcb2;color:#e7e9df;background:#303b35;font-weight:700;margin-right:5px}',
-      '@media(max-width:900px){.gtm-body{grid-template-columns:minmax(0,1fr) 205px}.gtm-toolbar{padding:9px 12px}.gtm-map-column{padding:9px}.gtm-side-section{padding:10px}.gtm-footer{gap:9px;padding:8px 12px}.gtm-shell{height:98vh}}',
-      '@media(max-width:620px){.gtm-shell{width:100vw;height:100dvh;border:0}.gtm-toolbar strong{font-size:15px}.gtm-toolbar{gap:5px;flex-wrap:wrap}.gtm-toolbar small{font-size:8px}.gtm-body{display:flex;flex-direction:column;overflow:auto}.gtm-map-column{flex:none;height:min(61vw,360px);min-height:245px}.gtm-side{border-left:0;border-top:1px solid #68736a;display:grid;grid-template-columns:1fr 1fr}.gtm-side-section{border-bottom:0;min-width:0}.gtm-reports{max-height:200px}.gtm-footer{font-size:10px}.gtm-map-head{font-size:9px}}'
+      '@media(max-width:900px){.gtm-body{grid-template-columns:minmax(0,1fr) 205px}.gtm-toolbar{padding:9px 12px}.gtm-map-column{padding:9px}.gtm-side-section{padding:10px}.gtm-footer{gap:9px;padding:8px 12px}.gtm-shell{height:98dvh}}',
+      '@media(max-width:620px){.gtm-shell{width:100%;height:100dvh;border:0;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}.gtm-toolbar strong{font-size:15px}.gtm-toolbar{gap:5px;flex-wrap:wrap}.gtm-toolbar small{font-size:8px}.gtm-body{display:flex;flex-direction:column;overflow:auto}.gtm-map-column{flex:none;height:min(70vw,360px);min-height:245px}.gtm-side{flex:none;overflow:visible;border-left:0;border-top:1px solid #68736a;display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.gtm-side-section{border-bottom:0;min-width:0}.gtm-reports{max-height:200px}.gtm-footer{font-size:10px}.gtm-map-head{font-size:9px}}'
     ].join('');
     document.head.appendChild(style);
     button = document.createElement('button');
@@ -1195,7 +1219,7 @@
       ['M', 'Close/open'],
       ['Esc', 'Close'],
       ['DRAG', 'Pan'],
-      ['SCROLL / + −', 'Zoom'],
+      ['PINCH / SCROLL / + −', 'Zoom'],
       ['D-PAD →', 'Gamepad toggle']
     ].forEach(function (entry) {
       var item = document.createElement('span');
@@ -1220,28 +1244,40 @@
     );
     svg.addEventListener('pointerdown', function (event) {
       if (event.button != null && event.button !== 0) return;
-      drag = { id: event.pointerId, x: event.clientX, y: event.clientY };
+      pointers[event.pointerId] = { x: event.clientX, y: event.clientY };
+      gesture = pointerGesture();
       if (svg.setPointerCapture) svg.setPointerCapture(event.pointerId);
       if (svg.classList && svg.classList.add) svg.classList.add('gtm-dragging');
     });
     svg.addEventListener('pointermove', function (event) {
-      if (!drag || drag.id !== event.pointerId) return;
-      var rect = svg.getBoundingClientRect ? svg.getBoundingClientRect() : null;
-      var w = (rect && rect.width) || 1000,
-        h = (rect && rect.height) || 600;
-      viewport.cx -= ((event.clientX - drag.x) * 1000) / (viewport.zoom * w);
-      viewport.cy -= ((event.clientY - drag.y) * 600) / (viewport.zoom * h);
-      drag.x = event.clientX;
-      drag.y = event.clientY;
+      if (!pointers[event.pointerId] || !gesture) return;
+      pointers[event.pointerId] = { x: event.clientX, y: event.clientY };
+      var next = pointerGesture(),
+        rect = svg.getBoundingClientRect();
+      // SVG preserves its aspect ratio: account for letterboxing when converting
+      // screen movement to map units. Keep the map point under the pinch midpoint.
+      var scale = Math.min(rect.width / 1000, rect.height / 600) * viewport.zoom;
+      if (!(scale > 0)) return;
+      var centerX = rect.x + rect.width / 2,
+        centerY = rect.y + rect.height / 2,
+        anchorX = viewport.cx + (gesture.x - centerX) / scale,
+        anchorY = viewport.cy + (gesture.y - centerY) / scale;
+      if (gesture.span > 0 && next.span > 0)
+        viewport.zoom = Math.max(1, Math.min(3.5, (viewport.zoom * next.span) / gesture.span));
+      scale = Math.min(rect.width / 1000, rect.height / 600) * viewport.zoom;
+      viewport.cx = anchorX - (next.x - centerX) / scale;
+      viewport.cy = anchorY - (next.y - centerY) / scale;
+      gesture = next;
       applyViewport();
     });
     function endDrag(event) {
-      if (!drag || drag.id !== event.pointerId) return;
-      drag = null;
-      if (svg.classList && svg.classList.remove) svg.classList.remove('gtm-dragging');
+      delete pointers[event.pointerId];
+      gesture = pointerGesture();
+      if (!gesture && svg.classList) svg.classList.remove('gtm-dragging');
     }
     svg.addEventListener('pointerup', endDrag);
     svg.addEventListener('pointercancel', endDrag);
+    svg.addEventListener('lostpointercapture', endDrag);
     resetViewport();
     document.body.appendChild(panel);
     if (!keyListenerBound && root.addEventListener) {
@@ -1298,7 +1334,8 @@
       operationalInfo =
       zoomText =
         null;
-    backdropScenario = backdropFootprints = staticLayer = dynamicLayer = drag = null;
+    backdropScenario = backdropFootprints = staticLayer = dynamicLayer = null;
+    resetGesture();
     objectivesNode = null;
     simRef = null;
     resetLedgers();

@@ -462,6 +462,8 @@ stance proposal until the Movement Resolver selects the actual intent. Individua
 a valid stance/gait replacement; otherwise Engagement commits its native fallback, including a
 recent-warning crouch, final cover approach or viable suppression crawl. Only the chosen stance
 is committed, so arbitration cannot create an intermediate stance change or restart aim twice.
+Withdrawal retains Engagement's incoming-fire posture and quiet-gap hold; Individuality does not
+replace that survival stance after the drill has committed it.
 `stepMovement` only shows the committed stance; another layer (the
 reload hook, module 44's drills) asks through `BattleEngagement.requestStance`, which only takes a man
 lower, or, as a drill running on Engagement's `afterDrill` slot, commits through `commitStance`

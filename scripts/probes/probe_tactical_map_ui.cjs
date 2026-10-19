@@ -4,6 +4,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const { exerciseLayout } = require('./probe_tactical_map_layout.cjs');
 function playwright() {
   try {
     return require('playwright');
@@ -64,8 +65,12 @@ const strategic = process.env.TACTICAL_MAP_MODE === 'strategic';
         return route.fulfill({ status: 200, body: silence, contentType: 'audio/wav' });
       return route.continue();
     });
-    const flags = strategic ? '?strategicInterception=1&motorTransport=1&aerialRecon=1&interception=1' : '';
-    await page.goto(URL_ + (flags || '?') + (flags ? '&' : '') + 'seed=cartography-qa', {
+    const target = new URL(URL_);
+    if (strategic)
+      for (const flag of ['strategicInterception', 'motorTransport', 'aerialRecon', 'interception'])
+        target.searchParams.set(flag, '1');
+    target.searchParams.set('seed', 'cartography-qa');
+    await page.goto(target.href, {
       waitUntil: 'load',
       timeout: 300000
     });
@@ -168,14 +173,14 @@ const strategic = process.env.TACTICAL_MAP_MODE === 'strategic';
       '0 0 1000 600',
       'fit did not restore the world map'
     );
-    await page.setViewportSize({ width: 390, height: 844 });
+    const responsive = await exerciseLayout(page);
     await page.screenshot({ path: path.join(OUT, 'mobile.png'), fullPage: false });
     await page.keyboard.press('Escape');
     assert.equal(await page.evaluate(() => BattleTacticalMap.isOpen()), false);
     await page.keyboard.press('m');
     assert.equal(await page.evaluate(() => BattleTacticalMap.isOpen()), true);
     await page.evaluate(() => window.BattleTacticalMap.setOpen(false));
-    const output = { missing, terrain, zoomValidated: true, mobileScreenshot: true, errors };
+    const output = { missing, terrain, zoomValidated: true, responsive, mobileScreenshot: true, errors };
     fs.writeFileSync(path.join(OUT, 'report.json'), JSON.stringify(output, null, 2));
     console.log('tactical-map-browser-qa PASS ' + JSON.stringify(output));
     assert.deepEqual(errors, [], 'shipping page logged a JavaScript error');
