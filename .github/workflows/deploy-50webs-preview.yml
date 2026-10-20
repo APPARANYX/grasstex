@@ -81,6 +81,8 @@ jobs:
           set -euo pipefail
           rm -rf .preview && mkdir -p .preview/battle/modules
           cp battle_sim_local.php .preview/battle_sim.php
+          # Historical refs predate the shared helper; their loaders do not require it.
+          if [ -f runtime-contract.php ]; then cp runtime-contract.php .preview/; fi
           cp battle/battle_sim.html battle/*.js .preview/battle/
           # The AI map viewer of this branch (reads the branch's own battle/*.js; ?a=<url>&b=<url> or ?bench=<run> loads benchmark results).
           cp ai_flow_live.html .preview/ai_flow_live.html
