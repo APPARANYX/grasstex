@@ -85,6 +85,46 @@
     "sha256": "5098dfc9b397ecb7ace181acc7d4b47014acb268df4285034b970af0c6bf98f9"
   },
   {
+    "path": "architecture-rollout/596-deploy-result.json",
+    "bytes": 170,
+    "sha256": "d2fabe26df873b1142831b80591036f383024df1524945a62d7fa88a4acb5bd8"
+  },
+  {
+    "path": "architecture-rollout/596-housekeeping-result.json",
+    "bytes": 117,
+    "sha256": "e1b9ee6d0b72ee1a336a44f8fe597e582cbab455c422761675e415fa07bb427d"
+  },
+  {
+    "path": "architecture-rollout/596-live-preview.json",
+    "bytes": 283,
+    "sha256": "77580ee6219a8324a3a2e1dbb392cd1bc057420d6be99c0d2f51d1bb6446b8ae"
+  },
+  {
+    "path": "architecture-rollout/597-deploy-result.json",
+    "bytes": 170,
+    "sha256": "23e93c55aef14119f2e4d6acad4cf62186679c6b3c39d5019e5413c89eaa32c3"
+  },
+  {
+    "path": "architecture-rollout/597-housekeeping-result.json",
+    "bytes": 117,
+    "sha256": "bfb904cfca1008cb08d0ef98b75d969bbc4b290235e1dd0199dfaaefb37b7c75"
+  },
+  {
+    "path": "architecture-rollout/597-live-read-model.json",
+    "bytes": 243,
+    "sha256": "da3c54f239feeb80a63469cb3559617a9e543fda10b646c7ec366fb5deb7a20d"
+  },
+  {
+    "path": "architecture-rollout/597-updated-head-ci.json",
+    "bytes": 2152,
+    "sha256": "da5970aa4941712bdd78919661b07f0c18ac06299543616aef1c8cdc9573adbe"
+  },
+  {
+    "path": "architecture-rollout/rollout.json",
+    "bytes": 645,
+    "sha256": "70fb1366fd54ed8e92be2bf74555ef30092d9162fd835993cb237a6426b10803"
+  },
+  {
     "path": "audio-format-check.log",
     "bytes": 758,
     "sha256": "7bfe0776dee7c15d2fc558dfc85db9f76bac784e61c14e2b8438f7ec0cb064c5"
@@ -248,6 +288,131 @@
     "path": "clear-contact-check.log",
     "bytes": 618,
     "sha256": "e36cc6c1c8be2b734316ebe83e7b84f88236aef114bc223fbbd784dec85c727a"
+  },
+  {
+    "path": "clock-lifecycle/071-fixed-clock-restart-check.log",
+    "bytes": 138,
+    "sha256": "9d56f4396183ec2fc854b8bdf2584f1989efbc48efcb558e2f9504fca14b73fc"
+  },
+  {
+    "path": "clock-lifecycle/072-fixed-step-clock-check.log",
+    "bytes": 179,
+    "sha256": "35ff38bc0add68b9b3b9f0d0d18194750bbad328c202ab9f01bd59e9e6977134"
+  },
+  {
+    "path": "clock-lifecycle/baseline-run.json",
+    "bytes": 170,
+    "sha256": "f6a3ea8ddcbd04178a4c1885b1f2c854c8477b27f194d74a965775fdb05f2e61"
+  },
+  {
+    "path": "clock-lifecycle/baseline-stale-debt.log",
+    "bytes": 1242,
+    "sha256": "014902948a7b79557f3de834d04c8fbf0bdd110b9e132e3d58831533e32c070b"
+  },
+  {
+    "path": "clock-lifecycle/candidate-run.json",
+    "bytes": 170,
+    "sha256": "66f3de675d0cf3876646fd617f47b4e757a6d4225c28fcaeee0d7ac892bbf52e"
+  },
+  {
+    "path": "clock-lifecycle/cross-commit-off.json",
+    "bytes": 1374,
+    "sha256": "e4c52318d53fc140f0b81933bf223527bbe5d2519100a75978b58a64f082078f"
+  },
+  {
+    "path": "clock-lifecycle/cross-commit-on.json",
+    "bytes": 1374,
+    "sha256": "73be46fcc2e3b62d5e59341bcd5897d16443f21b0353bb80bdce7cbe50c1eadf"
+  },
+  {
+    "path": "clock-lifecycle/harness-checks.json",
+    "bytes": 43960,
+    "sha256": "e2537cd5f8391fd225a6d97285ef6acfe30fe1264836791258d84a49bb7cda39"
+  },
+  {
+    "path": "clock-lifecycle/head-ci.json",
+    "bytes": 2549,
+    "sha256": "56dee200b897107a2fe646ff5788f2a2c946a8824b6e3edee4a6a482362c3a1e"
+  },
+  {
+    "path": "clock-lifecycle/standard-benchmark/baseline/seeds-1043-shard-1/off/battle-benchmark.json.gz",
+    "bytes": 141821,
+    "sha256": "aea67b6c0ea8d802665969aac75b01319d8c7263d868731d33baa32dc7dc5940"
+  },
+  {
+    "path": "clock-lifecycle/standard-benchmark/baseline/seeds-1043-shard-1/on/battle-benchmark.json.gz",
+    "bytes": 141817,
+    "sha256": "3de1b0bd8b49bce8169b5a31ef774b8f57a97931a4543938f217c2bd48165b70"
+  },
+  {
+    "path": "clock-lifecycle/standard-benchmark/baseline/seeds-1043-shard-2/off/battle-benchmark.json.gz",
+    "bytes": 115515,
+    "sha256": "870468e3c277160d104a1e80aa280f368b3b5326ef3468a5c6d916c260dccd42"
+  },
+  {
+    "path": "clock-lifecycle/standard-benchmark/baseline/seeds-1043-shard-2/on/battle-benchmark.json.gz",
+    "bytes": 115512,
+    "sha256": "4ff63f5e3f4c6398cbb052065bc0f4dc8ddbc499f062fb5631c7e86640872240"
+  },
+  {
+    "path": "clock-lifecycle/standard-benchmark/baseline/seeds-1043-shard-3/off/battle-benchmark.json.gz",
+    "bytes": 77499,
+    "sha256": "5de847041d495ab4dabe5d04c9dc647a164b1085423ecf7f7783c2bb2f70f48b"
+  },
+  {
+    "path": "clock-lifecycle/standard-benchmark/baseline/seeds-1043-shard-3/on/battle-benchmark.json.gz",
+    "bytes": 77502,
+    "sha256": "b44cb98a3692137b66bcc0e4b2c9f5e725dc7636df10c6551b27c9e35d4ae1cf"
+  },
+  {
+    "path": "clock-lifecycle/standard-benchmark/candidate/seeds-1044-shard-1/off/battle-benchmark.json.gz",
+    "bytes": 141810,
+    "sha256": "50a40d6dc879352b29567e88ec994201bc24d05c54e96e3b88a6e48ea05b9f5a"
+  },
+  {
+    "path": "clock-lifecycle/standard-benchmark/candidate/seeds-1044-shard-1/on/battle-benchmark.json.gz",
+    "bytes": 141817,
+    "sha256": "be37c5e4ee7a59deedbb58dd16e4db47817fbb5a20faa44a8e3ccacaeb99f7c3"
+  },
+  {
+    "path": "clock-lifecycle/standard-benchmark/candidate/seeds-1044-shard-2/off/battle-benchmark.json.gz",
+    "bytes": 115505,
+    "sha256": "9c3261ba69efd7fd52e975229ed7e825cecf87cad2b07493a673b2b3fe3d0910"
+  },
+  {
+    "path": "clock-lifecycle/standard-benchmark/candidate/seeds-1044-shard-2/on/battle-benchmark.json.gz",
+    "bytes": 115507,
+    "sha256": "1cd3cb09fbdb491ec5b1e6cf44a699ef4a57d35a4afb198088863dc862390795"
+  },
+  {
+    "path": "clock-lifecycle/standard-benchmark/candidate/seeds-1044-shard-3/off/battle-benchmark.json.gz",
+    "bytes": 77498,
+    "sha256": "cf6d2785da2de04b513bfef7e6045b67425b3e37d0fa9628d7f8eedb2b5841ca"
+  },
+  {
+    "path": "clock-lifecycle/standard-benchmark/candidate/seeds-1044-shard-3/on/battle-benchmark.json.gz",
+    "bytes": 77502,
+    "sha256": "68e78be7c372a68e21cc358f646f5918b2b06a4013bf76b65e781b6c7c5234e3"
+  },
+  {
+    "path": "clock-lifecycle/timescale-ge-defend.json",
+    "bytes": 3132,
+    "sha256": "01d84e6c95e5b73e1ca481fba470dbae400bb7b5acdf4b17556278fce630c325"
+  },
+  {
+    "path": "clock-lifecycle/timescale-meeting.json",
+    "bytes": 3130,
+    "sha256": "2f381e4683cb2461110c20e0c5b374e5b729f08e7349ed561b6baed44a0704ff"
+  },
+  {
+    "path": "clock-lifecycle/timescale-us-defend.json",
+    "bytes": 3132,
+    "sha256": "9145f4f5ed55599fd5fb6989541766e775103b204382d291b7be483039760c18"
+  },
+  {
+    "path": "clock-lifecycle/validation.json",
+    "bytes": 8261,
+    "sha256": "28af5d904a10f67782c528bab07334c39e7095eedca1d3188ce58e0b501582e3"
   },
   {
     "path": "coa-check.log",

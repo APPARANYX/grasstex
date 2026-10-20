@@ -1,0 +1,19 @@
+{
+  "authorizedBy": "User: okay do that then proceed",
+  "sequence": [
+    {
+      "pr": 596,
+      "merge": "7c7e0fd854de7f7e22dc01d3f0dcc19135d82e3d",
+      "build": "build-v555",
+      "housekeeping": "work/architecture-contracts-20261020 deleted"
+    },
+    {
+      "pr": 597,
+      "testedUpdatedHead": "9fc343e127093d855a193748011991cd0e050d8a",
+      "merge": "f9f71eb50feaf4a62b1df8d142a91cc36de2be39",
+      "build": "build-v556",
+      "housekeeping": "work/command-read-model-20261020 deleted"
+    }
+  ],
+  "ordering": "596 deployment and housekeeping succeeded before merging 597; 597 exact updated head CI completed green first."
+}

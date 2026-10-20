@@ -1,0 +1,304 @@
+{
+  "recordedAtUTC": "2026-10-20T19:57:33.834015+00:00",
+  "baseline": "f9f71eb50feaf4a62b1df8d142a91cc36de2be39",
+  "candidate": "c98f7e0b907a61ad3a3cbf4c2690590389e251cd",
+  "branch": "work/clock-lifecycle-20261020",
+  "pr": "https://github.com/APPARANYX/grasstex/pull/598",
+  "regressionInvocations": 233,
+  "regressionFailures": 0,
+  "baselineReproduction": "Default attached clock has 1.3s remaining debt before respawn after an explicit clock drive and core restart. Controlled fixture executes shipping registry/clock/core restart body; spawn/render are fixture implementations.",
+  "change": "Remove per-instance fixed-clock restart wrapper; register reset on existing beforeBattleRestart hook for all attached clocks.",
+  "contractChecks": "Default/forced/disabled, five repeated resets, reset before respawn, observer counts, core method identity, battle isolation.",
+  "baselineStandardRun": 39486995172,
+  "candidateStandardRun": 39486998775,
+  "status": "draft; all applicable exact-head CI passed; both standard benchmarks passed with identical records; no merge/deployment of 598",
+  "crossCommitComparison": {
+    "off": {
+      "pairs": 3,
+      "unpaired": {
+        "a": 0,
+        "b": 0
+      },
+      "identicalBattles": 3,
+      "winners": {
+        "a": {
+          "us": 0,
+          "ge": 0
+        },
+        "b": {
+          "us": 0,
+          "ge": 0
+        },
+        "flips": 0,
+        "mcnemarUsWon": {
+          "aOnly": 0,
+          "bOnly": 0,
+          "discordant": 0,
+          "p": 1
+        }
+      },
+      "timeLimit": {
+        "a": 3,
+        "b": 3,
+        "mcnemar": {
+          "aOnly": 0,
+          "bOnly": 0,
+          "discordant": 0,
+          "p": 1
+        }
+      },
+      "noCapture": {
+        "a": 0,
+        "b": 0,
+        "mcnemar": {
+          "aOnly": 0,
+          "bOnly": 0,
+          "discordant": 0,
+          "p": 1
+        }
+      },
+      "captures": {
+        "a": 1.667,
+        "b": 1.667
+      },
+      "movementStalls": {
+        "a": 1,
+        "b": 1
+      },
+      "runtimeErrors": {
+        "a": 0,
+        "b": 0
+      },
+      "wallSeconds": {
+        "medianA": 23.213,
+        "medianB": 14.476,
+        "ratio": 0.624,
+        "gate": 1.25
+      },
+      "counters": {
+        "casualties": {
+          "a": 74,
+          "b": 74,
+          "meanDiff": 0,
+          "battlesChanged": 0,
+          "more": 0,
+          "fewer": 0,
+          "signP": 1
+        },
+        "fire.total": {
+          "a": 348,
+          "b": 348,
+          "meanDiff": 0,
+          "battlesChanged": 0,
+          "more": 0,
+          "fewer": 0,
+          "signP": 1
+        },
+        "movementStalls.length": {
+          "a": 1,
+          "b": 1,
+          "meanDiff": 0,
+          "battlesChanged": 0,
+          "more": 0,
+          "fewer": 0,
+          "signP": 1
+        }
+      },
+      "pass": true
+    },
+    "on": {
+      "pairs": 3,
+      "unpaired": {
+        "a": 0,
+        "b": 0
+      },
+      "identicalBattles": 3,
+      "winners": {
+        "a": {
+          "us": 0,
+          "ge": 0
+        },
+        "b": {
+          "us": 0,
+          "ge": 0
+        },
+        "flips": 0,
+        "mcnemarUsWon": {
+          "aOnly": 0,
+          "bOnly": 0,
+          "discordant": 0,
+          "p": 1
+        }
+      },
+      "timeLimit": {
+        "a": 3,
+        "b": 3,
+        "mcnemar": {
+          "aOnly": 0,
+          "bOnly": 0,
+          "discordant": 0,
+          "p": 1
+        }
+      },
+      "noCapture": {
+        "a": 0,
+        "b": 0,
+        "mcnemar": {
+          "aOnly": 0,
+          "bOnly": 0,
+          "discordant": 0,
+          "p": 1
+        }
+      },
+      "captures": {
+        "a": 1.667,
+        "b": 1.667
+      },
+      "movementStalls": {
+        "a": 1,
+        "b": 1
+      },
+      "runtimeErrors": {
+        "a": 0,
+        "b": 0
+      },
+      "wallSeconds": {
+        "medianA": 22.181,
+        "medianB": 14.251,
+        "ratio": 0.642,
+        "gate": 1.25
+      },
+      "counters": {
+        "casualties": {
+          "a": 74,
+          "b": 74,
+          "meanDiff": 0,
+          "battlesChanged": 0,
+          "more": 0,
+          "fewer": 0,
+          "signP": 1
+        },
+        "fire.total": {
+          "a": 348,
+          "b": 348,
+          "meanDiff": 0,
+          "battlesChanged": 0,
+          "more": 0,
+          "fewer": 0,
+          "signP": 1
+        },
+        "movementStalls.length": {
+          "a": 1,
+          "b": 1,
+          "meanDiff": 0,
+          "battlesChanged": 0,
+          "more": 0,
+          "fewer": 0,
+          "signP": 1
+        }
+      },
+      "pass": true
+    }
+  },
+  "standardBattleExecutions": 12,
+  "performanceLimit": "Wall ratios 0.624/0.642 are separate-runner observations; no causal CPU or end-to-end speedup claim.",
+  "headCI": [
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-20T19:51:57Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/APPARANYX/grasstex/actions/runs/39486999167/job/118849883103",
+      "name": "Detect audio and deploy-plan changes",
+      "startedAt": "2026-10-20T19:51:27Z",
+      "status": "COMPLETED",
+      "workflowName": "\u2b50 CI"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-20T19:56:22Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/APPARANYX/grasstex/actions/runs/39486999161/job/118849882435",
+      "name": "meeting \u00b7 1x/4x/8x at 20/30/60/120fps",
+      "startedAt": "2026-10-20T19:51:26Z",
+      "status": "COMPLETED",
+      "workflowName": "\u2b50 Timescale Parity Benchmark"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-20T19:56:53Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/APPARANYX/grasstex/actions/runs/39486999161/job/118849882293",
+      "name": "us-defend \u00b7 1x/4x/8x at 20/30/60/120fps",
+      "startedAt": "2026-10-20T19:51:26Z",
+      "status": "COMPLETED",
+      "workflowName": "\u2b50 Timescale Parity Benchmark"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-20T19:56:21Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/APPARANYX/grasstex/actions/runs/39486999161/job/118849882596",
+      "name": "ge-defend \u00b7 1x/4x/8x at 20/30/60/120fps",
+      "startedAt": "2026-10-20T19:51:26Z",
+      "status": "COMPLETED",
+      "workflowName": "\u2b50 Timescale Parity Benchmark"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-20T19:52:36Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/APPARANYX/grasstex/actions/runs/39486999167/job/118849883269",
+      "name": "Syntax",
+      "startedAt": "2026-10-20T19:51:26Z",
+      "status": "COMPLETED",
+      "workflowName": "\u2b50 CI"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-20T19:53:50Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/APPARANYX/grasstex/actions/runs/39486999167/job/118849882675",
+      "name": "Sim regressions",
+      "startedAt": "2026-10-20T19:51:26Z",
+      "status": "COMPLETED",
+      "workflowName": "\u2b50 CI"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-20T19:51:57Z",
+      "conclusion": "SKIPPED",
+      "detailsUrl": "https://github.com/APPARANYX/grasstex/actions/runs/39486999167/job/118850162316",
+      "name": "Audio library",
+      "startedAt": "2026-10-20T19:51:58Z",
+      "status": "COMPLETED",
+      "workflowName": "\u2b50 CI"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-20T19:51:57Z",
+      "conclusion": "SKIPPED",
+      "detailsUrl": "https://github.com/APPARANYX/grasstex/actions/runs/39486999167/job/118850162967",
+      "name": "Deploy plan",
+      "startedAt": "2026-10-20T19:51:58Z",
+      "status": "COMPLETED",
+      "workflowName": "\u2b50 CI"
+    }
+  ],
+  "timescaleParity": {
+    "run": "https://github.com/APPARANYX/grasstex/actions/runs/39486999161",
+    "scenarios": 3,
+    "baselineExecutions": 3,
+    "variantExecutions": 18,
+    "simSecondsPerExecution": 600,
+    "allVariantsMatch": true,
+    "errors": [],
+    "cases": [
+      "1x@20",
+      "1x@120",
+      "4x@30",
+      "4x@60",
+      "8x@20",
+      "8x@120"
+    ]
+  }
+}
