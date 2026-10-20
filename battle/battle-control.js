@@ -511,10 +511,47 @@
     });
   }
 
+  if (root.BattleModules)
+    root.BattleModules.registerSystem('operator-restart', {
+      requiredHooks: ['beforeBattleRestartRequest', 'afterBattleRestartComplete'],
+      beforeBattleRestartRequest: function (sim, request) {
+        if (!request.operator || sim._operatorTimeLimitSeconds == null) return;
+        request.operatorControl = { resumeAfter: sim.manualEnded || !sim.paused };
+        if (root.BattleTelemetry) root.BattleTelemetry.end(sim, 'restart');
+      },
+      afterBattleRestartComplete: function (sim, request) {
+        if (!request.operatorControl) return;
+        sim.timeLimit = sim._operatorTimeLimitSeconds;
+        sim.manualEnded = false;
+        sim.paused = !request.operatorControl.resumeAfter;
+        // Programmatic restarts must clear the old banner, not only the
+        // inline HUD's Run it again click handler.
+        var banner = document.getElementById('banner');
+        if (banner) banner.style.display = 'none';
+        var sc = scenario(sim);
+        if (root.BattleTelemetry)
+          root.BattleTelemetry.start(sim, 'live', {
+            restart: true,
+            policyRevision: root.BattleAIPolicy ? root.BattleAIPolicy.revision : 0,
+            scenarioSeed: sc && sc.seed,
+            scenarioId: sc && sc.id
+          });
+        var s = document.getElementById('aiTestStatus');
+        if (s)
+          s.textContent =
+            'AI log: active · genome r' + (root.BattleAIPolicy ? root.BattleAIPolicy.revision : 0);
+        var b = document.getElementById('bannerContinue');
+        if (b) b.hidden = true;
+      }
+    });
+
   root.BattleSim.start = function (scene, opts) {
     var sim = oldStart(scene, opts),
       rawRestart = sim.restart.bind(sim);
-    sim._controlRawRestart = rawRestart;
+    // Compatibility entry for trainers/probes: the core still owns the reset sequence.
+    sim._controlRawRestart = function () {
+      return rawRestart({ operator: false });
+    };
     sim.manualEnded = false;
     sim._operatorTimeLimitSeconds = clampDurationMinutes(storedDurationMinutes(sim)) * 60;
     sim.timeLimit = sim._operatorTimeLimitSeconds;
@@ -530,32 +567,6 @@
     };
     sim.continueAfterTimeLimit = function () {
       return continueAfterTimeLimit(sim);
-    };
-    sim.restart = function () {
-      var resumeAfter = sim.manualEnded || !sim.paused;
-      if (root.BattleTelemetry) root.BattleTelemetry.end(sim, 'restart');
-      rawRestart();
-      sim.timeLimit = sim._operatorTimeLimitSeconds;
-      sim.manualEnded = false;
-      sim.paused = !resumeAfter;
-      // Programmatic restarts must clear the old banner, not only the
-      // inline HUD's Run it again click handler.
-      var banner = document.getElementById('banner');
-      if (banner) banner.style.display = 'none';
-      var sc = scenario(sim);
-      if (root.BattleTelemetry)
-        root.BattleTelemetry.start(sim, 'live', {
-          restart: true,
-          policyRevision: root.BattleAIPolicy ? root.BattleAIPolicy.revision : 0,
-          scenarioSeed: sc && sc.seed,
-          scenarioId: sc && sc.id
-        });
-      var s = document.getElementById('aiTestStatus');
-      if (s)
-        s.textContent =
-          'AI log: active · genome r' + (root.BattleAIPolicy ? root.BattleAIPolicy.revision : 0);
-      var b = document.getElementById('bannerContinue');
-      if (b) b.hidden = true;
     };
     installUi(sim);
     var sc = scenario(sim);

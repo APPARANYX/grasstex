@@ -353,8 +353,8 @@ per-instance restart wrapper. Ordinary live render observers/cadence remain unch
 body with the real registry/clock and fixture spawning to verify reset order, repeated cycles,
 observer counts and battle isolation.
 
-The core restart sequence is `beforeBattleRestart` → roster replacement →
-`afterBattleRosterReset` → `afterBattleRestart`. Commander registers its required initialization on
+The core restart sequence is `beforeBattleRestartRequest` → `beforeBattleRestart` → roster replacement →
+`afterBattleRosterReset` → `afterBattleRestart` → `afterBattleRestartComplete`. Commander registers its required initialization on
 `afterBattleRosterReset`,
 then emits the existing `onBattleRestart` notification after objective reset, force setup and
 General-state reset. Start and restart share one Commander initializer. A weak per-battle scenario
@@ -362,7 +362,12 @@ context supplies both the reset and Commander scheduler, preserving the last val
 metadata is absent. Commander adds no per-instance restart wrapper.
 Macro relief restores the terrain sampler and settles replacement actors on `afterBattleRestart`,
 after Commander and its nested module notifications finish. It adds no restart wrapper. Operator
-UI/telemetry still completes outside this core sequence; its raw restart entry retains that bypass.
+control ends the old telemetry session at the request boundary and restores duration, pause state,
+banner and new-session telemetry at completion. The same transient request object carries its
+pre-reset pause decision; no per-battle reset cache is added. Public restart retains the core method.
+`restart({operator: false})` skips operator preparation/completion while retaining all simulation and
+terrain reset stages. `_controlRawRestart()` is a compatibility adapter to that mode for existing
+benchmarks/trainers; it does not replace public restart. Required setup failure prevents completion.
 
 Registry systems may declare `requiredHooks: [name]`: an exception is logged and rethrown unchanged,
 so later hooks and restart-complete notifications cannot claim success after required setup fails.
