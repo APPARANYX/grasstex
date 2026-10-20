@@ -15,11 +15,14 @@ function freezeDeep(o, seen = new Set()) {
 }
 function load(name) {
   const file = path.join(__dirname, '../../scripts/probes/', name + '.js');
-  const root = { BattleProbes: {}, SquadAI: {
-    soldierContact: () => null,
-    squadContact: () => null,
-    hasFirstHandMemory: () => false
-  }};
+  const root = {
+    BattleProbes: {},
+    SquadAI: {
+      soldierContact: () => null,
+      squadContact: () => null,
+      hasFirstHandMemory: () => false
+    }
+  };
   vm.runInNewContext(fs.readFileSync(file, 'utf8'), { window: root }, { filename: file });
   const probe = root.BattleProbes[name];
   assert.ok(probe && typeof probe.start === 'function', name + ': start');
@@ -29,14 +32,33 @@ function load(name) {
   return probe;
 }
 function sample(time, inContact = false, alerts = []) {
-  const soldier = { id: 5, dead: false, root: { position: { x: 0, y: 0, z: 0 } },
-    eng: { state: 'alert', engaged: true, lastSeen: { x: 3, z: 2 }, lastSeenAt: 1,
-      suppressOrder: true, stanceTrail: [{ at: 1, stance: 'crouch' }] },
-    mind: { band: 'alert' } };
-  const squad = { id: 'us-0', members: [soldier], commandPhase: 'approach',
-    inContact, clearContact: false, state: 'active' };
-  return freezeDeep({ time, factions: { us: { squads: [squad] },
-    ge: { squads: [] } }, _aiLoopWatch: { alerts } });
+  const soldier = {
+    id: 5,
+    dead: false,
+    root: { position: { x: 0, y: 0, z: 0 } },
+    eng: {
+      state: 'alert',
+      engaged: true,
+      lastSeen: { x: 3, z: 2 },
+      lastSeenAt: 1,
+      suppressOrder: true,
+      stanceTrail: [{ at: 1, stance: 'crouch' }]
+    },
+    mind: { band: 'alert' }
+  };
+  const squad = {
+    id: 'us-0',
+    members: [soldier],
+    commandPhase: 'approach',
+    inContact,
+    clearContact: false,
+    state: 'active'
+  };
+  return freezeDeep({
+    time,
+    factions: { us: { squads: [squad] }, ge: { squads: [] } },
+    _aiLoopWatch: { alerts }
+  });
 }
 for (const name of ['hold-reason', 'stale-threat']) {
   const p = load(name);
@@ -64,8 +86,14 @@ for (const name of ['hold-reason', 'stale-threat']) {
 }
 {
   const p = load('loop-alerts');
-  const alert = { key: 'us-0:5', at: 50, faction: 'us', squadId: 'us-0',
-    soldierId: 5, reason: 'movement-stalled' };
+  const alert = {
+    key: 'us-0:5',
+    at: 50,
+    faction: 'us',
+    squadId: 'us-0',
+    soldierId: 5,
+    reason: 'movement-stalled'
+  };
   const sim = sample(50, false, [alert]);
   p.start(sim);
   p.sample(sim);
