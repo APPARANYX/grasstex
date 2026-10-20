@@ -123,6 +123,15 @@ jobs:
           git diff -- battle/modules/15o-squad-leader-tactical-postures.js tools/ai-sim-harness/tactical-postures-check.js
           echo C_FIELD_PRETTIER_DIFF_END
 
+      - name: Temporary strategic route formatting diagnostic
+        run: |
+          npx --yes prettier@3.3.3 --write scripts/probes/strategic-route-stall.js tools/ai-sim-harness/strategic-route-stall-check.js
+          python3 - <<'PY'
+          import json, pathlib
+          for name in ('scripts/probes/strategic-route-stall.js', 'tools/ai-sim-harness/strategic-route-stall-check.js'):
+              print('FORMATTED_FILE_JSON ' + json.dumps({'path': name, 'content': pathlib.Path(name).read_text()}))
+          PY
+
       # Prettier ratchet: the repo's .prettierrc.json was dead config - most tracked JS never
       # complied. A full one-shot reformat would break every in-flight branch, so instead every
       # JS file a pull request touches must be on-standard. Legacy files stay as they are and
