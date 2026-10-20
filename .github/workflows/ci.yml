@@ -104,7 +104,10 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           s = Path("scripts/housekeeping-actions-runs.sh").read_text()
-          code = s.split("python3 - <<'PY'\\n", 1)[1].rsplit("\\nPY", 1)[0]
+          lines = s.splitlines()
+          first = lines.index("python3 - <<'PY'") + 1
+          last = lines.index("PY", first)
+          code = chr(10).join(lines[first:last])
           compile(code, "scripts/housekeeping-actions-runs.sh", "exec")
           PY
 
