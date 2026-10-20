@@ -5,7 +5,7 @@
 const assert = require('node:assert/strict');
 const { loadModule } = require('./module-loader');
 
-function make(scenario = 'strategic', flag = '?motorTransport=1', road = true) {
+function make(scenario = 'strategic', flag = '?motorTransport=1&truckAccess=0&truckCollision=0', road = true) {
   const hooks = {},
     events = [],
     walls = { after: Infinity };
