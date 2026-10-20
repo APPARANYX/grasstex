@@ -77,7 +77,8 @@ function rng(seed) {
 
 for (const seed of SEEDS) {
   section(seed);
-  const root = { console: quiet, BABYLON: stub() };
+  // Historical 2 km LOS/clearance baselines; new default uses front-line 5 km.
+  const root = { console: quiet, BABYLON: stub(), location: { search: '?strategicInterception=0&frontLines=0' } };
   root.window = root;
   load(root, 'battle/core-runtime.js');
   for (const f of [
