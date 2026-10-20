@@ -6,6 +6,7 @@ on:
     paths:
       - '.github/workflows/causal-inaction-benchmark.yml'
       - 'scripts/probes/causal-inaction.cjs'
+      - 'scripts/probes/strategic-route-stall.js'
       - 'scripts/probes/squad-local-starvation.js'
       - 'scripts/probes/command-lifecycle.js'
       - 'tools/ai-sim-harness/squad-local-starvation-check.js'
@@ -52,6 +53,10 @@ on:
         description: 'Attach read-only command-lifecycle probe for physical handoff evidence (1)'
         required: false
         default: '0'
+      route_trace:
+        description: 'Collect bounded 0.15s per-tick strategic route-stall evidence (1 = enabled)'
+        required: false
+        default: '0'
       navtrace:
         description: 'Attach read-only GE-4 0.15s route trace for #361 (1)'
         required: false
@@ -86,6 +91,7 @@ jobs:
       CAUSAL_GEOMETRY: ${{ github.event.inputs.geometry || '0' }}
       CAUSAL_LIFECYCLE: ${{ github.event.inputs.lifecycle || '0' }}
       CAUSAL_NAVTRACE: ${{ github.event.inputs.navtrace || '0' }}
+      CAUSAL_ROUTE_TRACE: ${{ github.event.inputs.route_trace || '0' }}
       CAUSAL_CONTROL: '1'
       CAUSAL_PREFIX: causal-inaction
       CAUSAL_OUT: reports/causal-inaction
@@ -102,6 +108,7 @@ jobs:
           node --check scripts/probes/crest-geometry.cjs
           node --check scripts/run_causal_inaction_benchmark.cjs
           node --check scripts/probes/route-361.js
+          node --check scripts/probes/strategic-route-stall.js
           node tools/ai-sim-harness/causal-inaction-check.js
           node tools/ai-sim-harness/cover-positions-check.js
       - name: Install browser harness
