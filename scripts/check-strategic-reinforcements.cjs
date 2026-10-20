@@ -82,12 +82,12 @@ function world(search = '?strategicInterception=1&frontLines=1&reinforcements=1'
 }
 const base = (town, f, i) => town.spawnZones[f].bases[i];
 
-// Off without the flag, and off on the 12-point map.
+// Explicitly disabled reinforcements, and always disabled on the 12-point map.
 {
-  const w = world('?strategicInterception=1&frontLines=1');
+  const w = world('?strategicInterception=1&frontLines=1&reinforcements=0');
   w.kill('us', 40);
   w.tick();
-  assert.equal(w.spawned.length, 0, 'no reinforcements without ?reinforcements=1');
+  assert.equal(w.spawned.length, 0, 'explicit ?reinforcements=0 disables reinforcement waves');
   assert.equal(w.R.summary(w.sim), null);
   const ring = world(
     '?strategicInterception=1&reinforcements=1',
@@ -237,19 +237,19 @@ function sortieWorld(extra = '') {
     'opening squads are never held'
   );
 
-  const off = sortieWorld(),
+  const off = sortieWorld('&reinforcementSortie=0'),
     ownOff = () => off.sim._strategicAerialRecon.us;
   off.root.BattleAerialRecon.request(off.sim, 'us');
   ownOff().pass = null;
   off.kill('us', SIZE);
   off.tick();
   assert.equal(off.spawned.length, 1);
-  assert.ok(!ownOff().pass, 'without ?reinforcementSortie=1: no sortie for a fresh squad');
+  assert.ok(!ownOff().pass, 'explicit ?reinforcementSortie=0: no extra sortie for a fresh squad');
   ownOff().pass = { startedAt: 100, fixes: [] };
   assert.equal(
     off.R.awaitingReport(off.sim, off.spawned[0].squad),
     false,
-    'without ?reinforcementSortie=1: briefed at once'
+    'explicit ?reinforcementSortie=0: briefed at once'
   );
 }
 
