@@ -44,6 +44,10 @@ on:
         description: Measured windows, comma separated - <contact|second>+<seconds>, or every<seconds> last (a record at every multiple of it, and at the end). Default contact+60,every60 for one seed, contact+120 for several.
         required: false
         default: ''
+      sim_seconds:
+        description: Simulated battle duration (60-10800 seconds, default 600). For complete battles set windows=0+<sim_seconds>.
+        required: false
+        default: '600'
       origin_agent:
         description: Who requested the benchmark (chatgpt, claude-code, human, etc.)
         required: false
@@ -79,7 +83,7 @@ jobs:
     name: Scripted scenario, off vs on
     if: ${{ (github.event.inputs.seeds || '1') == '1' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: ${{ fromJSON(github.event.inputs.sim_seconds || '600') > 600 && 75 || 30 }}
     permissions:
       contents: write
     outputs:
@@ -89,9 +93,9 @@ jobs:
     env:
       BATTLE_BENCHMARK_SOURCE_SHA: ${{ github.sha }}
       BATTLE_BENCHMARK_COUNT: '1'
-      BATTLE_BENCHMARK_TIME_LIMIT: '600'
+      BATTLE_BENCHMARK_TIME_LIMIT: ${{ github.event.inputs.sim_seconds || '600' }}
       BATTLE_BENCHMARK_STEP: '0.15'
-      BATTLE_BENCHMARK_WINDOWS: ${{ github.event.inputs.windows || 'contact+60,every60' }}
+      BATTLE_BENCHMARK_WINDOWS: ${{ github.event.inputs.windows || (github.event.inputs.sim_seconds && github.event.inputs.sim_seconds != '600' && format('0+{0}', github.event.inputs.sim_seconds)) || 'contact+60,every60' }}
       BATTLE_BENCHMARK_SEED: ${{ github.event.inputs.seed || 'scripted-scout-0003' }}
       BATTLE_TYPE: ${{ github.event.inputs.battle_type || 'meeting' }}
       QUERY_OFF: ${{ github.event.inputs.query_off || '' }}
@@ -100,6 +104,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Validate benchmark duration
+        run: |
+          if ! [[ "$BATTLE_BENCHMARK_TIME_LIMIT" =~ ^[0-9]+$ ]] || (( BATTLE_BENCHMARK_TIME_LIMIT < 60 || BATTLE_BENCHMARK_TIME_LIMIT > 10800 )); then
+            echo 'sim_seconds must be an integer between 60 and 10800' >&2
+            exit 2
+          fi
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -260,8 +271,14 @@ jobs:
         env:
           SEEDS: ${{ github.event.inputs.seeds }}
           WINDOWS: ${{ github.event.inputs.windows }}
+          SIM_SECONDS: ${{ github.event.inputs.sim_seconds || '600' }}
         run: |
           set -euo pipefail
+          if ! [[ "$SIM_SECONDS" =~ ^[0-9]+$ ]] || (( SIM_SECONDS < 60 || SIM_SECONDS > 10800 )); then
+            echo 'sim_seconds must be an integer between 60 and 10800' >&2
+            exit 2
+          fi
+          if [[ -z "$WINDOWS" && "$SIM_SECONDS" != 600 ]]; then WINDOWS="0+${SIM_SECONDS}"; fi
           shards="$(node scripts/plan_benchmark_shards.cjs "$SEEDS" 20)"
           echo "matrix={\"include\":${shards}}" >> "$GITHUB_OUTPUT"
           echo "windows=${WINDOWS:-contact+120}" >> "$GITHUB_OUTPUT"
@@ -271,7 +288,7 @@ jobs:
     name: Shard ${{ matrix.shard }}
     needs: plan
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: ${{ fromJSON(github.event.inputs.sim_seconds || '600') > 600 && 75 || 30 }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
@@ -279,7 +296,7 @@ jobs:
       BATTLE_BENCHMARK_SOURCE_SHA: ${{ github.sha }}
       BATTLE_BENCHMARK_COUNT: ${{ matrix.count }}
       BATTLE_BENCHMARK_FIRST: ${{ matrix.first }}
-      BATTLE_BENCHMARK_TIME_LIMIT: '600'
+      BATTLE_BENCHMARK_TIME_LIMIT: ${{ github.event.inputs.sim_seconds || '600' }}
       BATTLE_BENCHMARK_STEP: '0.15'
       BATTLE_BENCHMARK_WINDOWS: ${{ needs.plan.outputs.windows }}
       BATTLE_BENCHMARK_SEED: ${{ github.event.inputs.seed || 'scripted-seeds' }}
