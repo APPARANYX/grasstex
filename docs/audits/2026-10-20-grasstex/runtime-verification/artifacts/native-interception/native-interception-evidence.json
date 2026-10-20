@@ -1,0 +1,1522 @@
+[
+  {
+    "seed": "strategic-diag-001-meeting-0001",
+    "enabled": false,
+    "steps": 6000,
+    "seconds": 900,
+    "winner": null,
+    "fleetStart": 12,
+    "fleetEnd": 12,
+    "aerial": {
+      "us": {
+        "used": true,
+        "contacts": 5
+      },
+      "ge": {
+        "used": true,
+        "contacts": 5
+      }
+    },
+    "general": {
+      "us": null,
+      "ge": null
+    },
+    "reserveAudit": {
+      "at": 40.2,
+      "us": [
+        {
+          "id": "us-0",
+          "role": "left",
+          "phase": "assault",
+          "state": "advance",
+          "macro": "capture",
+          "macroReason": "request-changed",
+          "macroStatus": "executing",
+          "interceptReserve": false,
+          "selectedByPlanner": false,
+          "used": true,
+          "currentVehicle": "boarding",
+          "preparedDefense": false,
+          "contact": false,
+          "metersFromHome": 17,
+          "fleetParked": 1
+        },
+        {
+          "id": "us-1",
+          "role": "center",
+          "phase": "assault",
+          "state": "advance",
+          "macro": "capture",
+          "macroReason": "request-changed",
+          "macroStatus": "executing",
+          "interceptReserve": false,
+          "selectedByPlanner": false,
+          "used": true,
+          "currentVehicle": "boarding",
+          "preparedDefense": false,
+          "contact": false,
+          "metersFromHome": 17,
+          "fleetParked": 1
+        },
+        {
+          "id": "us-2",
+          "role": "support",
+          "phase": "assault",
+          "state": "advance",
+          "macro": "capture",
+          "macroReason": "request-changed",
+          "macroStatus": "executing",
+          "interceptReserve": false,
+          "selectedByPlanner": false,
+          "used": true,
+          "currentVehicle": "boarding",
+          "preparedDefense": false,
+          "contact": false,
+          "metersFromHome": 17,
+          "fleetParked": 1
+        },
+        {
+          "id": "us-3",
+          "role": "center",
+          "phase": "assault",
+          "state": "advance",
+          "macro": "capture",
+          "macroReason": "request-changed",
+          "macroStatus": "executing",
+          "interceptReserve": false,
+          "selectedByPlanner": false,
+          "used": true,
+          "currentVehicle": "boarding",
+          "preparedDefense": false,
+          "contact": false,
+          "metersFromHome": 26.2,
+          "fleetParked": 1
+        },
+        {
+          "id": "us-4",
+          "role": "center",
+          "phase": "assault",
+          "state": "advance",
+          "macro": "capture",
+          "macroReason": "reserve-commit",
+          "macroStatus": "executing",
+          "interceptReserve": false,
+          "selectedByPlanner": false,
+          "used": true,
+          "currentVehicle": "boarding",
+          "preparedDefense": false,
+          "contact": false,
+          "metersFromHome": 26.1,
+          "fleetParked": 1
+        }
+      ],
+      "ge": [
+        {
+          "id": "ge-0",
+          "role": "left",
+          "phase": "assault",
+          "state": "advance",
+          "macro": "capture",
+          "macroReason": "request-changed",
+          "macroStatus": "executing",
+          "interceptReserve": false,
+          "selectedByPlanner": false,
+          "used": true,
+          "currentVehicle": "boarding",
+          "preparedDefense": false,
+          "contact": false,
+          "metersFromHome": 17,
+          "fleetParked": 1
+        },
+        {
+          "id": "ge-1",
+          "role": "center",
+          "phase": "assault",
+          "state": "advance",
+          "macro": "capture",
+          "macroReason": "request-changed",
+          "macroStatus": "executing",
+          "interceptReserve": false,
+          "selectedByPlanner": false,
+          "used": true,
+          "currentVehicle": "boarding",
+          "preparedDefense": false,
+          "contact": false,
+          "metersFromHome": 16.9,
+          "fleetParked": 1
+        },
+        {
+          "id": "ge-2",
+          "role": "support",
+          "phase": "assault",
+          "state": "advance",
+          "macro": "capture",
+          "macroReason": "request-changed",
+          "macroStatus": "executing",
+          "interceptReserve": false,
+          "selectedByPlanner": false,
+          "used": true,
+          "currentVehicle": "boarding",
+          "preparedDefense": false,
+          "contact": false,
+          "metersFromHome": 17,
+          "fleetParked": 1
+        },
+        {
+          "id": "ge-3",
+          "role": "center",
+          "phase": "assault",
+          "state": "advance",
+          "macro": "capture",
+          "macroReason": "request-changed",
+          "macroStatus": "executing",
+          "interceptReserve": false,
+          "selectedByPlanner": false,
+          "used": true,
+          "currentVehicle": "boarding",
+          "preparedDefense": false,
+          "contact": false,
+          "metersFromHome": 25.8,
+          "fleetParked": 1
+        },
+        {
+          "id": "ge-4",
+          "role": "center",
+          "phase": "assault",
+          "state": "advance",
+          "macro": "capture",
+          "macroReason": "reserve-commit",
+          "macroStatus": "executing",
+          "interceptReserve": false,
+          "selectedByPlanner": false,
+          "used": true,
+          "currentVehicle": "boarding",
+          "preparedDefense": false,
+          "contact": false,
+          "metersFromHome": 25.6,
+          "fleetParked": 1
+        }
+      ]
+    },
+    "forwardScreen": {
+      "us": {
+        "screens": [],
+        "supports": []
+      },
+      "ge": {
+        "screens": [],
+        "supports": []
+      }
+    },
+    "interceptions": [],
+    "shots": {
+      "total": 296,
+      "byFaction": {
+        "us": 169,
+        "ge": 127
+      }
+    }
+  },
+  {
+    "seed": "strategic-diag-001-meeting-0001",
+    "enabled": true,
+    "steps": 6000,
+    "seconds": 900,
+    "winner": null,
+    "fleetStart": 12,
+    "fleetEnd": 12,
+    "aerial": {
+      "us": {
+        "used": true,
+        "contacts": 5
+      },
+      "ge": {
+        "used": true,
+        "contacts": 5
+      }
+    },
+    "general": {
+      "us": {
+        "at": 70.1999999999998,
+        "result": "declined",
+        "contacts": 5,
+        "corridors": 50,
+        "rejectionEvidence": {
+          "noFleet": 0,
+          "unavailableSquads": 250,
+          "eligibleSquadEvaluations": 0,
+          "noRoadGraphPath": 0,
+          "pathEvaluations": 0,
+          "failedTransportQuotes": 0,
+          "viableTransportQuotes": 0,
+          "arrivalTooLate": 0,
+          "bestMarginSeconds": null
+        }
+      },
+      "ge": {
+        "at": 70.1999999999998,
+        "result": "declined",
+        "contacts": 5,
+        "corridors": 49,
+        "rejectionEvidence": {
+          "noFleet": 0,
+          "unavailableSquads": 245,
+          "eligibleSquadEvaluations": 0,
+          "noRoadGraphPath": 0,
+          "pathEvaluations": 0,
+          "failedTransportQuotes": 0,
+          "viableTransportQuotes": 0,
+          "arrivalTooLate": 0,
+          "bestMarginSeconds": null
+        }
+      }
+    },
+    "reserveAudit": {
+      "at": 40.2,
+      "us": [
+        {
+          "id": "us-0",
+          "role": "left",
+          "phase": "assault",
+          "state": "advance",
+          "macro": "capture",
+          "macroReason": "request-changed",
+          "macroStatus": "executing",
+          "interceptReserve": false,
+          "selectedByPlanner": false,
+          "used": true,
+          "currentVehicle": "boarding",
+          "preparedDefense": false,
+          "contact": false,
+          "metersFromHome": 17.1,
+          "fleetParked": 3
+        },
+        {
+          "id": "us-1",
+          "role": "center",
+          "phase": "assault",
+          "state": "advance",
+          "macro": "capture",
+          "macroReason": "request-changed",
+          "macroStatus": "executing",
+          "interceptReserve": false,
+          "selectedByPlanner": false,
+          "used": true,
+          "currentVehicle": "boarding",
+          "preparedDefense": false,
+          "contact": false,
+          "metersFromHome": 17,
+          "fleetParked": 3
+        },
+        {
+          "id": "us-2",
+          "role": "support",
+          "phase": "assault",
+          "state": "advance",
+          "macro": "capture",
+          "macroReason": "request-changed",
+          "macroStatus": "executing",
+          "interceptReserve": false,
+          "selectedByPlanner": false,
+          "used": true,
+          "currentVehicle": "boarding",
+          "preparedDefense": false,
+          "contact": false,
+          "metersFromHome": 17,
+          "fleetParked": 3
+        },
+        {
+          "id": "us-3",
+          "role": "reserve",
+          "phase": "reserve",
+          "state": "advance",
+          "macro": "reserve",
+          "macroReason": "purpose-first-forward-screen",
+          "macroStatus": "executing",
+          "interceptReserve": true,
+          "selectedByPlanner": true,
+          "used": false,
+          "currentVehicle": null,
+          "preparedDefense": false,
+          "contact": false,
+          "metersFromHome": 2.1,
+          "fleetParked": 3
+        },
+        {
+          "id": "us-4",
+          "role": "reserve",
+          "phase": "reserve",
+          "state": "advance",
+          "macro": "reserve",
+          "macroReason": "purpose-first-forward-screen",
+          "macroStatus": "executing",
+          "interceptReserve": true,
+          "selectedByPlanner": true,
+          "used": false,
+          "currentVehicle": null,
+          "preparedDefense": false,
+          "contact": false,
+          "metersFromHome": 3.6,
+          "fleetParked": 3
+        }
+      ],
+      "ge": [
+        {
+          "id": "ge-0",
+          "role": "left",
+          "phase": "assault",
+          "state": "advance",
+          "macro": "capture",
+          "macroReason": "request-changed",
+          "macroStatus": "executing",
+          "interceptReserve": false,
+          "selectedByPlanner": false,
+          "used": true,
+          "currentVehicle": "boarding",
+          "preparedDefense": false,
+          "contact": false,
+          "metersFromHome": 17,
+          "fleetParked": 3
+        },
+        {
+          "id": "ge-1",
+          "role": "center",
+          "phase": "assault",
+          "state": "advance",
+          "macro": "capture",
+          "macroReason": "request-changed",
+          "macroStatus": "executing",
+          "interceptReserve": false,
+          "selectedByPlanner": false,
+          "used": true,
+          "currentVehicle": "boarding",
+          "preparedDefense": false,
+          "contact": false,
+          "metersFromHome": 17,
+          "fleetParked": 3
+        },
+        {
+          "id": "ge-2",
+          "role": "support",
+          "phase": "assault",
+          "state": "advance",
+          "macro": "capture",
+          "macroReason": "request-changed",
+          "macroStatus": "executing",
+          "interceptReserve": false,
+          "selectedByPlanner": false,
+          "used": true,
+          "currentVehicle": "boarding",
+          "preparedDefense": false,
+          "contact": false,
+          "metersFromHome": 17,
+          "fleetParked": 3
+        },
+        {
+          "id": "ge-3",
+          "role": "reserve",
+          "phase": "reserve",
+          "state": "advance",
+          "macro": "reserve",
+          "macroReason": "purpose-first-forward-screen",
+          "macroStatus": "executing",
+          "interceptReserve": true,
+          "selectedByPlanner": true,
+          "used": false,
+          "currentVehicle": null,
+          "preparedDefense": false,
+          "contact": false,
+          "metersFromHome": 2,
+          "fleetParked": 3
+        },
+        {
+          "id": "ge-4",
+          "role": "reserve",
+          "phase": "reserve",
+          "state": "advance",
+          "macro": "reserve",
+          "macroReason": "purpose-first-forward-screen",
+          "macroStatus": "executing",
+          "interceptReserve": true,
+          "selectedByPlanner": true,
+          "used": false,
+          "currentVehicle": null,
+          "preparedDefense": false,
+          "contact": false,
+          "metersFromHome": 3.1,
+          "fleetParked": 3
+        }
+      ]
+    },
+    "forwardScreen": {
+      "us": {
+        "screens": [
+          {
+            "squadId": "us-3",
+            "leadSquadId": "us-0",
+            "objectiveId": "strategic-obj-6",
+            "roadId": "strategic-road-10",
+            "vehicleId": "us-base-0-truck-1",
+            "orderAt": 61.649999999999594,
+            "atPost": 233.55000000000598,
+            "reportCount": 3,
+            "intercept": null,
+            "travelled": 1720.4761709558413,
+            "phase": "dismounted",
+            "actualPostTime": 233.55000000000598
+          },
+          {
+            "squadId": "us-4",
+            "leadSquadId": "us-1",
+            "objectiveId": "strategic-obj-7",
+            "roadId": "strategic-road-12",
+            "vehicleId": "us-base-1-truck-1",
+            "orderAt": 62.09999999999959,
+            "atPost": 232.65000000000595,
+            "reportCount": 8,
+            "intercept": null,
+            "travelled": 229.0249999999985,
+            "phase": "aborted",
+            "actualPostTime": null
+          }
+        ],
+        "supports": []
+      },
+      "ge": {
+        "screens": [
+          {
+            "squadId": "ge-3",
+            "leadSquadId": "ge-0",
+            "objectiveId": "strategic-obj-9",
+            "roadId": "strategic-road-10",
+            "vehicleId": "ge-base-0-truck-1",
+            "orderAt": 61.649999999999594,
+            "atPost": 234.450000000006,
+            "reportCount": 0,
+            "intercept": null,
+            "travelled": 1210.5335468055084,
+            "phase": "embarked",
+            "actualPostTime": null
+          },
+          {
+            "squadId": "ge-4",
+            "leadSquadId": "ge-1",
+            "objectiveId": "strategic-obj-10",
+            "roadId": "strategic-road-12",
+            "vehicleId": "ge-base-1-truck-1",
+            "orderAt": 62.09999999999959,
+            "atPost": 225.9000000000057,
+            "reportCount": 0,
+            "intercept": null,
+            "travelled": 220.02499999999858,
+            "phase": "aborted",
+            "actualPostTime": null
+          }
+        ],
+        "supports": []
+      }
+    },
+    "interceptions": [],
+    "shots": {
+      "total": 292,
+      "byFaction": {
+        "ge": 209,
+        "us": 83
+      }
+    }
+  },
+  {
+    "seed": "strategic-diag-001-ge-defend-0001",
+    "enabled": false,
+    "steps": 6000,
+    "seconds": 900,
+    "winner": null,
+    "fleetStart": 12,
+    "fleetEnd": 12,
+    "aerial": {
+      "us": {
+        "used": true,
+        "contacts": 5
+      },
+      "ge": {
+        "used": true,
+        "contacts": 5
+      }
+    },
+    "general": {
+      "us": null,
+      "ge": null
+    },
+    "reserveAudit": {
+      "at": 40.2,
+      "us": [
+        {
+          "id": "us-0",
+          "role": "left",
+          "phase": "assault",
+          "state": "advance",
+          "macro": "capture",
+          "macroReason": "request-changed",
+          "macroStatus": "executing",
+          "interceptReserve": false,
+          "selectedByPlanner": false,
+          "used": true,
+          "currentVehicle": "boarding",
+          "preparedDefense": false,
+          "contact": false,
+          "metersFromHome": 10,
+          "fleetParked": 2
+        },
+        {
+          "id": "us-1",
+          "role": "center",
+          "phase": "assault",
+          "state": "advance",
+          "macro": "capture",
+          "macroReason": "request-changed",
+          "macroStatus": "executing",
+          "interceptReserve": false,
+          "selectedByPlanner": false,
+          "used": true,
+          "currentVehicle": "boarding",
+          "preparedDefense": false,
+          "contact": false,
+          "metersFromHome": 11.9,
+          "fleetParked": 2
+        },
+        {
+          "id": "us-2",
+          "role": "support",
+          "phase": "assault",
+          "state": "advance",
+          "macro": "capture",
+          "macroReason": "request-changed",
+          "macroStatus": "executing",
+          "interceptReserve": false,
+          "selectedByPlanner": false,
+          "used": false,
+          "currentVehicle": null,
+          "preparedDefense": false,
+          "contact": false,
+          "metersFromHome": 12.3,
+          "fleetParked": 2
+        },
+        {
+          "id": "us-3",
+          "role": "center",
+          "phase": "assault",
+          "state": "advance",
+          "macro": "capture",
+          "macroReason": "request-changed",
+          "macroStatus": "executing",
+          "interceptReserve": false,
+          "selectedByPlanner": false,
+          "used": true,
+          "currentVehicle": "boarding",
+          "preparedDefense": false,
+          "contact": false,
+          "metersFromHome": 10.8,
+          "fleetParked": 2
+        },
+        {
+          "id": "us-4",
+          "role": "center",
+          "phase": "assault",
+          "state": "advance",
+          "macro": "capture",
+          "macroReason": "reserve-commit",
+          "macroStatus": "executing",
+          "interceptReserve": false,
+          "selectedByPlanner": false,
+          "used": true,
+          "currentVehicle": "boarding",
+          "preparedDefense": false,
+          "contact": false,
+          "metersFromHome": 12.4,
+          "fleetParked": 2
+        }
+      ],
+      "ge": [
+        {
+          "id": "ge-0",
+          "role": "garrison",
+          "phase": "defend",
+          "state": "advance",
+          "macro": "defend",
+          "macroReason": "initial-mission",
+          "macroStatus": "executing",
+          "interceptReserve": false,
+          "selectedByPlanner": false,
+          "used": false,
+          "currentVehicle": null,
+          "preparedDefense": true,
+          "contact": false,
+          "metersFromHome": 1336.5,
+          "fleetParked": 6
+        },
+        {
+          "id": "ge-1",
+          "role": "garrison",
+          "phase": "defend",
+          "state": "advance",
+          "macro": "defend",
+          "macroReason": "initial-mission",
+          "macroStatus": "executing",
+          "interceptReserve": false,
+          "selectedByPlanner": false,
+          "used": false,
+          "currentVehicle": null,
+          "preparedDefense": true,
+          "contact": false,
+          "metersFromHome": 1309.5,
+          "fleetParked": 6
+        },
+        {
+          "id": "ge-2",
+          "role": "garrison",
+          "phase": "defend",
+          "state": "advance",
+          "macro": "defend",
+          "macroReason": "initial-mission",
+          "macroStatus": "executing",
+          "interceptReserve": false,
+          "selectedByPlanner": false,
+          "used": false,
+          "currentVehicle": null,
+          "preparedDefense": true,
+          "contact": false,
+          "metersFromHome": 997.7,
+          "fleetParked": 6
+        },
+        {
+          "id": "ge-3",
+          "role": "center",
+          "phase": "approach",
+          "state": "advance",
+          "macro": "capture",
+          "macroReason": "request-changed",
+          "macroStatus": "executing",
+          "interceptReserve": false,
+          "selectedByPlanner": false,
+          "used": false,
+          "currentVehicle": null,
+          "preparedDefense": false,
+          "contact": false,
+          "metersFromHome": 12.6,
+          "fleetParked": 6
+        },
+        {
+          "id": "ge-4",
+          "role": "center",
+          "phase": "approach",
+          "state": "advance",
+          "macro": "capture",
+          "macroReason": "request-changed",
+          "macroStatus": "executing",
+          "interceptReserve": false,
+          "selectedByPlanner": false,
+          "used": false,
+          "currentVehicle": null,
+          "preparedDefense": false,
+          "contact": false,
+          "metersFromHome": 9.7,
+          "fleetParked": 6
+        }
+      ]
+    },
+    "forwardScreen": {
+      "us": {
+        "screens": [],
+        "supports": []
+      },
+      "ge": {
+        "screens": [],
+        "supports": []
+      }
+    },
+    "interceptions": [],
+    "shots": {
+      "total": 218,
+      "byFaction": {
+        "ge": 100,
+        "us": 118
+      }
+    }
+  },
+  {
+    "seed": "strategic-diag-001-ge-defend-0001",
+    "enabled": true,
+    "steps": 6000,
+    "seconds": 900,
+    "winner": null,
+    "fleetStart": 12,
+    "fleetEnd": 12,
+    "aerial": {
+      "us": {
+        "used": true,
+        "contacts": 5
+      },
+      "ge": {
+        "used": true,
+        "contacts": 5
+      }
+    },
+    "general": {
+      "us": {
+        "at": 70.1999999999998,
+        "result": "declined",
+        "contacts": 5,
+        "corridors": 0,
+        "rejectionEvidence": {
+          "noFleet": 0,
+          "unavailableSquads": 0,
+          "eligibleSquadEvaluations": 0,
+          "noRoadGraphPath": 0,
+          "pathEvaluations": 0,
+          "failedTransportQuotes": 0,
+          "viableTransportQuotes": 0,
+          "arrivalTooLate": 0,
+          "bestMarginSeconds": null
+        }
+      },
+      "ge": {
+        "at": 70.1999999999998,
+        "result": "declined",
+        "contacts": 5,
+        "corridors": 59,
+        "rejectionEvidence": {
+          "noFleet": 0,
+          "unavailableSquads": 295,
+          "eligibleSquadEvaluations": 0,
+          "noRoadGraphPath": 0,
+          "pathEvaluations": 0,
+          "failedTransportQuotes": 0,
+          "viableTransportQuotes": 0,
+          "arrivalTooLate": 0,
+          "bestMarginSeconds": null
+        }
+      }
+    },
+    "reserveAudit": {
+      "at": 40.2,
+      "us": [
+        {
+          "id": "us-0",
+          "role": "left",
+          "phase": "assault",
+          "state": "advance",
+          "macro": "capture",
+          "macroReason": "request-changed",
+          "macroStatus": "executing",
+          "interceptReserve": false,
+          "selectedByPlanner": false,
+          "used": true,
+          "currentVehicle": "boarding",
+          "preparedDefense": false,
+          "contact": false,
+          "metersFromHome": 10.1,
+          "fleetParked": 4
+        },
+        {
+          "id": "us-1",
+          "role": "center",
+          "phase": "assault",
+          "state": "advance",
+          "macro": "capture",
+          "macroReason": "request-changed",
+          "macroStatus": "executing",
+          "interceptReserve": false,
+          "selectedByPlanner": false,
+          "used": true,
+          "currentVehicle": "boarding",
+          "preparedDefense": false,
+          "contact": false,
+          "metersFromHome": 12.2,
+          "fleetParked": 4
+        },
+        {
+          "id": "us-2",
+          "role": "support",
+          "phase": "assault",
+          "state": "advance",
+          "macro": "capture",
+          "macroReason": "request-changed",
+          "macroStatus": "executing",
+          "interceptReserve": false,
+          "selectedByPlanner": false,
+          "used": false,
+          "currentVehicle": null,
+          "preparedDefense": false,
+          "contact": false,
+          "metersFromHome": 12.3,
+          "fleetParked": 4
+        },
+        {
+          "id": "us-3",
+          "role": "reserve",
+          "phase": "reserve",
+          "state": "advance",
+          "macro": "reserve",
+          "macroReason": "purpose-first-forward-screen",
+          "macroStatus": "executing",
+          "interceptReserve": true,
+          "selectedByPlanner": true,
+          "used": false,
+          "currentVehicle": null,
+          "preparedDefense": false,
+          "contact": false,
+          "metersFromHome": 1.9,
+          "fleetParked": 4
+        },
+        {
+          "id": "us-4",
+          "role": "reserve",
+          "phase": "reserve",
+          "state": "advance",
+          "macro": "reserve",
+          "macroReason": "purpose-first-forward-screen",
+          "macroStatus": "executing",
+          "interceptReserve": true,
+          "selectedByPlanner": true,
+          "used": false,
+          "currentVehicle": null,
+          "preparedDefense": false,
+          "contact": false,
+          "metersFromHome": 3.6,
+          "fleetParked": 4
+        }
+      ],
+      "ge": [
+        {
+          "id": "ge-0",
+          "role": "garrison",
+          "phase": "defend",
+          "state": "advance",
+          "macro": "defend",
+          "macroReason": "initial-mission",
+          "macroStatus": "executing",
+          "interceptReserve": false,
+          "selectedByPlanner": false,
+          "used": false,
+          "currentVehicle": null,
+          "preparedDefense": true,
+          "contact": false,
+          "metersFromHome": 1336.4,
+          "fleetParked": 6
+        },
+        {
+          "id": "ge-1",
+          "role": "garrison",
+          "phase": "defend",
+          "state": "advance",
+          "macro": "defend",
+          "macroReason": "initial-mission",
+          "macroStatus": "executing",
+          "interceptReserve": false,
+          "selectedByPlanner": false,
+          "used": false,
+          "currentVehicle": null,
+          "preparedDefense": true,
+          "contact": false,
+          "metersFromHome": 1309.4,
+          "fleetParked": 6
+        },
+        {
+          "id": "ge-2",
+          "role": "garrison",
+          "phase": "defend",
+          "state": "advance",
+          "macro": "defend",
+          "macroReason": "initial-mission",
+          "macroStatus": "executing",
+          "interceptReserve": false,
+          "selectedByPlanner": false,
+          "used": false,
+          "currentVehicle": null,
+          "preparedDefense": true,
+          "contact": false,
+          "metersFromHome": 997.7,
+          "fleetParked": 6
+        },
+        {
+          "id": "ge-3",
+          "role": "center",
+          "phase": "approach",
+          "state": "advance",
+          "macro": "capture",
+          "macroReason": "request-changed",
+          "macroStatus": "executing",
+          "interceptReserve": false,
+          "selectedByPlanner": false,
+          "used": false,
+          "currentVehicle": null,
+          "preparedDefense": false,
+          "contact": false,
+          "metersFromHome": 12.7,
+          "fleetParked": 6
+        },
+        {
+          "id": "ge-4",
+          "role": "center",
+          "phase": "approach",
+          "state": "advance",
+          "macro": "capture",
+          "macroReason": "request-changed",
+          "macroStatus": "executing",
+          "interceptReserve": false,
+          "selectedByPlanner": false,
+          "used": false,
+          "currentVehicle": null,
+          "preparedDefense": false,
+          "contact": false,
+          "metersFromHome": 9.8,
+          "fleetParked": 6
+        }
+      ]
+    },
+    "forwardScreen": {
+      "us": {
+        "screens": [
+          {
+            "squadId": "us-3",
+            "leadSquadId": "us-0",
+            "objectiveId": "strategic-obj-6",
+            "roadId": "strategic-road-10",
+            "vehicleId": "us-base-0-truck-1",
+            "orderAt": 69.74999999999979,
+            "atPost": 238.05000000000615,
+            "reportCount": 0,
+            "intercept": null,
+            "travelled": 1112.2412270837324,
+            "phase": "embarked",
+            "actualPostTime": null
+          },
+          {
+            "squadId": "us-4",
+            "leadSquadId": "us-1",
+            "objectiveId": "strategic-obj-7",
+            "roadId": "strategic-road-12",
+            "vehicleId": "us-base-1-truck-1",
+            "orderAt": 70.1999999999998,
+            "atPost": 237.15000000000612,
+            "reportCount": 0,
+            "intercept": null,
+            "travelled": 1105.9488116880023,
+            "phase": "embarked",
+            "actualPostTime": null
+          }
+        ],
+        "supports": []
+      },
+      "ge": {
+        "screens": [],
+        "supports": []
+      }
+    },
+    "interceptions": [],
+    "shots": {
+      "total": 189,
+      "byFaction": {
+        "us": 53,
+        "ge": 136
+      }
+    }
+  },
+  {
+    "seed": "strategic-diag-001-us-defend-0005",
+    "enabled": false,
+    "steps": 6000,
+    "seconds": 900,
+    "winner": null,
+    "fleetStart": 12,
+    "fleetEnd": 12,
+    "aerial": {
+      "us": {
+        "used": true,
+        "contacts": 5
+      },
+      "ge": {
+        "used": true,
+        "contacts": 5
+      }
+    },
+    "general": {
+      "us": null,
+      "ge": null
+    },
+    "reserveAudit": {
+      "at": 40.2,
+      "us": [
+        {
+          "id": "us-0",
+          "role": "garrison",
+          "phase": "defend",
+          "state": "advance",
+          "macro": "defend",
+          "macroReason": "initial-mission",
+          "macroStatus": "executing",
+          "interceptReserve": false,
+          "selectedByPlanner": false,
+          "used": false,
+          "currentVehicle": null,
+          "preparedDefense": true,
+          "contact": false,
+          "metersFromHome": 1427.2,
+          "fleetParked": 6
+        },
+        {
+          "id": "us-1",
+          "role": "garrison",
+          "phase": "defend",
+          "state": "advance",
+          "macro": "defend",
+          "macroReason": "initial-mission",
+          "macroStatus": "executing",
+          "interceptReserve": false,
+          "selectedByPlanner": false,
+          "used": false,
+          "currentVehicle": null,
+          "preparedDefense": true,
+          "contact": false,
+          "metersFromHome": 1371.2,
+          "fleetParked": 6
+        },
+        {
+          "id": "us-2",
+          "role": "garrison",
+          "phase": "defend",
+          "state": "advance",
+          "macro": "defend",
+          "macroReason": "initial-mission",
+          "macroStatus": "executing",
+          "interceptReserve": false,
+          "selectedByPlanner": false,
+          "used": false,
+          "currentVehicle": null,
+          "preparedDefense": true,
+          "contact": false,
+          "metersFromHome": 1129.9,
+          "fleetParked": 6
+        },
+        {
+          "id": "us-3",
+          "role": "center",
+          "phase": "approach",
+          "state": "advance",
+          "macro": "capture",
+          "macroReason": "request-changed",
+          "macroStatus": "executing",
+          "interceptReserve": false,
+          "selectedByPlanner": false,
+          "used": false,
+          "currentVehicle": null,
+          "preparedDefense": false,
+          "contact": false,
+          "metersFromHome": 12.3,
+          "fleetParked": 6
+        },
+        {
+          "id": "us-4",
+          "role": "center",
+          "phase": "approach",
+          "state": "advance",
+          "macro": "capture",
+          "macroReason": "request-changed",
+          "macroStatus": "executing",
+          "interceptReserve": false,
+          "selectedByPlanner": false,
+          "used": false,
+          "currentVehicle": null,
+          "preparedDefense": false,
+          "contact": false,
+          "metersFromHome": 9.5,
+          "fleetParked": 6
+        }
+      ],
+      "ge": [
+        {
+          "id": "ge-0",
+          "role": "left",
+          "phase": "assault",
+          "state": "advance",
+          "macro": "capture",
+          "macroReason": "request-changed",
+          "macroStatus": "executing",
+          "interceptReserve": false,
+          "selectedByPlanner": false,
+          "used": true,
+          "currentVehicle": "boarding",
+          "preparedDefense": false,
+          "contact": false,
+          "metersFromHome": 9.6,
+          "fleetParked": 1
+        },
+        {
+          "id": "ge-1",
+          "role": "center",
+          "phase": "assault",
+          "state": "advance",
+          "macro": "capture",
+          "macroReason": "request-changed",
+          "macroStatus": "executing",
+          "interceptReserve": false,
+          "selectedByPlanner": false,
+          "used": true,
+          "currentVehicle": "boarding",
+          "preparedDefense": false,
+          "contact": false,
+          "metersFromHome": 10.4,
+          "fleetParked": 1
+        },
+        {
+          "id": "ge-2",
+          "role": "support",
+          "phase": "assault",
+          "state": "advance",
+          "macro": "capture",
+          "macroReason": "request-changed",
+          "macroStatus": "executing",
+          "interceptReserve": false,
+          "selectedByPlanner": false,
+          "used": true,
+          "currentVehicle": "boarding",
+          "preparedDefense": false,
+          "contact": false,
+          "metersFromHome": 11,
+          "fleetParked": 1
+        },
+        {
+          "id": "ge-3",
+          "role": "center",
+          "phase": "assault",
+          "state": "advance",
+          "macro": "capture",
+          "macroReason": "request-changed",
+          "macroStatus": "executing",
+          "interceptReserve": false,
+          "selectedByPlanner": false,
+          "used": true,
+          "currentVehicle": "boarding",
+          "preparedDefense": false,
+          "contact": false,
+          "metersFromHome": 10.6,
+          "fleetParked": 1
+        },
+        {
+          "id": "ge-4",
+          "role": "center",
+          "phase": "assault",
+          "state": "advance",
+          "macro": "capture",
+          "macroReason": "reserve-commit",
+          "macroStatus": "executing",
+          "interceptReserve": false,
+          "selectedByPlanner": false,
+          "used": true,
+          "currentVehicle": "boarding",
+          "preparedDefense": false,
+          "contact": false,
+          "metersFromHome": 9.1,
+          "fleetParked": 1
+        }
+      ]
+    },
+    "forwardScreen": {
+      "us": {
+        "screens": [],
+        "supports": []
+      },
+      "ge": {
+        "screens": [],
+        "supports": []
+      }
+    },
+    "interceptions": [],
+    "shots": {
+      "total": 134,
+      "byFaction": {
+        "ge": 77,
+        "us": 57
+      }
+    }
+  },
+  {
+    "seed": "strategic-diag-001-us-defend-0005",
+    "enabled": true,
+    "steps": 6000,
+    "seconds": 900,
+    "winner": null,
+    "fleetStart": 12,
+    "fleetEnd": 12,
+    "aerial": {
+      "us": {
+        "used": true,
+        "contacts": 5
+      },
+      "ge": {
+        "used": true,
+        "contacts": 5
+      }
+    },
+    "general": {
+      "us": {
+        "at": 70.1999999999998,
+        "result": "declined",
+        "contacts": 5,
+        "corridors": 67,
+        "rejectionEvidence": {
+          "noFleet": 0,
+          "unavailableSquads": 335,
+          "eligibleSquadEvaluations": 0,
+          "noRoadGraphPath": 0,
+          "pathEvaluations": 0,
+          "failedTransportQuotes": 0,
+          "viableTransportQuotes": 0,
+          "arrivalTooLate": 0,
+          "bestMarginSeconds": null
+        }
+      },
+      "ge": {
+        "at": 70.1999999999998,
+        "result": "declined",
+        "contacts": 5,
+        "corridors": 0,
+        "rejectionEvidence": {
+          "noFleet": 0,
+          "unavailableSquads": 0,
+          "eligibleSquadEvaluations": 0,
+          "noRoadGraphPath": 0,
+          "pathEvaluations": 0,
+          "failedTransportQuotes": 0,
+          "viableTransportQuotes": 0,
+          "arrivalTooLate": 0,
+          "bestMarginSeconds": null
+        }
+      }
+    },
+    "reserveAudit": {
+      "at": 40.2,
+      "us": [
+        {
+          "id": "us-0",
+          "role": "garrison",
+          "phase": "defend",
+          "state": "advance",
+          "macro": "defend",
+          "macroReason": "initial-mission",
+          "macroStatus": "executing",
+          "interceptReserve": false,
+          "selectedByPlanner": false,
+          "used": false,
+          "currentVehicle": null,
+          "preparedDefense": true,
+          "contact": false,
+          "metersFromHome": 1427.2,
+          "fleetParked": 6
+        },
+        {
+          "id": "us-1",
+          "role": "garrison",
+          "phase": "defend",
+          "state": "advance",
+          "macro": "defend",
+          "macroReason": "initial-mission",
+          "macroStatus": "executing",
+          "interceptReserve": false,
+          "selectedByPlanner": false,
+          "used": false,
+          "currentVehicle": null,
+          "preparedDefense": true,
+          "contact": false,
+          "metersFromHome": 1371.4,
+          "fleetParked": 6
+        },
+        {
+          "id": "us-2",
+          "role": "garrison",
+          "phase": "defend",
+          "state": "advance",
+          "macro": "defend",
+          "macroReason": "initial-mission",
+          "macroStatus": "executing",
+          "interceptReserve": false,
+          "selectedByPlanner": false,
+          "used": false,
+          "currentVehicle": null,
+          "preparedDefense": true,
+          "contact": false,
+          "metersFromHome": 1129.7,
+          "fleetParked": 6
+        },
+        {
+          "id": "us-3",
+          "role": "center",
+          "phase": "approach",
+          "state": "advance",
+          "macro": "capture",
+          "macroReason": "request-changed",
+          "macroStatus": "executing",
+          "interceptReserve": false,
+          "selectedByPlanner": false,
+          "used": false,
+          "currentVehicle": null,
+          "preparedDefense": false,
+          "contact": false,
+          "metersFromHome": 12.3,
+          "fleetParked": 6
+        },
+        {
+          "id": "us-4",
+          "role": "center",
+          "phase": "approach",
+          "state": "advance",
+          "macro": "capture",
+          "macroReason": "request-changed",
+          "macroStatus": "executing",
+          "interceptReserve": false,
+          "selectedByPlanner": false,
+          "used": false,
+          "currentVehicle": null,
+          "preparedDefense": false,
+          "contact": false,
+          "metersFromHome": 9.8,
+          "fleetParked": 6
+        }
+      ],
+      "ge": [
+        {
+          "id": "ge-0",
+          "role": "left",
+          "phase": "assault",
+          "state": "advance",
+          "macro": "capture",
+          "macroReason": "request-changed",
+          "macroStatus": "executing",
+          "interceptReserve": false,
+          "selectedByPlanner": false,
+          "used": true,
+          "currentVehicle": "boarding",
+          "preparedDefense": false,
+          "contact": false,
+          "metersFromHome": 10.4,
+          "fleetParked": 3
+        },
+        {
+          "id": "ge-1",
+          "role": "center",
+          "phase": "assault",
+          "state": "advance",
+          "macro": "capture",
+          "macroReason": "request-changed",
+          "macroStatus": "executing",
+          "interceptReserve": false,
+          "selectedByPlanner": false,
+          "used": true,
+          "currentVehicle": "boarding",
+          "preparedDefense": false,
+          "contact": false,
+          "metersFromHome": 10.7,
+          "fleetParked": 3
+        },
+        {
+          "id": "ge-2",
+          "role": "support",
+          "phase": "assault",
+          "state": "advance",
+          "macro": "capture",
+          "macroReason": "request-changed",
+          "macroStatus": "executing",
+          "interceptReserve": false,
+          "selectedByPlanner": false,
+          "used": true,
+          "currentVehicle": "boarding",
+          "preparedDefense": false,
+          "contact": false,
+          "metersFromHome": 11.3,
+          "fleetParked": 3
+        },
+        {
+          "id": "ge-3",
+          "role": "reserve",
+          "phase": "reserve",
+          "state": "advance",
+          "macro": "reserve",
+          "macroReason": "purpose-first-forward-screen",
+          "macroStatus": "executing",
+          "interceptReserve": true,
+          "selectedByPlanner": true,
+          "used": false,
+          "currentVehicle": null,
+          "preparedDefense": false,
+          "contact": false,
+          "metersFromHome": 2.9,
+          "fleetParked": 3
+        },
+        {
+          "id": "ge-4",
+          "role": "reserve",
+          "phase": "reserve",
+          "state": "advance",
+          "macro": "reserve",
+          "macroReason": "purpose-first-forward-screen",
+          "macroStatus": "executing",
+          "interceptReserve": true,
+          "selectedByPlanner": true,
+          "used": false,
+          "currentVehicle": null,
+          "preparedDefense": false,
+          "contact": false,
+          "metersFromHome": 3.1,
+          "fleetParked": 3
+        }
+      ]
+    },
+    "forwardScreen": {
+      "us": {
+        "screens": [],
+        "supports": []
+      },
+      "ge": {
+        "screens": [
+          {
+            "squadId": "ge-3",
+            "leadSquadId": "ge-0",
+            "objectiveId": "strategic-obj-9",
+            "roadId": "strategic-road-10",
+            "vehicleId": "ge-base-0-truck-1",
+            "orderAt": 69.74999999999979,
+            "atPost": 240.30000000000624,
+            "reportCount": 0,
+            "intercept": null,
+            "travelled": 1112.221748469821,
+            "phase": "embarked",
+            "actualPostTime": null
+          },
+          {
+            "squadId": "ge-4",
+            "leadSquadId": "ge-1",
+            "objectiveId": "strategic-obj-10",
+            "roadId": "strategic-road-12",
+            "vehicleId": "ge-base-1-truck-1",
+            "orderAt": 70.1999999999998,
+            "atPost": 227.70000000000576,
+            "reportCount": 0,
+            "intercept": null,
+            "travelled": 1109.7421026767875,
+            "phase": "embarked",
+            "actualPostTime": null
+          }
+        ],
+        "supports": []
+      }
+    },
+    "interceptions": [],
+    "shots": {
+      "total": 93,
+      "byFaction": {
+        "us": 54,
+        "ge": 39
+      }
+    }
+  }
+]

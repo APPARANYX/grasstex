@@ -1,0 +1,78 @@
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[ENGAGE] combat urgency drills: suppressed cover bound + shared-contact reaction
+[MOVE] lean movement execution: committed micro-route + conservative recovery
+PASS forward-approved bound remains authoritative as remaining distance drops below 1.5m
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[ENGAGE] combat urgency drills: suppressed cover bound + shared-contact reaction
+[MOVE] lean movement execution: committed micro-route + conservative recovery
+PASS suppression ending does not revoke the lateral cover move it authorized
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[ENGAGE] combat urgency drills: suppressed cover bound + shared-contact reaction
+[MOVE] lean movement execution: committed micro-route + conservative recovery
+PASS equivalent destinations within the deadband keep one committed route
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[ENGAGE] combat urgency drills: suppressed cover bound + shared-contact reaction
+[MOVE] lean movement execution: committed micro-route + conservative recovery
+PASS a materially distant destination is accepted once the order commit lapses
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[ENGAGE] combat urgency drills: suppressed cover bound + shared-contact reaction
+[MOVE] lean movement execution: committed micro-route + conservative recovery
+PASS marginally better cover does not displace the committed bound (hysteresis)
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[ENGAGE] combat urgency drills: suppressed cover bound + shared-contact reaction
+[MOVE] lean movement execution: committed micro-route + conservative recovery
+PASS lower-priority proposals cannot displace an active bound; retreat always wins
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[ENGAGE] combat urgency drills: suppressed cover bound + shared-contact reaction
+[MOVE] lean movement execution: committed micro-route + conservative recovery
+PASS a bound survives repeated tactical refreshes while closing on cover
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[ENGAGE] combat urgency drills: suppressed cover bound + shared-contact reaction
+[MOVE] lean movement execution: committed micro-route + conservative recovery
+PASS small aim updates do not rebuild the movement route
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[ENGAGE] combat urgency drills: suppressed cover bound + shared-contact reaction
+[MOVE] lean movement execution: committed micro-route + conservative recovery
+PASS a genuinely stuck bound triggers graduated recovery then unreachable
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[ENGAGE] combat urgency drills: suppressed cover bound + shared-contact reaction
+[MOVE] lean movement execution: committed micro-route + conservative recovery
+PASS failed candidates are avoided briefly, locally, then forgiven
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[ENGAGE] combat urgency drills: suppressed cover bound + shared-contact reaction
+[MOVE] lean movement execution: committed micro-route + conservative recovery
+PASS a suppressed bound goal yields to an alternate cover proposal
+All 11 movement-state checks passed.

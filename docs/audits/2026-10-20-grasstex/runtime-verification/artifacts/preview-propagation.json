@@ -1,0 +1,9 @@
+{
+  "exitCode": 0,
+  "query": "strategicInterception=1&motorTransport=1&aerialRecon=1&interception=1&truckCollision=1",
+  "forwarded": {
+    "strategicInterception": "1"
+  },
+  "stderr": "",
+  "method": "executed unchanged shipping allowlist fragment with PHP CLI; no staging or deployment"
+}

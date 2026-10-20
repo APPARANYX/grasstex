@@ -1,0 +1,10 @@
+PASS roles carry no weapon
+PASS default loadouts deal what the roles carried
+PASS sergeants and gunners carry a holstered sidearm, the side's own
+PASS the composition needs no other kind
+PASS loadoutFor returns a copy
+PASS a dealt squad carries the loadout and the side's profile
+PASS a man who leaves his weapons behind carries none, and is issued his role's loadout again at base
+PASS a light machine gun is an emplaced weapon whoever carries it
+PASS the suppression job goes to the man with the machine gun first
+9 passed

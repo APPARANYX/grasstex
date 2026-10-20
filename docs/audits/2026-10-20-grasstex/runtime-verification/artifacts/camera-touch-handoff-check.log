@@ -1,0 +1,1 @@
+PASS #456 R2 touch owner event-first/poll wake, stale-pad denial, listener/observer release, idempotent stop

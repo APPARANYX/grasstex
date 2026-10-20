@@ -1,0 +1,18 @@
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+PASS the module installs the verbatim set back into engagement.js through the ctx sink
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[MOVE] resolver: sole combat-request coalescer and destination writer
+PASS the parent seam keeps the pre-split names and arities and the tuning export reads the parent constants
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[MOVE] resolver: sole combat-request coalescer and destination writer
+PASS firing: a flee-tempered man under fresh trouble breaks through the re-attached seam
+PASS engagement.js without the module fails loudly on the first reaction use
+PASS the module without engagement.js fails loudly at load
+PASS 5 stress-reactions ctx checks

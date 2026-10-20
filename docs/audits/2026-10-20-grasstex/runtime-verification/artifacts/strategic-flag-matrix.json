@@ -1,0 +1,1090 @@
+[
+  {
+    "profile": "strategic",
+    "search": "?strategicInterception=0&motorTransport=0&aerialRecon=0&interception=0&truckCollision=0",
+    "flags": {
+      "strategicInterception": false,
+      "motorTransport": false,
+      "aerialRecon": false,
+      "interception": false,
+      "truckCollision": false
+    },
+    "effective": {
+      "fleet": 0,
+      "recon": false,
+      "interception": false,
+      "colliders": 0
+    }
+  },
+  {
+    "profile": "strategic",
+    "search": "?strategicInterception=1&motorTransport=0&aerialRecon=0&interception=0&truckCollision=0",
+    "flags": {
+      "strategicInterception": true,
+      "motorTransport": false,
+      "aerialRecon": false,
+      "interception": false,
+      "truckCollision": false
+    },
+    "effective": {
+      "fleet": 0,
+      "recon": false,
+      "interception": false,
+      "colliders": 0
+    }
+  },
+  {
+    "profile": "strategic",
+    "search": "?strategicInterception=0&motorTransport=1&aerialRecon=0&interception=0&truckCollision=0",
+    "flags": {
+      "strategicInterception": false,
+      "motorTransport": true,
+      "aerialRecon": false,
+      "interception": false,
+      "truckCollision": false
+    },
+    "effective": {
+      "fleet": 4,
+      "recon": false,
+      "interception": false,
+      "colliders": 0
+    }
+  },
+  {
+    "profile": "strategic",
+    "search": "?strategicInterception=1&motorTransport=1&aerialRecon=0&interception=0&truckCollision=0",
+    "flags": {
+      "strategicInterception": true,
+      "motorTransport": true,
+      "aerialRecon": false,
+      "interception": false,
+      "truckCollision": false
+    },
+    "effective": {
+      "fleet": 4,
+      "recon": false,
+      "interception": false,
+      "colliders": 0
+    }
+  },
+  {
+    "profile": "strategic",
+    "search": "?strategicInterception=0&motorTransport=0&aerialRecon=1&interception=0&truckCollision=0",
+    "flags": {
+      "strategicInterception": false,
+      "motorTransport": false,
+      "aerialRecon": true,
+      "interception": false,
+      "truckCollision": false
+    },
+    "effective": {
+      "fleet": 0,
+      "recon": false,
+      "interception": false,
+      "colliders": 0
+    }
+  },
+  {
+    "profile": "strategic",
+    "search": "?strategicInterception=1&motorTransport=0&aerialRecon=1&interception=0&truckCollision=0",
+    "flags": {
+      "strategicInterception": true,
+      "motorTransport": false,
+      "aerialRecon": true,
+      "interception": false,
+      "truckCollision": false
+    },
+    "effective": {
+      "fleet": 0,
+      "recon": true,
+      "interception": false,
+      "colliders": 0
+    }
+  },
+  {
+    "profile": "strategic",
+    "search": "?strategicInterception=0&motorTransport=1&aerialRecon=1&interception=0&truckCollision=0",
+    "flags": {
+      "strategicInterception": false,
+      "motorTransport": true,
+      "aerialRecon": true,
+      "interception": false,
+      "truckCollision": false
+    },
+    "effective": {
+      "fleet": 4,
+      "recon": false,
+      "interception": false,
+      "colliders": 0
+    }
+  },
+  {
+    "profile": "strategic",
+    "search": "?strategicInterception=1&motorTransport=1&aerialRecon=1&interception=0&truckCollision=0",
+    "flags": {
+      "strategicInterception": true,
+      "motorTransport": true,
+      "aerialRecon": true,
+      "interception": false,
+      "truckCollision": false
+    },
+    "effective": {
+      "fleet": 4,
+      "recon": true,
+      "interception": false,
+      "colliders": 0
+    }
+  },
+  {
+    "profile": "strategic",
+    "search": "?strategicInterception=0&motorTransport=0&aerialRecon=0&interception=1&truckCollision=0",
+    "flags": {
+      "strategicInterception": false,
+      "motorTransport": false,
+      "aerialRecon": false,
+      "interception": true,
+      "truckCollision": false
+    },
+    "effective": {
+      "fleet": 0,
+      "recon": false,
+      "interception": false,
+      "colliders": 0
+    }
+  },
+  {
+    "profile": "strategic",
+    "search": "?strategicInterception=1&motorTransport=0&aerialRecon=0&interception=1&truckCollision=0",
+    "flags": {
+      "strategicInterception": true,
+      "motorTransport": false,
+      "aerialRecon": false,
+      "interception": true,
+      "truckCollision": false
+    },
+    "effective": {
+      "fleet": 0,
+      "recon": false,
+      "interception": false,
+      "colliders": 0
+    }
+  },
+  {
+    "profile": "strategic",
+    "search": "?strategicInterception=0&motorTransport=1&aerialRecon=0&interception=1&truckCollision=0",
+    "flags": {
+      "strategicInterception": false,
+      "motorTransport": true,
+      "aerialRecon": false,
+      "interception": true,
+      "truckCollision": false
+    },
+    "effective": {
+      "fleet": 4,
+      "recon": false,
+      "interception": false,
+      "colliders": 0
+    }
+  },
+  {
+    "profile": "strategic",
+    "search": "?strategicInterception=1&motorTransport=1&aerialRecon=0&interception=1&truckCollision=0",
+    "flags": {
+      "strategicInterception": true,
+      "motorTransport": true,
+      "aerialRecon": false,
+      "interception": true,
+      "truckCollision": false
+    },
+    "effective": {
+      "fleet": 4,
+      "recon": false,
+      "interception": false,
+      "colliders": 0
+    }
+  },
+  {
+    "profile": "strategic",
+    "search": "?strategicInterception=0&motorTransport=0&aerialRecon=1&interception=1&truckCollision=0",
+    "flags": {
+      "strategicInterception": false,
+      "motorTransport": false,
+      "aerialRecon": true,
+      "interception": true,
+      "truckCollision": false
+    },
+    "effective": {
+      "fleet": 0,
+      "recon": false,
+      "interception": false,
+      "colliders": 0
+    }
+  },
+  {
+    "profile": "strategic",
+    "search": "?strategicInterception=1&motorTransport=0&aerialRecon=1&interception=1&truckCollision=0",
+    "flags": {
+      "strategicInterception": true,
+      "motorTransport": false,
+      "aerialRecon": true,
+      "interception": true,
+      "truckCollision": false
+    },
+    "effective": {
+      "fleet": 0,
+      "recon": true,
+      "interception": false,
+      "colliders": 0
+    }
+  },
+  {
+    "profile": "strategic",
+    "search": "?strategicInterception=0&motorTransport=1&aerialRecon=1&interception=1&truckCollision=0",
+    "flags": {
+      "strategicInterception": false,
+      "motorTransport": true,
+      "aerialRecon": true,
+      "interception": true,
+      "truckCollision": false
+    },
+    "effective": {
+      "fleet": 4,
+      "recon": false,
+      "interception": false,
+      "colliders": 0
+    }
+  },
+  {
+    "profile": "strategic",
+    "search": "?strategicInterception=1&motorTransport=1&aerialRecon=1&interception=1&truckCollision=0",
+    "flags": {
+      "strategicInterception": true,
+      "motorTransport": true,
+      "aerialRecon": true,
+      "interception": true,
+      "truckCollision": false
+    },
+    "effective": {
+      "fleet": 4,
+      "recon": true,
+      "interception": true,
+      "colliders": 0
+    }
+  },
+  {
+    "profile": "strategic",
+    "search": "?strategicInterception=0&motorTransport=0&aerialRecon=0&interception=0&truckCollision=1",
+    "flags": {
+      "strategicInterception": false,
+      "motorTransport": false,
+      "aerialRecon": false,
+      "interception": false,
+      "truckCollision": true
+    },
+    "effective": {
+      "fleet": 0,
+      "recon": false,
+      "interception": false,
+      "colliders": 0
+    }
+  },
+  {
+    "profile": "strategic",
+    "search": "?strategicInterception=1&motorTransport=0&aerialRecon=0&interception=0&truckCollision=1",
+    "flags": {
+      "strategicInterception": true,
+      "motorTransport": false,
+      "aerialRecon": false,
+      "interception": false,
+      "truckCollision": true
+    },
+    "effective": {
+      "fleet": 0,
+      "recon": false,
+      "interception": false,
+      "colliders": 0
+    }
+  },
+  {
+    "profile": "strategic",
+    "search": "?strategicInterception=0&motorTransport=1&aerialRecon=0&interception=0&truckCollision=1",
+    "flags": {
+      "strategicInterception": false,
+      "motorTransport": true,
+      "aerialRecon": false,
+      "interception": false,
+      "truckCollision": true
+    },
+    "effective": {
+      "fleet": 4,
+      "recon": false,
+      "interception": false,
+      "colliders": 4
+    }
+  },
+  {
+    "profile": "strategic",
+    "search": "?strategicInterception=1&motorTransport=1&aerialRecon=0&interception=0&truckCollision=1",
+    "flags": {
+      "strategicInterception": true,
+      "motorTransport": true,
+      "aerialRecon": false,
+      "interception": false,
+      "truckCollision": true
+    },
+    "effective": {
+      "fleet": 4,
+      "recon": false,
+      "interception": false,
+      "colliders": 4
+    }
+  },
+  {
+    "profile": "strategic",
+    "search": "?strategicInterception=0&motorTransport=0&aerialRecon=1&interception=0&truckCollision=1",
+    "flags": {
+      "strategicInterception": false,
+      "motorTransport": false,
+      "aerialRecon": true,
+      "interception": false,
+      "truckCollision": true
+    },
+    "effective": {
+      "fleet": 0,
+      "recon": false,
+      "interception": false,
+      "colliders": 0
+    }
+  },
+  {
+    "profile": "strategic",
+    "search": "?strategicInterception=1&motorTransport=0&aerialRecon=1&interception=0&truckCollision=1",
+    "flags": {
+      "strategicInterception": true,
+      "motorTransport": false,
+      "aerialRecon": true,
+      "interception": false,
+      "truckCollision": true
+    },
+    "effective": {
+      "fleet": 0,
+      "recon": true,
+      "interception": false,
+      "colliders": 0
+    }
+  },
+  {
+    "profile": "strategic",
+    "search": "?strategicInterception=0&motorTransport=1&aerialRecon=1&interception=0&truckCollision=1",
+    "flags": {
+      "strategicInterception": false,
+      "motorTransport": true,
+      "aerialRecon": true,
+      "interception": false,
+      "truckCollision": true
+    },
+    "effective": {
+      "fleet": 4,
+      "recon": false,
+      "interception": false,
+      "colliders": 4
+    }
+  },
+  {
+    "profile": "strategic",
+    "search": "?strategicInterception=1&motorTransport=1&aerialRecon=1&interception=0&truckCollision=1",
+    "flags": {
+      "strategicInterception": true,
+      "motorTransport": true,
+      "aerialRecon": true,
+      "interception": false,
+      "truckCollision": true
+    },
+    "effective": {
+      "fleet": 4,
+      "recon": true,
+      "interception": false,
+      "colliders": 4
+    }
+  },
+  {
+    "profile": "strategic",
+    "search": "?strategicInterception=0&motorTransport=0&aerialRecon=0&interception=1&truckCollision=1",
+    "flags": {
+      "strategicInterception": false,
+      "motorTransport": false,
+      "aerialRecon": false,
+      "interception": true,
+      "truckCollision": true
+    },
+    "effective": {
+      "fleet": 0,
+      "recon": false,
+      "interception": false,
+      "colliders": 0
+    }
+  },
+  {
+    "profile": "strategic",
+    "search": "?strategicInterception=1&motorTransport=0&aerialRecon=0&interception=1&truckCollision=1",
+    "flags": {
+      "strategicInterception": true,
+      "motorTransport": false,
+      "aerialRecon": false,
+      "interception": true,
+      "truckCollision": true
+    },
+    "effective": {
+      "fleet": 0,
+      "recon": false,
+      "interception": false,
+      "colliders": 0
+    }
+  },
+  {
+    "profile": "strategic",
+    "search": "?strategicInterception=0&motorTransport=1&aerialRecon=0&interception=1&truckCollision=1",
+    "flags": {
+      "strategicInterception": false,
+      "motorTransport": true,
+      "aerialRecon": false,
+      "interception": true,
+      "truckCollision": true
+    },
+    "effective": {
+      "fleet": 4,
+      "recon": false,
+      "interception": false,
+      "colliders": 4
+    }
+  },
+  {
+    "profile": "strategic",
+    "search": "?strategicInterception=1&motorTransport=1&aerialRecon=0&interception=1&truckCollision=1",
+    "flags": {
+      "strategicInterception": true,
+      "motorTransport": true,
+      "aerialRecon": false,
+      "interception": true,
+      "truckCollision": true
+    },
+    "effective": {
+      "fleet": 4,
+      "recon": false,
+      "interception": false,
+      "colliders": 4
+    }
+  },
+  {
+    "profile": "strategic",
+    "search": "?strategicInterception=0&motorTransport=0&aerialRecon=1&interception=1&truckCollision=1",
+    "flags": {
+      "strategicInterception": false,
+      "motorTransport": false,
+      "aerialRecon": true,
+      "interception": true,
+      "truckCollision": true
+    },
+    "effective": {
+      "fleet": 0,
+      "recon": false,
+      "interception": false,
+      "colliders": 0
+    }
+  },
+  {
+    "profile": "strategic",
+    "search": "?strategicInterception=1&motorTransport=0&aerialRecon=1&interception=1&truckCollision=1",
+    "flags": {
+      "strategicInterception": true,
+      "motorTransport": false,
+      "aerialRecon": true,
+      "interception": true,
+      "truckCollision": true
+    },
+    "effective": {
+      "fleet": 0,
+      "recon": true,
+      "interception": false,
+      "colliders": 0
+    }
+  },
+  {
+    "profile": "strategic",
+    "search": "?strategicInterception=0&motorTransport=1&aerialRecon=1&interception=1&truckCollision=1",
+    "flags": {
+      "strategicInterception": false,
+      "motorTransport": true,
+      "aerialRecon": true,
+      "interception": true,
+      "truckCollision": true
+    },
+    "effective": {
+      "fleet": 4,
+      "recon": false,
+      "interception": false,
+      "colliders": 4
+    }
+  },
+  {
+    "profile": "strategic",
+    "search": "?strategicInterception=1&motorTransport=1&aerialRecon=1&interception=1&truckCollision=1",
+    "flags": {
+      "strategicInterception": true,
+      "motorTransport": true,
+      "aerialRecon": true,
+      "interception": true,
+      "truckCollision": true
+    },
+    "effective": {
+      "fleet": 4,
+      "recon": true,
+      "interception": true,
+      "colliders": 4
+    }
+  },
+  {
+    "profile": "legacy",
+    "search": "?strategicInterception=0&motorTransport=0&aerialRecon=0&interception=0&truckCollision=0",
+    "flags": {
+      "strategicInterception": false,
+      "motorTransport": false,
+      "aerialRecon": false,
+      "interception": false,
+      "truckCollision": false
+    },
+    "effective": {
+      "fleet": 0,
+      "recon": false,
+      "interception": false,
+      "colliders": 0
+    }
+  },
+  {
+    "profile": "legacy",
+    "search": "?strategicInterception=1&motorTransport=0&aerialRecon=0&interception=0&truckCollision=0",
+    "flags": {
+      "strategicInterception": true,
+      "motorTransport": false,
+      "aerialRecon": false,
+      "interception": false,
+      "truckCollision": false
+    },
+    "effective": {
+      "fleet": 0,
+      "recon": false,
+      "interception": false,
+      "colliders": 0
+    }
+  },
+  {
+    "profile": "legacy",
+    "search": "?strategicInterception=0&motorTransport=1&aerialRecon=0&interception=0&truckCollision=0",
+    "flags": {
+      "strategicInterception": false,
+      "motorTransport": true,
+      "aerialRecon": false,
+      "interception": false,
+      "truckCollision": false
+    },
+    "effective": {
+      "fleet": 0,
+      "recon": false,
+      "interception": false,
+      "colliders": 0
+    }
+  },
+  {
+    "profile": "legacy",
+    "search": "?strategicInterception=1&motorTransport=1&aerialRecon=0&interception=0&truckCollision=0",
+    "flags": {
+      "strategicInterception": true,
+      "motorTransport": true,
+      "aerialRecon": false,
+      "interception": false,
+      "truckCollision": false
+    },
+    "effective": {
+      "fleet": 0,
+      "recon": false,
+      "interception": false,
+      "colliders": 0
+    }
+  },
+  {
+    "profile": "legacy",
+    "search": "?strategicInterception=0&motorTransport=0&aerialRecon=1&interception=0&truckCollision=0",
+    "flags": {
+      "strategicInterception": false,
+      "motorTransport": false,
+      "aerialRecon": true,
+      "interception": false,
+      "truckCollision": false
+    },
+    "effective": {
+      "fleet": 0,
+      "recon": false,
+      "interception": false,
+      "colliders": 0
+    }
+  },
+  {
+    "profile": "legacy",
+    "search": "?strategicInterception=1&motorTransport=0&aerialRecon=1&interception=0&truckCollision=0",
+    "flags": {
+      "strategicInterception": true,
+      "motorTransport": false,
+      "aerialRecon": true,
+      "interception": false,
+      "truckCollision": false
+    },
+    "effective": {
+      "fleet": 0,
+      "recon": false,
+      "interception": false,
+      "colliders": 0
+    }
+  },
+  {
+    "profile": "legacy",
+    "search": "?strategicInterception=0&motorTransport=1&aerialRecon=1&interception=0&truckCollision=0",
+    "flags": {
+      "strategicInterception": false,
+      "motorTransport": true,
+      "aerialRecon": true,
+      "interception": false,
+      "truckCollision": false
+    },
+    "effective": {
+      "fleet": 0,
+      "recon": false,
+      "interception": false,
+      "colliders": 0
+    }
+  },
+  {
+    "profile": "legacy",
+    "search": "?strategicInterception=1&motorTransport=1&aerialRecon=1&interception=0&truckCollision=0",
+    "flags": {
+      "strategicInterception": true,
+      "motorTransport": true,
+      "aerialRecon": true,
+      "interception": false,
+      "truckCollision": false
+    },
+    "effective": {
+      "fleet": 0,
+      "recon": false,
+      "interception": false,
+      "colliders": 0
+    }
+  },
+  {
+    "profile": "legacy",
+    "search": "?strategicInterception=0&motorTransport=0&aerialRecon=0&interception=1&truckCollision=0",
+    "flags": {
+      "strategicInterception": false,
+      "motorTransport": false,
+      "aerialRecon": false,
+      "interception": true,
+      "truckCollision": false
+    },
+    "effective": {
+      "fleet": 0,
+      "recon": false,
+      "interception": false,
+      "colliders": 0
+    }
+  },
+  {
+    "profile": "legacy",
+    "search": "?strategicInterception=1&motorTransport=0&aerialRecon=0&interception=1&truckCollision=0",
+    "flags": {
+      "strategicInterception": true,
+      "motorTransport": false,
+      "aerialRecon": false,
+      "interception": true,
+      "truckCollision": false
+    },
+    "effective": {
+      "fleet": 0,
+      "recon": false,
+      "interception": false,
+      "colliders": 0
+    }
+  },
+  {
+    "profile": "legacy",
+    "search": "?strategicInterception=0&motorTransport=1&aerialRecon=0&interception=1&truckCollision=0",
+    "flags": {
+      "strategicInterception": false,
+      "motorTransport": true,
+      "aerialRecon": false,
+      "interception": true,
+      "truckCollision": false
+    },
+    "effective": {
+      "fleet": 0,
+      "recon": false,
+      "interception": false,
+      "colliders": 0
+    }
+  },
+  {
+    "profile": "legacy",
+    "search": "?strategicInterception=1&motorTransport=1&aerialRecon=0&interception=1&truckCollision=0",
+    "flags": {
+      "strategicInterception": true,
+      "motorTransport": true,
+      "aerialRecon": false,
+      "interception": true,
+      "truckCollision": false
+    },
+    "effective": {
+      "fleet": 0,
+      "recon": false,
+      "interception": false,
+      "colliders": 0
+    }
+  },
+  {
+    "profile": "legacy",
+    "search": "?strategicInterception=0&motorTransport=0&aerialRecon=1&interception=1&truckCollision=0",
+    "flags": {
+      "strategicInterception": false,
+      "motorTransport": false,
+      "aerialRecon": true,
+      "interception": true,
+      "truckCollision": false
+    },
+    "effective": {
+      "fleet": 0,
+      "recon": false,
+      "interception": false,
+      "colliders": 0
+    }
+  },
+  {
+    "profile": "legacy",
+    "search": "?strategicInterception=1&motorTransport=0&aerialRecon=1&interception=1&truckCollision=0",
+    "flags": {
+      "strategicInterception": true,
+      "motorTransport": false,
+      "aerialRecon": true,
+      "interception": true,
+      "truckCollision": false
+    },
+    "effective": {
+      "fleet": 0,
+      "recon": false,
+      "interception": false,
+      "colliders": 0
+    }
+  },
+  {
+    "profile": "legacy",
+    "search": "?strategicInterception=0&motorTransport=1&aerialRecon=1&interception=1&truckCollision=0",
+    "flags": {
+      "strategicInterception": false,
+      "motorTransport": true,
+      "aerialRecon": true,
+      "interception": true,
+      "truckCollision": false
+    },
+    "effective": {
+      "fleet": 0,
+      "recon": false,
+      "interception": false,
+      "colliders": 0
+    }
+  },
+  {
+    "profile": "legacy",
+    "search": "?strategicInterception=1&motorTransport=1&aerialRecon=1&interception=1&truckCollision=0",
+    "flags": {
+      "strategicInterception": true,
+      "motorTransport": true,
+      "aerialRecon": true,
+      "interception": true,
+      "truckCollision": false
+    },
+    "effective": {
+      "fleet": 0,
+      "recon": false,
+      "interception": false,
+      "colliders": 0
+    }
+  },
+  {
+    "profile": "legacy",
+    "search": "?strategicInterception=0&motorTransport=0&aerialRecon=0&interception=0&truckCollision=1",
+    "flags": {
+      "strategicInterception": false,
+      "motorTransport": false,
+      "aerialRecon": false,
+      "interception": false,
+      "truckCollision": true
+    },
+    "effective": {
+      "fleet": 0,
+      "recon": false,
+      "interception": false,
+      "colliders": 0
+    }
+  },
+  {
+    "profile": "legacy",
+    "search": "?strategicInterception=1&motorTransport=0&aerialRecon=0&interception=0&truckCollision=1",
+    "flags": {
+      "strategicInterception": true,
+      "motorTransport": false,
+      "aerialRecon": false,
+      "interception": false,
+      "truckCollision": true
+    },
+    "effective": {
+      "fleet": 0,
+      "recon": false,
+      "interception": false,
+      "colliders": 0
+    }
+  },
+  {
+    "profile": "legacy",
+    "search": "?strategicInterception=0&motorTransport=1&aerialRecon=0&interception=0&truckCollision=1",
+    "flags": {
+      "strategicInterception": false,
+      "motorTransport": true,
+      "aerialRecon": false,
+      "interception": false,
+      "truckCollision": true
+    },
+    "effective": {
+      "fleet": 0,
+      "recon": false,
+      "interception": false,
+      "colliders": 0
+    }
+  },
+  {
+    "profile": "legacy",
+    "search": "?strategicInterception=1&motorTransport=1&aerialRecon=0&interception=0&truckCollision=1",
+    "flags": {
+      "strategicInterception": true,
+      "motorTransport": true,
+      "aerialRecon": false,
+      "interception": false,
+      "truckCollision": true
+    },
+    "effective": {
+      "fleet": 0,
+      "recon": false,
+      "interception": false,
+      "colliders": 0
+    }
+  },
+  {
+    "profile": "legacy",
+    "search": "?strategicInterception=0&motorTransport=0&aerialRecon=1&interception=0&truckCollision=1",
+    "flags": {
+      "strategicInterception": false,
+      "motorTransport": false,
+      "aerialRecon": true,
+      "interception": false,
+      "truckCollision": true
+    },
+    "effective": {
+      "fleet": 0,
+      "recon": false,
+      "interception": false,
+      "colliders": 0
+    }
+  },
+  {
+    "profile": "legacy",
+    "search": "?strategicInterception=1&motorTransport=0&aerialRecon=1&interception=0&truckCollision=1",
+    "flags": {
+      "strategicInterception": true,
+      "motorTransport": false,
+      "aerialRecon": true,
+      "interception": false,
+      "truckCollision": true
+    },
+    "effective": {
+      "fleet": 0,
+      "recon": false,
+      "interception": false,
+      "colliders": 0
+    }
+  },
+  {
+    "profile": "legacy",
+    "search": "?strategicInterception=0&motorTransport=1&aerialRecon=1&interception=0&truckCollision=1",
+    "flags": {
+      "strategicInterception": false,
+      "motorTransport": true,
+      "aerialRecon": true,
+      "interception": false,
+      "truckCollision": true
+    },
+    "effective": {
+      "fleet": 0,
+      "recon": false,
+      "interception": false,
+      "colliders": 0
+    }
+  },
+  {
+    "profile": "legacy",
+    "search": "?strategicInterception=1&motorTransport=1&aerialRecon=1&interception=0&truckCollision=1",
+    "flags": {
+      "strategicInterception": true,
+      "motorTransport": true,
+      "aerialRecon": true,
+      "interception": false,
+      "truckCollision": true
+    },
+    "effective": {
+      "fleet": 0,
+      "recon": false,
+      "interception": false,
+      "colliders": 0
+    }
+  },
+  {
+    "profile": "legacy",
+    "search": "?strategicInterception=0&motorTransport=0&aerialRecon=0&interception=1&truckCollision=1",
+    "flags": {
+      "strategicInterception": false,
+      "motorTransport": false,
+      "aerialRecon": false,
+      "interception": true,
+      "truckCollision": true
+    },
+    "effective": {
+      "fleet": 0,
+      "recon": false,
+      "interception": false,
+      "colliders": 0
+    }
+  },
+  {
+    "profile": "legacy",
+    "search": "?strategicInterception=1&motorTransport=0&aerialRecon=0&interception=1&truckCollision=1",
+    "flags": {
+      "strategicInterception": true,
+      "motorTransport": false,
+      "aerialRecon": false,
+      "interception": true,
+      "truckCollision": true
+    },
+    "effective": {
+      "fleet": 0,
+      "recon": false,
+      "interception": false,
+      "colliders": 0
+    }
+  },
+  {
+    "profile": "legacy",
+    "search": "?strategicInterception=0&motorTransport=1&aerialRecon=0&interception=1&truckCollision=1",
+    "flags": {
+      "strategicInterception": false,
+      "motorTransport": true,
+      "aerialRecon": false,
+      "interception": true,
+      "truckCollision": true
+    },
+    "effective": {
+      "fleet": 0,
+      "recon": false,
+      "interception": false,
+      "colliders": 0
+    }
+  },
+  {
+    "profile": "legacy",
+    "search": "?strategicInterception=1&motorTransport=1&aerialRecon=0&interception=1&truckCollision=1",
+    "flags": {
+      "strategicInterception": true,
+      "motorTransport": true,
+      "aerialRecon": false,
+      "interception": true,
+      "truckCollision": true
+    },
+    "effective": {
+      "fleet": 0,
+      "recon": false,
+      "interception": false,
+      "colliders": 0
+    }
+  },
+  {
+    "profile": "legacy",
+    "search": "?strategicInterception=0&motorTransport=0&aerialRecon=1&interception=1&truckCollision=1",
+    "flags": {
+      "strategicInterception": false,
+      "motorTransport": false,
+      "aerialRecon": true,
+      "interception": true,
+      "truckCollision": true
+    },
+    "effective": {
+      "fleet": 0,
+      "recon": false,
+      "interception": false,
+      "colliders": 0
+    }
+  },
+  {
+    "profile": "legacy",
+    "search": "?strategicInterception=1&motorTransport=0&aerialRecon=1&interception=1&truckCollision=1",
+    "flags": {
+      "strategicInterception": true,
+      "motorTransport": false,
+      "aerialRecon": true,
+      "interception": true,
+      "truckCollision": true
+    },
+    "effective": {
+      "fleet": 0,
+      "recon": false,
+      "interception": false,
+      "colliders": 0
+    }
+  },
+  {
+    "profile": "legacy",
+    "search": "?strategicInterception=0&motorTransport=1&aerialRecon=1&interception=1&truckCollision=1",
+    "flags": {
+      "strategicInterception": false,
+      "motorTransport": true,
+      "aerialRecon": true,
+      "interception": true,
+      "truckCollision": true
+    },
+    "effective": {
+      "fleet": 0,
+      "recon": false,
+      "interception": false,
+      "colliders": 0
+    }
+  },
+  {
+    "profile": "legacy",
+    "search": "?strategicInterception=1&motorTransport=1&aerialRecon=1&interception=1&truckCollision=1",
+    "flags": {
+      "strategicInterception": true,
+      "motorTransport": true,
+      "aerialRecon": true,
+      "interception": true,
+      "truckCollision": true
+    },
+    "effective": {
+      "fleet": 0,
+      "recon": false,
+      "interception": false,
+      "colliders": 0
+    }
+  }
+]

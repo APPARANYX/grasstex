@@ -1,0 +1,17 @@
+PASS finds every write form on a soldier, squad, eng and mind receiver
+PASS a chain counts against the first field that is not a record of its own
+PASS indexed receivers and per-file aliases resolve to the right record
+PASS ignores comments, strings, regular expressions and template text
+PASS ignores reads, comparisons, declarations, calls and property-of-property receivers
+PASS a name is only a receiver where it is not a member of something else
+PASS sites, collect and files report every writer file with its lines and receivers
+PASS real recall anchors: chained, hopped, deleted and indexed writes are seen
+PASS agrees with state-ownership-check.js on the protected fields
+PASS every baseline entry is well formed
+PASS every reason key used exists and every reason key is used
+PASS no field gains a writer file, and no new field starts with two
+PASS no baseline entry outlives the writes it describes
+PASS an excluded file writes only what EXCLUDED_WRITES declares
+
+Baseline: 65 multi-writer fields, 175 writer entries, 0 debt ()
+14 wire-map checks passed

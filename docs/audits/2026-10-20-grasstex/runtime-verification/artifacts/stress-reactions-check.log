@@ -1,0 +1,29 @@
+PASS the flag parses: all four by default, 0/off disables, a list is exact, 1/all means all
+PASS rage lock, charge guard and trance are on by default; =0 turns each off alone
+PASS the four states are declared with their transitions, and every other state can enter them
+PASS explicitly off, nobody reacts, however shaken: stressAct=0, ?mind=0, ?mind=observe and a lever list without act
+PASS cower: rattled and under fire goes to ground and holds; shaken, or not under fire, does not
+PASS cower: no aimed fire from a man on the ground, and he gets up when the fire has been quiet
+PASS a broken man chooses by temper and situation: flee needs trouble, freeze fits fire, rage needs an enemy near
+PASS flee: he leaves his weapons, runs to the squad's last safe point, never fires and holds when he gets there
+PASS flee: the goal stands until he is there, and a man who cannot get there waits where he is
+PASS flee does not end: calm, or the squad retreating, leaves a fled man a fled man
+PASS flee releases a firing station, and nobody is claimed for a station while he reacts
+PASS freeze: down where he is, holds, no fire, and does not take a bound or the squad order
+PASS freeze duration follows stress tempo: equal final stress reached quickly freezes longer than slowly
+PASS freeze expires while still broken and cannot restart inside the same broken episode
+PASS flee is non-threatening, while rage remains an active visual threat
+PASS freeze suspends perception and facing, and opposing perception does not posture around the dazed man
+PASS rage: charges the enemy, fires on the move, strikes at arm's length, and ends when nobody is near
+PASS rage: the break and the charge measure the same enemy with ?rageLock=1; off, a far target makes the rage flicker
+PASS rage: for RAGE_GUARD_SECONDS a hit does a quarter of its damage, of its chance to drop him and of its bleed; the same two draws
+PASS rage: with ?rageGuard=1 the guard lasts the charge, past RAGE_GUARD_SECONDS, and ends at arm's length or with the rage
+PASS rage: with ?rageTrance=1 it is a trance: calm and retreat do not end it, guarded, faster, tighter, and the debt comes due
+PASS a dazed freeze lasts its snapshotted duration even if he calms, then he rejoins and may freeze on a new break
+PASS a squad that is already retreating is not reacted for
+PASS the squad report names the men reacting; they are not base of fire, not movers and not suppressors
+PASS the resolver ranks the new intents: flee above a station, a hold while down above a station, a charge above a rush
+PASS a flee or charge proposal is only good while he is in that state
+PASS the choice draws nothing from the combat RNG: cower, flee and freeze draw none, a blow draws only its own
+PASS telemetry counts the reactions: spells begun, seconds, blows
+28 stress-reaction checks passed

@@ -1,0 +1,10 @@
+{
+  "exitCode": 1,
+  "environment": {
+    "FF_URL": "http://127.0.0.1:8876/grasstex/battle_sim_local.php",
+    "FF_SECONDS": "10",
+    "FF_WARMUP": "90",
+    "FF_OUT": "docs/audits/2026-10-20-grasstex/runtime-verification/artifacts/full-fidelity"
+  },
+  "mediaFixture": "/Users/ivanpopov/Desktop/Ai training/grasstex/scripts/audit/private-audio-fixture.cjs"
+}

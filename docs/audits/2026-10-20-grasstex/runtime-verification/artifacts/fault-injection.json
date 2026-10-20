@@ -1,0 +1,16 @@
+{
+  "ballistics": {
+    "normalBlocked": true,
+    "faultsBlocked": false,
+    "throws": 2,
+    "source": "battle/modules/14-z-ballistic-raycast.js:271"
+  },
+  "lifecycle": {
+    "continued": true,
+    "propagated": false,
+    "errors": [
+      "[MODULE] a-failing.onBattleRestart failed"
+    ],
+    "source": "battle/module-registry.js:131"
+  }
+}

@@ -1,0 +1,5 @@
+PASS ?groundSteps=<n> is 12 to 96 and defaults to 48: [48,48,48,36,96,24,48,48,48,48]
+PASS a ridge between two 24-step samples: 24 steps {"stoppedBy":"soldier","blocker":"soldier","travel":98.91}, 48 steps {"stoppedBy":"environment","blocker":"ground","travel":37.74}
+PASS the trigger gate: 24 steps let a 3.2 m ridge through, 48 refuse the shot
+PASS on 500 rolling-ground shots the finer scan stops every round the coarse one does (178 by ground at 24 steps, 179 at 48)
+ground-stop-check: passed

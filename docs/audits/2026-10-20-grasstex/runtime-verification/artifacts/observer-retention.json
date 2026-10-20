@@ -1,0 +1,50 @@
+[
+  {
+    "cycle": 0,
+    "observers": 13,
+    "active": 13,
+    "groups": [
+      {
+        "stack": "initial observer",
+        "count": 13
+      }
+    ],
+    "samples": []
+  },
+  {
+    "cycle": 1,
+    "observers": 13,
+    "active": 13,
+    "groups": [
+      {
+        "stack": "initial observer",
+        "count": 13
+      }
+    ],
+    "samples": []
+  },
+  {
+    "cycle": 2,
+    "observers": 13,
+    "active": 13,
+    "groups": [
+      {
+        "stack": "initial observer",
+        "count": 13
+      }
+    ],
+    "samples": []
+  },
+  {
+    "cycle": 3,
+    "observers": 13,
+    "active": 13,
+    "groups": [
+      {
+        "stack": "initial observer",
+        "count": 13
+      }
+    ],
+    "samples": []
+  }
+]

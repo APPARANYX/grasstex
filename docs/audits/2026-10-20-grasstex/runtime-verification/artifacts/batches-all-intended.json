@@ -1,0 +1,20 @@
+[
+  {
+    "name": "all-intended",
+    "query": "strategicInterception=1&motorTransport=1&aerialRecon=1&interception=1&truckCollision=1&truckAccess=1&frontLines=1&reinforcements=1&reinforcementSortie=1",
+    "count": 5,
+    "seconds": 600,
+    "exitCode": 0,
+    "wallSeconds": 91.087151832995,
+    "environment": {
+      "BATTLE_BENCHMARK_URL": "http://127.0.0.1:8876/grasstex/battle_sim_local.php?strategicInterception=1&motorTransport=1&aerialRecon=1&interception=1&truckCollision=1&truckAccess=1&frontLines=1&reinforcements=1&reinforcementSortie=1",
+      "BATTLE_BENCHMARK_COUNT": "5",
+      "BATTLE_BENCHMARK_FIRST": "0",
+      "BATTLE_BENCHMARK_SEED": "runtime-audit-all-intended",
+      "BATTLE_BENCHMARK_TIME_LIMIT": "600",
+      "BATTLE_BENCHMARK_SOURCE_SHA": "f89939f2f6e8ff21063d1b24c28a8ab73fe9d2e9",
+      "BATTLE_BENCHMARK_POLICY_URL": "http://127.0.0.1:8876/unavailable",
+      "BATTLE_BENCHMARK_OUTPUT": "docs/audits/2026-10-20-grasstex/runtime-verification/artifacts/all-intended"
+    }
+  }
+]

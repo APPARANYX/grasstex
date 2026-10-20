@@ -1,0 +1,146 @@
+[
+  {
+    "name": "us-defend",
+    "query": "defender=us",
+    "count": 5,
+    "seconds": 120,
+    "exitCode": 0,
+    "wallSeconds": 25.579412042046897,
+    "environment": {
+      "BATTLE_BENCHMARK_URL": "http://127.0.0.1:8876/grasstex/battle_sim_local.php?defender=us",
+      "BATTLE_BENCHMARK_COUNT": "5",
+      "BATTLE_BENCHMARK_FIRST": "0",
+      "BATTLE_BENCHMARK_SEED": "runtime-audit-us-defend",
+      "BATTLE_BENCHMARK_TIME_LIMIT": "120",
+      "BATTLE_BENCHMARK_SOURCE_SHA": "f89939f2f6e8ff21063d1b24c28a8ab73fe9d2e9",
+      "BATTLE_BENCHMARK_POLICY_URL": "http://127.0.0.1:8876/unavailable",
+      "BATTLE_BENCHMARK_OUTPUT": "docs/audits/2026-10-20-grasstex/runtime-verification/artifacts/us-defend"
+    }
+  },
+  {
+    "name": "ge-defend",
+    "query": "defender=ge",
+    "count": 5,
+    "seconds": 120,
+    "exitCode": 0,
+    "wallSeconds": 25.784223041962832,
+    "environment": {
+      "BATTLE_BENCHMARK_URL": "http://127.0.0.1:8876/grasstex/battle_sim_local.php?defender=ge",
+      "BATTLE_BENCHMARK_COUNT": "5",
+      "BATTLE_BENCHMARK_FIRST": "0",
+      "BATTLE_BENCHMARK_SEED": "runtime-audit-ge-defend",
+      "BATTLE_BENCHMARK_TIME_LIMIT": "120",
+      "BATTLE_BENCHMARK_SOURCE_SHA": "f89939f2f6e8ff21063d1b24c28a8ab73fe9d2e9",
+      "BATTLE_BENCHMARK_POLICY_URL": "http://127.0.0.1:8876/unavailable",
+      "BATTLE_BENCHMARK_OUTPUT": "docs/audits/2026-10-20-grasstex/runtime-verification/artifacts/ge-defend"
+    }
+  },
+  {
+    "name": "strategic",
+    "query": "strategicInterception=1",
+    "count": 5,
+    "seconds": 180,
+    "exitCode": 0,
+    "wallSeconds": 37.96674112509936,
+    "environment": {
+      "BATTLE_BENCHMARK_URL": "http://127.0.0.1:8876/grasstex/battle_sim_local.php?strategicInterception=1",
+      "BATTLE_BENCHMARK_COUNT": "5",
+      "BATTLE_BENCHMARK_FIRST": "0",
+      "BATTLE_BENCHMARK_SEED": "runtime-audit-strategic",
+      "BATTLE_BENCHMARK_TIME_LIMIT": "180",
+      "BATTLE_BENCHMARK_SOURCE_SHA": "f89939f2f6e8ff21063d1b24c28a8ab73fe9d2e9",
+      "BATTLE_BENCHMARK_POLICY_URL": "http://127.0.0.1:8876/unavailable",
+      "BATTLE_BENCHMARK_OUTPUT": "docs/audits/2026-10-20-grasstex/runtime-verification/artifacts/strategic"
+    }
+  },
+  {
+    "name": "motor",
+    "query": "strategicInterception=1&motorTransport=1",
+    "count": 5,
+    "seconds": 180,
+    "exitCode": 0,
+    "wallSeconds": 34.709077917039394,
+    "environment": {
+      "BATTLE_BENCHMARK_URL": "http://127.0.0.1:8876/grasstex/battle_sim_local.php?strategicInterception=1&motorTransport=1",
+      "BATTLE_BENCHMARK_COUNT": "5",
+      "BATTLE_BENCHMARK_FIRST": "0",
+      "BATTLE_BENCHMARK_SEED": "runtime-audit-motor",
+      "BATTLE_BENCHMARK_TIME_LIMIT": "180",
+      "BATTLE_BENCHMARK_SOURCE_SHA": "f89939f2f6e8ff21063d1b24c28a8ab73fe9d2e9",
+      "BATTLE_BENCHMARK_POLICY_URL": "http://127.0.0.1:8876/unavailable",
+      "BATTLE_BENCHMARK_OUTPUT": "docs/audits/2026-10-20-grasstex/runtime-verification/artifacts/motor"
+    }
+  },
+  {
+    "name": "recon",
+    "query": "strategicInterception=1&aerialRecon=1",
+    "count": 5,
+    "seconds": 180,
+    "exitCode": 0,
+    "wallSeconds": 34.21305112505797,
+    "environment": {
+      "BATTLE_BENCHMARK_URL": "http://127.0.0.1:8876/grasstex/battle_sim_local.php?strategicInterception=1&aerialRecon=1",
+      "BATTLE_BENCHMARK_COUNT": "5",
+      "BATTLE_BENCHMARK_FIRST": "0",
+      "BATTLE_BENCHMARK_SEED": "runtime-audit-recon",
+      "BATTLE_BENCHMARK_TIME_LIMIT": "180",
+      "BATTLE_BENCHMARK_SOURCE_SHA": "f89939f2f6e8ff21063d1b24c28a8ab73fe9d2e9",
+      "BATTLE_BENCHMARK_POLICY_URL": "http://127.0.0.1:8876/unavailable",
+      "BATTLE_BENCHMARK_OUTPUT": "docs/audits/2026-10-20-grasstex/runtime-verification/artifacts/recon"
+    }
+  },
+  {
+    "name": "intercept",
+    "query": "strategicInterception=1&motorTransport=1&aerialRecon=1&interception=1",
+    "count": 5,
+    "seconds": 180,
+    "exitCode": 0,
+    "wallSeconds": 35.5410487500485,
+    "environment": {
+      "BATTLE_BENCHMARK_URL": "http://127.0.0.1:8876/grasstex/battle_sim_local.php?strategicInterception=1&motorTransport=1&aerialRecon=1&interception=1",
+      "BATTLE_BENCHMARK_COUNT": "5",
+      "BATTLE_BENCHMARK_FIRST": "0",
+      "BATTLE_BENCHMARK_SEED": "runtime-audit-intercept",
+      "BATTLE_BENCHMARK_TIME_LIMIT": "180",
+      "BATTLE_BENCHMARK_SOURCE_SHA": "f89939f2f6e8ff21063d1b24c28a8ab73fe9d2e9",
+      "BATTLE_BENCHMARK_POLICY_URL": "http://127.0.0.1:8876/unavailable",
+      "BATTLE_BENCHMARK_OUTPUT": "docs/audits/2026-10-20-grasstex/runtime-verification/artifacts/intercept"
+    }
+  },
+  {
+    "name": "combined",
+    "query": "strategicInterception=1&motorTransport=1&aerialRecon=1&interception=1&truckCollision=1",
+    "count": 5,
+    "seconds": 600,
+    "exitCode": 0,
+    "wallSeconds": 104.54561779100914,
+    "environment": {
+      "BATTLE_BENCHMARK_URL": "http://127.0.0.1:8876/grasstex/battle_sim_local.php?strategicInterception=1&motorTransport=1&aerialRecon=1&interception=1&truckCollision=1",
+      "BATTLE_BENCHMARK_COUNT": "5",
+      "BATTLE_BENCHMARK_FIRST": "0",
+      "BATTLE_BENCHMARK_SEED": "runtime-audit-combined",
+      "BATTLE_BENCHMARK_TIME_LIMIT": "600",
+      "BATTLE_BENCHMARK_SOURCE_SHA": "f89939f2f6e8ff21063d1b24c28a8ab73fe9d2e9",
+      "BATTLE_BENCHMARK_POLICY_URL": "http://127.0.0.1:8876/unavailable",
+      "BATTLE_BENCHMARK_OUTPUT": "docs/audits/2026-10-20-grasstex/runtime-verification/artifacts/combined"
+    }
+  },
+  {
+    "name": "endurance",
+    "query": "soldiers=200",
+    "count": 1,
+    "seconds": 600,
+    "exitCode": 0,
+    "wallSeconds": 19.604342666920274,
+    "environment": {
+      "BATTLE_BENCHMARK_URL": "http://127.0.0.1:8876/grasstex/battle_sim_local.php?soldiers=200",
+      "BATTLE_BENCHMARK_COUNT": "1",
+      "BATTLE_BENCHMARK_FIRST": "0",
+      "BATTLE_BENCHMARK_SEED": "runtime-audit-endurance",
+      "BATTLE_BENCHMARK_TIME_LIMIT": "600",
+      "BATTLE_BENCHMARK_SOURCE_SHA": "f89939f2f6e8ff21063d1b24c28a8ab73fe9d2e9",
+      "BATTLE_BENCHMARK_POLICY_URL": "http://127.0.0.1:8876/unavailable",
+      "BATTLE_BENCHMARK_OUTPUT": "docs/audits/2026-10-20-grasstex/runtime-verification/artifacts/endurance"
+    }
+  }
+]

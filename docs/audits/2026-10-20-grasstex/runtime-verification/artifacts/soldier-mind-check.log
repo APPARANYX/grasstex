@@ -1,0 +1,19 @@
+PASS the mind hooks the soldier tick and the aimed-fire slot, and is off cleanly with ?mind=0
+PASS recent incoming status is shipping-default only; observe and named-lever arms stay isolated
+PASS nerve is a hash of the man, never the RNG: the same man has the same nerve, a leader is steadier
+PASS a spell of suppression adds stress at its rate, and it decays back with no help
+PASS a friend going down is felt by distance, more in his own squad, and not by enemies, the far or the blind
+PASS a witness is told once per casualty, and each casualty separately
+PASS the squad leader going down is heard by the whole squad, and shocks those close by
+PASS a wound and aimed rounds add stress; range decides how much a round counts
+PASS recovery: the leader near and cover speed it up, being under fire slows it
+PASS a neighbour who is worse off spreads fear, but never past himself, and never faster than the cap
+PASS stress stays in [0, 1], and bands have hysteresis: no flapping around a threshold
+PASS levers are neutral off, monotone in stress, and hesitation stays under the bound window
+PASS the squad aggregate counts men by band
+PASS a squad with no living man is rolled up over nobody, not left holding the men who are gone
+PASS the module writes only `mind`: stance, destination, target and suppression are untouched
+PASS reset wipes every mind and the battle log
+PASS a battle with the module observing is the same battle as one without it, and it draws no combat RNG
+PASS the same battle twice with every lever on is the same battle (deterministic)
+18 soldier-mind checks passed

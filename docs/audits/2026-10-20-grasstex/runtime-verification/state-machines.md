@@ -1,0 +1,26 @@
+# State-machine validation
+
+## Executed coverage
+
+[227 harness invocations](artifacts/checks.json) ran every existing check, including Engagement transitions, Meso phases, Macro lifecycle, ownership/writer ratchets, movement recovery, command adoption, transport reuse/resume, collision, reconnaissance, interception, restart isolation and fixed-step clocks. These are mixed static assertions and runtime fixtures, not uniformly real browser state machines. The authoritative ownership model remains in the existing architecture audit; no new parallel authority was introduced.
+
+| System | Authority and derived state | Fresh evidence | Remaining uncertainty |
+|---|---|---|---|
+| Engagement/movement | Engagement state/stance; resolver destination; navigation route | engagement-state, movement-state/recovery, arrival-adoption, command-movement and ownership checks passed | Every-frame geometry and dead-actor invariants in all optional flags |
+| Squad mission | Meso commandPhase and local plan; Macro brief/version and target | squad-phase, macro-state, strategic-chain/recovery checks passed; browser timeline and conflict rows captured | Fully connected phase adjacency does not itself validate every semantic transition; no evidence justifies collapsing phase labels |
+| Command reception | Authoritative per-recipient envelope/adoption; public copies derived | command checks passed; CPU sampling identifies publicRecord copying as material | Cache immutable derived records only after version/recipient semantics are covered |
+| Vehicle/transport | Fleet allocation and squad task; seat order, boarded/exited IDs and passenger classification overlap | transport fixture covers exclusive allocation, serial entry/exit, interruption, reuse, collision and own-body exclusion; extended all-exits-blocked case reproduces missing bounded recovery | Full live seat census and indefinite obstruction prevalence not measured |
+| Recon/interception | Faction-local bounded report; General owns issued mission | aerial-recon and interception checks passed; native long-run evidence records planner attempts, actual dispatches and physical arrival separately | Planner enabled or declined is not successful interception; three natural seeds do not certify all tactical opportunities |
+| Objectives | Objective system owner/pressure; visual state derived | objective-nav, faction-progress and strategic-front-line checks passed; benchmark final objectives and captures recorded | Alert rows and initial own-base captures need contextual interpretation |
+| Battle lifecycle | Core sim plus public control wrappers; scene/model observers and module resets | public End/resume/restart stress artifact, terminal no-advance checks, old roots disposed and roster identity checked | Headless raw restart bypasses operator state by design; it cannot certify public UI reset or retained heap |
+| Rendering/models | FBX backend owns rigs; LOD list/observers derive presentation | FBX cleanup checks and native render samples; media-only fixtures do not substitute geometry/AI | Deferred observer removal must be allowed to drain; no retained-heap proof |
+
+## Lifecycle experiment interpretation
+
+`node scripts/audit/verify-public-lifecycle.cjs` executes ten cycles per legacy/combined page. Each cycle uses public restart, steps briefly, ends early, calls resume and step, then restarts again. Results are in [public-lifecycle.json](artifacts/public-lifecycle.json): compare time before/after terminal step, manualEnded/winner after restart, old actor references, disposed roots, roster, fleet, transport/recon reset, total and active observer counts. Expected: terminal resume false, stable terminal time, cleared terminal flags, fresh actors and no stale transport tasks.
+
+The first synchronous test is retained in [public-lifecycle-synchronous.json](artifacts/public-lifecycle-synchronous.json). It stopped rendering and performed all cycles in one JS task; counts rose by 200 per two restarts. Yielding alone did not clear them. A follow-up attribution probe performed four real rendered frames plus an asynchronous wait between each public restart: total and active observers stayed at 13 for all three restarts. See [observer-retention.json](artifacts/observer-retention.json). The stopped-render count is not evidence of a live retained-observer leak. Raw profiler restarts similarly leave operator manualEnded unchanged; public control explicitly clears it. Neither result should be promoted into a gameplay defect.
+
+The dismount extension blocks all exits for 600 s, then releases geometry. It proves missing bounded recovery, preserves the important no-penetration invariant, and proves recovery on transient obstruction. It does not justify forced ejection or premature seat release.
+
+No state-machine refactor was attempted. Preserve Macro→Meso→Engagement→Resolver ownership and replace duplicate representations only after a migration test proves mission adoption, seat ownership, interruptions and replay remain equivalent. Hook fault containment needs a declared criticality policy; silent success after essential-hook failure is a reliability risk, even though no natural hook exception occurred in normal benchmark records.

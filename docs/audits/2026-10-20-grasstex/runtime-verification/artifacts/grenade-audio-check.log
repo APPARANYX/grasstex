@@ -1,0 +1,10 @@
+PASS arming foley carries FOLEY_RANGE, a burst EXPLOSION_RANGE, and closer is louder
+PASS explosion loudness keeps close-range headroom and lifts midrange by about 3 dB
+PASS the Mk 2 arms with its pin and throws its spoon; the M24 arms with its cord and has no lever
+PASS a committed throw arms once per wind-up, by the thrower's grenade kind
+PASS a man out of earshot arms silently
+PASS release throws the Mk 2 spoon only, and the owner hook still runs
+PASS a burst plays one explosion where it lands, after the sound has travelled
+PASS three explosions at once use three takes; a fourth while all sound is dropped
+PASS ?grenadeAudio=0 and ?grenades=0 install nothing
+grenade-audio-check: 9 passed

@@ -1,0 +1,7 @@
+PASS terrain tangent grounding: logs, rock faces, wall spans and sandbags
+PASS default: 5186 physical cover pieces, no crossings
+PASS standard-benchmark-meeting-s1-b0001-0001: 4795 physical cover pieces, no crossings
+PASS standard-benchmark-us-defend-s1-b0002-0001: 4982 physical cover pieces, no crossings
+PASS flag-grounding-regression: 5010 physical cover pieces, no crossings
+PASS objective marker rendered-height and footprint safety
+PASS first load randomizes and explicit seed links remain deterministic

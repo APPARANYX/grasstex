@@ -1,0 +1,16 @@
+PASS finds a function of the module by its global, an alias and an optional chain
+PASS finds a read of soldier.mind and squad.mind, by field, in every spelling
+PASS a read through a longer chain counts once, at the first field after mind
+PASS ignores writes, deletes and increments of mind and its fields
+PASS ignores comments, strings, regular expressions and object-literal keys
+PASS every row is complete, has a known kind and names what stress becomes there
+PASS every lever has a row that reads it and a row that counts what it did
+PASS the source reads stress exactly where the table says, file by file and member by member
+PASS the runtime readers are the declared decision, command-observer, display and export layers only
+PASS a new file that reads stress fails until the table lists it
+PASS a listed file that starts reading something else fails
+PASS a listed read that is gone fails
+PASS an unlisted script that reads stress fails, and a tooling row that reads nothing fails
+PASS a table with a row for a file that does not exist fails
+
+14 checks passed

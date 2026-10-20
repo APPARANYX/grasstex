@@ -1,0 +1,98 @@
+# Full-fidelity benchmark: full-fidelity
+
+- Page: http://127.0.0.1:8876/grasstex/battle_sim_local.php?seed=full-fidelity&perfTimings=1
+- Build: v460
+- Renderer: software (SwiftShader) - CPU-only baseline, not a device result (ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver))
+- Soldiers: 100, FBX 100; viewport 1280x720; warm-up 90.0 sim s; measured 10.1 s wall, 10.68 sim s at 4x
+- Result: FAIL: pageerror: Uncaught (in promise) Error: HTTP 404 loading '/grasstex/Assets/audio/carbine.mp3': Not Found
+    at <anonymous> (https://cdn.jsdelivr.net/npm/babylonjs@9.27.1/babylon.js:0:1083299)
+    at a (https://cdn.jsdelivr.net/npm/babylonjs@9.27.1/babylon.js:0:119474); pageerror: Uncaught (in promise) Error: HTTP 404 loading '/grasstex/Assets/audio/rifle.mp3': Not Found
+    at <anonymous> (https://cdn.jsdelivr.net/npm/babylonjs@9.27.1/babylon.js:0:1083299)
+    at a (https://cdn.jsdelivr.net/npm/babylonjs@9.27.1/babylon.js:0:119474); pageerror: Uncaught (in promise) Error: HTTP 404 loading '/grasstex/Assets/audio/carbine.mp3': Not Found
+    at <anonymous> (https://cdn.jsdelivr.net/npm/babylonjs@9.27.1/babylon.js:0:1083299)
+    at a (https://cdn.jsdelivr.net/npm/babylonjs@9.27.1/babylon.js:0:119474); pageerror: Uncaught (in promise) Error: HTTP 404 loading '/grasstex/Assets/audio/lmg.mp3': Not Found
+    at <anonymous> (https://cdn.jsdelivr.net/npm/babylonjs@9.27.1/babylon.js:0:1083299)
+    at a (https://cdn.jsdelivr.net/npm/babylonjs@9.27.1/babylon.js:0:119474); pageerror: Uncaught (in promise) Error: HTTP 404 loading '/grasstex/Assets/audio/pistol.mp3': Not Found
+    at <anonymous> (https://cdn.jsdelivr.net/npm/babylonjs@9.27.1/babylon.js:0:1083299)
+    at a (https://cdn.jsdelivr.net/npm/babylonjs@9.27.1/babylon.js:0:119474)
+
+## Frames
+
+| metric | mean | median | p95 | p99 | max |
+| --- | --- | --- | --- | --- | --- |
+| frame interval (ms) | 224.54 | 215.73 | 466.52 | 683.54 | 683.54 |
+| CPU in frame (ms) | 187.64 | 209.71 | 245.49 | 670.01 | 670.01 |
+| scene.render (ms) | 187.56 | 209.65 | 245.41 | 669.88 | 669.88 |
+| Babylon render time (ms) | 175.79 | 199.37 | 232.24 | 661.01 | 661.01 |
+| sim step (ms) | 5.70 | 5.83 | 7.63 | 12.68 | 12.68 |
+| pose, all soldiers (ms) | 1.70 | 1.61 | 2.35 | 5.96 | 5.96 |
+| active meshes | 212.00 | 212.00 | 212.00 | 212.00 | 212.00 |
+| draw calls | 140.00 | 140.00 | 140.00 | 140.00 | 140.00 |
+| GPU frame (ms) | 241.50 | 199.38 | 643.62 | 643.62 | 643.62 |
+
+FPS: mean 4.45, median 4.64, p95-low 2.14, p99-low 1.46 over 44 frames. GPU timing: measured.
+
+Animation LOD: on (every frame < 35 m, 30 Hz < 100 m, 10 Hz beyond, off-screen held: true); posed 74.8% of soldier-frames; held: static 0, off-screen 900, interval 236.
+
+## Pose (applyPose)
+
+45 frames, 74.76 soldiers posed per frame; per soldier 19.2 µs mean, 30.0 µs p95 (timer resolution ~5 µs).
+Posed soldiers: 0.0% dead, 0.0% outside the view frustum; camera distance <25 m 0.0%, 25-60 m 0.0%, 60-150 m 0.0%, >150 m 100.0%.
+
+| layer | share | µs per soldier-frame | µs per run | ms per frame (mean / p95) |
+| --- | --- | --- | --- | --- |
+| setup | 5.3% | 0.94 | 0.94 | 0.07 / 0.10 |
+| base | 57.3% | 10.20 | 10.20 | 0.76 / 1.01 |
+| overlay | 0.0% | 0.00 | — | 0.00 / 0.00 |
+| dials | 3.7% | 0.65 | 0.76 | 0.05 / 0.07 |
+| weapon | 25.6% | 4.55 | 4.55 | 0.34 / 0.47 |
+| aim | 0.0% | 0.00 | — | 0.00 / 0.00 |
+| support | 8.2% | 1.45 | 1.45 | 0.11 / 0.23 |
+
+| inputs | recomputed | unchanged (exact) | unchanged at 30 Hz clip rate | layer-only inputs unchanged |
+| --- | --- | --- | --- | --- |
+| base | 3364 | 0.0% | 0.0% | 97.6% |
+| aim | 0 | — | — | — |
+| weapon | 3364 | 0.0% | 0.0% | 97.6% |
+| support | 3364 | 0.0% | 0.0% | 97.6% |
+
+## Startup
+
+| phase | ms |
+| --- | --- |
+| Runtime scripts | 333.1 |
+| Scenario & engine | 1736.3 |
+| Terrain & sky | 29.1 |
+| Soldiers, weapons & clips | 1778.9 |
+| Cover, hedges & buildings | 478.5 |
+| Navigation, squads & objectives | 317.9 |
+| loading finished at | 4720.0 |
+
+FBX library: 1638.1 ms wall (loader script 42.1 ms, binding clips to models 264.9 ms); 23 files, 25.5 MiB; 100 soldier binds 102.7 ms.
+
+Summed per-file time (ms). Files load in parallel, so sums exceed wall time. Stall is time queued in the browser before the request went out (connection limit); queue wait is time between the last byte and the start of the parse (the main thread busy parsing other files).
+
+| download (stall / transfer) | queue wait | Babylon parse | prepare (normals / palms) | clip convert | clip dispose | retarget | grip solve | sidecar |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 956.3 (722.4 / 233.9) | 12078.2 | 843.1 | 134.8 (104.5 / 12.6) | 1.9 | 0.0 | 258.1 | 5.7 | 132.2 |
+
+| kind | files | MiB | download | parse | prepare | convert | retarget | grips |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| model | 10 | 17.5 | 381.0 | 686.7 | 122.9 | — | 258.1 | 5.7 |
+| pack | 1 | 6.0 | 20.0 | — | — | 1.9 | — | — |
+| weapon | 12 | 2.0 | 555.4 | 156.4 | 12.0 | — | — | — |
+
+Slowest files (download + wait + CPU work):
+
+| file | kind | KiB | total | download | wait | parse | work |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| ge-gunner.fbx | model | 1942 | 1196.8 | 50.6 | 1053.6 | 57.5 | 92.5 |
+| ge-engineer.fbx | model | 1910 | 1124.9 | 47.3 | 987.3 | 56.3 | 90.3 |
+| ge-scout.fbx | model | 1797 | 1055.4 | 45.5 | 915.3 | 61.3 | 94.7 |
+| ge-captain.fbx | model | 1767 | 982.3 | 43.6 | 843.4 | 60.1 | 95.3 |
+| ge-paratrooper.fbx | model | 1939 | 855.9 | 39.4 | 718.0 | 64.3 | 98.5 |
+| p38.fbx | weapon | 186 | 676.8 | 50.4 | 614.1 | 11.7 | 12.3 |
+| fg42.fbx | weapon | 179 | 663.9 | 49.2 | 602.7 | 11.3 | 12.0 |
+| mg42.fbx | weapon | 175 | 651.5 | 48.5 | 591.0 | 11.3 | 12.0 |
+| mp40.fbx | weapon | 180 | 639.0 | 48.9 | 576.3 | 12.0 | 13.7 |
+| mg42-bipod.fbx | weapon | 175 | 624.5 | 48.3 | 564.1 | 11.6 | 12.2 |

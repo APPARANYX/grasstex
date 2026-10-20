@@ -1,0 +1,25 @@
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[BALLISTICS] direct fire uses combat-calibrated dispersed raycasts
+PASS round origin and crest gate share the deterministic simulation muzzle
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[BALLISTICS] direct fire uses combat-calibrated dispersed raycasts
+PASS tactical cover radius no longer catches a round that misses the physical log
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[BALLISTICS] direct fire uses combat-calibrated dispersed raycasts
+PASS scatter-cover impact and decal normal land on the physical face
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[BALLISTICS] direct fire uses combat-calibrated dispersed raycasts
+PASS compatibility fallback remains for obstacles without physical geometry
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[BALLISTICS] direct fire uses combat-calibrated dispersed raycasts
+PASS bore preview is non-mutating and agrees with actual enemy hit geometry
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[BALLISTICS] direct fire uses combat-calibrated dispersed raycasts
+PASS bore preview respects low cover and rejects invalid input
+6 ballistics geometry checks passed

@@ -1,0 +1,50 @@
+[
+  {
+    "configuration": "meeting",
+    "before": 0.15,
+    "after": 0.15,
+    "resumed": false,
+    "manualEndedAfterReset": true,
+    "winnerAfterReset": null,
+    "firstActorReplaced": true,
+    "earlierActorRetained": false,
+    "roster": 100,
+    "observers": 114
+  },
+  {
+    "configuration": "strategic",
+    "before": 0.15,
+    "after": 0.15,
+    "resumed": false,
+    "manualEndedAfterReset": true,
+    "winnerAfterReset": null,
+    "firstActorReplaced": true,
+    "earlierActorRetained": false,
+    "roster": 100,
+    "observers": 122
+  },
+  {
+    "configuration": "stress",
+    "before": 0.15,
+    "after": 0.15,
+    "resumed": false,
+    "manualEndedAfterReset": true,
+    "winnerAfterReset": null,
+    "firstActorReplaced": true,
+    "earlierActorRetained": false,
+    "roster": 100,
+    "observers": 114
+  },
+  {
+    "configuration": "load200",
+    "before": 0.15,
+    "after": 0.15,
+    "resumed": false,
+    "manualEndedAfterReset": false,
+    "winnerAfterReset": null,
+    "firstActorReplaced": true,
+    "earlierActorRetained": false,
+    "roster": 100,
+    "observers": 214
+  }
+]

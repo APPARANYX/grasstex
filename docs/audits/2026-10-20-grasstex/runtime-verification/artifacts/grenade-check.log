@@ -1,0 +1,38 @@
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[MODULE] registry v20 loaded
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MODULE] registered systems/soldier-events v1.0
+[MODULE] registered systems/wound-model v1.0
+[WOUNDS] hit-zone incapacitation + bleeding active
+[BALLISTICS] direct fire uses combat-calibrated dispersed raycasts
+[MODULE] registered systems/grenades v1.0
+PASS grenades are on by default and only an absent or complete grenades=1 value keeps them on
+PASS OFF has no registered grenade clock, field writes or RNG draws, including read APIs
+PASS inventory is role-issued, consumed at release once, and cooldown begins at release
+PASS a committed motion survives possession, retreat, freeze, reload and loss of weapon
+PASS death during windup aborts once without spending inventory or scatter draws
+PASS a late clock step uses casualty time to distinguish death before and after release
+PASS AI needs a known blocked close contact and preserves reported coordinates
+PASS AI decision rejects stale, distant, friendly-danger, empty, reload, crawl and cooldown cases
+PASS Engagement orients, commits the throw action, blocks rifle fire, and leaves it after release
+PASS Engagement can throw at a remembered enemy after cover removes its live target
+PASS an alert with no actionable grenade preserves the existing Engagement cover-review clock
+PASS grenade review cadence is per soldier, resets with the battle, and never writes Engagement state
+PASS a bound without cover cannot bypass HOLD FIRE, and OPEN FIRE permits the same throw
+PASS preview is deterministic and read-only, and an intervening wall stops the released arc
+PASS every released flight segment stays clear, including settling onto a building roof
+PASS a late clock step preserves scheduled release, cooldown and fuse times
+PASS scatter replays from its own scenario stream and projectiles cannot be rewritten by readers
+PASS the projectile flies, lands and detonates once on simulation time
+PASS one burst wounds by fragment density, hits friends and the thrower, and stops at its radii
+PASS prone and crouched men present less of themselves than standing men
+PASS each side throws its own grenade: Mk 2 for US, M24 for German, and cover stops fragments
+PASS lethality matches the published radii for a standing man in the open
+PASS enemy grenade casualties earn kill credit while friendly and self casualties retain cause only
+PASS a friendly grenade wound that later bleeds out preserves source and counts without kill credit
+PASS blast follows physical cover footprints, including a clear line inside a wider visual volume
+PASS terrain and navigation walls stop fragments while leaving burst suppression
+PASS a released blast keeps its own severity after its thrower dies or abandons the rifle
+PASS restart discards old commitments and projectiles, restores loadout and replays scatter
+28 grenade checks passed

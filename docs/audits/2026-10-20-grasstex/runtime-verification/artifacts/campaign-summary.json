@@ -1,0 +1,5097 @@
+{
+  "baseline": "f89939f2f6e8ff21063d1b24c28a8ab73fe9d2e9",
+  "campaigns": [
+    {
+      "name": "all-intended",
+      "battles": 5,
+      "seeds": [
+        "runtime-audit-all-intended-0001",
+        "runtime-audit-all-intended-0002",
+        "runtime-audit-all-intended-0003",
+        "runtime-audit-all-intended-0004",
+        "runtime-audit-all-intended-0005"
+      ],
+      "simulatedSeconds": 3000.75,
+      "runtimeErrors": 0,
+      "assetLoadNoise": 676,
+      "outcomes": {
+        "ge": 3,
+        "us": 2
+      },
+      "captures": [
+        1,
+        2,
+        2,
+        3,
+        2
+      ],
+      "movementAlerts": 31,
+      "routeAlerts": 9,
+      "loopAlerts": 48,
+      "writerConflicts": 0,
+      "journeys": 42,
+      "source": "artifacts/all-intended/battle-benchmark.json.gz"
+    },
+    {
+      "name": "combined",
+      "battles": 5,
+      "seeds": [
+        "runtime-audit-combined-0001",
+        "runtime-audit-combined-0002",
+        "runtime-audit-combined-0003",
+        "runtime-audit-combined-0004",
+        "runtime-audit-combined-0005"
+      ],
+      "simulatedSeconds": 3000.75,
+      "runtimeErrors": 0,
+      "assetLoadNoise": 676,
+      "outcomes": {
+        "ge": 2,
+        "us": 3
+      },
+      "captures": [
+        12,
+        12,
+        12,
+        12,
+        12
+      ],
+      "movementAlerts": 0,
+      "routeAlerts": 0,
+      "loopAlerts": 58,
+      "writerConflicts": 0,
+      "journeys": 50,
+      "source": "artifacts/combined/battle-benchmark.json.gz"
+    },
+    {
+      "name": "endurance",
+      "battles": 1,
+      "seeds": [
+        "runtime-audit-endurance-0001"
+      ],
+      "simulatedSeconds": 535.95,
+      "runtimeErrors": 0,
+      "assetLoadNoise": 675,
+      "outcomes": {
+        "ge": 1
+      },
+      "captures": [
+        7
+      ],
+      "movementAlerts": 0,
+      "routeAlerts": 0,
+      "loopAlerts": 8,
+      "writerConflicts": 0,
+      "journeys": 0,
+      "source": "artifacts/endurance/battle-benchmark.json.gz"
+    },
+    {
+      "name": "ge-defend",
+      "battles": 5,
+      "seeds": [
+        "runtime-audit-ge-defend-0001",
+        "runtime-audit-ge-defend-0002",
+        "runtime-audit-ge-defend-0003",
+        "runtime-audit-ge-defend-0004",
+        "runtime-audit-ge-defend-0005"
+      ],
+      "simulatedSeconds": 600,
+      "runtimeErrors": 0,
+      "assetLoadNoise": 676,
+      "outcomes": {
+        "ge": 5
+      },
+      "captures": [
+        0,
+        0,
+        0,
+        0,
+        1
+      ],
+      "movementAlerts": 0,
+      "routeAlerts": 0,
+      "loopAlerts": 1,
+      "writerConflicts": 0,
+      "journeys": 0,
+      "source": "artifacts/ge-defend/battle-benchmark.json.gz"
+    },
+    {
+      "name": "intercept",
+      "battles": 5,
+      "seeds": [
+        "runtime-audit-intercept-0001",
+        "runtime-audit-intercept-0002",
+        "runtime-audit-intercept-0003",
+        "runtime-audit-intercept-0004",
+        "runtime-audit-intercept-0005"
+      ],
+      "simulatedSeconds": 900,
+      "runtimeErrors": 0,
+      "assetLoadNoise": 676,
+      "outcomes": {
+        "ge": 3,
+        "draw": 2
+      },
+      "captures": [
+        7,
+        7,
+        6,
+        6,
+        7
+      ],
+      "movementAlerts": 26,
+      "routeAlerts": 0,
+      "loopAlerts": 0,
+      "writerConflicts": 0,
+      "journeys": 50,
+      "source": "artifacts/intercept/battle-benchmark.json.gz"
+    },
+    {
+      "name": "meeting",
+      "battles": 5,
+      "seeds": [
+        "runtime-audit-meeting-0001",
+        "runtime-audit-meeting-0002",
+        "runtime-audit-meeting-0003",
+        "runtime-audit-meeting-0004",
+        "runtime-audit-meeting-0005"
+      ],
+      "simulatedSeconds": 600,
+      "runtimeErrors": 0,
+      "assetLoadNoise": 676,
+      "outcomes": {
+        "draw": 3,
+        "ge": 2
+      },
+      "captures": [
+        0,
+        0,
+        1,
+        0,
+        1
+      ],
+      "movementAlerts": 0,
+      "routeAlerts": 0,
+      "loopAlerts": 0,
+      "writerConflicts": 0,
+      "journeys": 0,
+      "source": "artifacts/meeting/battle-benchmark.json.gz"
+    },
+    {
+      "name": "motor",
+      "battles": 5,
+      "seeds": [
+        "runtime-audit-motor-0001",
+        "runtime-audit-motor-0002",
+        "runtime-audit-motor-0003",
+        "runtime-audit-motor-0004",
+        "runtime-audit-motor-0005"
+      ],
+      "simulatedSeconds": 900,
+      "runtimeErrors": 0,
+      "assetLoadNoise": 676,
+      "outcomes": {
+        "draw": 5
+      },
+      "captures": [
+        6,
+        6,
+        6,
+        6,
+        6
+      ],
+      "movementAlerts": 54,
+      "routeAlerts": 0,
+      "loopAlerts": 0,
+      "writerConflicts": 0,
+      "journeys": 50,
+      "source": "artifacts/motor/battle-benchmark.json.gz"
+    },
+    {
+      "name": "recon",
+      "battles": 5,
+      "seeds": [
+        "runtime-audit-recon-0001",
+        "runtime-audit-recon-0002",
+        "runtime-audit-recon-0003",
+        "runtime-audit-recon-0004",
+        "runtime-audit-recon-0005"
+      ],
+      "simulatedSeconds": 900,
+      "runtimeErrors": 0,
+      "assetLoadNoise": 676,
+      "outcomes": {
+        "draw": 5
+      },
+      "captures": [
+        6,
+        6,
+        6,
+        6,
+        6
+      ],
+      "movementAlerts": 0,
+      "routeAlerts": 0,
+      "loopAlerts": 0,
+      "writerConflicts": 0,
+      "journeys": 0,
+      "source": "artifacts/recon/battle-benchmark.json.gz"
+    },
+    {
+      "name": "strategic",
+      "battles": 5,
+      "seeds": [
+        "runtime-audit-strategic-0001",
+        "runtime-audit-strategic-0002",
+        "runtime-audit-strategic-0003",
+        "runtime-audit-strategic-0004",
+        "runtime-audit-strategic-0005"
+      ],
+      "simulatedSeconds": 900,
+      "runtimeErrors": 0,
+      "assetLoadNoise": 676,
+      "outcomes": {
+        "draw": 5
+      },
+      "captures": [
+        6,
+        6,
+        6,
+        6,
+        6
+      ],
+      "movementAlerts": 0,
+      "routeAlerts": 0,
+      "loopAlerts": 0,
+      "writerConflicts": 0,
+      "journeys": 0,
+      "source": "artifacts/strategic/battle-benchmark.json.gz"
+    },
+    {
+      "name": "us-defend",
+      "battles": 5,
+      "seeds": [
+        "runtime-audit-us-defend-0001",
+        "runtime-audit-us-defend-0002",
+        "runtime-audit-us-defend-0003",
+        "runtime-audit-us-defend-0004",
+        "runtime-audit-us-defend-0005"
+      ],
+      "simulatedSeconds": 600,
+      "runtimeErrors": 0,
+      "assetLoadNoise": 676,
+      "outcomes": {
+        "us": 5
+      },
+      "captures": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "movementAlerts": 0,
+      "routeAlerts": 0,
+      "loopAlerts": 2,
+      "writerConflicts": 0,
+      "journeys": 0,
+      "source": "artifacts/us-defend/battle-benchmark.json.gz"
+    }
+  ],
+  "benchmarkBattles": 46,
+  "benchmarkSimulatedSeconds": 11937.45,
+  "profiles": [
+    {
+      "name": "meeting",
+      "runs": 7,
+      "roster": [
+        50,
+        50
+      ],
+      "requested": {
+        "name": "meeting",
+        "q": "",
+        "seconds": 120
+      },
+      "plainMedianMs": 2183.7000000476837,
+      "wrappedMedianMs": 2386.1999999284744,
+      "wrapperOverheadPct": 9.273251814643446,
+      "cdpMs": 2214.600000023842,
+      "mainTaskMedianMs": 2370.9550000000004,
+      "plainTickMs": {
+        "n": 2400,
+        "mean": 2.8767916668454805,
+        "p50": 2.850000023841858,
+        "p95": 3.8000000715255737,
+        "p99": 4.5,
+        "max": 8.899999976158142
+      },
+      "heap": [
+        {
+          "before": 173352224,
+          "after": 226237156
+        },
+        {
+          "before": 295932256,
+          "after": 344148520
+        },
+        {
+          "before": 410036776,
+          "after": 471221836
+        }
+      ],
+      "observers": [
+        114,
+        114,
+        114,
+        114,
+        114,
+        114,
+        114
+      ],
+      "coarseReplayEqual": true,
+      "terminalStable": true,
+      "hotpaths": [
+        {
+          "label": "simulation.step",
+          "totalMs": 2218,
+          "calls": 800,
+          "avgUs": 2772.5,
+          "maxMs": 5.3,
+          "wallPct": 92.95
+        },
+        {
+          "label": "simulation._frame",
+          "totalMs": 2217.9,
+          "calls": 800,
+          "avgUs": 2772.37,
+          "maxMs": 5.3,
+          "wallPct": 92.95
+        },
+        {
+          "label": "squad.updateSoldier",
+          "totalMs": 829.5,
+          "calls": 80000,
+          "avgUs": 10.37,
+          "maxMs": 0.9,
+          "wallPct": 34.76
+        },
+        {
+          "label": "squad.updateSquad",
+          "totalMs": 586.1,
+          "calls": 8000,
+          "avgUs": 73.26,
+          "maxMs": 1.8,
+          "wallPct": 24.38
+        },
+        {
+          "label": "modules.runHook",
+          "totalMs": 425,
+          "calls": 1066,
+          "avgUs": 398.69,
+          "maxMs": 1.6,
+          "wallPct": 17.81
+        },
+        {
+          "label": "movement-resolver.resolve",
+          "totalMs": 381.7,
+          "calls": 80000,
+          "avgUs": 4.77,
+          "maxMs": 0.9,
+          "wallPct": 16.04
+        },
+        {
+          "label": "navigation.nextWaypoint",
+          "totalMs": 200.1,
+          "calls": 80000,
+          "avgUs": 2.5,
+          "maxMs": 1,
+          "wallPct": 8.21
+        },
+        {
+          "label": "navigation.nextWaypoint.baseCacheReuse",
+          "totalMs": 200.1,
+          "calls": 80000,
+          "avgUs": 2.5,
+          "maxMs": 1,
+          "wallPct": 8.21
+        },
+        {
+          "label": "commander.update",
+          "totalMs": 166.7,
+          "calls": 266,
+          "avgUs": 626.69,
+          "maxMs": 1.5,
+          "wallPct": 6.99
+        },
+        {
+          "label": "navigation.nextWaypoint.physicalReuse",
+          "totalMs": 141.9,
+          "calls": 77234,
+          "avgUs": 1.84,
+          "maxMs": 1,
+          "wallPct": 5.73
+        },
+        {
+          "label": "navigation.movementClear",
+          "totalMs": 123.2,
+          "calls": 163097,
+          "avgUs": 0.76,
+          "maxMs": 0.6,
+          "wallPct": 5.09
+        },
+        {
+          "label": "system:soldier-personal-space.onSimulationStep",
+          "totalMs": 98.9,
+          "calls": 800,
+          "avgUs": 123.62,
+          "maxMs": 0.7,
+          "wallPct": 4.14
+        },
+        {
+          "label": "engagement.updateSoldier",
+          "totalMs": 93.6,
+          "calls": 80000,
+          "avgUs": 1.17,
+          "maxMs": 0.6,
+          "wallPct": 3.88
+        },
+        {
+          "label": "system:ai-timeline-recorder.onSimulationStep",
+          "totalMs": 88.5,
+          "calls": 800,
+          "avgUs": 110.62,
+          "maxMs": 1.2,
+          "wallPct": 3.72
+        },
+        {
+          "label": "navigation.nextWaypoint.physicalReplan",
+          "totalMs": 58.9,
+          "calls": 2766,
+          "avgUs": 21.29,
+          "maxMs": 0.7,
+          "wallPct": 2.45
+        },
+        {
+          "label": "system:soldier-individuality.onSimulationStep",
+          "totalMs": 41.7,
+          "calls": 800,
+          "avgUs": 52.13,
+          "maxMs": 0.8,
+          "wallPct": 1.69
+        },
+        {
+          "label": "system:squad-command.onCommanderTick",
+          "totalMs": 35.7,
+          "calls": 266,
+          "avgUs": 134.21,
+          "maxMs": 0.7,
+          "wallPct": 1.5
+        },
+        {
+          "label": "system:squad-forward-progress.onCommanderTick",
+          "totalMs": 33.7,
+          "calls": 266,
+          "avgUs": 126.69,
+          "maxMs": 0.7,
+          "wallPct": 1.39
+        },
+        {
+          "label": "system:ai-loop-watch.onCommanderTick",
+          "totalMs": 33.5,
+          "calls": 266,
+          "avgUs": 125.94,
+          "maxMs": 0.4,
+          "wallPct": 1.37
+        },
+        {
+          "label": "engagement.updateSquad",
+          "totalMs": 31.1,
+          "calls": 8000,
+          "avgUs": 3.89,
+          "maxMs": 0.6,
+          "wallPct": 1.3
+        },
+        {
+          "label": "obstacle.coverPotentialAt",
+          "totalMs": 24.7,
+          "calls": 79556,
+          "avgUs": 0.31,
+          "maxMs": 0.1,
+          "wallPct": 0.97
+        },
+        {
+          "label": "obstacle.nearby",
+          "totalMs": 24,
+          "calls": 62694,
+          "avgUs": 0.38,
+          "maxMs": 0.7,
+          "wallPct": 0.98
+        },
+        {
+          "label": "tactical-position.update",
+          "totalMs": 17.2,
+          "calls": 160000,
+          "avgUs": 0.11,
+          "maxMs": 0.1,
+          "wallPct": 0.72
+        },
+        {
+          "label": "system:ammunition-stoppages.onSimulationStep",
+          "totalMs": 15,
+          "calls": 800,
+          "avgUs": 18.75,
+          "maxMs": 0.2,
+          "wallPct": 0.59
+        },
+        {
+          "label": "system:contextual-infantry-voice.onSimulationStep",
+          "totalMs": 12.9,
+          "calls": 800,
+          "avgUs": 16.13,
+          "maxMs": 0.7,
+          "wallPct": 0.54
+        },
+        {
+          "label": "system:voice-observations.onSimulationStep",
+          "totalMs": 12.1,
+          "calls": 800,
+          "avgUs": 15.13,
+          "maxMs": 0.2,
+          "wallPct": 0.51
+        },
+        {
+          "label": "simulation._checkWinner",
+          "totalMs": 10.6,
+          "calls": 800,
+          "avgUs": 13.25,
+          "maxMs": 0.5,
+          "wallPct": 0.43
+        },
+        {
+          "label": "movement-resolver.proposeOrder",
+          "totalMs": 10.3,
+          "calls": 833,
+          "avgUs": 12.36,
+          "maxMs": 0.8,
+          "wallPct": 0.41
+        },
+        {
+          "label": "system:zz-order-provenance.onCommanderTick",
+          "totalMs": 8.8,
+          "calls": 266,
+          "avgUs": 33.08,
+          "maxMs": 0.4,
+          "wallPct": 0.37
+        },
+        {
+          "label": "system:ammunition-stoppages.onCommanderTick",
+          "totalMs": 6.5,
+          "calls": 266,
+          "avgUs": 24.44,
+          "maxMs": 0.2,
+          "wallPct": 0.27
+        },
+        {
+          "label": "system:combat-urgency.onSimulationStep",
+          "totalMs": 6.3,
+          "calls": 800,
+          "avgUs": 7.88,
+          "maxMs": 0.5,
+          "wallPct": 0.26
+        },
+        {
+          "label": "system:building-hardpoints.onCommanderTick",
+          "totalMs": 6,
+          "calls": 266,
+          "avgUs": 22.56,
+          "maxMs": 0.2,
+          "wallPct": 0.25
+        },
+        {
+          "label": "obstacle.sightBlocked",
+          "totalMs": 4.1,
+          "calls": 2509,
+          "avgUs": 1.63,
+          "maxMs": 0.1,
+          "wallPct": 0.17
+        },
+        {
+          "label": "system:capture-zone-tactics.onCommanderTick",
+          "totalMs": 4,
+          "calls": 266,
+          "avgUs": 15.04,
+          "maxMs": 0.2,
+          "wallPct": 0.17
+        },
+        {
+          "label": "obstacle.sightBlocked@system:squad-command.onCommanderTick",
+          "totalMs": 3.9,
+          "calls": 2068,
+          "avgUs": 1.89,
+          "maxMs": 0.1,
+          "wallPct": 0.15
+        },
+        {
+          "label": "system:movement-execution.onCommanderTick",
+          "totalMs": 3.6,
+          "calls": 266,
+          "avgUs": 13.53,
+          "maxMs": 0.2,
+          "wallPct": 0.15
+        },
+        {
+          "label": "system:soldier-mind.onSimulationStep",
+          "totalMs": 3.3,
+          "calls": 800,
+          "avgUs": 4.12,
+          "maxMs": 0.2,
+          "wallPct": 0.14
+        },
+        {
+          "label": "system:ai-coordination-health.onCommanderTick",
+          "totalMs": 2.5,
+          "calls": 266,
+          "avgUs": 9.4,
+          "maxMs": 0.2,
+          "wallPct": 0.1
+        },
+        {
+          "label": "system:strategic-abstract-transport.onSimulationStep",
+          "totalMs": 1.3,
+          "calls": 800,
+          "avgUs": 1.62,
+          "maxMs": 0.1,
+          "wallPct": 0.05
+        },
+        {
+          "label": "system:bullet-impact-fx.onSimulationStep",
+          "totalMs": 1.1,
+          "calls": 800,
+          "avgUs": 1.37,
+          "maxMs": 0.1,
+          "wallPct": 0.05
+        },
+        {
+          "label": "system:soldier-personal-space.onCommanderTick",
+          "totalMs": 1.1,
+          "calls": 266,
+          "avgUs": 4.14,
+          "maxMs": 0.1,
+          "wallPct": 0.04
+        },
+        {
+          "label": "system:wound-model.onCommanderTick",
+          "totalMs": 0.9,
+          "calls": 266,
+          "avgUs": 3.38,
+          "maxMs": 0.1,
+          "wallPct": 0.04
+        },
+        {
+          "label": "squad.hasLineOfSight",
+          "totalMs": 0.7,
+          "calls": 441,
+          "avgUs": 1.59,
+          "maxMs": 0.1,
+          "wallPct": 0.03
+        },
+        {
+          "label": "system:squad-broadcast.onCommanderTick",
+          "totalMs": 0.7,
+          "calls": 266,
+          "avgUs": 2.63,
+          "maxMs": 0.1,
+          "wallPct": 0.03
+        },
+        {
+          "label": "navigation.lineOfSightBlocked",
+          "totalMs": 0.6,
+          "calls": 1335,
+          "avgUs": 0.45,
+          "maxMs": 0.1,
+          "wallPct": 0.03
+        },
+        {
+          "label": "system:strategic-truck-visual.onSimulationStep",
+          "totalMs": 0.6,
+          "calls": 800,
+          "avgUs": 0.75,
+          "maxMs": 0.1,
+          "wallPct": 0.03
+        },
+        {
+          "label": "system:world-debug-overlay.onSimulationStep",
+          "totalMs": 0.6,
+          "calls": 800,
+          "avgUs": 0.75,
+          "maxMs": 0.1,
+          "wallPct": 0.02
+        },
+        {
+          "label": "system:strategic-reinforcements.onCommanderTick",
+          "totalMs": 0.6,
+          "calls": 266,
+          "avgUs": 2.26,
+          "maxMs": 0.1,
+          "wallPct": 0.02
+        },
+        {
+          "label": "system:defender-engineers.onCommanderTick",
+          "totalMs": 0.6,
+          "calls": 266,
+          "avgUs": 2.26,
+          "maxMs": 0.1,
+          "wallPct": 0.03
+        },
+        {
+          "label": "system:wound-model.onSimulationStep",
+          "totalMs": 0.5,
+          "calls": 800,
+          "avgUs": 0.63,
+          "maxMs": 0.1,
+          "wallPct": 0.02
+        },
+        {
+          "label": "system:tactical-situation.onCommanderTick",
+          "totalMs": 0.5,
+          "calls": 266,
+          "avgUs": 1.88,
+          "maxMs": 0.1,
+          "wallPct": 0.02
+        },
+        {
+          "label": "system:urban-operating-picture.onCommanderTick",
+          "totalMs": 0.4,
+          "calls": 266,
+          "avgUs": 1.5,
+          "maxMs": 0.1,
+          "wallPct": 0.02
+        },
+        {
+          "label": "system:strategic-aerial-recon.onCommanderTick",
+          "totalMs": 0.4,
+          "calls": 266,
+          "avgUs": 1.5,
+          "maxMs": 0.4,
+          "wallPct": 0.02
+        },
+        {
+          "label": "obstacle.sightBlocked@squad.updateSquad",
+          "totalMs": 0.3,
+          "calls": 441,
+          "avgUs": 0.68,
+          "maxMs": 0.1,
+          "wallPct": 0.01
+        },
+        {
+          "label": "system:building-hardpoints.onSimulationStep",
+          "totalMs": 0.3,
+          "calls": 800,
+          "avgUs": 0.38,
+          "maxMs": 0.1,
+          "wallPct": 0.01
+        },
+        {
+          "label": "commander-doctrine.chooseObjective",
+          "totalMs": 0.2,
+          "calls": 10,
+          "avgUs": 20,
+          "maxMs": 0.1,
+          "wallPct": 0.01
+        },
+        {
+          "label": "commander-doctrine.nearestEnemyToSquad",
+          "totalMs": 0.2,
+          "calls": 96,
+          "avgUs": 2.08,
+          "maxMs": 0.1,
+          "wallPct": 0.01
+        },
+        {
+          "label": "system:navigation-physicality-debug.onSimulationStep",
+          "totalMs": 0.1,
+          "calls": 800,
+          "avgUs": 0.13,
+          "maxMs": 0.1,
+          "wallPct": 0
+        },
+        {
+          "label": "system:command-reception.onSimulationStep",
+          "totalMs": 0.1,
+          "calls": 800,
+          "avgUs": 0.13,
+          "maxMs": 0.1,
+          "wallPct": 0
+        },
+        {
+          "label": "commander-routes.ensureAssignments",
+          "totalMs": 0.1,
+          "calls": 266,
+          "avgUs": 0.38,
+          "maxMs": 0.1,
+          "wallPct": 0
+        },
+        {
+          "label": "system:strategic-front-lines.onCommanderTick",
+          "totalMs": 0.1,
+          "calls": 266,
+          "avgUs": 0.38,
+          "maxMs": 0.1,
+          "wallPct": 0
+        },
+        {
+          "label": "commander-doctrine.buildContext",
+          "totalMs": 0.1,
+          "calls": 10,
+          "avgUs": 10,
+          "maxMs": 0.1,
+          "wallPct": 0
+        },
+        {
+          "label": "navigation.physicalReplanReason.periodic",
+          "totalMs": 0,
+          "calls": 1470,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        },
+        {
+          "label": "system:grenades.onSimulationStep",
+          "totalMs": 0,
+          "calls": 800,
+          "avgUs": 0,
+          "maxMs": 0.1,
+          "wallPct": 0
+        },
+        {
+          "label": "navigation.physicalReplanReason.goal-shift",
+          "totalMs": 0,
+          "calls": 773,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        },
+        {
+          "label": "navigation.physicalReplan.goal-shift.owner.squad-stability",
+          "totalMs": 0,
+          "calls": 773,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        },
+        {
+          "label": "navigation.physicalReplan.goal-shift.kind.formation",
+          "totalMs": 0,
+          "calls": 773,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        },
+        {
+          "label": "navigation.physicalReplan.goal-shift.owner-kind.squad-stability__formation",
+          "totalMs": 0,
+          "calls": 773,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        },
+        {
+          "label": "navigation.physicalReplan.goal-shift.reason.squad_intent",
+          "totalMs": 0,
+          "calls": 773,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        },
+        {
+          "label": "navigation.physicalReplanReason.empty-timeout",
+          "totalMs": 0,
+          "calls": 419,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        },
+        {
+          "label": "navigation.physicalReplanReason.missing",
+          "totalMs": 0,
+          "calls": 100,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        },
+        {
+          "label": "navigation.physicalReplan.missing.owner.unknown",
+          "totalMs": 0,
+          "calls": 100,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        },
+        {
+          "label": "navigation.physicalReplan.missing.kind.unknown",
+          "totalMs": 0,
+          "calls": 100,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        },
+        {
+          "label": "navigation.physicalReplan.missing.owner-kind.unknown__unknown",
+          "totalMs": 0,
+          "calls": 100,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        },
+        {
+          "label": "navigation.physicalReplanReason.empty-other",
+          "totalMs": 0,
+          "calls": 4,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        },
+        {
+          "label": "commander-doctrine.objectiveValueScore",
+          "totalMs": 0,
+          "calls": 2,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        },
+        {
+          "label": "commander-doctrine.forceScore",
+          "totalMs": 0,
+          "calls": 2,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        }
+      ],
+      "samples": [
+        {
+          "kind": "simulation",
+          "sampledMs": 2886.75,
+          "top": [
+            {
+              "function": "(program)",
+              "url": "",
+              "line": 0,
+              "samples": 38,
+              "selfMs": 540.916,
+              "pct": 18.737888629081144
+            },
+            {
+              "function": "publicRecord",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/18-command-reception.js?v=1792498440&c=v460-de143ca4",
+              "line": 504,
+              "samples": 187,
+              "selfMs": 279.25,
+              "pct": 9.673508270546462
+            },
+            {
+              "function": "detectionRange",
+              "url": "http://127.0.0.1:8876/grasstex/battle/squad-ai.js?v=1792498440&c=v460-de143ca4",
+              "line": 304,
+              "samples": 67,
+              "selfMs": 99.296,
+              "pct": 3.4397159435351177
+            },
+            {
+              "function": "blocked",
+              "url": "http://127.0.0.1:8876/grasstex/battle/battle-navigation.js?v=1792498440&c=v460-de143ca4",
+              "line": 107,
+              "samples": 46,
+              "selfMs": 68.54,
+              "pct": 2.37429635403135
+            },
+            {
+              "function": "(garbage collector)",
+              "url": "",
+              "line": 0,
+              "samples": 37,
+              "selfMs": 58.291,
+              "pct": 2.019260413960336
+            },
+            {
+              "function": "gatherStatic",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/39-navigation-physicality-debug.js?v=1792498440&c=v460-de143ca4",
+              "line": 198,
+              "samples": 39,
+              "selfMs": 58.039,
+              "pct": 2.01053087382004
+            },
+            {
+              "function": "tick",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/17-soldier-mind.js?v=1792498440&c=v460-de143ca4",
+              "line": 694,
+              "samples": 38,
+              "selfMs": 56.918,
+              "pct": 1.9716982766086428
+            },
+            {
+              "function": "destinationFree",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/51-soldier-personal-space.js?v=1792498440&c=v460-de143ca4",
+              "line": 108,
+              "samples": 36,
+              "selfMs": 53.748,
+              "pct": 1.8618862042088853
+            },
+            {
+              "function": "tick",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/51-soldier-personal-space.js?v=1792498440&c=v460-de143ca4",
+              "line": 239,
+              "samples": 36,
+              "selfMs": 53.498,
+              "pct": 1.8532259461331948
+            },
+            {
+              "function": "segmentObb",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/39-navigation-physicality-debug.js?v=1792498440&c=v460-de143ca4",
+              "line": 326,
+              "samples": 33,
+              "selfMs": 49.792,
+              "pct": 1.7248462804191567
+            },
+            {
+              "function": "resolve",
+              "url": "http://127.0.0.1:8876/grasstex/battle/movement-resolver.js?v=1792498440&c=v460-de143ca4",
+              "line": 525,
+              "samples": 30,
+              "selfMs": 44.959,
+              "pct": 1.5574261712999047
+            },
+            {
+              "function": "findTarget",
+              "url": "http://127.0.0.1:8876/grasstex/battle/squad-ai.js?v=1792498440&c=v460-de143ca4",
+              "line": 966,
+              "samples": 30,
+              "selfMs": 43.957,
+              "pct": 1.5227158569325365
+            },
+            {
+              "function": "perceive",
+              "url": "http://127.0.0.1:8876/grasstex/battle/squad-ai.js?v=1792498440&c=v460-de143ca4",
+              "line": 2129,
+              "samples": 23,
+              "selfMs": 34.459,
+              "pct": 1.1936953321208972
+            },
+            {
+              "function": "stepMovement",
+              "url": "http://127.0.0.1:8876/grasstex/battle/battle-sim.js?v=1792498440&c=v460-de143ca4",
+              "line": 646,
+              "samples": 22,
+              "selfMs": 32.749,
+              "pct": 1.1344591668831732
+            },
+            {
+              "function": "runHook",
+              "url": "http://127.0.0.1:8876/grasstex/battle/module-registry.js?v=1792498440&c=v460-de143ca4",
+              "line": 131,
+              "samples": 18,
+              "selfMs": 27.21,
+              "pct": 0.942582488958171
+            },
+            {
+              "function": "",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/15h-squad-leader-fireteams.js?v=1792498440&c=v460-de143ca4",
+              "line": 174,
+              "samples": 18,
+              "selfMs": 27.169,
+              "pct": 0.9411622066337577
+            },
+            {
+              "function": "signature",
+              "url": "http://127.0.0.1:8876/grasstex/battle/movement-resolver.js?v=1792498440&c=v460-de143ca4",
+              "line": 53,
+              "samples": 16,
+              "selfMs": 24.212,
+              "pct": 0.8387286741144886
+            },
+            {
+              "function": "routeFootprints",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/39-navigation-physicality-debug.js?v=1792498440&c=v460-de143ca4",
+              "line": 397,
+              "samples": 15,
+              "selfMs": 22.415,
+              "pct": 0.7764787390664242
+            },
+            {
+              "function": "rotateByQuaternionToRef",
+              "url": "https://cdn.jsdelivr.net/npm/babylonjs@9.27.1/babylon.js",
+              "line": 1,
+              "samples": 15,
+              "selfMs": 22.375,
+              "pct": 0.7750930977743137
+            },
+            {
+              "function": "rounded",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/97-ai-timeline-recorder.js?v=1792498440&c=v460-de143ca4",
+              "line": 33,
+              "samples": 15,
+              "selfMs": 22.041,
+              "pct": 0.7635229929851909
+            },
+            {
+              "function": "animateWalk",
+              "url": "http://127.0.0.1:8876/grasstex/battle/soldier.js?v=1792498440&c=v460-de143ca4",
+              "line": 807,
+              "samples": 14,
+              "selfMs": 21.124,
+              "pct": 0.7317571663635576
+            },
+            {
+              "function": "warm",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/19-engagement-cover-positions.js?v=1792498440&c=v460-de143ca4",
+              "line": 763,
+              "samples": 13,
+              "selfMs": 19.584,
+              "pct": 0.6784099766173032
+            },
+            {
+              "function": "",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/97-ai-timeline-recorder.js?v=1792498440&c=v460-de143ca4",
+              "line": 371,
+              "samples": 13,
+              "selfMs": 18.873,
+              "pct": 0.653780202650039
+            },
+            {
+              "function": "autonomousOn",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/11-soldier-individuality.js?v=1792498440&c=v460-de143ca4",
+              "line": 196,
+              "samples": 12,
+              "selfMs": 18.084,
+              "pct": 0.6264484281631593
+            },
+            {
+              "function": "gap",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/51-soldier-personal-space.js?v=1792498440&c=v460-de143ca4",
+              "line": 64,
+              "samples": 12,
+              "selfMs": 18.042,
+              "pct": 0.6249935048064432
+            },
+            {
+              "function": "updateBuddyPairState",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/15b-squad-leader-buddy-pairs.js?v=1792498440&c=v460-de143ca4",
+              "line": 253,
+              "samples": 12,
+              "selfMs": 18.04,
+              "pct": 0.6249242227418377
+            },
+            {
+              "function": "resolveDestination",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/51-soldier-personal-space.js?v=1792498440&c=v460-de143ca4",
+              "line": 129,
+              "samples": 12,
+              "selfMs": 17.916,
+              "pct": 0.6206287347362951
+            },
+            {
+              "function": "stanceOf",
+              "url": "http://127.0.0.1:8876/grasstex/battle/squad-ai.js?v=1792498440&c=v460-de143ca4",
+              "line": 229,
+              "samples": 12,
+              "selfMs": 17.668,
+              "pct": 0.61203775872521
+            },
+            {
+              "function": "",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/97-ai-timeline-recorder.js?v=1792498440&c=v460-de143ca4",
+              "line": 211,
+              "samples": 11,
+              "selfMs": 16.542,
+              "pct": 0.5730319563522993
+            },
+            {
+              "function": "push",
+              "url": "http://127.0.0.1:8876/grasstex/battle/module-registry.js?v=1792498440&c=v460-de143ca4",
+              "line": 83,
+              "samples": 11,
+              "selfMs": 16.459,
+              "pct": 0.57015675067117
+            }
+          ]
+        },
+        {
+          "kind": "render",
+          "sampledMs": 5425.333,
+          "top": [
+            {
+              "function": "(idle)",
+              "url": "",
+              "line": 0,
+              "samples": 2971,
+              "selfMs": 4473.668,
+              "pct": 82.45886473696638
+            },
+            {
+              "function": "(program)",
+              "url": "",
+              "line": 0,
+              "samples": 30,
+              "selfMs": 461.121,
+              "pct": 8.49940455267907
+            },
+            {
+              "function": "(garbage collector)",
+              "url": "",
+              "line": 0,
+              "samples": 15,
+              "selfMs": 41.833,
+              "pct": 0.7710678773081763
+            },
+            {
+              "function": "$",
+              "url": "https://cdn.jsdelivr.net/npm/babylonjs@9.27.1/babylon.js",
+              "line": 1,
+              "samples": 16,
+              "selfMs": 24.793,
+              "pct": 0.4569857739607873
+            },
+            {
+              "function": "_evaluateActiveMeshes",
+              "url": "https://cdn.jsdelivr.net/npm/babylonjs@9.27.1/babylon.js",
+              "line": 1,
+              "samples": 9,
+              "selfMs": 13.043,
+              "pct": 0.24040920621830955
+            },
+            {
+              "function": "destinationFree",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/51-soldier-personal-space.js?v=1792498440&c=v460-de143ca4",
+              "line": 108,
+              "samples": 10,
+              "selfMs": 12.707,
+              "pct": 0.23421603798329063
+            },
+            {
+              "function": "set scaling",
+              "url": "https://cdn.jsdelivr.net/npm/babylonjs@9.27.1/babylon.js",
+              "line": 1,
+              "samples": 8,
+              "selfMs": 11.791,
+              "pct": 0.21733228172353658
+            },
+            {
+              "function": "findTarget",
+              "url": "http://127.0.0.1:8876/grasstex/battle/squad-ai.js?v=1792498440&c=v460-de143ca4",
+              "line": 966,
+              "samples": 9,
+              "selfMs": 11.125,
+              "pct": 0.20505653754340977
+            },
+            {
+              "function": "getBoundingClientRect",
+              "url": "",
+              "line": 0,
+              "samples": 7,
+              "selfMs": 10.542,
+              "pct": 0.1943106533737192
+            },
+            {
+              "function": "prepare",
+              "url": "https://cdn.jsdelivr.net/npm/babylonjs@9.27.1/babylon.js",
+              "line": 1,
+              "samples": 7,
+              "selfMs": 9.709,
+              "pct": 0.1789567571244014
+            },
+            {
+              "function": "publicRecord",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/18-command-reception.js?v=1792498440&c=v460-de143ca4",
+              "line": 504,
+              "samples": 7,
+              "selfMs": 9.25,
+              "pct": 0.1704964469462059
+            },
+            {
+              "function": "sampleLayer",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/52-fbx-clip-mixer.js?v=1792498440&c=v460-de143ca4",
+              "line": 49,
+              "samples": 7,
+              "selfMs": 8.999,
+              "pct": 0.16587000281826017
+            },
+            {
+              "function": "tick",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/51-soldier-personal-space.js?v=1792498440&c=v460-de143ca4",
+              "line": 239,
+              "samples": 6,
+              "selfMs": 8.668,
+              "pct": 0.15976899482483378
+            },
+            {
+              "function": "peek",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/18-command-reception.js?v=1792498440&c=v460-de143ca4",
+              "line": 559,
+              "samples": 6,
+              "selfMs": 7.707,
+              "pct": 0.1420557963907469
+            },
+            {
+              "function": "render",
+              "url": "https://cdn.jsdelivr.net/npm/babylonjs@9.27.1/babylon.js",
+              "line": 1,
+              "samples": 5,
+              "selfMs": 7.625,
+              "pct": 0.1405443684286292
+            },
+            {
+              "function": "applyPose",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/52-fbx-render-pose.js?v=1792498440&c=v460-de143ca4",
+              "line": 282,
+              "samples": 5,
+              "selfMs": 7.459,
+              "pct": 0.13748464840775673
+            },
+            {
+              "function": "tick",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/17-soldier-mind.js?v=1792498440&c=v460-de143ca4",
+              "line": 694,
+              "samples": 5,
+              "selfMs": 7.458,
+              "pct": 0.13746621635943823
+            },
+            {
+              "function": "",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/52-fbx-render-lod.js?v=1792498440&c=v460-de143ca4",
+              "line": 242,
+              "samples": 4,
+              "selfMs": 6.125,
+              "pct": 0.11289629595086605
+            },
+            {
+              "function": "snapshot",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/18-command-reception.js?v=1792498440&c=v460-de143ca4",
+              "line": 568,
+              "samples": 4,
+              "selfMs": 5.917,
+              "pct": 0.10906242990061624
+            },
+            {
+              "function": "pointSegmentDistance",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/39-navigation-physicality-debug.js?v=1792498440&c=v460-de143ca4",
+              "line": 285,
+              "samples": 4,
+              "selfMs": 5.332,
+              "pct": 0.09827968163428863
+            },
+            {
+              "function": "executeMission",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/15l-squad-leader-mission-execution.js?v=1792498440&c=v460-de143ca4",
+              "line": 253,
+              "samples": 3,
+              "selfMs": 4.709,
+              "pct": 0.08679651553185767
+            },
+            {
+              "function": "get rotationQuaternion",
+              "url": "https://cdn.jsdelivr.net/npm/babylonjs@9.27.1/babylon.js",
+              "line": 1,
+              "samples": 3,
+              "selfMs": 4.666,
+              "pct": 0.08600393745416181
+            },
+            {
+              "function": "setShown",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/41-squad-status-overlay.js?v=1792498440&c=v460-de143ca4",
+              "line": 639,
+              "samples": 3,
+              "selfMs": 4.625,
+              "pct": 0.08524822347310294
+            },
+            {
+              "function": "loop",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/55-reported-contact-tactical-map.js?v=1792498440&c=v460-de143ca4",
+              "line": 1288,
+              "samples": 3,
+              "selfMs": 4.584,
+              "pct": 0.08449250949204408
+            },
+            {
+              "function": "isReadyForSubMesh",
+              "url": "https://cdn.jsdelivr.net/npm/babylonjs@9.27.1/babylon.js",
+              "line": 1,
+              "samples": 3,
+              "selfMs": 4.583,
+              "pct": 0.08447407744372556
+            },
+            {
+              "function": "",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/54-tactical-situation.js?v=1792498440&c=v460-de143ca4",
+              "line": 26,
+              "samples": 3,
+              "selfMs": 4.5,
+              "pct": 0.08294421743328935
+            },
+            {
+              "function": "setAttribute",
+              "url": "",
+              "line": 0,
+              "samples": 3,
+              "selfMs": 4.5,
+              "pct": 0.08294421743328935
+            },
+            {
+              "function": "gatherStatic",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/39-navigation-physicality-debug.js?v=1792498440&c=v460-de143ca4",
+              "line": 198,
+              "samples": 4,
+              "selfMs": 4.5,
+              "pct": 0.08294421743328935
+            },
+            {
+              "function": "computeWorldMatrix",
+              "url": "https://cdn.jsdelivr.net/npm/babylonjs@9.27.1/babylon.js",
+              "line": 1,
+              "samples": 3,
+              "selfMs": 3.917,
+              "pct": 0.07219833326359874
+            },
+            {
+              "function": "point",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/39-navigation-physicality-debug.js?v=1792498440&c=v460-de143ca4",
+              "line": 63,
+              "samples": 3,
+              "selfMs": 3.875,
+              "pct": 0.07142418723422139
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "strategic",
+      "runs": 7,
+      "roster": [
+        50,
+        50
+      ],
+      "requested": {
+        "name": "strategic",
+        "q": "strategicInterception=1&motorTransport=1&aerialRecon=1&interception=1&truckCollision=1",
+        "seconds": 180
+      },
+      "plainMedianMs": 4235.299999952316,
+      "wrappedMedianMs": 4650.700000047684,
+      "wrapperOverheadPct": 9.808041935637245,
+      "cdpMs": 4225.200000047684,
+      "mainTaskMedianMs": 5090.298999999998,
+      "plainTickMs": {
+        "n": 3600,
+        "mean": 3.6505833332737287,
+        "p50": 3.700000047683716,
+        "p95": 4.899999976158142,
+        "p99": 5.5,
+        "max": 35.699999928474426
+      },
+      "heap": [
+        {
+          "before": 266722356,
+          "after": 344136636
+        },
+        {
+          "before": 474401500,
+          "after": 589309448
+        },
+        {
+          "before": 408922076,
+          "after": 536150784
+        }
+      ],
+      "observers": [
+        122,
+        122,
+        122,
+        122,
+        122,
+        122,
+        122
+      ],
+      "coarseReplayEqual": true,
+      "terminalStable": true,
+      "hotpaths": [
+        {
+          "label": "simulation.step",
+          "totalMs": 4267,
+          "calls": 1200,
+          "avgUs": 3555.83,
+          "maxMs": 7.6,
+          "wallPct": 91.83
+        },
+        {
+          "label": "simulation._frame",
+          "totalMs": 4266.9,
+          "calls": 1200,
+          "avgUs": 3555.75,
+          "maxMs": 7.6,
+          "wallPct": 91.82
+        },
+        {
+          "label": "squad.updateSoldier",
+          "totalMs": 1617.9,
+          "calls": 120000,
+          "avgUs": 13.48,
+          "maxMs": 1.7,
+          "wallPct": 34.79
+        },
+        {
+          "label": "squad.updateSquad",
+          "totalMs": 964.3,
+          "calls": 12000,
+          "avgUs": 80.36,
+          "maxMs": 2.4,
+          "wallPct": 20.71
+        },
+        {
+          "label": "movement-resolver.resolve",
+          "totalMs": 935.8,
+          "calls": 117420,
+          "avgUs": 7.97,
+          "maxMs": 1.7,
+          "wallPct": 20.09
+        },
+        {
+          "label": "modules.runHook",
+          "totalMs": 775.1,
+          "calls": 1599,
+          "avgUs": 484.74,
+          "maxMs": 2.2,
+          "wallPct": 16.64
+        },
+        {
+          "label": "navigation.movementClear",
+          "totalMs": 702.8,
+          "calls": 213752,
+          "avgUs": 3.29,
+          "maxMs": 1,
+          "wallPct": 15.09
+        },
+        {
+          "label": "navigation.nextWaypoint",
+          "totalMs": 548.6,
+          "calls": 117420,
+          "avgUs": 4.67,
+          "maxMs": 1.4,
+          "wallPct": 11.8
+        },
+        {
+          "label": "navigation.nextWaypoint.baseCacheReuse",
+          "totalMs": 548.6,
+          "calls": 117420,
+          "avgUs": 4.67,
+          "maxMs": 1.4,
+          "wallPct": 11.8
+        },
+        {
+          "label": "navigation.nextWaypoint.physicalReuse",
+          "totalMs": 476.4,
+          "calls": 113419,
+          "avgUs": 4.2,
+          "maxMs": 1.4,
+          "wallPct": 10.24
+        },
+        {
+          "label": "commander.update",
+          "totalMs": 379.2,
+          "calls": 399,
+          "avgUs": 950.38,
+          "maxMs": 30.7,
+          "wallPct": 8.14
+        },
+        {
+          "label": "system:soldier-personal-space.onSimulationStep",
+          "totalMs": 176.8,
+          "calls": 1200,
+          "avgUs": 147.33,
+          "maxMs": 1.8,
+          "wallPct": 3.79
+        },
+        {
+          "label": "system:ai-timeline-recorder.onSimulationStep",
+          "totalMs": 141.7,
+          "calls": 1200,
+          "avgUs": 118.08,
+          "maxMs": 1,
+          "wallPct": 3.08
+        },
+        {
+          "label": "engagement.updateSoldier",
+          "totalMs": 139.2,
+          "calls": 117420,
+          "avgUs": 1.19,
+          "maxMs": 0.7,
+          "wallPct": 3.03
+        },
+        {
+          "label": "system:squad-forward-progress.onCommanderTick",
+          "totalMs": 82.3,
+          "calls": 399,
+          "avgUs": 206.27,
+          "maxMs": 0.9,
+          "wallPct": 1.77
+        },
+        {
+          "label": "navigation.nextWaypoint.physicalReplan",
+          "totalMs": 73.2,
+          "calls": 4001,
+          "avgUs": 18.3,
+          "maxMs": 0.7,
+          "wallPct": 1.57
+        },
+        {
+          "label": "system:soldier-individuality.onSimulationStep",
+          "totalMs": 67.5,
+          "calls": 1200,
+          "avgUs": 56.25,
+          "maxMs": 0.2,
+          "wallPct": 1.45
+        },
+        {
+          "label": "system:squad-command.onCommanderTick",
+          "totalMs": 61.7,
+          "calls": 399,
+          "avgUs": 154.64,
+          "maxMs": 0.8,
+          "wallPct": 1.32
+        },
+        {
+          "label": "system:ai-loop-watch.onCommanderTick",
+          "totalMs": 56.8,
+          "calls": 399,
+          "avgUs": 142.36,
+          "maxMs": 1,
+          "wallPct": 1.22
+        },
+        {
+          "label": "engagement.updateSquad",
+          "totalMs": 47.4,
+          "calls": 12000,
+          "avgUs": 3.95,
+          "maxMs": 0.6,
+          "wallPct": 1.02
+        },
+        {
+          "label": "system:voice-observations.onSimulationStep",
+          "totalMs": 27.8,
+          "calls": 1200,
+          "avgUs": 23.17,
+          "maxMs": 0.8,
+          "wallPct": 0.6
+        },
+        {
+          "label": "tactical-position.update",
+          "totalMs": 27.2,
+          "calls": 234840,
+          "avgUs": 0.12,
+          "maxMs": 0.1,
+          "wallPct": 0.58
+        },
+        {
+          "label": "movement-resolver.proposeOrder",
+          "totalMs": 23.9,
+          "calls": 1114,
+          "avgUs": 21.45,
+          "maxMs": 0.7,
+          "wallPct": 0.51
+        },
+        {
+          "label": "system:ammunition-stoppages.onSimulationStep",
+          "totalMs": 22.7,
+          "calls": 1200,
+          "avgUs": 18.92,
+          "maxMs": 0.2,
+          "wallPct": 0.49
+        },
+        {
+          "label": "obstacle.coverPotentialAt",
+          "totalMs": 20.2,
+          "calls": 93973,
+          "avgUs": 0.21,
+          "maxMs": 0.1,
+          "wallPct": 0.43
+        },
+        {
+          "label": "system:contextual-infantry-voice.onSimulationStep",
+          "totalMs": 20,
+          "calls": 1200,
+          "avgUs": 16.67,
+          "maxMs": 0.2,
+          "wallPct": 0.43
+        },
+        {
+          "label": "system:zz-order-provenance.onCommanderTick",
+          "totalMs": 17.8,
+          "calls": 399,
+          "avgUs": 44.61,
+          "maxMs": 0.7,
+          "wallPct": 0.38
+        },
+        {
+          "label": "simulation._checkWinner",
+          "totalMs": 15.3,
+          "calls": 1200,
+          "avgUs": 12.75,
+          "maxMs": 0.7,
+          "wallPct": 0.33
+        },
+        {
+          "label": "system:strategic-abstract-transport.onSimulationStep",
+          "totalMs": 14,
+          "calls": 1200,
+          "avgUs": 11.67,
+          "maxMs": 1,
+          "wallPct": 0.3
+        },
+        {
+          "label": "obstacle.nearby",
+          "totalMs": 13.7,
+          "calls": 68373,
+          "avgUs": 0.2,
+          "maxMs": 0.6,
+          "wallPct": 0.29
+        },
+        {
+          "label": "obstacle.sightBlocked",
+          "totalMs": 13.4,
+          "calls": 3529,
+          "avgUs": 3.8,
+          "maxMs": 0.1,
+          "wallPct": 0.29
+        },
+        {
+          "label": "system:building-hardpoints.onCommanderTick",
+          "totalMs": 11.8,
+          "calls": 399,
+          "avgUs": 29.57,
+          "maxMs": 0.2,
+          "wallPct": 0.25
+        },
+        {
+          "label": "obstacle.sightBlocked@system:squad-command.onCommanderTick",
+          "totalMs": 10.2,
+          "calls": 2516,
+          "avgUs": 4.05,
+          "maxMs": 0.1,
+          "wallPct": 0.22
+        },
+        {
+          "label": "system:combat-urgency.onSimulationStep",
+          "totalMs": 9.1,
+          "calls": 1200,
+          "avgUs": 7.58,
+          "maxMs": 0.5,
+          "wallPct": 0.2
+        },
+        {
+          "label": "system:capture-zone-tactics.onCommanderTick",
+          "totalMs": 9.1,
+          "calls": 399,
+          "avgUs": 22.81,
+          "maxMs": 0.7,
+          "wallPct": 0.2
+        },
+        {
+          "label": "system:ammunition-stoppages.onCommanderTick",
+          "totalMs": 8.6,
+          "calls": 399,
+          "avgUs": 21.55,
+          "maxMs": 0.5,
+          "wallPct": 0.18
+        },
+        {
+          "label": "system:strategic-truck-visual.onSimulationStep",
+          "totalMs": 6.1,
+          "calls": 1200,
+          "avgUs": 5.08,
+          "maxMs": 0.5,
+          "wallPct": 0.13
+        },
+        {
+          "label": "system:soldier-mind.onSimulationStep",
+          "totalMs": 5.4,
+          "calls": 1200,
+          "avgUs": 4.5,
+          "maxMs": 0.2,
+          "wallPct": 0.12
+        },
+        {
+          "label": "system:ai-coordination-health.onCommanderTick",
+          "totalMs": 5.1,
+          "calls": 399,
+          "avgUs": 12.78,
+          "maxMs": 0.2,
+          "wallPct": 0.11
+        },
+        {
+          "label": "squad.hasLineOfSight",
+          "totalMs": 5,
+          "calls": 1013,
+          "avgUs": 4.94,
+          "maxMs": 0.1,
+          "wallPct": 0.11
+        },
+        {
+          "label": "system:strategic-aerial-recon.onCommanderTick",
+          "totalMs": 4.7,
+          "calls": 399,
+          "avgUs": 11.78,
+          "maxMs": 0.5,
+          "wallPct": 0.1
+        },
+        {
+          "label": "system:movement-execution.onCommanderTick",
+          "totalMs": 4,
+          "calls": 399,
+          "avgUs": 10.03,
+          "maxMs": 0.2,
+          "wallPct": 0.09
+        },
+        {
+          "label": "obstacle.sightBlocked@squad.updateSquad",
+          "totalMs": 3.3,
+          "calls": 1013,
+          "avgUs": 3.26,
+          "maxMs": 0.1,
+          "wallPct": 0.07
+        },
+        {
+          "label": "system:bullet-impact-fx.onSimulationStep",
+          "totalMs": 2.2,
+          "calls": 1200,
+          "avgUs": 1.83,
+          "maxMs": 0.1,
+          "wallPct": 0.05
+        },
+        {
+          "label": "navigation.lineOfSightBlocked",
+          "totalMs": 2,
+          "calls": 3529,
+          "avgUs": 0.57,
+          "maxMs": 0.1,
+          "wallPct": 0.04
+        },
+        {
+          "label": "system:wound-model.onCommanderTick",
+          "totalMs": 2,
+          "calls": 399,
+          "avgUs": 5.01,
+          "maxMs": 0.6,
+          "wallPct": 0.04
+        },
+        {
+          "label": "system:soldier-personal-space.onCommanderTick",
+          "totalMs": 1.3,
+          "calls": 399,
+          "avgUs": 3.26,
+          "maxMs": 0.1,
+          "wallPct": 0.03
+        },
+        {
+          "label": "system:squad-broadcast.onCommanderTick",
+          "totalMs": 1.3,
+          "calls": 399,
+          "avgUs": 3.26,
+          "maxMs": 0.1,
+          "wallPct": 0.03
+        },
+        {
+          "label": "system:world-debug-overlay.onSimulationStep",
+          "totalMs": 1.1,
+          "calls": 1200,
+          "avgUs": 0.92,
+          "maxMs": 0.1,
+          "wallPct": 0.02
+        },
+        {
+          "label": "system:strategic-reinforcements.onCommanderTick",
+          "totalMs": 0.9,
+          "calls": 399,
+          "avgUs": 2.26,
+          "maxMs": 0.1,
+          "wallPct": 0.02
+        },
+        {
+          "label": "system:urban-operating-picture.onCommanderTick",
+          "totalMs": 0.8,
+          "calls": 399,
+          "avgUs": 2.01,
+          "maxMs": 0.1,
+          "wallPct": 0.02
+        },
+        {
+          "label": "system:tactical-situation.onCommanderTick",
+          "totalMs": 0.8,
+          "calls": 399,
+          "avgUs": 2.01,
+          "maxMs": 0.1,
+          "wallPct": 0.02
+        },
+        {
+          "label": "system:wound-model.onSimulationStep",
+          "totalMs": 0.7,
+          "calls": 1200,
+          "avgUs": 0.58,
+          "maxMs": 0.1,
+          "wallPct": 0.02
+        },
+        {
+          "label": "system:defender-engineers.onCommanderTick",
+          "totalMs": 0.5,
+          "calls": 399,
+          "avgUs": 1.25,
+          "maxMs": 0.1,
+          "wallPct": 0.01
+        },
+        {
+          "label": "system:building-hardpoints.onSimulationStep",
+          "totalMs": 0.3,
+          "calls": 1200,
+          "avgUs": 0.25,
+          "maxMs": 0.1,
+          "wallPct": 0.01
+        },
+        {
+          "label": "system:strategic-front-lines.onCommanderTick",
+          "totalMs": 0.3,
+          "calls": 399,
+          "avgUs": 0.75,
+          "maxMs": 0.1,
+          "wallPct": 0.01
+        },
+        {
+          "label": "commander-doctrine.chooseObjective",
+          "totalMs": 0.3,
+          "calls": 12,
+          "avgUs": 25,
+          "maxMs": 0.2,
+          "wallPct": 0.01
+        },
+        {
+          "label": "system:navigation-physicality-debug.onSimulationStep",
+          "totalMs": 0.3,
+          "calls": 1200,
+          "avgUs": 0.25,
+          "maxMs": 0.1,
+          "wallPct": 0.01
+        },
+        {
+          "label": "system:grenades.onSimulationStep",
+          "totalMs": 0.2,
+          "calls": 1200,
+          "avgUs": 0.17,
+          "maxMs": 0.1,
+          "wallPct": 0
+        },
+        {
+          "label": "commander-routes.ensureAssignments",
+          "totalMs": 0.2,
+          "calls": 399,
+          "avgUs": 0.5,
+          "maxMs": 0.1,
+          "wallPct": 0
+        },
+        {
+          "label": "system:command-reception.onSimulationStep",
+          "totalMs": 0.1,
+          "calls": 1200,
+          "avgUs": 0.08,
+          "maxMs": 0.1,
+          "wallPct": 0
+        },
+        {
+          "label": "commander-doctrine.buildContext",
+          "totalMs": 0.1,
+          "calls": 12,
+          "avgUs": 8.33,
+          "maxMs": 0.1,
+          "wallPct": 0
+        },
+        {
+          "label": "navigation.physicalReplanReason.periodic",
+          "totalMs": 0,
+          "calls": 1614,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        },
+        {
+          "label": "navigation.physicalReplanReason.empty-timeout",
+          "totalMs": 0,
+          "calls": 1346,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        },
+        {
+          "label": "navigation.physicalReplanReason.goal-shift",
+          "totalMs": 0,
+          "calls": 785,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        },
+        {
+          "label": "navigation.physicalReplan.goal-shift.kind.formation",
+          "totalMs": 0,
+          "calls": 724,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        },
+        {
+          "label": "navigation.physicalReplan.goal-shift.owner.squad-stability",
+          "totalMs": 0,
+          "calls": 686,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        },
+        {
+          "label": "navigation.physicalReplan.goal-shift.owner-kind.squad-stability__formation",
+          "totalMs": 0,
+          "calls": 686,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        },
+        {
+          "label": "navigation.physicalReplan.goal-shift.reason.squad_intent",
+          "totalMs": 0,
+          "calls": 686,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        },
+        {
+          "label": "navigation.physicalReplanReason.missing",
+          "totalMs": 0,
+          "calls": 221,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        },
+        {
+          "label": "navigation.physicalReplan.missing.owner.unknown",
+          "totalMs": 0,
+          "calls": 220,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        },
+        {
+          "label": "navigation.physicalReplan.missing.kind.unknown",
+          "totalMs": 0,
+          "calls": 220,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        },
+        {
+          "label": "navigation.physicalReplan.missing.owner-kind.unknown__unknown",
+          "totalMs": 0,
+          "calls": 220,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        },
+        {
+          "label": "navigation.physicalReplan.goal-shift.owner.squad-command",
+          "totalMs": 0,
+          "calls": 61,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        },
+        {
+          "label": "navigation.physicalReplan.goal-shift.kind.regroup",
+          "totalMs": 0,
+          "calls": 61,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        },
+        {
+          "label": "navigation.physicalReplan.goal-shift.owner-kind.squad-command__regroup",
+          "totalMs": 0,
+          "calls": 61,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        },
+        {
+          "label": "navigation.physicalReplan.goal-shift.reason.regroup",
+          "totalMs": 0,
+          "calls": 61,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        },
+        {
+          "label": "navigation.physicalReplan.goal-shift.owner.squad-orders",
+          "totalMs": 0,
+          "calls": 38,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        },
+        {
+          "label": "navigation.physicalReplan.goal-shift.owner-kind.squad-orders__formation",
+          "totalMs": 0,
+          "calls": 38,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        },
+        {
+          "label": "navigation.physicalReplan.goal-shift.reason.formation",
+          "totalMs": 0,
+          "calls": 38,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        },
+        {
+          "label": "navigation.physicalReplanReason.empty-other",
+          "totalMs": 0,
+          "calls": 35,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        },
+        {
+          "label": "commander-doctrine.nearestEnemyToSquad",
+          "totalMs": 0,
+          "calls": 12,
+          "avgUs": 0,
+          "maxMs": 0.1,
+          "wallPct": 0
+        },
+        {
+          "label": "commander-doctrine.objectiveValueScore",
+          "totalMs": 0,
+          "calls": 2,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        },
+        {
+          "label": "commander-doctrine.forceScore",
+          "totalMs": 0,
+          "calls": 2,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        },
+        {
+          "label": "navigation.physicalReplan.missing.owner.squad-stability",
+          "totalMs": 0,
+          "calls": 1,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        },
+        {
+          "label": "navigation.physicalReplan.missing.kind.formation",
+          "totalMs": 0,
+          "calls": 1,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        },
+        {
+          "label": "navigation.physicalReplan.missing.owner-kind.squad-stability__formation",
+          "totalMs": 0,
+          "calls": 1,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        },
+        {
+          "label": "navigation.physicalReplan.missing.reason.squad_intent",
+          "totalMs": 0,
+          "calls": 1,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        }
+      ],
+      "samples": [
+        {
+          "kind": "simulation",
+          "sampledMs": 5772.209,
+          "top": [
+            {
+              "function": "(program)",
+              "url": "",
+              "line": 0,
+              "samples": 89,
+              "selfMs": 523.834,
+              "pct": 9.075104522376096
+            },
+            {
+              "function": "publicRecord",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/18-command-reception.js?v=1792498440&c=v460-de143ca4",
+              "line": 504,
+              "samples": 275,
+              "selfMs": 411.544,
+              "pct": 7.129748766893229
+            },
+            {
+              "function": "axes",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/39-navigation-physicality-debug.js?v=1792498440&c=v460-de143ca4",
+              "line": 115,
+              "samples": 243,
+              "selfMs": 363.331,
+              "pct": 6.294487950800118
+            },
+            {
+              "function": "",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/39-navigation-physicality-debug.js?v=1792498440&c=v460-de143ca4",
+              "line": 200,
+              "samples": 127,
+              "selfMs": 190.253,
+              "pct": 3.2960171747072913
+            },
+            {
+              "function": "gatherStatic",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/39-navigation-physicality-debug.js?v=1792498440&c=v460-de143ca4",
+              "line": 198,
+              "samples": 102,
+              "selfMs": 152.833,
+              "pct": 2.6477385001132148
+            },
+            {
+              "function": "detectionRange",
+              "url": "http://127.0.0.1:8876/grasstex/battle/squad-ai.js?v=1792498440&c=v460-de143ca4",
+              "line": 304,
+              "samples": 99,
+              "selfMs": 147.877,
+              "pct": 2.5618788231680454
+            },
+            {
+              "function": "blocked",
+              "url": "http://127.0.0.1:8876/grasstex/battle/battle-navigation.js?v=1792498440&c=v460-de143ca4",
+              "line": 107,
+              "samples": 89,
+              "selfMs": 133.503,
+              "pct": 2.3128580410030195
+            },
+            {
+              "function": "P",
+              "url": "https://cdn.jsdelivr.net/npm/babylonjs-loaders@9.27.1/babylonjs.loaders.min.js",
+              "line": 1,
+              "samples": 82,
+              "selfMs": 122.831,
+              "pct": 2.127972150696553
+            },
+            {
+              "function": "",
+              "url": "https://cdn.jsdelivr.net/npm/babylonjs-loaders@9.27.1/babylonjs.loaders.min.js",
+              "line": 1,
+              "samples": 81,
+              "selfMs": 121.419,
+              "pct": 2.1035101119865898
+            },
+            {
+              "function": "footprintExtents",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/39-navigation-physicality-debug.js?v=1792498440&c=v460-de143ca4",
+              "line": 128,
+              "samples": 76,
+              "selfMs": 113.832,
+              "pct": 1.9720699648955884
+            },
+            {
+              "function": "tick",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/51-soldier-personal-space.js?v=1792498440&c=v460-de143ca4",
+              "line": 239,
+              "samples": 70,
+              "selfMs": 104.75,
+              "pct": 1.8147298547228625
+            },
+            {
+              "function": "(garbage collector)",
+              "url": "",
+              "line": 0,
+              "samples": 62,
+              "selfMs": 104.121,
+              "pct": 1.8038328133995147
+            },
+            {
+              "function": "getMaterial",
+              "url": "https://cdn.jsdelivr.net/npm/babylonjs@9.27.1/babylon.js",
+              "line": 1,
+              "samples": 62,
+              "selfMs": 92.916,
+              "pct": 1.6097130232117376
+            },
+            {
+              "function": "destinationFree",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/51-soldier-personal-space.js?v=1792498440&c=v460-de143ca4",
+              "line": 108,
+              "samples": 58,
+              "selfMs": 86.832,
+              "pct": 1.504311434322631
+            },
+            {
+              "function": "get",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/58-strategic-abstract-transport.js?v=1792498440&c=v460-de143ca4",
+              "line": 361,
+              "samples": 56,
+              "selfMs": 84.001,
+              "pct": 1.4552660861725555
+            },
+            {
+              "function": "resolve",
+              "url": "http://127.0.0.1:8876/grasstex/battle/movement-resolver.js?v=1792498440&c=v460-de143ca4",
+              "line": 525,
+              "samples": 50,
+              "selfMs": 74.748,
+              "pct": 1.2949635053062007
+            },
+            {
+              "function": "N.movementClear",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/39-navigation-physicality-debug.js?v=1792498440&c=v460-de143ca4",
+              "line": 871,
+              "samples": 44,
+              "selfMs": 65.461,
+              "pct": 1.1340718951791247
+            },
+            {
+              "function": "tick",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/17-soldier-mind.js?v=1792498440&c=v460-de143ca4",
+              "line": 694,
+              "samples": 43,
+              "selfMs": 64.625,
+              "pct": 1.1195887051213842
+            },
+            {
+              "function": "perceive",
+              "url": "http://127.0.0.1:8876/grasstex/battle/squad-ai.js?v=1792498440&c=v460-de143ca4",
+              "line": 2129,
+              "samples": 36,
+              "selfMs": 53.79,
+              "pct": 0.9318789392414585
+            },
+            {
+              "function": "findTarget",
+              "url": "http://127.0.0.1:8876/grasstex/battle/squad-ai.js?v=1792498440&c=v460-de143ca4",
+              "line": 966,
+              "samples": 33,
+              "selfMs": 49.584,
+              "pct": 0.8590125548122045
+            },
+            {
+              "function": "get",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/58-strategic-abstract-transport.js?v=1792498440&c=v460-de143ca4",
+              "line": 349,
+              "samples": 32,
+              "selfMs": 47.706,
+              "pct": 0.8264773503523521
+            },
+            {
+              "function": "runHook",
+              "url": "http://127.0.0.1:8876/grasstex/battle/module-registry.js?v=1792498440&c=v460-de143ca4",
+              "line": 131,
+              "samples": 29,
+              "selfMs": 43.542,
+              "pct": 0.7543385903039893
+            },
+            {
+              "function": "autonomousOn",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/11-soldier-individuality.js?v=1792498440&c=v460-de143ca4",
+              "line": 196,
+              "samples": 29,
+              "selfMs": 43.5,
+              "pct": 0.7536109659230981
+            },
+            {
+              "function": "routeFootprints",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/39-navigation-physicality-debug.js?v=1792498440&c=v460-de143ca4",
+              "line": 397,
+              "samples": 28,
+              "selfMs": 41.96,
+              "pct": 0.7269314052904182
+            },
+            {
+              "function": "stepMovement",
+              "url": "http://127.0.0.1:8876/grasstex/battle/battle-sim.js?v=1792498440&c=v460-de143ca4",
+              "line": 646,
+              "samples": 28,
+              "selfMs": 41.834,
+              "pct": 0.7247485321477445
+            },
+            {
+              "function": "animateWalk",
+              "url": "http://127.0.0.1:8876/grasstex/battle/soldier.js?v=1792498440&c=v460-de143ca4",
+              "line": 807,
+              "samples": 27,
+              "selfMs": 40.708,
+              "pct": 0.7052412689838501
+            },
+            {
+              "function": "warm",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/19-engagement-cover-positions.js?v=1792498440&c=v460-de143ca4",
+              "line": 763,
+              "samples": 26,
+              "selfMs": 39.167,
+              "pct": 0.678544383961149
+            },
+            {
+              "function": "",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/15h-squad-leader-fireteams.js?v=1792498440&c=v460-de143ca4",
+              "line": 174,
+              "samples": 25,
+              "selfMs": 37.708,
+              "pct": 0.6532680989201881
+            },
+            {
+              "function": "push",
+              "url": "http://127.0.0.1:8876/grasstex/battle/module-registry.js?v=1792498440&c=v460-de143ca4",
+              "line": 83,
+              "samples": 25,
+              "selfMs": 37.123,
+              "pct": 0.643133330757774
+            },
+            {
+              "function": "get",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/58-strategic-abstract-transport.js?v=1792498440&c=v460-de143ca4",
+              "line": 355,
+              "samples": 23,
+              "selfMs": 34.667,
+              "pct": 0.6005846288656561
+            }
+          ]
+        },
+        {
+          "kind": "render",
+          "sampledMs": 5729.209,
+          "top": [
+            {
+              "function": "(idle)",
+              "url": "",
+              "line": 0,
+              "samples": 1329,
+              "selfMs": 1999.332,
+              "pct": 34.89717341434044
+            },
+            {
+              "function": "texImage2D",
+              "url": "",
+              "line": 0,
+              "samples": 988,
+              "selfMs": 1498.668,
+              "pct": 26.15837544065856
+            },
+            {
+              "function": "getProgramParameter",
+              "url": "",
+              "line": 0,
+              "samples": 479,
+              "selfMs": 719.333,
+              "pct": 12.55553777144454
+            },
+            {
+              "function": "(program)",
+              "url": "",
+              "line": 0,
+              "samples": 29,
+              "selfMs": 620.543,
+              "pct": 10.831215967160562
+            },
+            {
+              "function": "P",
+              "url": "https://cdn.jsdelivr.net/npm/babylonjs-loaders@9.27.1/babylonjs.loaders.min.js",
+              "line": 1,
+              "samples": 49,
+              "selfMs": 73.958,
+              "pct": 1.2908937341961169
+            },
+            {
+              "function": "uniformMatrix4fv",
+              "url": "",
+              "line": 0,
+              "samples": 46,
+              "selfMs": 68.665,
+              "pct": 1.1985075077554335
+            },
+            {
+              "function": "",
+              "url": "https://cdn.jsdelivr.net/npm/babylonjs-loaders@9.27.1/babylonjs.loaders.min.js",
+              "line": 1,
+              "samples": 47,
+              "selfMs": 66.498,
+              "pct": 1.1606837872383429
+            },
+            {
+              "function": "(garbage collector)",
+              "url": "",
+              "line": 0,
+              "samples": 21,
+              "selfMs": 34.332,
+              "pct": 0.5992450266694757
+            },
+            {
+              "function": "_evaluateActiveMeshes",
+              "url": "https://cdn.jsdelivr.net/npm/babylonjs@9.27.1/babylon.js",
+              "line": 1,
+              "samples": 20,
+              "selfMs": 27.917,
+              "pct": 0.4872749449356796
+            },
+            {
+              "function": "_getInheritScale",
+              "url": "https://cdn.jsdelivr.net/npm/babylonjs-loaders@9.27.1/babylonjs.loaders.min.js",
+              "line": 1,
+              "samples": 14,
+              "selfMs": 21.083,
+              "pct": 0.3679914626958102
+            },
+            {
+              "function": "render",
+              "url": "https://cdn.jsdelivr.net/npm/babylonjs@9.27.1/babylon.js",
+              "line": 1,
+              "samples": 8,
+              "selfMs": 16.375,
+              "pct": 0.28581606989725805
+            },
+            {
+              "function": "getMaterial",
+              "url": "https://cdn.jsdelivr.net/npm/babylonjs@9.27.1/babylon.js",
+              "line": 1,
+              "samples": 12,
+              "selfMs": 16.041,
+              "pct": 0.2799862947921781
+            },
+            {
+              "function": "findTarget",
+              "url": "http://127.0.0.1:8876/grasstex/battle/squad-ai.js?v=1792498440&c=v460-de143ca4",
+              "line": 966,
+              "samples": 7,
+              "selfMs": 13.875,
+              "pct": 0.24218002869156982
+            },
+            {
+              "function": "createObjectURL",
+              "url": "",
+              "line": 0,
+              "samples": 8,
+              "selfMs": 13.459,
+              "pct": 0.23491899143494327
+            },
+            {
+              "function": "Blob",
+              "url": "",
+              "line": 0,
+              "samples": 9,
+              "selfMs": 12.834,
+              "pct": 0.22400998113352122
+            },
+            {
+              "function": "getBoundingClientRect",
+              "url": "",
+              "line": 0,
+              "samples": 7,
+              "selfMs": 11.958,
+              "pct": 0.20871991229504805
+            },
+            {
+              "function": "$",
+              "url": "https://cdn.jsdelivr.net/npm/babylonjs@9.27.1/babylon.js",
+              "line": 1,
+              "samples": 8,
+              "selfMs": 11.375,
+              "pct": 0.19854398748588153
+            },
+            {
+              "function": "_markAllSubMeshesAsDirty",
+              "url": "https://cdn.jsdelivr.net/npm/babylonjs@9.27.1/babylon.js",
+              "line": 1,
+              "samples": 8,
+              "selfMs": 10.085,
+              "pct": 0.17602779022374643
+            },
+            {
+              "function": "$n",
+              "url": "https://cdn.jsdelivr.net/npm/babylonjs-loaders@9.27.1/babylonjs.loaders.min.js",
+              "line": 1,
+              "samples": 6,
+              "selfMs": 9.084,
+              "pct": 0.15855591932498883
+            },
+            {
+              "function": "hamilton",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/52-fbx-retarget-quat.js?v=1792498440&c=v460-de143ca4",
+              "line": 7,
+              "samples": 6,
+              "selfMs": 9.042,
+              "pct": 0.1578228338327333
+            },
+            {
+              "function": "Me",
+              "url": "https://cdn.jsdelivr.net/npm/babylonjs-loaders@9.27.1/babylonjs.loaders.min.js",
+              "line": 1,
+              "samples": 6,
+              "selfMs": 9.042,
+              "pct": 0.1578228338327333
+            },
+            {
+              "function": "_renderForCamera",
+              "url": "https://cdn.jsdelivr.net/npm/babylonjs@9.27.1/babylon.js",
+              "line": 1,
+              "samples": 5,
+              "selfMs": 8.167,
+              "pct": 0.1425502194107424
+            },
+            {
+              "function": "wo",
+              "url": "https://cdn.jsdelivr.net/npm/babylonjs-loaders@9.27.1/babylonjs.loaders.min.js",
+              "line": 1,
+              "samples": 5,
+              "selfMs": 7.626,
+              "pct": 0.13310738009383144
+            },
+            {
+              "function": "dn",
+              "url": "https://cdn.jsdelivr.net/npm/babylonjs-loaders@9.27.1/babylonjs.loaders.min.js",
+              "line": 1,
+              "samples": 5,
+              "selfMs": 7.5,
+              "pct": 0.13090812361706478
+            },
+            {
+              "function": "s",
+              "url": "https://cdn.jsdelivr.net/npm/babylonjs-loaders@9.27.1/babylonjs.loaders.min.js",
+              "line": 1,
+              "samples": 5,
+              "selfMs": 7.376,
+              "pct": 0.12874377597326261
+            },
+            {
+              "function": "",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/52-fbx-render-lod.js?v=1792498440&c=v460-de143ca4",
+              "line": 242,
+              "samples": 5,
+              "selfMs": 6.125,
+              "pct": 0.10690830095393623
+            },
+            {
+              "function": "B",
+              "url": "https://cdn.jsdelivr.net/npm/babylonjs-loaders@9.27.1/babylonjs.loaders.min.js",
+              "line": 1,
+              "samples": 4,
+              "selfMs": 6.042,
+              "pct": 0.10545958438590737
+            },
+            {
+              "function": "O",
+              "url": "https://cdn.jsdelivr.net/npm/babylonjs-loaders@9.27.1/babylonjs.loaders.min.js",
+              "line": 1,
+              "samples": 4,
+              "selfMs": 6.041,
+              "pct": 0.1054421299694251
+            },
+            {
+              "function": "decode",
+              "url": "https://cdn.jsdelivr.net/npm/babylonjs-loaders@9.27.1/babylonjs.loaders.min.js",
+              "line": 1,
+              "samples": 4,
+              "selfMs": 6.041,
+              "pct": 0.1054421299694251
+            },
+            {
+              "function": "",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/54-tactical-situation.js?v=1792498440&c=v460-de143ca4",
+              "line": 26,
+              "samples": 4,
+              "selfMs": 5.917,
+              "pct": 0.10327778232562296
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "stress",
+      "runs": 7,
+      "roster": [
+        50,
+        50
+      ],
+      "requested": {
+        "name": "stress",
+        "q": "soldiers=200",
+        "seconds": 120
+      },
+      "plainMedianMs": 2195.6999999284744,
+      "wrappedMedianMs": 2437.600000023842,
+      "wrapperOverheadPct": 11.016987753483964,
+      "cdpMs": 2276.7000000476837,
+      "mainTaskMedianMs": 2380.1640000000007,
+      "plainTickMs": {
+        "n": 2400,
+        "mean": 2.898541666616996,
+        "p50": 2.899999976158142,
+        "p95": 3.899999976158142,
+        "p99": 4.500999999046302,
+        "max": 9.300000071525574
+      },
+      "heap": [
+        {
+          "before": 156125272,
+          "after": 231479072
+        },
+        {
+          "before": 269522580,
+          "after": 346564756
+        },
+        {
+          "before": 413554408,
+          "after": 475951368
+        }
+      ],
+      "observers": [
+        114,
+        114,
+        114,
+        114,
+        114,
+        114,
+        114
+      ],
+      "coarseReplayEqual": true,
+      "terminalStable": true,
+      "hotpaths": [
+        {
+          "label": "simulation.step",
+          "totalMs": 2265.6,
+          "calls": 800,
+          "avgUs": 2832,
+          "maxMs": 5.7,
+          "wallPct": 92.94
+        },
+        {
+          "label": "simulation._frame",
+          "totalMs": 2265.3,
+          "calls": 800,
+          "avgUs": 2831.62,
+          "maxMs": 5.7,
+          "wallPct": 92.93
+        },
+        {
+          "label": "squad.updateSoldier",
+          "totalMs": 858.4,
+          "calls": 80000,
+          "avgUs": 10.73,
+          "maxMs": 1,
+          "wallPct": 35.36
+        },
+        {
+          "label": "squad.updateSquad",
+          "totalMs": 579.7,
+          "calls": 8000,
+          "avgUs": 72.46,
+          "maxMs": 1.1,
+          "wallPct": 23.97
+        },
+        {
+          "label": "modules.runHook",
+          "totalMs": 441.9,
+          "calls": 1066,
+          "avgUs": 414.54,
+          "maxMs": 1.3,
+          "wallPct": 18.12
+        },
+        {
+          "label": "movement-resolver.resolve",
+          "totalMs": 392.1,
+          "calls": 80000,
+          "avgUs": 4.9,
+          "maxMs": 1,
+          "wallPct": 16.09
+        },
+        {
+          "label": "navigation.nextWaypoint",
+          "totalMs": 193.6,
+          "calls": 80000,
+          "avgUs": 2.42,
+          "maxMs": 1.1,
+          "wallPct": 7.94
+        },
+        {
+          "label": "navigation.nextWaypoint.baseCacheReuse",
+          "totalMs": 193.6,
+          "calls": 80000,
+          "avgUs": 2.42,
+          "maxMs": 1.1,
+          "wallPct": 7.94
+        },
+        {
+          "label": "commander.update",
+          "totalMs": 171,
+          "calls": 266,
+          "avgUs": 642.86,
+          "maxMs": 1.5,
+          "wallPct": 7.02
+        },
+        {
+          "label": "navigation.nextWaypoint.physicalReuse",
+          "totalMs": 134,
+          "calls": 77234,
+          "avgUs": 1.73,
+          "maxMs": 1.1,
+          "wallPct": 5.5
+        },
+        {
+          "label": "navigation.movementClear",
+          "totalMs": 126.4,
+          "calls": 163097,
+          "avgUs": 0.77,
+          "maxMs": 0.7,
+          "wallPct": 5.16
+        },
+        {
+          "label": "system:soldier-personal-space.onSimulationStep",
+          "totalMs": 97.1,
+          "calls": 800,
+          "avgUs": 121.38,
+          "maxMs": 0.7,
+          "wallPct": 3.97
+        },
+        {
+          "label": "engagement.updateSoldier",
+          "totalMs": 94.5,
+          "calls": 80000,
+          "avgUs": 1.18,
+          "maxMs": 0.6,
+          "wallPct": 3.95
+        },
+        {
+          "label": "system:ai-timeline-recorder.onSimulationStep",
+          "totalMs": 91.8,
+          "calls": 800,
+          "avgUs": 114.75,
+          "maxMs": 0.9,
+          "wallPct": 3.77
+        },
+        {
+          "label": "navigation.nextWaypoint.physicalReplan",
+          "totalMs": 59.6,
+          "calls": 2766,
+          "avgUs": 21.55,
+          "maxMs": 1,
+          "wallPct": 2.43
+        },
+        {
+          "label": "system:soldier-individuality.onSimulationStep",
+          "totalMs": 46.3,
+          "calls": 800,
+          "avgUs": 57.88,
+          "maxMs": 0.6,
+          "wallPct": 1.89
+        },
+        {
+          "label": "system:squad-command.onCommanderTick",
+          "totalMs": 34.9,
+          "calls": 266,
+          "avgUs": 131.2,
+          "maxMs": 0.7,
+          "wallPct": 1.44
+        },
+        {
+          "label": "system:squad-forward-progress.onCommanderTick",
+          "totalMs": 34.1,
+          "calls": 266,
+          "avgUs": 128.2,
+          "maxMs": 0.8,
+          "wallPct": 1.39
+        },
+        {
+          "label": "system:ai-loop-watch.onCommanderTick",
+          "totalMs": 33.2,
+          "calls": 266,
+          "avgUs": 124.81,
+          "maxMs": 0.9,
+          "wallPct": 1.37
+        },
+        {
+          "label": "engagement.updateSquad",
+          "totalMs": 32.6,
+          "calls": 8000,
+          "avgUs": 4.07,
+          "maxMs": 0.6,
+          "wallPct": 1.34
+        },
+        {
+          "label": "obstacle.coverPotentialAt",
+          "totalMs": 25,
+          "calls": 79556,
+          "avgUs": 0.31,
+          "maxMs": 0.4,
+          "wallPct": 1.05
+        },
+        {
+          "label": "obstacle.nearby",
+          "totalMs": 23.4,
+          "calls": 62694,
+          "avgUs": 0.37,
+          "maxMs": 0.8,
+          "wallPct": 0.98
+        },
+        {
+          "label": "tactical-position.update",
+          "totalMs": 18.9,
+          "calls": 160000,
+          "avgUs": 0.12,
+          "maxMs": 0.1,
+          "wallPct": 0.78
+        },
+        {
+          "label": "system:ammunition-stoppages.onSimulationStep",
+          "totalMs": 14.9,
+          "calls": 800,
+          "avgUs": 18.63,
+          "maxMs": 0.6,
+          "wallPct": 0.62
+        },
+        {
+          "label": "system:contextual-infantry-voice.onSimulationStep",
+          "totalMs": 12.3,
+          "calls": 800,
+          "avgUs": 15.38,
+          "maxMs": 0.6,
+          "wallPct": 0.5
+        },
+        {
+          "label": "system:voice-observations.onSimulationStep",
+          "totalMs": 11.6,
+          "calls": 800,
+          "avgUs": 14.5,
+          "maxMs": 0.2,
+          "wallPct": 0.48
+        },
+        {
+          "label": "simulation._checkWinner",
+          "totalMs": 11.4,
+          "calls": 800,
+          "avgUs": 14.25,
+          "maxMs": 0.6,
+          "wallPct": 0.47
+        },
+        {
+          "label": "movement-resolver.proposeOrder",
+          "totalMs": 9.8,
+          "calls": 833,
+          "avgUs": 11.76,
+          "maxMs": 0.7,
+          "wallPct": 0.4
+        },
+        {
+          "label": "system:zz-order-provenance.onCommanderTick",
+          "totalMs": 9.1,
+          "calls": 266,
+          "avgUs": 34.21,
+          "maxMs": 0.5,
+          "wallPct": 0.38
+        },
+        {
+          "label": "system:building-hardpoints.onCommanderTick",
+          "totalMs": 6.8,
+          "calls": 266,
+          "avgUs": 25.56,
+          "maxMs": 0.1,
+          "wallPct": 0.28
+        },
+        {
+          "label": "system:ammunition-stoppages.onCommanderTick",
+          "totalMs": 6.7,
+          "calls": 266,
+          "avgUs": 25.19,
+          "maxMs": 0.2,
+          "wallPct": 0.27
+        },
+        {
+          "label": "system:combat-urgency.onSimulationStep",
+          "totalMs": 6.4,
+          "calls": 800,
+          "avgUs": 8,
+          "maxMs": 0.1,
+          "wallPct": 0.26
+        },
+        {
+          "label": "system:capture-zone-tactics.onCommanderTick",
+          "totalMs": 4,
+          "calls": 266,
+          "avgUs": 15.04,
+          "maxMs": 0.1,
+          "wallPct": 0.16
+        },
+        {
+          "label": "obstacle.sightBlocked",
+          "totalMs": 3.7,
+          "calls": 2509,
+          "avgUs": 1.47,
+          "maxMs": 0.4,
+          "wallPct": 0.15
+        },
+        {
+          "label": "obstacle.sightBlocked@system:squad-command.onCommanderTick",
+          "totalMs": 3.5,
+          "calls": 2068,
+          "avgUs": 1.69,
+          "maxMs": 0.4,
+          "wallPct": 0.14
+        },
+        {
+          "label": "system:soldier-mind.onSimulationStep",
+          "totalMs": 3.1,
+          "calls": 800,
+          "avgUs": 3.87,
+          "maxMs": 0.1,
+          "wallPct": 0.13
+        },
+        {
+          "label": "system:movement-execution.onCommanderTick",
+          "totalMs": 2.7,
+          "calls": 266,
+          "avgUs": 10.15,
+          "maxMs": 0.1,
+          "wallPct": 0.11
+        },
+        {
+          "label": "system:ai-coordination-health.onCommanderTick",
+          "totalMs": 2.6,
+          "calls": 266,
+          "avgUs": 9.77,
+          "maxMs": 0.2,
+          "wallPct": 0.11
+        },
+        {
+          "label": "system:wound-model.onCommanderTick",
+          "totalMs": 1.6,
+          "calls": 266,
+          "avgUs": 6.02,
+          "maxMs": 0.1,
+          "wallPct": 0.07
+        },
+        {
+          "label": "system:soldier-personal-space.onCommanderTick",
+          "totalMs": 1.1,
+          "calls": 266,
+          "avgUs": 4.14,
+          "maxMs": 0.1,
+          "wallPct": 0.04
+        },
+        {
+          "label": "system:strategic-abstract-transport.onSimulationStep",
+          "totalMs": 1.1,
+          "calls": 800,
+          "avgUs": 1.38,
+          "maxMs": 0.1,
+          "wallPct": 0.05
+        },
+        {
+          "label": "system:bullet-impact-fx.onSimulationStep",
+          "totalMs": 0.8,
+          "calls": 800,
+          "avgUs": 1,
+          "maxMs": 0.1,
+          "wallPct": 0.03
+        },
+        {
+          "label": "system:squad-broadcast.onCommanderTick",
+          "totalMs": 0.8,
+          "calls": 266,
+          "avgUs": 3.01,
+          "maxMs": 0.1,
+          "wallPct": 0.03
+        },
+        {
+          "label": "navigation.lineOfSightBlocked",
+          "totalMs": 0.6,
+          "calls": 1335,
+          "avgUs": 0.45,
+          "maxMs": 0.1,
+          "wallPct": 0.02
+        },
+        {
+          "label": "squad.hasLineOfSight",
+          "totalMs": 0.6,
+          "calls": 441,
+          "avgUs": 1.36,
+          "maxMs": 0.1,
+          "wallPct": 0.03
+        },
+        {
+          "label": "system:strategic-reinforcements.onCommanderTick",
+          "totalMs": 0.5,
+          "calls": 266,
+          "avgUs": 1.88,
+          "maxMs": 0.1,
+          "wallPct": 0.02
+        },
+        {
+          "label": "system:wound-model.onSimulationStep",
+          "totalMs": 0.5,
+          "calls": 800,
+          "avgUs": 0.62,
+          "maxMs": 0.1,
+          "wallPct": 0.02
+        },
+        {
+          "label": "system:world-debug-overlay.onSimulationStep",
+          "totalMs": 0.5,
+          "calls": 800,
+          "avgUs": 0.62,
+          "maxMs": 0.1,
+          "wallPct": 0.02
+        },
+        {
+          "label": "system:strategic-aerial-recon.onCommanderTick",
+          "totalMs": 0.5,
+          "calls": 266,
+          "avgUs": 1.88,
+          "maxMs": 0.1,
+          "wallPct": 0.02
+        },
+        {
+          "label": "system:strategic-truck-visual.onSimulationStep",
+          "totalMs": 0.4,
+          "calls": 800,
+          "avgUs": 0.5,
+          "maxMs": 0.1,
+          "wallPct": 0.02
+        },
+        {
+          "label": "commander-doctrine.chooseObjective",
+          "totalMs": 0.3,
+          "calls": 10,
+          "avgUs": 30,
+          "maxMs": 0.1,
+          "wallPct": 0.01
+        },
+        {
+          "label": "system:building-hardpoints.onSimulationStep",
+          "totalMs": 0.3,
+          "calls": 800,
+          "avgUs": 0.37,
+          "maxMs": 0.1,
+          "wallPct": 0.01
+        },
+        {
+          "label": "system:defender-engineers.onCommanderTick",
+          "totalMs": 0.3,
+          "calls": 266,
+          "avgUs": 1.13,
+          "maxMs": 0.1,
+          "wallPct": 0.01
+        },
+        {
+          "label": "system:urban-operating-picture.onCommanderTick",
+          "totalMs": 0.3,
+          "calls": 266,
+          "avgUs": 1.13,
+          "maxMs": 0.1,
+          "wallPct": 0.01
+        },
+        {
+          "label": "commander-doctrine.nearestEnemyToSquad",
+          "totalMs": 0.3,
+          "calls": 96,
+          "avgUs": 3.13,
+          "maxMs": 0.1,
+          "wallPct": 0.01
+        },
+        {
+          "label": "obstacle.sightBlocked@squad.updateSquad",
+          "totalMs": 0.3,
+          "calls": 441,
+          "avgUs": 0.68,
+          "maxMs": 0.1,
+          "wallPct": 0.01
+        },
+        {
+          "label": "system:tactical-situation.onCommanderTick",
+          "totalMs": 0.3,
+          "calls": 266,
+          "avgUs": 1.13,
+          "maxMs": 0.1,
+          "wallPct": 0.01
+        },
+        {
+          "label": "system:strategic-front-lines.onCommanderTick",
+          "totalMs": 0.2,
+          "calls": 266,
+          "avgUs": 0.75,
+          "maxMs": 0.1,
+          "wallPct": 0.01
+        },
+        {
+          "label": "system:command-reception.onSimulationStep",
+          "totalMs": 0.1,
+          "calls": 800,
+          "avgUs": 0.13,
+          "maxMs": 0.1,
+          "wallPct": 0
+        },
+        {
+          "label": "system:grenades.onSimulationStep",
+          "totalMs": 0.1,
+          "calls": 800,
+          "avgUs": 0.13,
+          "maxMs": 0.1,
+          "wallPct": 0
+        },
+        {
+          "label": "commander-doctrine.buildContext",
+          "totalMs": 0.1,
+          "calls": 10,
+          "avgUs": 10,
+          "maxMs": 0.1,
+          "wallPct": 0
+        },
+        {
+          "label": "system:navigation-physicality-debug.onSimulationStep",
+          "totalMs": 0.1,
+          "calls": 800,
+          "avgUs": 0.13,
+          "maxMs": 0.1,
+          "wallPct": 0
+        },
+        {
+          "label": "commander-routes.ensureAssignments",
+          "totalMs": 0.1,
+          "calls": 266,
+          "avgUs": 0.38,
+          "maxMs": 0.1,
+          "wallPct": 0
+        },
+        {
+          "label": "commander-doctrine.forceScore",
+          "totalMs": 0,
+          "calls": 2,
+          "avgUs": 0,
+          "maxMs": 0.1,
+          "wallPct": 0
+        },
+        {
+          "label": "navigation.physicalReplanReason.periodic",
+          "totalMs": 0,
+          "calls": 1470,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        },
+        {
+          "label": "navigation.physicalReplanReason.goal-shift",
+          "totalMs": 0,
+          "calls": 773,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        },
+        {
+          "label": "navigation.physicalReplan.goal-shift.owner.squad-stability",
+          "totalMs": 0,
+          "calls": 773,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        },
+        {
+          "label": "navigation.physicalReplan.goal-shift.kind.formation",
+          "totalMs": 0,
+          "calls": 773,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        },
+        {
+          "label": "navigation.physicalReplan.goal-shift.owner-kind.squad-stability__formation",
+          "totalMs": 0,
+          "calls": 773,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        },
+        {
+          "label": "navigation.physicalReplan.goal-shift.reason.squad_intent",
+          "totalMs": 0,
+          "calls": 773,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        },
+        {
+          "label": "navigation.physicalReplanReason.empty-timeout",
+          "totalMs": 0,
+          "calls": 419,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        },
+        {
+          "label": "navigation.physicalReplanReason.missing",
+          "totalMs": 0,
+          "calls": 100,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        },
+        {
+          "label": "navigation.physicalReplan.missing.owner.unknown",
+          "totalMs": 0,
+          "calls": 100,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        },
+        {
+          "label": "navigation.physicalReplan.missing.kind.unknown",
+          "totalMs": 0,
+          "calls": 100,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        },
+        {
+          "label": "navigation.physicalReplan.missing.owner-kind.unknown__unknown",
+          "totalMs": 0,
+          "calls": 100,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        },
+        {
+          "label": "navigation.physicalReplanReason.empty-other",
+          "totalMs": 0,
+          "calls": 4,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        },
+        {
+          "label": "commander-doctrine.objectiveValueScore",
+          "totalMs": 0,
+          "calls": 2,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        }
+      ],
+      "samples": [
+        {
+          "kind": "simulation",
+          "sampledMs": 2958.041,
+          "top": [
+            {
+              "function": "(program)",
+              "url": "",
+              "line": 0,
+              "samples": 45,
+              "selfMs": 562.04,
+              "pct": 19.000412773183335
+            },
+            {
+              "function": "publicRecord",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/18-command-reception.js?v=1792498440&c=v460-de143ca4",
+              "line": 504,
+              "samples": 172,
+              "selfMs": 258.209,
+              "pct": 8.72905412737687
+            },
+            {
+              "function": "detectionRange",
+              "url": "http://127.0.0.1:8876/grasstex/battle/squad-ai.js?v=1792498440&c=v460-de143ca4",
+              "line": 304,
+              "samples": 65,
+              "selfMs": 97.369,
+              "pct": 3.2916717516761937
+            },
+            {
+              "function": "tick",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/51-soldier-personal-space.js?v=1792498440&c=v460-de143ca4",
+              "line": 239,
+              "samples": 60,
+              "selfMs": 90.212,
+              "pct": 3.049721082297372
+            },
+            {
+              "function": "blocked",
+              "url": "http://127.0.0.1:8876/grasstex/battle/battle-navigation.js?v=1792498440&c=v460-de143ca4",
+              "line": 107,
+              "samples": 43,
+              "selfMs": 67.96,
+              "pct": 2.297466465136893
+            },
+            {
+              "function": "perceive",
+              "url": "http://127.0.0.1:8876/grasstex/battle/squad-ai.js?v=1792498440&c=v460-de143ca4",
+              "line": 2129,
+              "samples": 39,
+              "selfMs": 58.547,
+              "pct": 1.979249104390372
+            },
+            {
+              "function": "(garbage collector)",
+              "url": "",
+              "line": 0,
+              "samples": 31,
+              "selfMs": 52.668,
+              "pct": 1.7805027043235708
+            },
+            {
+              "function": "resolve",
+              "url": "http://127.0.0.1:8876/grasstex/battle/movement-resolver.js?v=1792498440&c=v460-de143ca4",
+              "line": 525,
+              "samples": 34,
+              "selfMs": 51.085,
+              "pct": 1.7269875569676012
+            },
+            {
+              "function": "destinationFree",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/51-soldier-personal-space.js?v=1792498440&c=v460-de143ca4",
+              "line": 108,
+              "samples": 33,
+              "selfMs": 49.791,
+              "pct": 1.6832423891352417
+            },
+            {
+              "function": "gatherStatic",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/39-navigation-physicality-debug.js?v=1792498440&c=v460-de143ca4",
+              "line": 198,
+              "samples": 28,
+              "selfMs": 42.127,
+              "pct": 1.4241519978932002
+            },
+            {
+              "function": "segmentObb",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/39-navigation-physicality-debug.js?v=1792498440&c=v460-de143ca4",
+              "line": 326,
+              "samples": 27,
+              "selfMs": 40.543,
+              "pct": 1.3706030443797095
+            },
+            {
+              "function": "runHook",
+              "url": "http://127.0.0.1:8876/grasstex/battle/module-registry.js?v=1792498440&c=v460-de143ca4",
+              "line": 131,
+              "samples": 25,
+              "selfMs": 37.623,
+              "pct": 1.2718890644179712
+            },
+            {
+              "function": "findTarget",
+              "url": "http://127.0.0.1:8876/grasstex/battle/squad-ai.js?v=1792498440&c=v460-de143ca4",
+              "line": 966,
+              "samples": 24,
+              "selfMs": 36.42,
+              "pct": 1.231220256920036
+            },
+            {
+              "function": "routeFootprints",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/39-navigation-physicality-debug.js?v=1792498440&c=v460-de143ca4",
+              "line": 397,
+              "samples": 20,
+              "selfMs": 30.125,
+              "pct": 1.0184104953244395
+            },
+            {
+              "function": "BattleSim._frame",
+              "url": "http://127.0.0.1:8876/grasstex/battle/battle-sim.js?v=1792498440&c=v460-de143ca4",
+              "line": 859,
+              "samples": 20,
+              "selfMs": 30.083,
+              "pct": 1.0169906367085515
+            },
+            {
+              "function": "tick",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/17-soldier-mind.js?v=1792498440&c=v460-de143ca4",
+              "line": 694,
+              "samples": 19,
+              "selfMs": 28.582,
+              "pct": 0.9662475942693155
+            },
+            {
+              "function": "rotateByQuaternionToRef",
+              "url": "https://cdn.jsdelivr.net/npm/babylonjs@9.27.1/babylon.js",
+              "line": 1,
+              "samples": 19,
+              "selfMs": 28.336,
+              "pct": 0.9579312795191142
+            },
+            {
+              "function": "stepMovement",
+              "url": "http://127.0.0.1:8876/grasstex/battle/battle-sim.js?v=1792498440&c=v460-de143ca4",
+              "line": 646,
+              "samples": 18,
+              "selfMs": 26.958,
+              "pct": 0.9113463944549788
+            },
+            {
+              "function": "",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/15h-squad-leader-fireteams.js?v=1792498440&c=v460-de143ca4",
+              "line": 174,
+              "samples": 17,
+              "selfMs": 25.084,
+              "pct": 0.8479936552603564
+            },
+            {
+              "function": "stanceOf",
+              "url": "http://127.0.0.1:8876/grasstex/battle/squad-ai.js?v=1792498440&c=v460-de143ca4",
+              "line": 229,
+              "samples": 15,
+              "selfMs": 22.624,
+              "pct": 0.7648305077583442
+            },
+            {
+              "function": "primitivePose",
+              "url": "http://127.0.0.1:8876/grasstex/battle/soldier.js?v=1792498440&c=v460-de143ca4",
+              "line": 716,
+              "samples": 15,
+              "selfMs": 22.54,
+              "pct": 0.761990790526568
+            },
+            {
+              "function": "dist",
+              "url": "http://127.0.0.1:8876/grasstex/battle/core-runtime.js?v=1792498440&c=v460-de143ca4",
+              "line": 16,
+              "samples": 15,
+              "selfMs": 22.499,
+              "pct": 0.7606047380682013
+            },
+            {
+              "function": "get",
+              "url": "http://127.0.0.1:8876/grasstex/battle/squad-ai.js?v=1792498440&c=v460-de143ca4",
+              "line": 1956,
+              "samples": 15,
+              "selfMs": 22.376,
+              "pct": 0.7564465806931006
+            },
+            {
+              "function": "push",
+              "url": "http://127.0.0.1:8876/grasstex/battle/module-registry.js?v=1792498440&c=v460-de143ca4",
+              "line": 83,
+              "samples": 11,
+              "selfMs": 21.875,
+              "pct": 0.7395096957750078
+            },
+            {
+              "function": "autonomousOn",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/11-soldier-individuality.js?v=1792498440&c=v460-de143ca4",
+              "line": 196,
+              "samples": 14,
+              "selfMs": 21.082,
+              "pct": 0.7127014128607413
+            },
+            {
+              "function": "man",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/18a-execution-outcome.js?v=1792498440&c=v460-de143ca4",
+              "line": 80,
+              "samples": 14,
+              "selfMs": 20.915,
+              "pct": 0.7070557845547104
+            },
+            {
+              "function": "holdWeapon",
+              "url": "http://127.0.0.1:8876/grasstex/battle/soldier.js?v=1792498440&c=v460-de143ca4",
+              "line": 634,
+              "samples": 14,
+              "selfMs": 20.626,
+              "pct": 0.6972858050310999
+            },
+            {
+              "function": "",
+              "url": "https://cdn.jsdelivr.net/npm/babylonjs@9.27.1/babylon.js",
+              "line": 1,
+              "samples": 13,
+              "selfMs": 20.042,
+              "pct": 0.6775430090387524
+            },
+            {
+              "function": "gap",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/51-soldier-personal-space.js?v=1792498440&c=v460-de143ca4",
+              "line": 64,
+              "samples": 13,
+              "selfMs": 19.708,
+              "pct": 0.6662517524266904
+            },
+            {
+              "function": "addDestination",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/51-soldier-personal-space.js?v=1792498440&c=v460-de143ca4",
+              "line": 96,
+              "samples": 13,
+              "selfMs": 19.291,
+              "pct": 0.6521545847403738
+            }
+          ]
+        },
+        {
+          "kind": "render",
+          "sampledMs": 5423.5,
+          "top": [
+            {
+              "function": "(idle)",
+              "url": "",
+              "line": 0,
+              "samples": 2949,
+              "selfMs": 4462.711,
+              "pct": 82.2847054485111
+            },
+            {
+              "function": "(program)",
+              "url": "",
+              "line": 0,
+              "samples": 18,
+              "selfMs": 442.125,
+              "pct": 8.152023600995667
+            },
+            {
+              "function": "(garbage collector)",
+              "url": "",
+              "line": 0,
+              "samples": 10,
+              "selfMs": 39.584,
+              "pct": 0.7298607910021204
+            },
+            {
+              "function": "getBoundingClientRect",
+              "url": "",
+              "line": 0,
+              "samples": 18,
+              "selfMs": 26.584,
+              "pct": 0.4901631787591039
+            },
+            {
+              "function": "set scaling",
+              "url": "https://cdn.jsdelivr.net/npm/babylonjs@9.27.1/babylon.js",
+              "line": 1,
+              "samples": 12,
+              "selfMs": 18.75,
+              "pct": 0.3457177099658892
+            },
+            {
+              "function": "$",
+              "url": "https://cdn.jsdelivr.net/npm/babylonjs@9.27.1/babylon.js",
+              "line": 1,
+              "samples": 6,
+              "selfMs": 9.208,
+              "pct": 0.16977966257951507
+            },
+            {
+              "function": "publicRecord",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/18-command-reception.js?v=1792498440&c=v460-de143ca4",
+              "line": 504,
+              "samples": 7,
+              "selfMs": 8.249,
+              "pct": 0.15209735410712638
+            },
+            {
+              "function": "peek",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/18-command-reception.js?v=1792498440&c=v460-de143ca4",
+              "line": 559,
+              "samples": 6,
+              "selfMs": 8.0,
+              "pct": 0.14750622291877938
+            },
+            {
+              "function": "getWorldMatrix",
+              "url": "https://cdn.jsdelivr.net/npm/babylonjs@9.27.1/babylon.js",
+              "line": 1,
+              "samples": 5,
+              "selfMs": 7.625,
+              "pct": 0.1405918687194616
+            },
+            {
+              "function": "computeWorldMatrix",
+              "url": "https://cdn.jsdelivr.net/npm/babylonjs@9.27.1/babylon.js",
+              "line": 1,
+              "samples": 5,
+              "selfMs": 7.542,
+              "pct": 0.13906149165667925
+            },
+            {
+              "function": "prepare",
+              "url": "https://cdn.jsdelivr.net/npm/babylonjs@9.27.1/babylon.js",
+              "line": 1,
+              "samples": 5,
+              "selfMs": 7.459,
+              "pct": 0.13753111459389694
+            },
+            {
+              "function": "destinationFree",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/51-soldier-personal-space.js?v=1792498440&c=v460-de143ca4",
+              "line": 108,
+              "samples": 5,
+              "selfMs": 7.209,
+              "pct": 0.13292154512768506
+            },
+            {
+              "function": "updateSoldier",
+              "url": "http://127.0.0.1:8876/grasstex/battle/squad-ai.js?v=1792498440&c=v460-de143ca4",
+              "line": 2180,
+              "samples": 6,
+              "selfMs": 7.084,
+              "pct": 0.13061676039457915
+            },
+            {
+              "function": "findTarget",
+              "url": "http://127.0.0.1:8876/grasstex/battle/squad-ai.js?v=1792498440&c=v460-de143ca4",
+              "line": 966,
+              "samples": 7,
+              "selfMs": 7.041,
+              "pct": 0.12982391444639071
+            },
+            {
+              "function": "set rotationQuaternion",
+              "url": "https://cdn.jsdelivr.net/npm/babylonjs@9.27.1/babylon.js",
+              "line": 1,
+              "samples": 4,
+              "selfMs": 6.459,
+              "pct": 0.11909283672904951
+            },
+            {
+              "function": "BattleSim._frame",
+              "url": "http://127.0.0.1:8876/grasstex/battle/battle-sim.js?v=1792498440&c=v460-de143ca4",
+              "line": 859,
+              "samples": 4,
+              "selfMs": 6.292,
+              "pct": 0.11601364432562
+            },
+            {
+              "function": "applyPose",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/52-fbx-render-pose.js?v=1792498440&c=v460-de143ca4",
+              "line": 282,
+              "samples": 4,
+              "selfMs": 6.125,
+              "pct": 0.11293445192219047
+            },
+            {
+              "function": "get z",
+              "url": "https://cdn.jsdelivr.net/npm/babylonjs@9.27.1/babylon.js",
+              "line": 1,
+              "samples": 4,
+              "selfMs": 6.042,
+              "pct": 0.11140407485940812
+            },
+            {
+              "function": "snapshot",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/18-command-reception.js?v=1792498440&c=v460-de143ca4",
+              "line": 568,
+              "samples": 4,
+              "selfMs": 6.0,
+              "pct": 0.11062966718908454
+            },
+            {
+              "function": "sampleLayer",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/52-fbx-clip-mixer.js?v=1792498440&c=v460-de143ca4",
+              "line": 49,
+              "samples": 5,
+              "selfMs": 5.25,
+              "pct": 0.09680095879044898
+            },
+            {
+              "function": "",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/52-fbx-render-lod.js?v=1792498440&c=v460-de143ca4",
+              "line": 242,
+              "samples": 3,
+              "selfMs": 4.916,
+              "pct": 0.09064257398358994
+            },
+            {
+              "function": "man",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/18a-execution-outcome.js?v=1792498440&c=v460-de143ca4",
+              "line": 80,
+              "samples": 3,
+              "selfMs": 4.792,
+              "pct": 0.08835622752834886
+            },
+            {
+              "function": "get rotationQuaternion",
+              "url": "https://cdn.jsdelivr.net/npm/babylonjs@9.27.1/babylon.js",
+              "line": 1,
+              "samples": 3,
+              "selfMs": 4.791,
+              "pct": 0.08833778925048401
+            },
+            {
+              "function": "updateMark",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/41-squad-status-overlay.js?v=1792498440&c=v460-de143ca4",
+              "line": 691,
+              "samples": 3,
+              "selfMs": 4.582,
+              "pct": 0.0844841891767309
+            },
+            {
+              "function": "gatherStatic",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/39-navigation-physicality-debug.js?v=1792498440&c=v460-de143ca4",
+              "line": 198,
+              "samples": 3,
+              "selfMs": 4.542,
+              "pct": 0.08374665806213699
+            },
+            {
+              "function": "ComposeToRef",
+              "url": "https://cdn.jsdelivr.net/npm/babylonjs@9.27.1/babylon.js",
+              "line": 1,
+              "samples": 3,
+              "selfMs": 4.541,
+              "pct": 0.08372821978427214
+            },
+            {
+              "function": "setAttribute",
+              "url": "",
+              "line": 0,
+              "samples": 3,
+              "selfMs": 4.541,
+              "pct": 0.08372821978427214
+            },
+            {
+              "function": "set position",
+              "url": "https://cdn.jsdelivr.net/npm/babylonjs@9.27.1/babylon.js",
+              "line": 1,
+              "samples": 4,
+              "selfMs": 4.5,
+              "pct": 0.08297225039181341
+            },
+            {
+              "function": "",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/15b-squad-leader-buddy-pairs.js?v=1792498440&c=v460-de143ca4",
+              "line": 146,
+              "samples": 3,
+              "selfMs": 4.5,
+              "pct": 0.08297225039181341
+            },
+            {
+              "function": "",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/54-tactical-situation.js?v=1792498440&c=v460-de143ca4",
+              "line": 26,
+              "samples": 3,
+              "selfMs": 4.5,
+              "pct": 0.08297225039181341
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "load200",
+      "runs": 7,
+      "roster": [
+        100,
+        100
+      ],
+      "requested": {
+        "name": "load200",
+        "q": "",
+        "seconds": 120,
+        "extraSquads": 5
+      },
+      "plainMedianMs": 5790.299999952316,
+      "wrappedMedianMs": 6574.5,
+      "wrapperOverheadPct": 13.543339724265447,
+      "cdpMs": 6191.299999952316,
+      "mainTaskMedianMs": 6252.078000000004,
+      "plainTickMs": {
+        "n": 2400,
+        "mean": 7.305874999960263,
+        "p50": 7.299999952316284,
+        "p95": 9.600000023841858,
+        "p99": 11.600000023841858,
+        "max": 20.899999976158142
+      },
+      "heap": [
+        {
+          "before": 209830532,
+          "after": 298254616
+        },
+        {
+          "before": 442448216,
+          "after": 549964712
+        },
+        {
+          "before": 681822316,
+          "after": 811645876
+        }
+      ],
+      "observers": [
+        214,
+        214,
+        214,
+        214,
+        214,
+        214,
+        214
+      ],
+      "coarseReplayEqual": true,
+      "terminalStable": true,
+      "hotpaths": [
+        {
+          "label": "simulation.step",
+          "totalMs": 6226.3,
+          "calls": 800,
+          "avgUs": 7782.87,
+          "maxMs": 18.6,
+          "wallPct": 94.64
+        },
+        {
+          "label": "simulation._frame",
+          "totalMs": 6225.6,
+          "calls": 800,
+          "avgUs": 7782,
+          "maxMs": 18.6,
+          "wallPct": 94.63
+        },
+        {
+          "label": "squad.updateSoldier",
+          "totalMs": 2582.5,
+          "calls": 160000,
+          "avgUs": 16.14,
+          "maxMs": 2,
+          "wallPct": 39.28
+        },
+        {
+          "label": "squad.updateSquad",
+          "totalMs": 1422.9,
+          "calls": 16000,
+          "avgUs": 88.93,
+          "maxMs": 3.2,
+          "wallPct": 21.64
+        },
+        {
+          "label": "modules.runHook",
+          "totalMs": 1114.9,
+          "calls": 1066,
+          "avgUs": 1045.87,
+          "maxMs": 5.5,
+          "wallPct": 16.96
+        },
+        {
+          "label": "movement-resolver.resolve",
+          "totalMs": 1094.3,
+          "calls": 160000,
+          "avgUs": 6.84,
+          "maxMs": 2,
+          "wallPct": 16.49
+        },
+        {
+          "label": "navigation.nextWaypoint",
+          "totalMs": 430.6,
+          "calls": 160000,
+          "avgUs": 2.69,
+          "maxMs": 3.7,
+          "wallPct": 6.55
+        },
+        {
+          "label": "navigation.nextWaypoint.baseCacheReuse",
+          "totalMs": 430.6,
+          "calls": 160000,
+          "avgUs": 2.69,
+          "maxMs": 3.7,
+          "wallPct": 6.55
+        },
+        {
+          "label": "commander.update",
+          "totalMs": 343.4,
+          "calls": 266,
+          "avgUs": 1290.98,
+          "maxMs": 3.9,
+          "wallPct": 5.31
+        },
+        {
+          "label": "system:soldier-personal-space.onSimulationStep",
+          "totalMs": 321,
+          "calls": 800,
+          "avgUs": 401.25,
+          "maxMs": 2.6,
+          "wallPct": 4.88
+        },
+        {
+          "label": "navigation.nextWaypoint.physicalReuse",
+          "totalMs": 308.6,
+          "calls": 154415,
+          "avgUs": 2,
+          "maxMs": 3.7,
+          "wallPct": 4.69
+        },
+        {
+          "label": "system:ai-timeline-recorder.onSimulationStep",
+          "totalMs": 269.5,
+          "calls": 800,
+          "avgUs": 336.87,
+          "maxMs": 3,
+          "wallPct": 4.06
+        },
+        {
+          "label": "navigation.movementClear",
+          "totalMs": 266.6,
+          "calls": 317700,
+          "avgUs": 0.84,
+          "maxMs": 1,
+          "wallPct": 4.01
+        },
+        {
+          "label": "engagement.updateSoldier",
+          "totalMs": 218.8,
+          "calls": 160000,
+          "avgUs": 1.37,
+          "maxMs": 0.8,
+          "wallPct": 3.33
+        },
+        {
+          "label": "navigation.nextWaypoint.physicalReplan",
+          "totalMs": 115.7,
+          "calls": 5585,
+          "avgUs": 20.72,
+          "maxMs": 1.1,
+          "wallPct": 1.86
+        },
+        {
+          "label": "system:soldier-individuality.onSimulationStep",
+          "totalMs": 105.1,
+          "calls": 800,
+          "avgUs": 131.37,
+          "maxMs": 0.8,
+          "wallPct": 1.68
+        },
+        {
+          "label": "engagement.updateSquad",
+          "totalMs": 89.5,
+          "calls": 16000,
+          "avgUs": 5.59,
+          "maxMs": 0.8,
+          "wallPct": 1.36
+        },
+        {
+          "label": "system:squad-command.onCommanderTick",
+          "totalMs": 76.5,
+          "calls": 266,
+          "avgUs": 287.59,
+          "maxMs": 1.2,
+          "wallPct": 1.18
+        },
+        {
+          "label": "system:ai-loop-watch.onCommanderTick",
+          "totalMs": 70.8,
+          "calls": 266,
+          "avgUs": 266.17,
+          "maxMs": 2.5,
+          "wallPct": 1.11
+        },
+        {
+          "label": "system:squad-forward-progress.onCommanderTick",
+          "totalMs": 69.7,
+          "calls": 266,
+          "avgUs": 262.03,
+          "maxMs": 1,
+          "wallPct": 1.06
+        },
+        {
+          "label": "obstacle.coverPotentialAt",
+          "totalMs": 55.7,
+          "calls": 150318,
+          "avgUs": 0.37,
+          "maxMs": 0.9,
+          "wallPct": 0.82
+        },
+        {
+          "label": "obstacle.nearby",
+          "totalMs": 50.2,
+          "calls": 117254,
+          "avgUs": 0.43,
+          "maxMs": 0.7,
+          "wallPct": 0.77
+        },
+        {
+          "label": "tactical-position.update",
+          "totalMs": 38.6,
+          "calls": 320000,
+          "avgUs": 0.12,
+          "maxMs": 0.3,
+          "wallPct": 0.58
+        },
+        {
+          "label": "system:ammunition-stoppages.onSimulationStep",
+          "totalMs": 32.6,
+          "calls": 800,
+          "avgUs": 40.75,
+          "maxMs": 0.7,
+          "wallPct": 0.5
+        },
+        {
+          "label": "simulation._checkWinner",
+          "totalMs": 30.1,
+          "calls": 800,
+          "avgUs": 37.63,
+          "maxMs": 0.7,
+          "wallPct": 0.47
+        },
+        {
+          "label": "system:voice-observations.onSimulationStep",
+          "totalMs": 25.1,
+          "calls": 800,
+          "avgUs": 31.38,
+          "maxMs": 0.5,
+          "wallPct": 0.39
+        },
+        {
+          "label": "movement-resolver.proposeOrder",
+          "totalMs": 23.5,
+          "calls": 1649,
+          "avgUs": 14.25,
+          "maxMs": 0.8,
+          "wallPct": 0.35
+        },
+        {
+          "label": "system:zz-order-provenance.onCommanderTick",
+          "totalMs": 19.3,
+          "calls": 266,
+          "avgUs": 72.56,
+          "maxMs": 0.7,
+          "wallPct": 0.29
+        },
+        {
+          "label": "system:contextual-infantry-voice.onSimulationStep",
+          "totalMs": 19.2,
+          "calls": 800,
+          "avgUs": 24,
+          "maxMs": 0.7,
+          "wallPct": 0.29
+        },
+        {
+          "label": "system:combat-urgency.onSimulationStep",
+          "totalMs": 14.1,
+          "calls": 800,
+          "avgUs": 17.62,
+          "maxMs": 0.7,
+          "wallPct": 0.21
+        },
+        {
+          "label": "system:building-hardpoints.onCommanderTick",
+          "totalMs": 13.3,
+          "calls": 266,
+          "avgUs": 50,
+          "maxMs": 0.3,
+          "wallPct": 0.2
+        },
+        {
+          "label": "system:ammunition-stoppages.onCommanderTick",
+          "totalMs": 12.4,
+          "calls": 266,
+          "avgUs": 46.62,
+          "maxMs": 0.2,
+          "wallPct": 0.18
+        },
+        {
+          "label": "obstacle.sightBlocked",
+          "totalMs": 8,
+          "calls": 4828,
+          "avgUs": 1.66,
+          "maxMs": 0.1,
+          "wallPct": 0.12
+        },
+        {
+          "label": "system:capture-zone-tactics.onCommanderTick",
+          "totalMs": 7.9,
+          "calls": 266,
+          "avgUs": 29.7,
+          "maxMs": 0.3,
+          "wallPct": 0.13
+        },
+        {
+          "label": "system:soldier-mind.onSimulationStep",
+          "totalMs": 7.7,
+          "calls": 800,
+          "avgUs": 9.63,
+          "maxMs": 0.3,
+          "wallPct": 0.12
+        },
+        {
+          "label": "obstacle.sightBlocked@system:squad-command.onCommanderTick",
+          "totalMs": 6.9,
+          "calls": 3766,
+          "avgUs": 1.83,
+          "maxMs": 0.1,
+          "wallPct": 0.1
+        },
+        {
+          "label": "system:movement-execution.onCommanderTick",
+          "totalMs": 4.8,
+          "calls": 266,
+          "avgUs": 18.05,
+          "maxMs": 0.1,
+          "wallPct": 0.07
+        },
+        {
+          "label": "system:strategic-abstract-transport.onSimulationStep",
+          "totalMs": 3.8,
+          "calls": 800,
+          "avgUs": 4.75,
+          "maxMs": 0.1,
+          "wallPct": 0.06
+        },
+        {
+          "label": "system:bullet-impact-fx.onSimulationStep",
+          "totalMs": 3.2,
+          "calls": 800,
+          "avgUs": 4,
+          "maxMs": 0.1,
+          "wallPct": 0.05
+        },
+        {
+          "label": "system:ai-coordination-health.onCommanderTick",
+          "totalMs": 2.8,
+          "calls": 266,
+          "avgUs": 10.53,
+          "maxMs": 0.2,
+          "wallPct": 0.04
+        },
+        {
+          "label": "system:world-debug-overlay.onSimulationStep",
+          "totalMs": 2.3,
+          "calls": 800,
+          "avgUs": 2.88,
+          "maxMs": 0.1,
+          "wallPct": 0.03
+        },
+        {
+          "label": "system:wound-model.onCommanderTick",
+          "totalMs": 2,
+          "calls": 266,
+          "avgUs": 7.52,
+          "maxMs": 0.1,
+          "wallPct": 0.03
+        },
+        {
+          "label": "squad.hasLineOfSight",
+          "totalMs": 1.7,
+          "calls": 1062,
+          "avgUs": 1.6,
+          "maxMs": 0.1,
+          "wallPct": 0.03
+        },
+        {
+          "label": "system:strategic-truck-visual.onSimulationStep",
+          "totalMs": 1.6,
+          "calls": 800,
+          "avgUs": 2,
+          "maxMs": 0.1,
+          "wallPct": 0.02
+        },
+        {
+          "label": "system:wound-model.onSimulationStep",
+          "totalMs": 1.5,
+          "calls": 800,
+          "avgUs": 1.87,
+          "maxMs": 0.1,
+          "wallPct": 0.02
+        },
+        {
+          "label": "system:squad-broadcast.onCommanderTick",
+          "totalMs": 1.3,
+          "calls": 266,
+          "avgUs": 4.89,
+          "maxMs": 0.1,
+          "wallPct": 0.02
+        },
+        {
+          "label": "system:strategic-aerial-recon.onCommanderTick",
+          "totalMs": 1.2,
+          "calls": 266,
+          "avgUs": 4.51,
+          "maxMs": 0.1,
+          "wallPct": 0.02
+        },
+        {
+          "label": "obstacle.sightBlocked@squad.updateSquad",
+          "totalMs": 1.1,
+          "calls": 1062,
+          "avgUs": 1.04,
+          "maxMs": 0.1,
+          "wallPct": 0.02
+        },
+        {
+          "label": "system:soldier-personal-space.onCommanderTick",
+          "totalMs": 1.1,
+          "calls": 266,
+          "avgUs": 4.14,
+          "maxMs": 0.8,
+          "wallPct": 0.02
+        },
+        {
+          "label": "navigation.lineOfSightBlocked",
+          "totalMs": 0.9,
+          "calls": 2280,
+          "avgUs": 0.39,
+          "maxMs": 0.1,
+          "wallPct": 0.01
+        },
+        {
+          "label": "commander-doctrine.nearestEnemyToSquad",
+          "totalMs": 0.8,
+          "calls": 536,
+          "avgUs": 1.49,
+          "maxMs": 0.1,
+          "wallPct": 0.01
+        },
+        {
+          "label": "system:building-hardpoints.onSimulationStep",
+          "totalMs": 0.8,
+          "calls": 800,
+          "avgUs": 1,
+          "maxMs": 0.1,
+          "wallPct": 0.01
+        },
+        {
+          "label": "system:strategic-reinforcements.onCommanderTick",
+          "totalMs": 0.7,
+          "calls": 266,
+          "avgUs": 2.63,
+          "maxMs": 0.1,
+          "wallPct": 0.01
+        },
+        {
+          "label": "system:tactical-situation.onCommanderTick",
+          "totalMs": 0.7,
+          "calls": 266,
+          "avgUs": 2.63,
+          "maxMs": 0.1,
+          "wallPct": 0.01
+        },
+        {
+          "label": "system:defender-engineers.onCommanderTick",
+          "totalMs": 0.6,
+          "calls": 266,
+          "avgUs": 2.26,
+          "maxMs": 0.1,
+          "wallPct": 0.01
+        },
+        {
+          "label": "system:navigation-physicality-debug.onSimulationStep",
+          "totalMs": 0.5,
+          "calls": 800,
+          "avgUs": 0.62,
+          "maxMs": 0.1,
+          "wallPct": 0.01
+        },
+        {
+          "label": "commander-doctrine.buildContext",
+          "totalMs": 0.4,
+          "calls": 20,
+          "avgUs": 20,
+          "maxMs": 0.1,
+          "wallPct": 0.01
+        },
+        {
+          "label": "system:strategic-front-lines.onCommanderTick",
+          "totalMs": 0.4,
+          "calls": 266,
+          "avgUs": 1.5,
+          "maxMs": 0.1,
+          "wallPct": 0.01
+        },
+        {
+          "label": "commander-doctrine.chooseObjective",
+          "totalMs": 0.4,
+          "calls": 20,
+          "avgUs": 20,
+          "maxMs": 0.1,
+          "wallPct": 0.01
+        },
+        {
+          "label": "system:urban-operating-picture.onCommanderTick",
+          "totalMs": 0.4,
+          "calls": 266,
+          "avgUs": 1.5,
+          "maxMs": 0.1,
+          "wallPct": 0.01
+        },
+        {
+          "label": "system:grenades.onSimulationStep",
+          "totalMs": 0.3,
+          "calls": 800,
+          "avgUs": 0.38,
+          "maxMs": 0.1,
+          "wallPct": 0
+        },
+        {
+          "label": "commander-routes.ensureAssignments",
+          "totalMs": 0.3,
+          "calls": 266,
+          "avgUs": 1.13,
+          "maxMs": 0.1,
+          "wallPct": 0
+        },
+        {
+          "label": "system:command-reception.onSimulationStep",
+          "totalMs": 0.2,
+          "calls": 800,
+          "avgUs": 0.25,
+          "maxMs": 0.1,
+          "wallPct": 0
+        },
+        {
+          "label": "commander-doctrine.forceScore",
+          "totalMs": 0,
+          "calls": 2,
+          "avgUs": 0,
+          "maxMs": 0.1,
+          "wallPct": 0
+        },
+        {
+          "label": "navigation.physicalReplanReason.periodic",
+          "totalMs": 0,
+          "calls": 2705,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        },
+        {
+          "label": "navigation.physicalReplanReason.goal-shift",
+          "totalMs": 0,
+          "calls": 1458,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        },
+        {
+          "label": "navigation.physicalReplan.goal-shift.owner.squad-stability",
+          "totalMs": 0,
+          "calls": 1458,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        },
+        {
+          "label": "navigation.physicalReplan.goal-shift.kind.formation",
+          "totalMs": 0,
+          "calls": 1458,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        },
+        {
+          "label": "navigation.physicalReplan.goal-shift.owner-kind.squad-stability__formation",
+          "totalMs": 0,
+          "calls": 1458,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        },
+        {
+          "label": "navigation.physicalReplan.goal-shift.reason.squad_intent",
+          "totalMs": 0,
+          "calls": 1458,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        },
+        {
+          "label": "navigation.physicalReplanReason.empty-timeout",
+          "totalMs": 0,
+          "calls": 1056,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        },
+        {
+          "label": "navigation.physicalReplanReason.missing",
+          "totalMs": 0,
+          "calls": 201,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        },
+        {
+          "label": "navigation.physicalReplan.missing.owner.unknown",
+          "totalMs": 0,
+          "calls": 200,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        },
+        {
+          "label": "navigation.physicalReplan.missing.kind.unknown",
+          "totalMs": 0,
+          "calls": 200,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        },
+        {
+          "label": "navigation.physicalReplan.missing.owner-kind.unknown__unknown",
+          "totalMs": 0,
+          "calls": 200,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        },
+        {
+          "label": "navigation.physicalReplanReason.empty-other",
+          "totalMs": 0,
+          "calls": 164,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        },
+        {
+          "label": "commander-doctrine.objectiveValueScore",
+          "totalMs": 0,
+          "calls": 2,
+          "avgUs": 0,
+          "maxMs": 0.1,
+          "wallPct": 0
+        },
+        {
+          "label": "navigation.physicalReplan.missing.owner.squad-stability",
+          "totalMs": 0,
+          "calls": 1,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        },
+        {
+          "label": "navigation.physicalReplan.missing.kind.formation",
+          "totalMs": 0,
+          "calls": 1,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        },
+        {
+          "label": "navigation.physicalReplan.missing.owner-kind.squad-stability__formation",
+          "totalMs": 0,
+          "calls": 1,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        },
+        {
+          "label": "navigation.physicalReplan.missing.reason.squad_intent",
+          "totalMs": 0,
+          "calls": 1,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        },
+        {
+          "label": "navigation.physicalReplanReason.first-segment-invalid",
+          "totalMs": 0,
+          "calls": 1,
+          "avgUs": 0,
+          "maxMs": 0,
+          "wallPct": 0
+        }
+      ],
+      "samples": [
+        {
+          "kind": "simulation",
+          "sampledMs": 6862.292,
+          "top": [
+            {
+              "function": "publicRecord",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/18-command-reception.js?v=1792498440&c=v460-de143ca4",
+              "line": 504,
+              "samples": 429,
+              "selfMs": 538.755,
+              "pct": 7.850948342040823
+            },
+            {
+              "function": "(program)",
+              "url": "",
+              "line": 0,
+              "samples": 125,
+              "selfMs": 496.246,
+              "pct": 7.231490586527068
+            },
+            {
+              "function": "detectionRange",
+              "url": "http://127.0.0.1:8876/grasstex/battle/squad-ai.js?v=1792498440&c=v460-de143ca4",
+              "line": 304,
+              "samples": 344,
+              "selfMs": 432.506,
+              "pct": 6.302646404437468
+            },
+            {
+              "function": "destinationFree",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/51-soldier-personal-space.js?v=1792498440&c=v460-de143ca4",
+              "line": 108,
+              "samples": 203,
+              "selfMs": 254.326,
+              "pct": 3.7061378326658208
+            },
+            {
+              "function": "tick",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/51-soldier-personal-space.js?v=1792498440&c=v460-de143ca4",
+              "line": 239,
+              "samples": 173,
+              "selfMs": 216.292,
+              "pct": 3.1518915254553437
+            },
+            {
+              "function": "perceive",
+              "url": "http://127.0.0.1:8876/grasstex/battle/squad-ai.js?v=1792498440&c=v460-de143ca4",
+              "line": 2129,
+              "samples": 123,
+              "selfMs": 154.161,
+              "pct": 2.24649431997356
+            },
+            {
+              "function": "blocked",
+              "url": "http://127.0.0.1:8876/grasstex/battle/battle-navigation.js?v=1792498440&c=v460-de143ca4",
+              "line": 107,
+              "samples": 120,
+              "selfMs": 148.459,
+              "pct": 2.1634025483031034
+            },
+            {
+              "function": "findTarget",
+              "url": "http://127.0.0.1:8876/grasstex/battle/squad-ai.js?v=1792498440&c=v460-de143ca4",
+              "line": 966,
+              "samples": 112,
+              "selfMs": 140.753,
+              "pct": 2.051107705705324
+            },
+            {
+              "function": "(garbage collector)",
+              "url": "",
+              "line": 0,
+              "samples": 82,
+              "selfMs": 139.669,
+              "pct": 2.0353112342057145
+            },
+            {
+              "function": "tick",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/17-soldier-mind.js?v=1792498440&c=v460-de143ca4",
+              "line": 694,
+              "samples": 99,
+              "selfMs": 123.917,
+              "pct": 1.805766936178175
+            },
+            {
+              "function": "resolve",
+              "url": "http://127.0.0.1:8876/grasstex/battle/movement-resolver.js?v=1792498440&c=v460-de143ca4",
+              "line": 525,
+              "samples": 93,
+              "selfMs": 117.087,
+              "pct": 1.7062375078180876
+            },
+            {
+              "function": "gatherStatic",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/39-navigation-physicality-debug.js?v=1792498440&c=v460-de143ca4",
+              "line": 198,
+              "samples": 71,
+              "selfMs": 89.417,
+              "pct": 1.3030194576389347
+            },
+            {
+              "function": "primitivePose",
+              "url": "http://127.0.0.1:8876/grasstex/battle/soldier.js?v=1792498440&c=v460-de143ca4",
+              "line": 716,
+              "samples": 69,
+              "selfMs": 87.038,
+              "pct": 1.2683517402057505
+            },
+            {
+              "function": "addDestination",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/51-soldier-personal-space.js?v=1792498440&c=v460-de143ca4",
+              "line": 96,
+              "samples": 68,
+              "selfMs": 84.457,
+              "pct": 1.2307403998547424
+            },
+            {
+              "function": "segmentObb",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/39-navigation-physicality-debug.js?v=1792498440&c=v460-de143ca4",
+              "line": 326,
+              "samples": 68,
+              "selfMs": 84.207,
+              "pct": 1.2270973021841682
+            },
+            {
+              "function": "runHook",
+              "url": "http://127.0.0.1:8876/grasstex/battle/module-registry.js?v=1792498440&c=v460-de143ca4",
+              "line": 131,
+              "samples": 64,
+              "selfMs": 80.626,
+              "pct": 1.1749135711508631
+            },
+            {
+              "function": "stepMovement",
+              "url": "http://127.0.0.1:8876/grasstex/battle/battle-sim.js?v=1792498440&c=v460-de143ca4",
+              "line": 646,
+              "samples": 62,
+              "selfMs": 77.664,
+              "pct": 1.1317501499499
+            },
+            {
+              "function": "stanceOf",
+              "url": "http://127.0.0.1:8876/grasstex/battle/squad-ai.js?v=1792498440&c=v460-de143ca4",
+              "line": 229,
+              "samples": 59,
+              "selfMs": 73.71,
+              "pct": 1.0741309171920985
+            },
+            {
+              "function": "",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/15h-squad-leader-fireteams.js?v=1792498440&c=v460-de143ca4",
+              "line": 174,
+              "samples": 56,
+              "selfMs": 70.041,
+              "pct": 1.0206648157787515
+            },
+            {
+              "function": "holdWeapon",
+              "url": "http://127.0.0.1:8876/grasstex/battle/soldier.js?v=1792498440&c=v460-de143ca4",
+              "line": 634,
+              "samples": 55,
+              "selfMs": 69.834,
+              "pct": 1.017648330907516
+            },
+            {
+              "function": "rotateByQuaternionToRef",
+              "url": "https://cdn.jsdelivr.net/npm/babylonjs@9.27.1/babylon.js",
+              "line": 1,
+              "samples": 55,
+              "selfMs": 69.293,
+              "pct": 1.0097646675483936
+            },
+            {
+              "function": "animateWalk",
+              "url": "http://127.0.0.1:8876/grasstex/battle/soldier.js?v=1792498440&c=v460-de143ca4",
+              "line": 807,
+              "samples": 51,
+              "selfMs": 64.335,
+              "pct": 0.9375147545455659
+            },
+            {
+              "function": "threatDisposition",
+              "url": "http://127.0.0.1:8876/grasstex/battle/squad-ai.js?v=1792498440&c=v460-de143ca4",
+              "line": 353,
+              "samples": 46,
+              "selfMs": 57.374,
+              "pct": 0.8360763430060977
+            },
+            {
+              "function": "autonomousOn",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/11-soldier-individuality.js?v=1792498440&c=v460-de143ca4",
+              "line": 196,
+              "samples": 45,
+              "selfMs": 56.503,
+              "pct": 0.8233837907218171
+            },
+            {
+              "function": "",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/97-ai-timeline-recorder.js?v=1792498440&c=v460-de143ca4",
+              "line": 371,
+              "samples": 41,
+              "selfMs": 51.331,
+              "pct": 0.748015386112978
+            },
+            {
+              "function": "get",
+              "url": "http://127.0.0.1:8876/grasstex/battle/squad-ai.js?v=1792498440&c=v460-de143ca4",
+              "line": 1956,
+              "samples": 40,
+              "selfMs": 49.792,
+              "pct": 0.7255884768529233
+            },
+            {
+              "function": "settle",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/18-command-reception.js?v=1792498440&c=v460-de143ca4",
+              "line": 512,
+              "samples": 38,
+              "selfMs": 47.625,
+              "pct": 0.694010106244386
+            },
+            {
+              "function": "updateSoldier",
+              "url": "http://127.0.0.1:8876/grasstex/battle/squad-ai.js?v=1792498440&c=v460-de143ca4",
+              "line": 2180,
+              "samples": 36,
+              "selfMs": 45.0,
+              "pct": 0.6557575807033568
+            },
+            {
+              "function": "dist",
+              "url": "http://127.0.0.1:8876/grasstex/battle/core-runtime.js?v=1792498440&c=v460-de143ca4",
+              "line": 16,
+              "samples": 31,
+              "selfMs": 44.834,
+              "pct": 0.6533385638500955
+            },
+            {
+              "function": "",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/97-ai-timeline-recorder.js?v=1792498440&c=v460-de143ca4",
+              "line": 211,
+              "samples": 35,
+              "selfMs": 43.664,
+              "pct": 0.6362888667518083
+            }
+          ]
+        },
+        {
+          "kind": "render",
+          "sampledMs": 5578.75,
+          "top": [
+            {
+              "function": "(idle)",
+              "url": "",
+              "line": 0,
+              "samples": 2129,
+              "selfMs": 2829.04,
+              "pct": 50.71100156845172
+            },
+            {
+              "function": "uniformMatrix4fv",
+              "url": "",
+              "line": 0,
+              "samples": 1285,
+              "selfMs": 1618.129,
+              "pct": 29.005225184853238
+            },
+            {
+              "function": "(program)",
+              "url": "",
+              "line": 0,
+              "samples": 19,
+              "selfMs": 477.25,
+              "pct": 8.554783777727986
+            },
+            {
+              "function": "getProgramParameter",
+              "url": "",
+              "line": 0,
+              "samples": 81,
+              "selfMs": 100.834,
+              "pct": 1.8074658301590856
+            },
+            {
+              "function": "drawElements",
+              "url": "",
+              "line": 0,
+              "samples": 56,
+              "selfMs": 74.082,
+              "pct": 1.3279318843827022
+            },
+            {
+              "function": "getBoundingClientRect",
+              "url": "",
+              "line": 0,
+              "samples": 14,
+              "selfMs": 18.958,
+              "pct": 0.33982522966614387
+            },
+            {
+              "function": "$",
+              "url": "https://cdn.jsdelivr.net/npm/babylonjs@9.27.1/babylon.js",
+              "line": 1,
+              "samples": 11,
+              "selfMs": 14.542,
+              "pct": 0.2606677123011427
+            },
+            {
+              "function": "prepare",
+              "url": "https://cdn.jsdelivr.net/npm/babylonjs@9.27.1/babylon.js",
+              "line": 1,
+              "samples": 11,
+              "selfMs": 14.541,
+              "pct": 0.2606497871386959
+            },
+            {
+              "function": "peek",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/18-command-reception.js?v=1792498440&c=v460-de143ca4",
+              "line": 559,
+              "samples": 9,
+              "selfMs": 11.419,
+              "pct": 0.20468742997983416
+            },
+            {
+              "function": "set scaling",
+              "url": "https://cdn.jsdelivr.net/npm/babylonjs@9.27.1/babylon.js",
+              "line": 1,
+              "samples": 10,
+              "selfMs": 11.292,
+              "pct": 0.20241093434909255
+            },
+            {
+              "function": "findTarget",
+              "url": "http://127.0.0.1:8876/grasstex/battle/squad-ai.js?v=1792498440&c=v460-de143ca4",
+              "line": 966,
+              "samples": 10,
+              "selfMs": 10.71,
+              "pct": 0.19197848980506385
+            },
+            {
+              "function": "get rotationQuaternion",
+              "url": "https://cdn.jsdelivr.net/npm/babylonjs@9.27.1/babylon.js",
+              "line": 1,
+              "samples": 7,
+              "selfMs": 9.042,
+              "pct": 0.162079318843827
+            },
+            {
+              "function": "publicRecord",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/18-command-reception.js?v=1792498440&c=v460-de143ca4",
+              "line": 504,
+              "samples": 8,
+              "selfMs": 9.0,
+              "pct": 0.16132646202106207
+            },
+            {
+              "function": "_evaluateActiveMeshes",
+              "url": "https://cdn.jsdelivr.net/npm/babylonjs@9.27.1/babylon.js",
+              "line": 1,
+              "samples": 7,
+              "selfMs": 8.416,
+              "pct": 0.15085816715213982
+            },
+            {
+              "function": "detectionRange",
+              "url": "http://127.0.0.1:8876/grasstex/battle/squad-ai.js?v=1792498440&c=v460-de143ca4",
+              "line": 304,
+              "samples": 7,
+              "selfMs": 7.541,
+              "pct": 0.1351736500112032
+            },
+            {
+              "function": "tick",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/17-soldier-mind.js?v=1792498440&c=v460-de143ca4",
+              "line": 694,
+              "samples": 6,
+              "selfMs": 6.791,
+              "pct": 0.12172977817611472
+            },
+            {
+              "function": "",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/15h-squad-leader-fireteams.js?v=1792498440&c=v460-de143ca4",
+              "line": 174,
+              "samples": 6,
+              "selfMs": 5.583,
+              "pct": 0.10007618194039884
+            },
+            {
+              "function": "set rotationQuaternion",
+              "url": "https://cdn.jsdelivr.net/npm/babylonjs@9.27.1/babylon.js",
+              "line": 1,
+              "samples": 5,
+              "selfMs": 5.417,
+              "pct": 0.09710060497423258
+            },
+            {
+              "function": "",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/54-tactical-situation.js?v=1792498440&c=v460-de143ca4",
+              "line": 26,
+              "samples": 4,
+              "selfMs": 5.333,
+              "pct": 0.09559489132870268
+            },
+            {
+              "function": "tick",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/51-soldier-personal-space.js?v=1792498440&c=v460-de143ca4",
+              "line": 239,
+              "samples": 6,
+              "selfMs": 5.292,
+              "pct": 0.0948599596683845
+            },
+            {
+              "function": "(garbage collector)",
+              "url": "",
+              "line": 0,
+              "samples": 4,
+              "selfMs": 5.292,
+              "pct": 0.0948599596683845
+            },
+            {
+              "function": "threatDisposition",
+              "url": "http://127.0.0.1:8876/grasstex/battle/squad-ai.js?v=1792498440&c=v460-de143ca4",
+              "line": 353,
+              "samples": 4,
+              "selfMs": 5.166,
+              "pct": 0.09260138920008963
+            },
+            {
+              "function": "get",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/36-order-provenance.js?v=1792498440&c=v460-de143ca4",
+              "line": 327,
+              "samples": 4,
+              "selfMs": 5.084,
+              "pct": 0.09113152587945328
+            },
+            {
+              "function": "perceive",
+              "url": "http://127.0.0.1:8876/grasstex/battle/squad-ai.js?v=1792498440&c=v460-de143ca4",
+              "line": 2129,
+              "samples": 5,
+              "selfMs": 5.0,
+              "pct": 0.08962581223392337
+            },
+            {
+              "function": "_RenderSorted",
+              "url": "https://cdn.jsdelivr.net/npm/babylonjs@9.27.1/babylon.js",
+              "line": 1,
+              "samples": 4,
+              "selfMs": 4.792,
+              "pct": 0.08589737844499215
+            },
+            {
+              "function": "destinationFree",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/51-soldier-personal-space.js?v=1792498440&c=v460-de143ca4",
+              "line": 108,
+              "samples": 3,
+              "selfMs": 4.292,
+              "pct": 0.07693479722159982
+            },
+            {
+              "function": "update",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/52-fbx-animation-state.js?v=1792498440&c=v460-de143ca4",
+              "line": 230,
+              "samples": 4,
+              "selfMs": 4.166,
+              "pct": 0.07467622675330496
+            },
+            {
+              "function": "axes",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/39-navigation-physicality-debug.js?v=1792498440&c=v460-de143ca4",
+              "line": 115,
+              "samples": 2,
+              "selfMs": 4.125,
+              "pct": 0.07394129509298678
+            },
+            {
+              "function": "updateMark",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/41-squad-status-overlay.js?v=1792498440&c=v460-de143ca4",
+              "line": 691,
+              "samples": 3,
+              "selfMs": 3.958,
+              "pct": 0.07094779296437374
+            },
+            {
+              "function": "sampleLayer",
+              "url": "http://127.0.0.1:8876/grasstex/battle/modules/52-fbx-clip-mixer.js?v=1792498440&c=v460-de143ca4",
+              "line": 49,
+              "samples": 4,
+              "selfMs": 3.916,
+              "pct": 0.07019493614160878
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "profileBattles": 28,
+  "nativeInterceptionBattles": 6,
+  "fixedStepBattleExecutions": 80,
+  "nativeInterceptionDispatches": 0,
+  "nativePhysicallyEarly": 0,
+  "harnessRuns": 227,
+  "harnessFailures": [],
+  "staticChecks": 582,
+  "staticFailures": [],
+  "queryCandidates": 174,
+  "flagGateRows": 64
+}

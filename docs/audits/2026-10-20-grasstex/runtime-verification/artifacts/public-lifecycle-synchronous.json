@@ -1,0 +1,696 @@
+[
+  {
+    "query": "",
+    "rows": [
+      {
+        "cycle": 0,
+        "before": 0.15,
+        "after": 0.15,
+        "resumed": false,
+        "manualEnded": false,
+        "winner": null,
+        "roster": 100,
+        "oldActorRetained": false,
+        "oldRootDisposed": true,
+        "observers": 213,
+        "fleet": 0,
+        "transportTasks": [],
+        "recon": [
+          {
+            "enabled": false,
+            "used": false
+          },
+          {
+            "enabled": false,
+            "used": false
+          }
+        ]
+      },
+      {
+        "cycle": 1,
+        "before": 0.15,
+        "after": 0.15,
+        "resumed": false,
+        "manualEnded": false,
+        "winner": null,
+        "roster": 100,
+        "oldActorRetained": false,
+        "oldRootDisposed": true,
+        "observers": 413,
+        "fleet": 0,
+        "transportTasks": [],
+        "recon": [
+          {
+            "enabled": false,
+            "used": false
+          },
+          {
+            "enabled": false,
+            "used": false
+          }
+        ]
+      },
+      {
+        "cycle": 2,
+        "before": 0.15,
+        "after": 0.15,
+        "resumed": false,
+        "manualEnded": false,
+        "winner": null,
+        "roster": 100,
+        "oldActorRetained": false,
+        "oldRootDisposed": true,
+        "observers": 613,
+        "fleet": 0,
+        "transportTasks": [],
+        "recon": [
+          {
+            "enabled": false,
+            "used": false
+          },
+          {
+            "enabled": false,
+            "used": false
+          }
+        ]
+      },
+      {
+        "cycle": 3,
+        "before": 0.15,
+        "after": 0.15,
+        "resumed": false,
+        "manualEnded": false,
+        "winner": null,
+        "roster": 100,
+        "oldActorRetained": false,
+        "oldRootDisposed": true,
+        "observers": 813,
+        "fleet": 0,
+        "transportTasks": [],
+        "recon": [
+          {
+            "enabled": false,
+            "used": false
+          },
+          {
+            "enabled": false,
+            "used": false
+          }
+        ]
+      },
+      {
+        "cycle": 4,
+        "before": 0.15,
+        "after": 0.15,
+        "resumed": false,
+        "manualEnded": false,
+        "winner": null,
+        "roster": 100,
+        "oldActorRetained": false,
+        "oldRootDisposed": true,
+        "observers": 1013,
+        "fleet": 0,
+        "transportTasks": [],
+        "recon": [
+          {
+            "enabled": false,
+            "used": false
+          },
+          {
+            "enabled": false,
+            "used": false
+          }
+        ]
+      },
+      {
+        "cycle": 5,
+        "before": 0.15,
+        "after": 0.15,
+        "resumed": false,
+        "manualEnded": false,
+        "winner": null,
+        "roster": 100,
+        "oldActorRetained": false,
+        "oldRootDisposed": true,
+        "observers": 1213,
+        "fleet": 0,
+        "transportTasks": [],
+        "recon": [
+          {
+            "enabled": false,
+            "used": false
+          },
+          {
+            "enabled": false,
+            "used": false
+          }
+        ]
+      },
+      {
+        "cycle": 6,
+        "before": 0.15,
+        "after": 0.15,
+        "resumed": false,
+        "manualEnded": false,
+        "winner": null,
+        "roster": 100,
+        "oldActorRetained": false,
+        "oldRootDisposed": true,
+        "observers": 1413,
+        "fleet": 0,
+        "transportTasks": [],
+        "recon": [
+          {
+            "enabled": false,
+            "used": false
+          },
+          {
+            "enabled": false,
+            "used": false
+          }
+        ]
+      },
+      {
+        "cycle": 7,
+        "before": 0.15,
+        "after": 0.15,
+        "resumed": false,
+        "manualEnded": false,
+        "winner": null,
+        "roster": 100,
+        "oldActorRetained": false,
+        "oldRootDisposed": true,
+        "observers": 1613,
+        "fleet": 0,
+        "transportTasks": [],
+        "recon": [
+          {
+            "enabled": false,
+            "used": false
+          },
+          {
+            "enabled": false,
+            "used": false
+          }
+        ]
+      },
+      {
+        "cycle": 8,
+        "before": 0.15,
+        "after": 0.15,
+        "resumed": false,
+        "manualEnded": false,
+        "winner": null,
+        "roster": 100,
+        "oldActorRetained": false,
+        "oldRootDisposed": true,
+        "observers": 1813,
+        "fleet": 0,
+        "transportTasks": [],
+        "recon": [
+          {
+            "enabled": false,
+            "used": false
+          },
+          {
+            "enabled": false,
+            "used": false
+          }
+        ]
+      },
+      {
+        "cycle": 9,
+        "before": 0.15,
+        "after": 0.15,
+        "resumed": false,
+        "manualEnded": false,
+        "winner": null,
+        "roster": 100,
+        "oldActorRetained": false,
+        "oldRootDisposed": true,
+        "observers": 2013,
+        "fleet": 0,
+        "transportTasks": [],
+        "recon": [
+          {
+            "enabled": false,
+            "used": false
+          },
+          {
+            "enabled": false,
+            "used": false
+          }
+        ]
+      }
+    ],
+    "errors": [
+      "Uncaught (in promise) Error: HTTP 404 loading '/grasstex/Assets/audio/rifle.mp3': Not Found",
+      "Uncaught (in promise) Error: HTTP 404 loading '/grasstex/Assets/audio/carbine.mp3': Not Found",
+      "Uncaught (in promise) Error: HTTP 404 loading '/grasstex/Assets/audio/carbine.mp3': Not Found",
+      "Uncaught (in promise) Error: HTTP 404 loading '/grasstex/Assets/audio/pistol.mp3': Not Found",
+      "Uncaught (in promise) Error: HTTP 404 loading '/grasstex/Assets/audio/lmg.mp3': Not Found",
+      "Uncaught (in promise) Error: HTTP 404 loading '/grasstex/Assets/audio/weapons/m1-garand/fire-01.mp3': Not Found",
+      "Uncaught (in promise) Error: HTTP 404 loading '/grasstex/Assets/audio/weapons/m1-garand/fire-02.mp3': Not Found",
+      "Uncaught (in promise) Error: HTTP 404 loading '/grasstex/Assets/audio/weapons/m1-garand/fire-03.mp3': Not Found",
+      "Uncaught (in promise) Error: HTTP 404 loading '/grasstex/Assets/audio/weapons/m1-garand/fire-04.mp3': Not Found",
+      "Uncaught (in promise) Error: HTTP 404 loading '/grasstex/Assets/audio/weapons/m1-garand/fire-05.mp3': Not Found",
+      "Uncaught (in promise) Error: HTTP 404 loading '/grasstex/Assets/audio/weapons/m1-garand/fire-06.mp3': Not Found",
+      "Uncaught (in promise) Error: HTTP 404 loading '/grasstex/Assets/audio/weapons/m1-garand/fireDistant-01.mp3': Not Found",
+      "Uncaught (in promise) Error: HTTP 404 loading '/grasstex/Assets/audio/weapons/m1-garand/fireDistant-04.mp3': Not Found",
+      "Uncaught (in promise) Error: HTTP 404 loading '/grasstex/Assets/audio/weapons/thompson/fire-01.mp3': Not Found",
+      "Uncaught (in promise) Error: HTTP 404 loading '/grasstex/Assets/audio/weapons/m1-garand/fireDistant-02.mp3': Not Found",
+      "Uncaught (in promise) Error: HTTP 404 loading '/grasstex/Assets/audio/weapons/m1-garand/fireDistant-03.mp3': Not Found",
+      "Uncaught (in promise) Error: HTTP 404 loading '/grasstex/Assets/audio/weapons/thompson/fire-02.mp3': Not Found",
+      "Uncaught (in promise) Error: HTTP 404 loading '/grasstex/Assets/audio/weapons/thompson/fire-03.mp3': Not Found",
+      "Uncaught (in promise) Error: HTTP 404 loading '/grasstex/Assets/audio/weapons/thompson/fire-07.mp3': Not Found",
+      "Uncaught (in promise) Error: HTTP 404 loading '/grasstex/Assets/audio/weapons/thompson/fire-08.mp3': Not Found",
+      "Uncaught (in promise) Error: HTTP 404 loading '/grasstex/Assets/audio/weapons/thompson/fire-05.mp3': Not Found",
+      "Uncaught (in promise) Error: HTTP 404 loading '/grasstex/Assets/audio/weapons/thompson/fire-04.mp3': Not Found",
+      "Uncaught (in promise) Error: HTTP 404 loading '/grasstex/Assets/audio/weapons/thompson/fireDistant-01.mp3': Not Found",
+      "Uncaught (in promise) Error: HTTP 404 loading '/grasstex/Assets/audio/weapons/thompson/fireDistant-02.mp3': Not Found",
+      "Uncaught (in promise) Error: HTTP 404 loading '/grasstex/Assets/audio/weapons/thompson/fire-06.mp3': Not Found",
+      "Uncaught (in promise) Error: HTTP 404 loading '/grasstex/Assets/audio/weapons/thompson/fireDistant-03.mp3': Not Found",
+      "Uncaught (in promise) Error: HTTP 404 loading '/grasstex/Assets/audio/weapons/thompson/fireDistant-04.mp3': Not Found",
+      "Uncaught (in promise) Error: HTTP 404 loading '/grasstex/Assets/audio/weapons/m1919a6/fire-01.mp3': Not Found",
+      "Uncaught (in promise) Error: HTTP 404 loading '/grasstex/Assets/audio/weapons/m1919a6/fire-02.mp3': Not Found",
+      "Uncaught (in promise) Error: HTTP 404 loading '/grasstex/Assets/audio/weapons/m1919a6/fire-06.mp3': Not Found",
+      "Uncaught (in promise) Error: HTTP 404 loading '/grasstex/Assets/audio/weapons/m1919a6/fire-04.mp3': Not Found",
+      "Uncaught (in promise) Error: HTTP 404 loading '/grasstex/Assets/audio/weapons/m1919a6/fire-03.mp3': Not Found",
+      "Uncaught (in promise) Error: HTTP 404 loading '/grasstex/Assets/audio/weapons/m1919a6/fire-05.mp3': Not Found",
+      "Uncaught (in promise) Error: HTTP 404 loading '/grasstex/Assets/audio/weapons/m1919a6/fire-07.mp3': Not Found",
+      "Uncaught (in promise) Error: HTTP 404 loading '/grasstex/Assets/audio/weapons/m1919a6/fire-08.mp3': Not Found",
+      "Uncaught (in promise) Error: HTTP 404 loading '/grasstex/Assets/audio/weapons/m1919a6/fire-09.mp3': Not Found",
+      "Uncaught (in promise) Error: HTTP 404 loading '/grasstex/Assets/audio/weapons/m1919a6/fireDistant-01.mp3': Not Found",
+      "Uncaught (in promise) Error: HTTP 404 loading '/grasstex/Assets/audio/weapons/m1919a6/fire-10.mp3': Not Found",
+      "Uncaught (in promise) Error: HTTP 404 loading '/grasstex/Assets/audio/weapons/m1919a6/fireDistant-02.mp3': Not Found",
+      "Uncaught (in promise) Error: HTTP 404 loading '/grasstex/Assets/audio/weapons/m1919a6/fireDistant-03.mp3': Not Found",
+      "Uncaught (in promise) Error: HTTP 404 loading '/grasstex/Assets/audio/weapons/m1919a6/fireDistant-04.mp3': Not Found",
+      "Uncaught (in promise) Error: HTTP 404 loading '/grasstex/Assets/audio/weapons/m1-carbine/fire-04.mp3': Not Found",
+      "Uncaught (in promise) Error: HTTP 404 loading '/grasstex/Assets/audio/weapons/m1-carbine/fire-03.mp3': Not Found",
+      "Uncaught (in promise) Error: HTTP 404 loading '/grasstex/Assets/audio/weapons/m1-carbine/fire-02.mp3': Not Found",
+      "Uncaught (in promise) Error: HTTP 404 loading '/grasstex/Assets/audio/weapons/m1-carbine/fire-01.mp3': Not Found",
+      "Uncaught (in promise) Error: HTTP 404 loading '/grasstex/Assets/audio/weapons/m1-carbine/fire-06.mp3': Not Found",
+      "Uncaught (in promise) Error: HTTP 404 loading '/grasstex/Assets/audio/weapons/m1-carbine/fireDistant-03.mp3': Not Found",
+      "Uncaught (in promise) Error: HTTP 404 loading '/grasstex/Assets/audio/weapons/m1-carbine/fire-05.mp3': Not Found",
+      "Uncaught (in promise) Error: HTTP 404 loading '/grasstex/Assets/audio/weapons/m1-carbine/fireDistant-02.mp3': Not Found",
+      "Uncaught (in promise) Error: HTTP 404 loading '/grasstex/Assets/audio/weapons/m1-carbine/fireDistant-01.mp3': Not Found",
+      "Uncaught (in promise) Error: HTTP 404 loading '/grasstex/Assets/audio/weapons/m1-carbine/fireDistant-04.mp3': Not Found",
+      "Uncaught (in promise) Error: HTTP 404 loading '/grasstex/Assets/audio/weapons/m1911a1/fire-01.mp3': Not Found",
+      "Uncaught (in promise) Error: HTTP 404 loading '/grasstex/Assets/audio/weapons/m1911a1/fire-03.mp3': Not Found",
+      "Uncaught (in promise) Error: HTTP 404 loading '/grasstex/Assets/audio/weapons/m1911a1/fire-02.mp3': Not Found",
+      "Uncaught (in promise) Error: HTTP 404 loading '/grasstex/Assets/audio/weapons/m1911a1/fire-04.mp3': Not Found",
+      "Uncaught (in promise) Error: HTTP 404 loading '/grasstex/Assets/audio/weapons/m1911a1/fireDistant-01.mp3': Not Found",
+      "Uncaught (in promise) Error: HTTP 404 loading '/grasstex/Assets/audio/weapons/m1911a1/fire-05.mp3': Not Found",
+      "Uncaught (in promise) Error: HTTP 404 loading '/grasstex/Assets/audio/weapons/m1911a1/fireDistant-02.mp3': Not Found",
+      "Uncaught (in promise) Error: HTTP 404 loading '/grasstex/Assets/audio/weapons/m1911a1/fireDistant-03.mp3': Not Found",
+      "Uncaught (in promise) Error: HTTP 404 loading '/grasstex/Assets/audio/weapons/kar98k/fire-01.mp3': Not Found",
+      "Uncaught (in promise) Error: HTTP 404 loading '/grasstex/Assets/audio/weapons/kar98k/fire-05.mp3': Not Found"
+    ]
+  },
+  {
+    "query": "strategicInterception=1&motorTransport=1&aerialRecon=1&interception=1&truckCollision=1&truckAccess=1",
+    "rows": [
+      {
+        "cycle": 0,
+        "before": 0.15,
+        "after": 0.15,
+        "resumed": false,
+        "manualEnded": false,
+        "winner": null,
+        "roster": 100,
+        "oldActorRetained": false,
+        "oldRootDisposed": true,
+        "observers": 221,
+        "fleet": 12,
+        "transportTasks": [],
+        "recon": [
+          {
+            "enabled": true,
+            "used": false,
+            "readyAt": 5,
+            "observedAt": null,
+            "expiresAt": null,
+            "contacts": 0,
+            "live": false,
+            "inFlight": false,
+            "reportDueAt": null
+          },
+          {
+            "enabled": true,
+            "used": false,
+            "readyAt": 5,
+            "observedAt": null,
+            "expiresAt": null,
+            "contacts": 0,
+            "live": false,
+            "inFlight": false,
+            "reportDueAt": null
+          }
+        ]
+      },
+      {
+        "cycle": 1,
+        "before": 0.15,
+        "after": 0.15,
+        "resumed": false,
+        "manualEnded": false,
+        "winner": null,
+        "roster": 100,
+        "oldActorRetained": false,
+        "oldRootDisposed": true,
+        "observers": 421,
+        "fleet": 12,
+        "transportTasks": [],
+        "recon": [
+          {
+            "enabled": true,
+            "used": false,
+            "readyAt": 5,
+            "observedAt": null,
+            "expiresAt": null,
+            "contacts": 0,
+            "live": false,
+            "inFlight": false,
+            "reportDueAt": null
+          },
+          {
+            "enabled": true,
+            "used": false,
+            "readyAt": 5,
+            "observedAt": null,
+            "expiresAt": null,
+            "contacts": 0,
+            "live": false,
+            "inFlight": false,
+            "reportDueAt": null
+          }
+        ]
+      },
+      {
+        "cycle": 2,
+        "before": 0.15,
+        "after": 0.15,
+        "resumed": false,
+        "manualEnded": false,
+        "winner": null,
+        "roster": 100,
+        "oldActorRetained": false,
+        "oldRootDisposed": true,
+        "observers": 621,
+        "fleet": 12,
+        "transportTasks": [],
+        "recon": [
+          {
+            "enabled": true,
+            "used": false,
+            "readyAt": 5,
+            "observedAt": null,
+            "expiresAt": null,
+            "contacts": 0,
+            "live": false,
+            "inFlight": false,
+            "reportDueAt": null
+          },
+          {
+            "enabled": true,
+            "used": false,
+            "readyAt": 5,
+            "observedAt": null,
+            "expiresAt": null,
+            "contacts": 0,
+            "live": false,
+            "inFlight": false,
+            "reportDueAt": null
+          }
+        ]
+      },
+      {
+        "cycle": 3,
+        "before": 0.15,
+        "after": 0.15,
+        "resumed": false,
+        "manualEnded": false,
+        "winner": null,
+        "roster": 100,
+        "oldActorRetained": false,
+        "oldRootDisposed": true,
+        "observers": 821,
+        "fleet": 12,
+        "transportTasks": [],
+        "recon": [
+          {
+            "enabled": true,
+            "used": false,
+            "readyAt": 5,
+            "observedAt": null,
+            "expiresAt": null,
+            "contacts": 0,
+            "live": false,
+            "inFlight": false,
+            "reportDueAt": null
+          },
+          {
+            "enabled": true,
+            "used": false,
+            "readyAt": 5,
+            "observedAt": null,
+            "expiresAt": null,
+            "contacts": 0,
+            "live": false,
+            "inFlight": false,
+            "reportDueAt": null
+          }
+        ]
+      },
+      {
+        "cycle": 4,
+        "before": 0.15,
+        "after": 0.15,
+        "resumed": false,
+        "manualEnded": false,
+        "winner": null,
+        "roster": 100,
+        "oldActorRetained": false,
+        "oldRootDisposed": true,
+        "observers": 1021,
+        "fleet": 12,
+        "transportTasks": [],
+        "recon": [
+          {
+            "enabled": true,
+            "used": false,
+            "readyAt": 5,
+            "observedAt": null,
+            "expiresAt": null,
+            "contacts": 0,
+            "live": false,
+            "inFlight": false,
+            "reportDueAt": null
+          },
+          {
+            "enabled": true,
+            "used": false,
+            "readyAt": 5,
+            "observedAt": null,
+            "expiresAt": null,
+            "contacts": 0,
+            "live": false,
+            "inFlight": false,
+            "reportDueAt": null
+          }
+        ]
+      },
+      {
+        "cycle": 5,
+        "before": 0.15,
+        "after": 0.15,
+        "resumed": false,
+        "manualEnded": false,
+        "winner": null,
+        "roster": 100,
+        "oldActorRetained": false,
+        "oldRootDisposed": true,
+        "observers": 1221,
+        "fleet": 12,
+        "transportTasks": [],
+        "recon": [
+          {
+            "enabled": true,
+            "used": false,
+            "readyAt": 5,
+            "observedAt": null,
+            "expiresAt": null,
+            "contacts": 0,
+            "live": false,
+            "inFlight": false,
+            "reportDueAt": null
+          },
+          {
+            "enabled": true,
+            "used": false,
+            "readyAt": 5,
+            "observedAt": null,
+            "expiresAt": null,
+            "contacts": 0,
+            "live": false,
+            "inFlight": false,
+            "reportDueAt": null
+          }
+        ]
+      },
+      {
+        "cycle": 6,
+        "before": 0.15,
+        "after": 0.15,
+        "resumed": false,
+        "manualEnded": false,
+        "winner": null,
+        "roster": 100,
+        "oldActorRetained": false,
+        "oldRootDisposed": true,
+        "observers": 1421,
+        "fleet": 12,
+        "transportTasks": [],
+        "recon": [
+          {
+            "enabled": true,
+            "used": false,
+            "readyAt": 5,
+            "observedAt": null,
+            "expiresAt": null,
+            "contacts": 0,
+            "live": false,
+            "inFlight": false,
+            "reportDueAt": null
+          },
+          {
+            "enabled": true,
+            "used": false,
+            "readyAt": 5,
+            "observedAt": null,
+            "expiresAt": null,
+            "contacts": 0,
+            "live": false,
+            "inFlight": false,
+            "reportDueAt": null
+          }
+        ]
+      },
+      {
+        "cycle": 7,
+        "before": 0.15,
+        "after": 0.15,
+        "resumed": false,
+        "manualEnded": false,
+        "winner": null,
+        "roster": 100,
+        "oldActorRetained": false,
+        "oldRootDisposed": true,
+        "observers": 1621,
+        "fleet": 12,
+        "transportTasks": [],
+        "recon": [
+          {
+            "enabled": true,
+            "used": false,
+            "readyAt": 5,
+            "observedAt": null,
+            "expiresAt": null,
+            "contacts": 0,
+            "live": false,
+            "inFlight": false,
+            "reportDueAt": null
+          },
+          {
+            "enabled": true,
+            "used": false,
+            "readyAt": 5,
+            "observedAt": null,
+            "expiresAt": null,
+            "contacts": 0,
+            "live": false,
+            "inFlight": false,
+            "reportDueAt": null
+          }
+        ]
+      },
+      {
+        "cycle": 8,
+        "before": 0.15,
+        "after": 0.15,
+        "resumed": false,
+        "manualEnded": false,
+        "winner": null,
+        "roster": 100,
+        "oldActorRetained": false,
+        "oldRootDisposed": true,
+        "observers": 1821,
+        "fleet": 12,
+        "transportTasks": [],
+        "recon": [
+          {
+            "enabled": true,
+            "used": false,
+            "readyAt": 5,
+            "observedAt": null,
+            "expiresAt": null,
+            "contacts": 0,
+            "live": false,
+            "inFlight": false,
+            "reportDueAt": null
+          },
+          {
+            "enabled": true,
+            "used": false,
+            "readyAt": 5,
+            "observedAt": null,
+            "expiresAt": null,
+            "contacts": 0,
+            "live": false,
+            "inFlight": false,
+            "reportDueAt": null
+          }
+        ]
+      },
+      {
+        "cycle": 9,
+        "before": 0.15,
+        "after": 0.15,
+        "resumed": false,
+        "manualEnded": false,
+        "winner": null,
+        "roster": 100,
+        "oldActorRetained": false,
+        "oldRootDisposed": true,
+        "observers": 2021,
+        "fleet": 12,
+        "transportTasks": [],
+        "recon": [
+          {
+            "enabled": true,
+            "used": false,
+            "readyAt": 5,
+            "observedAt": null,
+            "expiresAt": null,
+            "contacts": 0,
+            "live": false,
+            "inFlight": false,
+            "reportDueAt": null
+          },
+          {
+            "enabled": true,
+            "used": false,
+            "readyAt": 5,
+            "observedAt": null,
+            "expiresAt": null,
+            "contacts": 0,
+            "live": false,
+            "inFlight": false,
+            "reportDueAt": null
+          }
+        ]
+      }
+    ],
+    "errors": []
+  }
+]

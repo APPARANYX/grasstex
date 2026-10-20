@@ -44,3 +44,7 @@ However, authority is still distributed through runtime monkey-patch chains; dyn
 ## Decision
 
 Proceed with **incremental architecture consolidation, not a broad rewrite**, beginning with authentication of state-changing endpoints, dynamic-collision consistency, executable lifecycle contracts, and full flag propagation. Commit no gameplay changes as part of this report. Explicit owner authorization is required before any corrective PR, deployment, or merge.
+
+## Fresh runtime follow-up
+
+The [runtime verification campaign](runtime-verification/runtime-verification.md) adds fresh battle executions, CPU profiles, lifecycle/flag experiments and a bounded defect register. Its measurements use the frozen baseline above; current-main default changes are reported separately. See the [CPU report](runtime-verification/cpu-performance.md), [state-machine validation](runtime-verification/state-machines.md), [feature flags](runtime-verification/feature-flags.md), [confirmed defects](runtime-verification/confirmed-defects.md), and [evidence-ranked roadmap](runtime-verification/architecture-simplification-roadmap.md). No gameplay changes, merge or deployment were performed.

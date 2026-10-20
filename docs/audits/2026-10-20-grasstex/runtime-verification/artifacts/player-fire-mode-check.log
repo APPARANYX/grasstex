@@ -1,0 +1,17 @@
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[BALLISTICS] direct fire uses combat-calibrated dispersed raycasts
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+PASS selector data: only the Thompson M1A1 and the FG 42 have one
+PASS MG 42 held: one round per cyclic interval, no burst cap and no re-lay pause
+PASS the cadence survives a slow frame (rounds due are fired together, none are lost)
+PASS a tap is a short burst the player chose, and letting go stops the gun at once
+PASS M1919A6 and MP 40 fire at their own cyclic rates
+PASS Thompson: full auto by default, one aimed round per cooldown on semi
+PASS FG 42: semi by default, full auto on the selector, whatever the range
+PASS climb counts rounds since the trigger was let go and stops at the longest AI burst
+PASS a bolt action or semi-automatic is exactly what it was
+PASS AI bursts are untouched by the player selector
+PASS the camera wires B / Y to the selector and shows the mode on the HUD
+player-fire-mode-check: 11 checks passed

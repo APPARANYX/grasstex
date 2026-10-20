@@ -1,0 +1,8 @@
+PASS the flag: all three by default, 0/off none, 1/all/on all three, a list exactly those named
+PASS off: the rotation is stress-blind, the same teams in the same order and the same telemetry as calm men
+PASS pick: the calmest team that can go is sent, a tie keeps the rotation
+PASS hold: every team at the shaken band holds the cycle; one under it and the squad bounds
+PASS review: shaken in contact for reviewAfter on a hold brief asks for a doctrine review, once
+PASS review: not with fewer than reviewMin living men, not on an attack brief, not out of contact, not with the flag off
+PASS module 17's accessors read stress through the lead lever only
+7 squad-stress checks passed

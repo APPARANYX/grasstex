@@ -1,0 +1,22 @@
+PASS six strategic depots with two persistent trucks each, exclusive allocation, real boarding/road travel, preserved parked/stopped trucks, collision-safe dismount and legacy isolation
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[NAV] firing-station navigation loaded
+[NAV] graph built; walls=0 nodes=2 doors=0 firingStations=0 rejectedWindows=0
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[NAV] firing-station navigation loaded
+[NAV] graph built; walls=0 nodes=2 doors=0 firingStations=0 rejectedWindows=0
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+PASS truck access: door/tailgate queue, serial seats, outside-body exits and rear staging
+PASS arrival at either door admits immediately; partial pickup exits the occupied door
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[NAV] firing-station navigation loaded
+[NAV] graph built; walls=0 nodes=2 doors=0 firingStations=0 rejectedWindows=0
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[BALLISTICS] direct fire uses combat-calibrated dispersed raycasts
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[BALLISTICS] direct fire uses combat-calibrated dispersed raycasts
+PASS live rotated truck blocks infantry and rounds, preserves detours, roof clearance and complete transport

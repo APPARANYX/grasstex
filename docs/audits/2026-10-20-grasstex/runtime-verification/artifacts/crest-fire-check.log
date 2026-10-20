@@ -1,0 +1,7 @@
+PASS open ground: he sees and fires (control)
+PASS an exposed upper body over a crest permits firing
+PASS a crest low enough for center-mass fire retains center aim
+PASS a narrow crest between sight samples still stops the trigger
+PASS suppressive fire uses the same terrain crest gate
+PASS no combat-RNG draws from the gate itself
+crest-fire-check: 6 passed

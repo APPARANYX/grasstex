@@ -1,0 +1,56 @@
+[
+  {
+    "ref": "f89939f2f6e8ff21063d1b24c28a8ab73fe9d2e9",
+    "search": "",
+    "fixtureProfile": "strategic",
+    "fleet": 0,
+    "recon": false,
+    "interception": false,
+    "colliders": 0
+  },
+  {
+    "ref": "f89939f2f6e8ff21063d1b24c28a8ab73fe9d2e9",
+    "search": "?strategicInterception=0&motorTransport=0&aerialRecon=0&interception=0&truckCollision=0",
+    "fixtureProfile": "strategic",
+    "fleet": 0,
+    "recon": false,
+    "interception": false,
+    "colliders": 0
+  },
+  {
+    "ref": "f89939f2f6e8ff21063d1b24c28a8ab73fe9d2e9",
+    "search": "?strategicInterception=1&motorTransport=1&aerialRecon=1&interception=1&truckCollision=1",
+    "fixtureProfile": "strategic",
+    "fleet": 4,
+    "recon": true,
+    "interception": true,
+    "colliders": 4
+  },
+  {
+    "ref": "fa99ec8f15acf0f76d83e7f5a4317191ab5a61e5",
+    "search": "",
+    "fixtureProfile": "strategic",
+    "fleet": 4,
+    "recon": true,
+    "interception": true,
+    "colliders": 4
+  },
+  {
+    "ref": "fa99ec8f15acf0f76d83e7f5a4317191ab5a61e5",
+    "search": "?strategicInterception=0&motorTransport=0&aerialRecon=0&interception=0&truckCollision=0",
+    "fixtureProfile": "strategic",
+    "fleet": 0,
+    "recon": false,
+    "interception": false,
+    "colliders": 0
+  },
+  {
+    "ref": "fa99ec8f15acf0f76d83e7f5a4317191ab5a61e5",
+    "search": "?strategicInterception=1&motorTransport=1&aerialRecon=1&interception=1&truckCollision=1",
+    "fixtureProfile": "strategic",
+    "fleet": 4,
+    "recon": true,
+    "interception": true,
+    "colliders": 4
+  }
+]

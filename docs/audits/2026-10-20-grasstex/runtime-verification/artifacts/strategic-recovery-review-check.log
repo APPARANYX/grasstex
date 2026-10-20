@@ -1,0 +1,78 @@
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[OBJECTIVE] capture zones v30: waving raise/lower flags + open sandbag boundary active
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[OBJECTIVES] modular objective service v19 loaded
+[AI-HEALTH] objective assignment and replan health active
+PASS freeze side: a stalled assault is reset through a varied approach at the same objective, then reviewed on a cadence
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[OBJECTIVE] capture zones v30: waving raise/lower flags + open sandbag boundary active
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[OBJECTIVES] modular objective service v19 loaded
+[AI-HEALTH] objective assignment and replan health active
+PASS stability side: legitimate static defense and a progressing effort are not churned by stages or review passes
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[OBJECTIVE] capture zones v30: waving raise/lower flags + open sandbag boundary active
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[OBJECTIVES] modular objective service v19 loaded
+[AI-HEALTH] objective assignment and replan health active
+PASS adoption hold: a young unaccepted brief from one stage holds the next stage until acceptance
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[OBJECTIVE] capture zones v30: waving raise/lower flags + open sandbag boundary active
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[OBJECTIVES] modular objective service v19 loaded
+[AI-HEALTH] objective assignment and replan health active
+PASS adoption hold: a held stage reports no strategic wake, the stage that runs does
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[OBJECTIVE] capture zones v30: waving raise/lower flags + open sandbag boundary active
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[OBJECTIVES] modular objective service v19 loaded
+[AI-HEALTH] objective assignment and replan health active
+PASS initial defender progress timestamp zero still ages into strategic recovery
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[OBJECTIVE] capture zones v30: waving raise/lower flags + open sandbag boundary active
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[OBJECTIVES] modular objective service v19 loaded
+[AI-HEALTH] objective assignment and replan health active
+PASS General preserves a capture brief with verified carrier road-progress pulses
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[OBJECTIVE] capture zones v30: waving raise/lower flags + open sandbag boundary active
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[OBJECTIVES] modular objective service v19 loaded
+[AI-HEALTH] objective assignment and replan health active
+PASS strategic main-effort preserves a progressing carrier bound for a different objective
+PASS 7 strategic-recovery review checks

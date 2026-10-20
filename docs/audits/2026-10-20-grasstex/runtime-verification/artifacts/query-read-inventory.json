@@ -1,0 +1,3979 @@
+[
+  {
+    "name": "acoustics",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/12a-listener-acoustics.js",
+        "line": 12,
+        "text": "var match = /(?:^|[?&])acoustics=(off|standard|high)(?:&|$)/.exec("
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/audio-format-check.js",
+      "tools/ai-sim-harness/battle-loader-player-camera-check.js",
+      "tools/ai-sim-harness/listener-acoustics-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "aerialRecon",
+    "previewForwarded": false,
+    "classification": "strategic gate executed in 64-case matrix",
+    "default": "baseline source: off; current-main source: on with prerequisites",
+    "production": "deployed state unverified",
+    "preview": "deployed state unverified; baseline requested flags dropped unless allowlisted",
+    "references": [
+      {
+        "file": "battle/modules/59-strategic-aerial-recon.js",
+        "line": 36,
+        "text": "/(?:^|[?&])aerialRecon=1(?:&|$)/.test(search)"
+      },
+      {
+        "file": "battle/modules/59b-strategic-interception.js",
+        "line": 27,
+        "text": "/(?:^|[?&])aerialRecon=1(?:&|$)/.test(search) &&"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/retreat-men-export-check.js",
+      "tools/ai-sim-harness/strategic-aerial-recon-check.js",
+      "tools/ai-sim-harness/strategic-interception-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "alertAdvance",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/16-squad-plan-stability.js",
+        "line": 1832,
+        "text": "typeof location !== 'undefined' && /[?&]alertAdvance=(?:0|off|false)\\b/.test(location.search || '')"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/clear-contact-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "alertHold",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/engagement.js",
+        "line": 491,
+        "text": "var ALERT_LATCH = !(typeof location !== 'undefined' && /[?&]alertHold=0\\b/.test(location.search || ''));"
+      }
+    ],
+    "testMentions": [],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "ambushBeforeObjective",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/59-strategic-aerial-recon.js",
+        "line": 54,
+        "text": "return !flagOff('ambushBeforeObjective');"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/strategic-interception-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "ambushNextObjective",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/59-strategic-aerial-recon.js",
+        "line": 62,
+        "text": "return flagOff('ambushNextObjective') ? 0 : 1;"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/strategic-interception-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "animLod",
+    "previewForwarded": true,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/52-fbx-render-lod.js",
+        "line": 43,
+        "text": "on: !(typeof location !== 'undefined' && /[?&]animLod=0\\b/.test(location.search || '')),"
+      }
+    ],
+    "testMentions": [],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "audioFormat",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/00-audio-format.js",
+        "line": 16,
+        "text": "var m = typeof location !== 'undefined' && /[?&]audioFormat=(mp3|caf|ogg)\\b/.exec(location.search || '');"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/audio-format-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "audioMix",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/00a-audio-mix.js",
+        "line": 22,
+        "text": "typeof location !== 'undefined' && /(?:^|[?&])audioMix=legacy(?:&|$)/.test(location.search || '');"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/audio-mix-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "autonomousMovement",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle_sim_local.php",
+        "line": 92,
+        "text": "$autonomousMovement=!(isset($_GET['autonomousMovement']) && $_GET['autonomousMovement'] === '0');"
+      }
+    ],
+    "testMentions": [],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "bench",
+    "previewForwarded": true,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/97-device-benchmark.js",
+        "line": 26,
+        "text": "if(q.get('bench')!=='1'){root.BattleDeviceBenchmark={active:false};return;}"
+      },
+      {
+        "file": "battle_sim.php",
+        "line": 234,
+        "text": "$deviceBenchRequested = $allDevModules || (isset($_GET['bench']) && $_GET['bench'] === '1');"
+      },
+      {
+        "file": "battle_sim_local.php",
+        "line": 60,
+        "text": "$deviceBenchRequested = $allDevModules || (isset($_GET['bench']) && $_GET['bench'] === '1');"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/module-load-profile-check.js",
+      "tools/ai-sim-harness/benchmark-compare-check.js",
+      "tools/ai-sim-harness/map-pipeline-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "benchAuto",
+    "previewForwarded": true,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/97-device-benchmark.js",
+        "line": 29,
+        "text": "FOLLOW_DIST=Math.max(3,+q.get('benchFollow')||25),AUTO=q.get('benchAuto')==='1',"
+      }
+    ],
+    "testMentions": [],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "benchCam",
+    "previewForwarded": true,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/97-device-benchmark.js",
+        "line": 28,
+        "text": "CAM=/^(close|follow)$/.test(q.get('benchCam')||'')?q.get('benchCam'):'overview',"
+      }
+    ],
+    "testMentions": [],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "benchFollow",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/97-device-benchmark.js",
+        "line": 29,
+        "text": "FOLLOW_DIST=Math.max(3,+q.get('benchFollow')||25),AUTO=q.get('benchAuto')==='1',"
+      }
+    ],
+    "testMentions": [],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "benchHide",
+    "previewForwarded": true,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/97-device-benchmark.js",
+        "line": 32,
+        "text": "HIDE=(q.get('benchHide')||'').split(',').map(function(k){return HIDE_ALIAS[k.trim().toLowerCase()];}).filter(Boolean);"
+      }
+    ],
+    "testMentions": [],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "benchSeconds",
+    "previewForwarded": true,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/97-device-benchmark.js",
+        "line": 27,
+        "text": "var SECONDS=Math.max(5,+q.get('benchSeconds')||60),WARMUP=Math.max(0,q.get('benchWarmup')==null?60:+q.get('benchWarmup')||0),"
+      }
+    ],
+    "testMentions": [],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "benchWarmup",
+    "previewForwarded": true,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/97-device-benchmark.js",
+        "line": 27,
+        "text": "var SECONDS=Math.max(5,+q.get('benchSeconds')||60),WARMUP=Math.max(0,q.get('benchWarmup')==null?60:+q.get('benchWarmup')||0),"
+      }
+    ],
+    "testMentions": [],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "boardFacing",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/battle-sim.js",
+        "line": 624,
+        "text": "var BOARD_FACING = !/(?:^|[?&])boardFacing=0(?:&|$)/.test((root.location && root.location.search) || '');"
+      }
+    ],
+    "testMentions": [],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "boneTextures",
+    "previewForwarded": true,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/53-fbx-soldier-backend.js",
+        "line": 1411,
+        "text": "var m = typeof location !== 'undefined' && /[?&]boneTextures=([01])\\b/.exec(location.search || '');"
+      }
+    ],
+    "testMentions": [],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "breadcrumb",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/98-reload-breadcrumb.js",
+        "line": 15,
+        "text": "if (/(?:^|[?&])breadcrumb=0(?:&|$)/.test(search)) return;"
+      }
+    ],
+    "testMentions": [],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "buddyPairs",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/16-squad-plan-stability.js",
+        "line": 382,
+        "text": "return !/[?&]buddyPairs=(?:0|off|false)(?:&|$)/i.test(search || '');"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/buddy-pairs-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "callouts",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/09-tactical-callouts.js",
+        "line": 19,
+        "text": "var ON = !(typeof location !== 'undefined' && /[?&]callouts=(0|off|none)\\b/.test(location.search || ''));"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/perception-check.js",
+      "tools/ai-sim-harness/scouts-forward-check.js",
+      "tools/ai-sim-harness/callouts-check.js",
+      "tools/ai-sim-harness/voice-observations-check.js",
+      "tools/ai-sim-harness/objective-nav-check.js",
+      "tools/ai-sim-harness/benchmark-restart-isolation-check.js",
+      "tools/ai-sim-harness/voice-determinism-check.js",
+      "tools/ai-sim-harness/voice-playback-check.js",
+      "tools/ai-sim-harness/soldier-beliefs-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "clipPack",
+    "previewForwarded": true,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/53-fbx-soldier-backend.js",
+        "line": 1079,
+        "text": "var CLIP_PACK_ON = !(typeof location !== 'undefined' && /[?&]clipPack=0\\b/.test(location.search || ''));"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/fbx-library-lifecycle-check.js",
+      "tools/ai-sim-harness/fbx-prepared-pack-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "cloneBounds",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/53-fbx-soldier-backend.js",
+        "line": 1428,
+        "text": "var CLONE_BOUNDS = typeof location !== 'undefined' && /[?&]cloneBounds=1\\b/.test(location.search || '');"
+      }
+    ],
+    "testMentions": [],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "coa",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/16-squad-plan-stability.js",
+        "line": 416,
+        "text": "var COA_ON = !(typeof location !== 'undefined' && /[?&]coa=(?:0|off|false)\\b/.test(location.search || ''));"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/strategic-recovery-ctx-check.js",
+      "tools/ai-sim-harness/coa-check.js",
+      "tools/ai-sim-harness/execution-contract-check.js",
+      "tools/ai-sim-harness/local-mission-tasks-check.js",
+      "tools/ai-sim-harness/squad-phase-check.js",
+      "tools/ai-sim-harness/squad-status-overlay-check.js",
+      "tools/ai-sim-harness/covered-pressure-bound-check.js",
+      "tools/ai-sim-harness/clear-contact-check.js",
+      "tools/ai-sim-harness/buddy-pairs-check.js",
+      "tools/ai-sim-harness/squad-stress-check.js",
+      "tools/ai-sim-harness/tactical-postures-check.js",
+      "tools/ai-sim-harness/mind-read-map-check.js",
+      "tools/ai-sim-harness/covered-fire-maneuver-causal-check.js",
+      "tools/ai-sim-harness/local-degradation-check.js",
+      "tools/ai-sim-harness/strategic-recovery-review-check.js",
+      "tools/ai-sim-harness/local-resources-check.js",
+      "tools/ai-sim-harness/fire-control-check.js",
+      "tools/ai-sim-harness/morale-check.js",
+      "tools/ai-sim-harness/local-plan-check.js",
+      "tools/ai-sim-harness/lease-conflict-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "combatAudio",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/15-combat-audio.js",
+        "line": 45,
+        "text": "var ON = !(typeof location !== 'undefined' && /[?&]combatAudio=0\\b/.test(location.search || ''));"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/combat-audio-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "combatHandoff",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/engagement.js",
+        "line": 493,
+        "text": "return !/[?&]combatHandoff=(?:0|off|false)(?:&|#|$)/i.test(search || '');"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/combat-handoff-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "combatLab",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle_sim_local.php",
+        "line": 94,
+        "text": "$labRequested=isset($_GET['combatLab']) && $_GET['combatLab'] === '1';"
+      }
+    ],
+    "testMentions": [],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "commandMovement",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/18-command-reception.js",
+        "line": 25,
+        "text": "MOVEMENT_ON = ON && !/[?&]commandMovement=(?:0|off|false)(?:&|#|$)/i.test(SEARCH),"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/transport-resume-check.js",
+      "tools/ai-sim-harness/scouts-forward-check.js",
+      "tools/ai-sim-harness/command-relay-check.js",
+      "tools/ai-sim-harness/command-reception-check.js",
+      "tools/ai-sim-harness/recon-budget-check.js",
+      "tools/ai-sim-harness/leaderless-intent-check.js",
+      "tools/ai-sim-harness/local-mission-tasks-check.js",
+      "tools/ai-sim-harness/command-posture-check.js",
+      "tools/ai-sim-harness/recon-outcomes-check.js",
+      "tools/ai-sim-harness/movement-recovery-check.js",
+      "tools/ai-sim-harness/leaderless-retreat-reception-check.js",
+      "tools/ai-sim-harness/stance-ownership-check.js",
+      "tools/ai-sim-harness/tactical-postures-check.js",
+      "tools/ai-sim-harness/advance-stance-reason-check.js",
+      "tools/ai-sim-harness/movement-arrival-adoption-check.js",
+      "tools/ai-sim-harness/spawn-slots-check.js",
+      "tools/ai-sim-harness/autonomous-movement-handoff-check.js",
+      "tools/ai-sim-harness/unreachable-anchor-check.js",
+      "tools/ai-sim-harness/command-movement-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "commandPosture",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/18-command-reception.js",
+        "line": 24,
+        "text": "POSTURE_ON = ON && !/[?&]commandPosture=(?:0|off|false)(?:&|#|$)/i.test(SEARCH),"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/command-reception-check.js",
+      "tools/ai-sim-harness/command-posture-check.js",
+      "tools/ai-sim-harness/retreat-posture-check.js",
+      "tools/ai-sim-harness/grenade-check.js",
+      "tools/ai-sim-harness/effective-fire-support-check.js",
+      "tools/ai-sim-harness/stance-ownership-check.js",
+      "tools/ai-sim-harness/advance-stance-reason-check.js",
+      "tools/ai-sim-harness/fire-control-check.js",
+      "tools/ai-sim-harness/loop-period-check.js",
+      "tools/ai-sim-harness/autonomous-movement-handoff-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "commandReception",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/18-command-reception.js",
+        "line": 16,
+        "text": "ON = !/[?&]commandReception=(?:0|off|false)(?:&|#|$)/i.test(SEARCH),"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/command-relay-check.js",
+      "tools/ai-sim-harness/command-reception-check.js",
+      "tools/ai-sim-harness/command-orientation-check.js",
+      "tools/ai-sim-harness/squad-relay-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "commandRelay",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/18-command-reception.js",
+        "line": 26,
+        "text": "RELAY_ON = ON && !/[?&]commandRelay=(?:0|off|false)(?:&|#|$)/i.test(SEARCH),"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/transport-resume-check.js",
+      "tools/ai-sim-harness/scouts-forward-check.js",
+      "tools/ai-sim-harness/command-relay-check.js",
+      "tools/ai-sim-harness/command-reception-check.js",
+      "tools/ai-sim-harness/recon-budget-check.js",
+      "tools/ai-sim-harness/leaderless-intent-check.js",
+      "tools/ai-sim-harness/command-posture-check.js",
+      "tools/ai-sim-harness/recon-outcomes-check.js",
+      "tools/ai-sim-harness/movement-recovery-check.js",
+      "tools/ai-sim-harness/stance-ownership-check.js",
+      "tools/ai-sim-harness/advance-stance-reason-check.js",
+      "tools/ai-sim-harness/spawn-slots-check.js",
+      "tools/ai-sim-harness/autonomous-movement-handoff-check.js",
+      "tools/ai-sim-harness/command-movement-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "contactStance",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/engagement.js",
+        "line": 331,
+        "text": "typeof location !== 'undefined' && /[?&]contactStance=0\\b/.test(location.search || '')"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/stance-ownership-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "contestedPost",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/59b-strategic-interception.js",
+        "line": 342,
+        "text": "return !/(?:^|[?&])contestedPost=0(?:&|$)/.test((root.location && root.location.search) || '');"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/strategic-interception-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "coverFire",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/engagement.js",
+        "line": 499,
+        "text": "var COVER_FIRE = !(typeof location !== 'undefined' && /[?&]coverFire=0\\b/.test(location.search || ''));"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/cover-positions-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "coverStance",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/engagement.js",
+        "line": 500,
+        "text": "var COVER_STANCE = !(typeof location !== 'undefined' && /[?&]coverStance=0\\b/.test(location.search || ''));"
+      }
+    ],
+    "testMentions": [],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "coveredBounds",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/15o-squad-leader-tactical-postures.js",
+        "line": 20,
+        "text": "/[?&]coveredBounds=(?:1|on|true)(?:&|#|$)/i.test(query),"
+      },
+      {
+        "file": "battle/modules/19-engagement-cover-positions.js",
+        "line": 42,
+        "text": "/[?&]coveredBounds=(1|on|true)\\b/.test(query) && /[?&]localPlan=(1|on|true)\\b/.test(query);"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/covered-bounds-check.js",
+      "tools/ai-sim-harness/covered-pressure-bound-check.js",
+      "tools/ai-sim-harness/tactical-postures-check.js",
+      "tools/ai-sim-harness/covered-fire-maneuver-causal-check.js",
+      "tools/ai-sim-harness/local-degradation-check.js",
+      "tools/ai-sim-harness/local-resources-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "crawlFit",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/engagement.js",
+        "line": 497,
+        "text": "var CRAWL_FIT = !(typeof location !== 'undefined' && /[?&]crawlFit=0\\b/.test(location.search || ''));"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/cover-positions-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "crewEyes",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/squad-ai.js",
+        "line": 2179,
+        "text": "var CREW_EYES = !/(?:^|[?&])crewEyes=0(?:&|$)/.test((root.location && root.location.search) || '');"
+      },
+      {
+        "file": "battle/modules/58-strategic-abstract-transport.js",
+        "line": 1216,
+        "text": "return !/(?:^|[?&])crewEyes=0(?:&|$)/.test((root.location && root.location.search) || '');"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/strategic-transport-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "damageRange",
+    "previewForwarded": true,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/98-damage-range.js",
+        "line": 24,
+        "text": "if (q.get('damageRange') !== '1') {"
+      },
+      {
+        "file": "battle_sim.php",
+        "line": 235,
+        "text": "$damageRangeRequested = $allDevModules || (isset($_GET['damageRange']) && $_GET['damageRange'] === '1');"
+      },
+      {
+        "file": "battle_sim_local.php",
+        "line": 61,
+        "text": "$damageRangeRequested = $allDevModules || (isset($_GET['damageRange']) && $_GET['damageRange'] === '1');"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/module-load-profile-check.js",
+      "tools/ai-sim-harness/start-wrapper-contract-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "defender",
+    "previewForwarded": true,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/phase-c-compact-range.js",
+        "line": 31,
+        "text": "scenarios[k].seed === params.get('seed') && scenarios[k].defender === (params.get('defender') || '')"
+      },
+      {
+        "file": "battle_sim_local.php",
+        "line": 90,
+        "text": "$requestedDefender=(isset($_GET['defender'])&&in_array($_GET['defender'],array('us','ge'),true))?$_GET['defender']:'';"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/hill-stalemate-check.js",
+      "tools/ai-sim-harness/strategic-mobile-defense-check.js",
+      "tools/ai-sim-harness/scouts-forward-check.js",
+      "tools/ai-sim-harness/wire-map-check.js",
+      "tools/ai-sim-harness/recon-budget-check.js",
+      "tools/ai-sim-harness/fled-man-check.js",
+      "tools/ai-sim-harness/local-mission-tasks-check.js",
+      "tools/ai-sim-harness/objective-nav-check.js",
+      "tools/ai-sim-harness/squad-phase-check.js",
+      "tools/ai-sim-harness/initial-seed-url-check.js",
+      "tools/ai-sim-harness/reconstitution-check.js",
+      "tools/ai-sim-harness/command-adoption-ratchet-check.js",
+      "tools/ai-sim-harness/recon-outcomes-check.js",
+      "tools/ai-sim-harness/strategic-route-stall-check.js",
+      "tools/ai-sim-harness/retreat-men-export-check.js",
+      "tools/ai-sim-harness/cover-positions-check.js",
+      "tools/ai-sim-harness/strategic-recovery-review-check.js",
+      "tools/ai-sim-harness/retreat-defender-fireteam-check.js",
+      "tools/ai-sim-harness/state-ownership-check.js",
+      "tools/ai-sim-harness/command-movement-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "devModules",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle_sim.php",
+        "line": 232,
+        "text": "$allDevModules = isset($_GET['devModules']) && $_GET['devModules'] === '1';"
+      },
+      {
+        "file": "battle_sim_local.php",
+        "line": 58,
+        "text": "$allDevModules = isset($_GET['devModules']) && $_GET['devModules'] === '1';"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/module-load-profile-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "editor",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/30-ai-graph-editor.js",
+        "line": 1374,
+        "text": "if (new URLSearchParams(location.search).get('editor') === 'ai' || location.hash === '#ai-graph')"
+      },
+      {
+        "file": "battle_sim.php",
+        "line": 233,
+        "text": "$graphUiRequested = $allDevModules || (isset($_GET['editor']) && $_GET['editor'] === 'ai');"
+      },
+      {
+        "file": "battle_sim_local.php",
+        "line": 59,
+        "text": "$graphUiRequested = $allDevModules || (isset($_GET['editor']) && $_GET['editor'] === 'ai');"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/module-load-profile-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "effectiveFire",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/engagement.js",
+        "line": 25,
+        "text": "/[?&]effectiveFire=(?:0|off|false)(?:&|#|$)/i.test(location.search || '')"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/effective-fire-support-check.js",
+      "tools/ai-sim-harness/tactical-postures-check.js",
+      "tools/ai-sim-harness/local-degradation-check.js",
+      "tools/ai-sim-harness/local-resources-check.js",
+      "tools/ai-sim-harness/local-plan-check.js",
+      "tools/ai-sim-harness/stress-reactions-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "engineerGarrison",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/21-defender-engineers.js",
+        "line": 443,
+        "text": "/[?&]engineerGarrison=(?:0|off|false)\\b/i.test(location.search || '')"
+      }
+    ],
+    "testMentions": [],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "enrollMissing",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/18-command-reception.js",
+        "line": 28,
+        "text": "ENROLL_MISSING = !/[?&]enrollMissing=(?:0|off|false)(?:&|#|$)/i.test(SEARCH),"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/command-reception-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "executionReport",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/16-squad-plan-stability.js",
+        "line": 292,
+        "text": "var EXEC_REPORT_ON = !/[?&]executionReport=(?:0|off|false)(?:&|#|$)/i.test("
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/execution-contract-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "farHz",
+    "previewForwarded": true,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/52-fbx-render-lod.js",
+        "line": 56,
+        "text": "var m = typeof location !== 'undefined' && /[?&]farHz=([0-9.]+)/.exec(location.search || '');"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/fbx-presentation-lod-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "fastRetarget",
+    "previewForwarded": true,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/52-fbx-model-retarget.js",
+        "line": 32,
+        "text": "typeof location !== 'undefined' && /[?&]fastRetarget=0\\b/.test(location.search || '')"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/fbx-model-retarget-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "fireControl",
+    "previewForwarded": true,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/16-squad-plan-stability.js",
+        "line": 448,
+        "text": "typeof location !== 'undefined' && /[?&]fireControl=(?:0|off|false)\\b/.test(location.search || '')"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/strategic-recovery-ctx-check.js",
+      "tools/ai-sim-harness/command-reception-check.js",
+      "tools/ai-sim-harness/execution-contract-check.js",
+      "tools/ai-sim-harness/soldier-mind-check.js",
+      "tools/ai-sim-harness/mg-suppression-setup-check.js",
+      "tools/ai-sim-harness/local-mission-tasks-check.js",
+      "tools/ai-sim-harness/command-posture-check.js",
+      "tools/ai-sim-harness/retreat-posture-check.js",
+      "tools/ai-sim-harness/grenade-check.js",
+      "tools/ai-sim-harness/player-control-check.js",
+      "tools/ai-sim-harness/effective-fire-support-check.js",
+      "tools/ai-sim-harness/squad-status-overlay-check.js",
+      "tools/ai-sim-harness/clear-contact-check.js",
+      "tools/ai-sim-harness/buddy-pairs-check.js",
+      "tools/ai-sim-harness/stance-ownership-check.js",
+      "tools/ai-sim-harness/squad-stress-check.js",
+      "tools/ai-sim-harness/tactical-postures-check.js",
+      "tools/ai-sim-harness/covered-fire-maneuver-causal-check.js",
+      "tools/ai-sim-harness/local-degradation-check.js",
+      "tools/ai-sim-harness/strategic-recovery-review-check.js",
+      "tools/ai-sim-harness/local-resources-check.js",
+      "tools/ai-sim-harness/fire-control-check.js",
+      "tools/ai-sim-harness/local-plan-check.js",
+      "tools/ai-sim-harness/autonomous-movement-handoff-check.js",
+      "tools/ai-sim-harness/lease-conflict-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "fireLineContact",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/engagement.js",
+        "line": 45,
+        "text": "typeof location !== 'undefined' && /[?&]fireLineContact=0\\b/.test(location.search || '')"
+      }
+    ],
+    "testMentions": [],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "fireteamSplit",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/16-squad-plan-stability.js",
+        "line": 455,
+        "text": "typeof location !== 'undefined' && /[?&]fireteamSplit=(?:0|off|false)\\b/i.test(location.search || '')"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/tactical-default-flags-check.js",
+      "tools/ai-sim-harness/covered-pressure-bound-check.js",
+      "tools/ai-sim-harness/covered-fire-maneuver-causal-check.js",
+      "tools/ai-sim-harness/local-degradation-check.js",
+      "tools/ai-sim-harness/local-resources-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "fixedClock",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/00-fixed-step-clock.js",
+        "line": 71,
+        "text": "if (/[?&]fixedClock=0(?:&|$)/.test(search)) return sim;"
+      },
+      {
+        "file": "battle/modules/00-fixed-step-clock.js",
+        "line": 77,
+        "text": "if (!/[?&]fixedClock=all(?:&|$)/.test(search)) return sim;"
+      }
+    ],
+    "testMentions": [],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "fledBriefEnd",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/22-commander-reconstitution.js",
+        "line": 49,
+        "text": "FLED_BRIEF_END_ON = !/[?&]fledBriefEnd=(?:0|off|false)(?:&|#|$)/i.test("
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/fled-man-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "fledElimination",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/commander-doctrine.js",
+        "line": 141,
+        "text": "return !/[?&]fledElimination=(?:0|off|false)(?:&|#|$)/i.test(search || '');"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/fled-man-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "fledWaitMerge",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/22-commander-reconstitution.js",
+        "line": 442,
+        "text": "var FLED_WAIT_EXCLUDED_ON = !/[?&]fledWaitMerge=(?:0|off|false)(?:&|#|$)/i.test("
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/reconstitution-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "follow",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/camera-controls.js",
+        "line": 2189,
+        "text": "followRequested = q.get('follow') === '1' || q.get('orbit') === '1';"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/coa-check.js",
+      "tools/ai-sim-harness/impact-fx-check.js",
+      "tools/ai-sim-harness/sidearm-check.js",
+      "tools/ai-sim-harness/player-control-check.js",
+      "tools/ai-sim-harness/recon-outcomes-check.js",
+      "tools/ai-sim-harness/squad-status-overlay-check.js",
+      "tools/ai-sim-harness/player-facing-bore-check.js",
+      "tools/ai-sim-harness/stats-levers-check.js",
+      "tools/ai-sim-harness/stress-reactions-check.js",
+      "tools/ai-sim-harness/strategic-chain-check.js",
+      "tools/ai-sim-harness/weapon-wound-check.js",
+      "tools/ai-sim-harness/state-ownership-check.js",
+      "tools/ai-sim-harness/soldier-beliefs-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "frontLineRule",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/21b-strategic-front-lines.js",
+        "line": 45,
+        "text": "return !/(?:^|[?&])frontLineRule=0(?:&|$)/.test((root.location && root.location.search) || '');"
+      }
+    ],
+    "testMentions": [],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "frontLines",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/scenario-generator.js",
+        "line": 675,
+        "text": "((typeof location !== 'undefined' && /[?&]frontLines=1(?:&|$)/.test(location.search || '')) ||"
+      }
+    ],
+    "testMentions": [],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "fxPrewarm",
+    "previewForwarded": true,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/15-bullet-impact-fx.js",
+        "line": 766,
+        "text": "var FX_PREWARM = !(typeof location !== 'undefined' && /[?&]fxPrewarm=0\\b/.test(location.search || ''));"
+      },
+      {
+        "file": "battle/modules/13-combat-fx-consistency.js",
+        "line": 249,
+        "text": "var FX_PREWARM = !(typeof location !== 'undefined' && /[?&]fxPrewarm=0\\b/.test(location.search || ''));"
+      }
+    ],
+    "testMentions": [],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "garrisonAmbush",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/59b-strategic-interception.js",
+        "line": 221,
+        "text": "return !/(?:^|[?&])garrisonAmbush=0(?:&|$)/.test((root.location && root.location.search) || '');"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/strategic-interception-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "geScout",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/weapons.js",
+        "line": 276,
+        "text": "if (typeof location !== 'undefined' && /[?&]geScout=carbine\\b/.test(location.search || ''))"
+      }
+    ],
+    "testMentions": [],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "generalIntel",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/commander-doctrine.js",
+        "line": 162,
+        "text": "return !/[?&]generalIntel=(?:0|off|false)(?:&|#|$)/i.test(search || '');"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/squad-fit-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "grass",
+    "previewForwarded": true,
+    "classification": "preview-only candidate",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [],
+    "testMentions": [],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "grenadeAudio",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/24a-grenade-audio.js",
+        "line": 32,
+        "text": "!(typeof location !== 'undefined' && /[?&]grenadeAudio=0\\b/.test(location.search || ''))"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/grenade-audio-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "grenadeFog",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/24-grenade-fx.js",
+        "line": 21,
+        "text": "FOG_ON = !/(?:^|[?&])grenadeFog=(?:0|off)(?:&|$)/.test("
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/grenade-fog-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "grenades",
+    "previewForwarded": true,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/23-grenades.js",
+        "line": 16,
+        "text": "var m = /[?&]grenades=([^&#]*)/.exec(search || '');"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/grenade-check.js",
+      "tools/ai-sim-harness/player-grenade-check.js",
+      "tools/ai-sim-harness/grenade-audio-check.js",
+      "tools/ai-sim-harness/extension-order-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "groundSteps",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/14-z-ballistic-raycast.js",
+        "line": 21,
+        "text": "var m = typeof location !== 'undefined' && /[?&]groundSteps=(\\d+)\\b/.exec(location.search || ''),"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/ground-stop-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "incomingFireReveal",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/squad-ai.js",
+        "line": 183,
+        "text": "return !/[?&]incomingFireReveal=(?:0|off|false)(?:&|#|$)/i.test(search || '');"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/perception-check.js",
+      "tools/ai-sim-harness/squad-broadcast-check.js",
+      "tools/ai-sim-harness/soldier-beliefs-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "infantry",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/55-reported-contact-tactical-map.js",
+        "line": 599,
+        "text": "var mark = spec && spec.get ? spec.get('infantry') : null;"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/transport-resume-check.js",
+      "tools/ai-sim-harness/tactical-symbol-registry-check.js",
+      "tools/ai-sim-harness/module-unit-set-restart-check.js",
+      "tools/ai-sim-harness/world-debug-check.js",
+      "tools/ai-sim-harness/objective-nav-check.js",
+      "tools/ai-sim-harness/tactical-map-check.js",
+      "tools/ai-sim-harness/squad-status-overlay-check.js",
+      "tools/ai-sim-harness/strategic-transport-check.js",
+      "tools/ai-sim-harness/causal-inaction-check.js",
+      "tools/ai-sim-harness/strategic-interception-check.js",
+      "tools/ai-sim-harness/route-final-objective-check.js",
+      "tools/ai-sim-harness/camera-strategic-fast-flight-check.js",
+      "tools/ai-sim-harness/objective-marker-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "interception",
+    "previewForwarded": false,
+    "classification": "strategic gate executed in 64-case matrix",
+    "default": "baseline source: off; current-main source: on with prerequisites",
+    "production": "deployed state unverified",
+    "preview": "deployed state unverified; baseline requested flags dropped unless allowlisted",
+    "references": [
+      {
+        "file": "battle/modules/59-strategic-aerial-recon.js",
+        "line": 43,
+        "text": "return /(?:^|[?&])interception=1(?:&|$)/.test((root.location && root.location.search) || '');"
+      },
+      {
+        "file": "battle/modules/59-strategic-aerial-recon.js",
+        "line": 453,
+        "text": "var strategicEarly = /(?:^|[?&])interception=1(?:&|$)/.test("
+      },
+      {
+        "file": "battle/modules/59b-strategic-interception.js",
+        "line": 28,
+        "text": "/(?:^|[?&])interception=1(?:&|$)/.test(search)"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/retreat-men-export-check.js",
+      "tools/ai-sim-harness/strategic-interception-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "labInterior",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/phase-c-compact-range.js",
+        "line": 18,
+        "text": "var interiorIngressRecovery = params.get('labInterior') !== '0';"
+      }
+    ],
+    "testMentions": [],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "labMove",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/phase-c-compact-range.js",
+        "line": 17,
+        "text": "['baseline', 'purposeful'].indexOf(params.get('labMove')) >= 0 ? params.get('labMove') : 'autonomous';"
+      }
+    ],
+    "testMentions": [],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "labPreset",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/phase-c-compact-range.js",
+        "line": 10,
+        "text": "var preset = (params.get('labPreset') || 'C').toUpperCase();"
+      }
+    ],
+    "testMentions": [],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "labRange",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/phase-c-compact-range.js",
+        "line": 14,
+        "text": "var rangeScale = Number(params.get('labRange'));"
+      }
+    ],
+    "testMentions": [],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "leaderlessIntent",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/16-squad-plan-stability.js",
+        "line": 368,
+        "text": "return !/[?&]leaderlessIntent=(?:0|off|false)(?:&|#|$)/i.test(search || '');"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/coa-check.js",
+      "tools/ai-sim-harness/leaderless-intent-check.js",
+      "tools/ai-sim-harness/movement-recovery-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "leaseConflicts",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/16-squad-plan-stability.js",
+        "line": 50,
+        "text": "var LEASE_CONFLICTS_ON = /[?&]leaseConflicts=(?:1|on|true)(?:&|#|$)/i.test("
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/lease-conflict-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "lineApproachPost",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/59-strategic-aerial-recon.js",
+        "line": 69,
+        "text": "if (!town || !town.frontLines || flagOff('lineApproachPost')) return 0;"
+      }
+    ],
+    "testMentions": [],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "lineSortie",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/59-strategic-aerial-recon.js",
+        "line": 527,
+        "text": "if (flagOff('lineSortie') || own.pass || own.frontKey == null) return null;"
+      }
+    ],
+    "testMentions": [],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "localAmbush",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/15o-squad-leader-tactical-postures.js",
+        "line": 15,
+        "text": "/[?&]localAmbush=(?:1|on|true)(?:&|#|$)/i.test(query)"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/covered-pressure-bound-check.js",
+      "tools/ai-sim-harness/tactical-postures-check.js",
+      "tools/ai-sim-harness/covered-fire-maneuver-causal-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "localContactResume",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/15n-squad-leader-local-plan.js",
+        "line": 36,
+        "text": "/[?&]localContactResume=(?:1|on|true)(?:&|#|$)/i.test((root.location && root.location.search) || ''),"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/local-mission-tasks-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "localContinuity",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/15n-squad-leader-local-plan.js",
+        "line": 39,
+        "text": "/[?&]localContinuity=(?:1|on|true)(?:&|#|$)/i.test((root.location && root.location.search) || ''),"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/local-mission-tasks-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "localDegrade",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/15n-squad-leader-local-plan.js",
+        "line": 16,
+        "text": "on && /[?&]localDegrade=(?:1|on|true)(?:&|#|$)/i.test((root.location && root.location.search) || ''),"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/local-mission-tasks-check.js",
+      "tools/ai-sim-harness/local-degradation-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "localEntry",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/15n-squad-leader-local-plan.js",
+        "line": 24,
+        "text": "/[?&]localEntry=(?:1|on|true)(?:&|#|$)/i.test((root.location && root.location.search) || ''),"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/local-mission-tasks-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "localEntryGate",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/15n-squad-leader-local-plan.js",
+        "line": 27,
+        "text": "/[?&]localEntryGate=(?:1|on|true)(?:&|#|$)/i.test((root.location && root.location.search) || ''),"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/local-mission-tasks-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "localManeuver",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/15o-squad-leader-tactical-postures.js",
+        "line": 19,
+        "text": "/[?&]localManeuver=(?:1|on|true)(?:&|#|$)/i.test(query) &&"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/covered-pressure-bound-check.js",
+      "tools/ai-sim-harness/tactical-postures-check.js",
+      "tools/ai-sim-harness/covered-fire-maneuver-causal-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "localPlan",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/19-engagement-cover-positions.js",
+        "line": 42,
+        "text": "/[?&]coveredBounds=(1|on|true)\\b/.test(query) && /[?&]localPlan=(1|on|true)\\b/.test(query);"
+      },
+      {
+        "file": "battle/modules/15n-squad-leader-local-plan.js",
+        "line": 11,
+        "text": "on = /[?&]localPlan=(?:1|on|true)(?:&|#|$)/i.test((root.location && root.location.search) || ''),"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/covered-bounds-check.js",
+      "tools/ai-sim-harness/local-mission-tasks-check.js",
+      "tools/ai-sim-harness/covered-pressure-bound-check.js",
+      "tools/ai-sim-harness/tactical-postures-check.js",
+      "tools/ai-sim-harness/covered-fire-maneuver-causal-check.js",
+      "tools/ai-sim-harness/local-degradation-check.js",
+      "tools/ai-sim-harness/local-resources-check.js",
+      "tools/ai-sim-harness/local-plan-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "localResources",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/15n-squad-leader-local-plan.js",
+        "line": 14,
+        "text": "/[?&]localResources=(?:1|on|true)(?:&|#|$)/i.test((root.location && root.location.search) || ''),"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/local-mission-tasks-check.js",
+      "tools/ai-sim-harness/local-degradation-check.js",
+      "tools/ai-sim-harness/local-resources-check.js",
+      "tools/ai-sim-harness/local-plan-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "localStructureOrders",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/phase-c-compact-range.js",
+        "line": 22,
+        "text": "var structureObservation = params.get('localStructureOrders') === '1';"
+      },
+      {
+        "file": "battle/modules/15n-squad-leader-local-plan.js",
+        "line": 44,
+        "text": "/[?&]localStructureOrders=(?:1|on|true)(?:&|#|$)/i.test("
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/local-mission-tasks-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "localStructures",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/15n-squad-leader-local-plan.js",
+        "line": 21,
+        "text": "/[?&]localStructures=(?:1|on|true)(?:&|#|$)/i.test((root.location && root.location.search) || ''),"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/local-mission-tasks-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "localSurvey",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/15n-squad-leader-local-plan.js",
+        "line": 30,
+        "text": "/[?&]localSurvey=(?:1|on|true)(?:&|#|$)/i.test((root.location && root.location.search) || ''),"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/local-mission-tasks-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "localTasks",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/15n-squad-leader-local-plan.js",
+        "line": 18,
+        "text": "on && /[?&]localTasks=(?:1|on|true)(?:&|#|$)/i.test((root.location && root.location.search) || ''),"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/local-mission-tasks-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "localWatch",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/15n-squad-leader-local-plan.js",
+        "line": 33,
+        "text": "/[?&]localWatch=(?:1|on|true)(?:&|#|$)/i.test((root.location && root.location.search) || ''),"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/local-mission-tasks-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "log",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/core-runtime.js",
+        "line": 58,
+        "text": "var LOG_ON = !(typeof location !== 'undefined' && /[?&]log=0\\b/.test(location.search || ''));"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/perception-check.js",
+      "tools/ai-sim-harness/hill-stalemate-check.js",
+      "tools/ai-sim-harness/covered-bounds-check.js",
+      "tools/ai-sim-harness/module-load-profile-check.js",
+      "tools/ai-sim-harness/strategic-recovery-ctx-check.js",
+      "tools/ai-sim-harness/coa-check.js",
+      "tools/ai-sim-harness/reconstitution-ctx-check.js",
+      "tools/ai-sim-harness/audio-format-check.js",
+      "tools/ai-sim-harness/benchmark-evidence-check.js",
+      "tools/ai-sim-harness/damage-range-geometry-check.js",
+      "tools/ai-sim-harness/transport-resume-check.js",
+      "tools/ai-sim-harness/strategic-mobile-defense-check.js",
+      "tools/ai-sim-harness/scouts-forward-check.js",
+      "tools/ai-sim-harness/fbx-model-retarget-check.js",
+      "tools/ai-sim-harness/retreat-lost-contact-check.js",
+      "tools/ai-sim-harness/loop-evidence-window-check.js",
+      "tools/ai-sim-harness/fbx-library-lifecycle-check.js",
+      "tools/ai-sim-harness/crest-fire-check.js",
+      "tools/ai-sim-harness/camera-possession-lease-check.js",
+      "tools/ai-sim-harness/callouts-check.js",
+      "tools/ai-sim-harness/command-relay-check.js",
+      "tools/ai-sim-harness/wire-map-check.js",
+      "tools/ai-sim-harness/command-reception-check.js",
+      "tools/ai-sim-harness/tactical-default-flags-check.js",
+      "tools/ai-sim-harness/tactical-symbol-registry-check.js",
+      "tools/ai-sim-harness/combat-audio-check.js",
+      "tools/ai-sim-harness/module-unit-set-restart-check.js",
+      "tools/ai-sim-harness/plan-local-widening-check.js",
+      "tools/ai-sim-harness/fbx-surface-damage-check.js",
+      "tools/ai-sim-harness/camera-lifecycle-stop-check.js",
+      "tools/ai-sim-harness/fbx-weapon-calibration-check.js",
+      "tools/ai-sim-harness/damage-range-input-check.js",
+      "tools/ai-sim-harness/voice-observations-check.js",
+      "tools/ai-sim-harness/regroup-axis-check.js",
+      "tools/ai-sim-harness/engagement-state-check.js",
+      "tools/ai-sim-harness/benchmark-compare-check.js",
+      "tools/ai-sim-harness/forward-progress-check.js",
+      "tools/ai-sim-harness/ballistics-geometry-check.js",
+      "tools/ai-sim-harness/macro-state-check.js",
+      "tools/ai-sim-harness/recon-budget-check.js",
+      "tools/ai-sim-harness/general-isolation-check.js",
+      "tools/ai-sim-harness/fled-man-check.js",
+      "tools/ai-sim-harness/execution-contract-check.js",
+      "tools/ai-sim-harness/outcome-probe-check.js",
+      "tools/ai-sim-harness/cover-positions-ctx-check.js",
+      "tools/ai-sim-harness/soldier-mind-check.js",
+      "tools/ai-sim-harness/player-fire-mode-check.js",
+      "tools/ai-sim-harness/mg-station-setup-check.js",
+      "tools/ai-sim-harness/soldier-events-check.js",
+      "tools/ai-sim-harness/mg-suppression-setup-check.js",
+      "tools/ai-sim-harness/tactical-situation-check.js",
+      "tools/ai-sim-harness/anchor-publisher-check.js",
+      "tools/ai-sim-harness/battle-loader-player-camera-check.js",
+      "tools/ai-sim-harness/fbx-clip-pack-integrity-check.js",
+      "tools/ai-sim-harness/sidearm-rearm-check.js",
+      "tools/ai-sim-harness/leaderless-intent-check.js",
+      "tools/ai-sim-harness/fbx-asset-import-check.js",
+      "tools/ai-sim-harness/listener-acoustics-check.js",
+      "tools/ai-sim-harness/benchmark-window-diagnostics-check.js",
+      "tools/ai-sim-harness/tactical-positions-check.js",
+      "tools/ai-sim-harness/battle-observer-check.js",
+      "tools/ai-sim-harness/local-mission-tasks-check.js",
+      "tools/ai-sim-harness/window-port-check.js",
+      "tools/ai-sim-harness/audio-mix-check.js",
+      "tools/ai-sim-harness/command-posture-check.js",
+      "tools/ai-sim-harness/screen-space-lod-check.js",
+      "tools/ai-sim-harness/world-debug-check.js",
+      "tools/ai-sim-harness/objective-nav-check.js",
+      "tools/ai-sim-harness/tactical-map-check.js",
+      "tools/ai-sim-harness/squad-phase-check.js",
+      "tools/ai-sim-harness/steer-navigation-leg-check.js",
+      "tools/ai-sim-harness/impact-fx-check.js",
+      "tools/ai-sim-harness/fbx-presentation-lod-check.js",
+      "tools/ai-sim-harness/squad-performance-check.js",
+      "tools/ai-sim-harness/command-orientation-check.js",
+      "tools/ai-sim-harness/sidearm-check.js",
+      "tools/ai-sim-harness/retreat-posture-check.js",
+      "tools/ai-sim-harness/fbx-prepared-pack-check.js",
+      "tools/ai-sim-harness/rally-recovery-check.js",
+      "tools/ai-sim-harness/lease-check.js",
+      "tools/ai-sim-harness/player-possession-flight-check.js",
+      "tools/ai-sim-harness/grenade-check.js",
+      "tools/ai-sim-harness/fbx-clip-mixer-check.js",
+      "tools/ai-sim-harness/player-grenade-check.js",
+      "tools/ai-sim-harness/ref-preview-vehicle-staging-check.js",
+      "tools/ai-sim-harness/impact-fx-restart-check.js",
+      "tools/ai-sim-harness/initial-seed-url-check.js",
+      "tools/ai-sim-harness/reconstitution-check.js",
+      "tools/ai-sim-harness/player-death-camera-check.js",
+      "tools/ai-sim-harness/genome-gate-check.js",
+      "tools/ai-sim-harness/soldier-stats-check.js",
+      "tools/ai-sim-harness/muzzle-fx-origin-check.js",
+      "tools/ai-sim-harness/fireteam-frontage-check.js",
+      "tools/ai-sim-harness/player-control-check.js",
+      "tools/ai-sim-harness/command-hierarchy-observer-check.js",
+      "tools/ai-sim-harness/fbx-rig-canon-check.js",
+      "tools/ai-sim-harness/camera-player-menu-template-check.js",
+      "tools/ai-sim-harness/formation-backward-check.js",
+      "tools/ai-sim-harness/squad-command-stack-check.js",
+      "tools/ai-sim-harness/command-adoption-ratchet-check.js",
+      "tools/ai-sim-harness/fbx-retarget-quat-check.js",
+      "tools/ai-sim-harness/recon-outcomes-check.js",
+      "tools/ai-sim-harness/movement-recovery-check.js",
+      "tools/ai-sim-harness/effective-fire-support-check.js",
+      "tools/ai-sim-harness/squad-status-overlay-check.js",
+      "tools/ai-sim-harness/medic-check.js",
+      "tools/ai-sim-harness/player-restart-possession-check.js",
+      "tools/ai-sim-harness/lifecycle-checkpoints-check.js",
+      "tools/ai-sim-harness/camera-touch-handoff-check.js",
+      "tools/ai-sim-harness/strategic-route-stall-check.js",
+      "tools/ai-sim-harness/voice-retry-deadline-check.js",
+      "tools/ai-sim-harness/covered-pressure-bound-check.js",
+      "tools/ai-sim-harness/retreat-men-export-check.js",
+      "tools/ai-sim-harness/clear-contact-check.js",
+      "tools/ai-sim-harness/buddy-pairs-check.js",
+      "tools/ai-sim-harness/wound-restart-isolation-check.js",
+      "tools/ai-sim-harness/combat-handoff-check.js",
+      "tools/ai-sim-harness/player-facing-bore-check.js",
+      "tools/ai-sim-harness/leaderless-retreat-reception-check.js",
+      "tools/ai-sim-harness/fbx-clip-converter-check.js",
+      "tools/ai-sim-harness/fbx-retarget-rest-check.js",
+      "tools/ai-sim-harness/ground-stop-check.js",
+      "tools/ai-sim-harness/benchmark-restart-isolation-check.js",
+      "tools/ai-sim-harness/stance-ownership-check.js",
+      "tools/ai-sim-harness/stress-reactions-ctx-check.js",
+      "tools/ai-sim-harness/grenade-audio-check.js",
+      "tools/ai-sim-harness/cover-positions-check.js",
+      "tools/ai-sim-harness/squad-broadcast-check.js",
+      "tools/ai-sim-harness/soldier-mind-telemetry-check.js",
+      "tools/ai-sim-harness/local-withdraw-check.js",
+      "tools/ai-sim-harness/squad-stress-check.js",
+      "tools/ai-sim-harness/tactical-postures-check.js",
+      "tools/ai-sim-harness/advance-stance-reason-check.js",
+      "tools/ai-sim-harness/strategic-transport-check.js",
+      "tools/ai-sim-harness/loadout-check.js",
+      "tools/ai-sim-harness/strategic-aerial-recon-check.js",
+      "tools/ai-sim-harness/mind-read-map-check.js",
+      "tools/ai-sim-harness/route-transition-check.js",
+      "tools/ai-sim-harness/covered-fire-maneuver-causal-check.js",
+      "tools/ai-sim-harness/tactical-diagnostics-check.js",
+      "tools/ai-sim-harness/grenade-fog-check.js",
+      "tools/ai-sim-harness/movement-state-check.js",
+      "tools/ai-sim-harness/local-degradation-check.js",
+      "tools/ai-sim-harness/stress-memory-check.js",
+      "tools/ai-sim-harness/voice-determinism-check.js",
+      "tools/ai-sim-harness/stall-clock-check.js",
+      "tools/ai-sim-harness/causal-inaction-check.js",
+      "tools/ai-sim-harness/strategic-recovery-review-check.js",
+      "tools/ai-sim-harness/local-resources-check.js",
+      "tools/ai-sim-harness/fbx-render-pose-check.js",
+      "tools/ai-sim-harness/squad-fit-check.js",
+      "tools/ai-sim-harness/start-wrapper-contract-check.js",
+      "tools/ai-sim-harness/faction-progress-check.js",
+      "tools/ai-sim-harness/suppression-integrity-check.js",
+      "tools/ai-sim-harness/extension-order-check.js",
+      "tools/ai-sim-harness/fire-control-check.js",
+      "tools/ai-sim-harness/player-menu-audio-check.js",
+      "tools/ai-sim-harness/morale-check.js",
+      "tools/ai-sim-harness/lean-runtime-check.js",
+      "tools/ai-sim-harness/fire-stance-ctx-check.js",
+      "tools/ai-sim-harness/flank-side-check.js",
+      "tools/ai-sim-harness/stress-reaction-animation-check.js",
+      "tools/ai-sim-harness/urban-operating-picture-check.js",
+      "tools/ai-sim-harness/residual-small-debt-check.js",
+      "tools/ai-sim-harness/movement-arrival-adoption-check.js",
+      "tools/ai-sim-harness/module-loader-check.js",
+      "tools/ai-sim-harness/strategic-interception-check.js",
+      "tools/ai-sim-harness/stats-levers-check.js",
+      "tools/ai-sim-harness/observer-diagnostic-trigger-check.js",
+      "tools/ai-sim-harness/fbx-restart-cleanup-check.js",
+      "tools/ai-sim-harness/gunner-trace-check.js",
+      "tools/ai-sim-harness/local-plan-check.js",
+      "tools/ai-sim-harness/spawn-slots-check.js",
+      "tools/ai-sim-harness/retreat-anchor-check.js",
+      "tools/ai-sim-harness/loop-period-check.js",
+      "tools/ai-sim-harness/route-final-objective-check.js",
+      "tools/ai-sim-harness/fbx-animation-state-check.js",
+      "tools/ai-sim-harness/threat-disposition-check.js",
+      "tools/ai-sim-harness/personal-space-check.js",
+      "tools/ai-sim-harness/macro-command-toggle-check.js",
+      "tools/ai-sim-harness/stress-reactions-check.js",
+      "tools/ai-sim-harness/retreat-defender-fireteam-check.js",
+      "tools/ai-sim-harness/map-pipeline-check.js",
+      "tools/ai-sim-harness/battle-page-inline-script-check.js",
+      "tools/ai-sim-harness/strategic-chain-check.js",
+      "tools/ai-sim-harness/autonomous-movement-handoff-check.js",
+      "tools/ai-sim-harness/macro-relief-height-check.js",
+      "tools/ai-sim-harness/weapon-foley-audio-check.js",
+      "tools/ai-sim-harness/squad-relay-check.js",
+      "tools/ai-sim-harness/voice-playback-check.js",
+      "tools/ai-sim-harness/local-steering-check.js",
+      "tools/ai-sim-harness/status-writers-check.js",
+      "tools/ai-sim-harness/sight-query-check.js",
+      "tools/ai-sim-harness/intent-evidence-check.js",
+      "tools/ai-sim-harness/soldier-mind-behaviour-check.js",
+      "tools/ai-sim-harness/world-placement-check.js",
+      "tools/ai-sim-harness/cohesion-regroup-ctx-check.js",
+      "tools/ai-sim-harness/weapon-wound-check.js",
+      "tools/ai-sim-harness/weapon-shot-buffer-check.js",
+      "tools/ai-sim-harness/forward-line-check.js",
+      "tools/ai-sim-harness/camera-strategic-fast-flight-check.js",
+      "tools/ai-sim-harness/squad-local-starvation-check.js",
+      "tools/ai-sim-harness/unreachable-anchor-check.js",
+      "tools/ai-sim-harness/objective-marker-check.js",
+      "tools/ai-sim-harness/camera-input-frame-check.js",
+      "tools/ai-sim-harness/camera-presentation-reset-check.js",
+      "tools/ai-sim-harness/state-ownership-check.js",
+      "tools/ai-sim-harness/control-scenario-rejection-check.js",
+      "tools/ai-sim-harness/lease-conflict-check.js",
+      "tools/ai-sim-harness/damage-range-panel-check.js",
+      "tools/ai-sim-harness/command-movement-check.js",
+      "tools/ai-sim-harness/soldier-beliefs-check.js",
+      "tools/ai-sim-harness/damage-range-lifecycle-check.js",
+      "tools/ai-sim-harness/succession-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "medic",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/14-wound-model.js",
+        "line": 57,
+        "text": "return !/[?&]medic=(?:0|off|false)(?:&|#|$)/i.test(search || '');"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/medic-check.js",
+      "tools/ai-sim-harness/wound-restart-isolation-check.js",
+      "tools/ai-sim-harness/stress-memory-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "mergeWalls",
+    "previewForwarded": true,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/town-objectives.js",
+        "line": 191,
+        "text": "var MERGE = !(typeof location !== 'undefined' && /[?&]mergeWalls=0\\b/.test(location.search || ''));"
+      }
+    ],
+    "testMentions": [],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "mind",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/17-soldier-mind.js",
+        "line": 68,
+        "text": "var m = /[?&]mind=([^&#]*)/.exec(search || ''),"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/strategic-recovery-ctx-check.js",
+      "tools/ai-sim-harness/coa-check.js",
+      "tools/ai-sim-harness/retreat-lost-contact-check.js",
+      "tools/ai-sim-harness/wire-map-check.js",
+      "tools/ai-sim-harness/fled-man-check.js",
+      "tools/ai-sim-harness/execution-contract-check.js",
+      "tools/ai-sim-harness/soldier-mind-check.js",
+      "tools/ai-sim-harness/soldier-events-check.js",
+      "tools/ai-sim-harness/local-mission-tasks-check.js",
+      "tools/ai-sim-harness/command-posture-check.js",
+      "tools/ai-sim-harness/world-debug-check.js",
+      "tools/ai-sim-harness/reconstitution-check.js",
+      "tools/ai-sim-harness/leaderless-retreat-reception-check.js",
+      "tools/ai-sim-harness/stress-reactions-ctx-check.js",
+      "tools/ai-sim-harness/soldier-mind-telemetry-check.js",
+      "tools/ai-sim-harness/squad-stress-check.js",
+      "tools/ai-sim-harness/mind-read-map-check.js",
+      "tools/ai-sim-harness/stress-memory-check.js",
+      "tools/ai-sim-harness/strategic-recovery-review-check.js",
+      "tools/ai-sim-harness/fire-control-check.js",
+      "tools/ai-sim-harness/morale-check.js",
+      "tools/ai-sim-harness/fire-stance-ctx-check.js",
+      "tools/ai-sim-harness/retreat-anchor-check.js",
+      "tools/ai-sim-harness/stress-reactions-check.js",
+      "tools/ai-sim-harness/autonomous-movement-handoff-check.js",
+      "tools/ai-sim-harness/soldier-mind-behaviour-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "morale",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/16-squad-plan-stability.js",
+        "line": 399,
+        "text": "var MORALE_ON = !(typeof location !== 'undefined' && /[?&]morale=0\\b/.test(location.search || ''));"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/strategic-recovery-ctx-check.js",
+      "tools/ai-sim-harness/coa-check.js",
+      "tools/ai-sim-harness/fled-man-check.js",
+      "tools/ai-sim-harness/execution-contract-check.js",
+      "tools/ai-sim-harness/squad-phase-check.js",
+      "tools/ai-sim-harness/rally-recovery-check.js",
+      "tools/ai-sim-harness/reconstitution-check.js",
+      "tools/ai-sim-harness/effective-fire-support-check.js",
+      "tools/ai-sim-harness/clear-contact-check.js",
+      "tools/ai-sim-harness/squad-stress-check.js",
+      "tools/ai-sim-harness/mind-read-map-check.js",
+      "tools/ai-sim-harness/stress-memory-check.js",
+      "tools/ai-sim-harness/strategic-recovery-review-check.js",
+      "tools/ai-sim-harness/morale-check.js",
+      "tools/ai-sim-harness/retreat-anchor-check.js",
+      "tools/ai-sim-harness/soldier-mind-behaviour-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "motorTransport",
+    "previewForwarded": false,
+    "classification": "strategic gate executed in 64-case matrix",
+    "default": "baseline source: off; current-main source: on with prerequisites",
+    "production": "deployed state unverified",
+    "preview": "deployed state unverified; baseline requested flags dropped unless allowlisted",
+    "references": [
+      {
+        "file": "battle/modules/58-strategic-abstract-transport.js",
+        "line": 254,
+        "text": "/(?:^|[?&])motorTransport=1(?:&|$)/.test(params || '')"
+      },
+      {
+        "file": "battle/modules/59b-strategic-interception.js",
+        "line": 26,
+        "text": "/(?:^|[?&])motorTransport=1(?:&|$)/.test(search) &&"
+      },
+      {
+        "file": "battle/modules/59-strategic-truck-visual.js",
+        "line": 124,
+        "text": "/(?:^|[?&])motorTransport=1(?:&|$)/.test(search) &&"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/strategic-transport-check.js",
+      "tools/ai-sim-harness/strategic-interception-check.js",
+      "tools/ai-sim-harness/autonomous-movement-handoff-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "navCorner",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/39-navigation-physicality-debug.js",
+        "line": 813,
+        "text": "var NAV_CORNER = !(typeof location !== 'undefined' && /[?&]navCorner=0\\b/.test(location.search || ''));"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/objective-nav-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "orbit",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/camera-controls.js",
+        "line": 2070,
+        "text": "orbit = q.get('orbit') === '1',"
+      },
+      {
+        "file": "battle/camera-controls.js",
+        "line": 2189,
+        "text": "followRequested = q.get('follow') === '1' || q.get('orbit') === '1';"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/damage-range-input-check.js",
+      "tools/ai-sim-harness/player-death-camera-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "perception",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/squad-ai.js",
+        "line": 169,
+        "text": "var PERCEPTION_ON = !(typeof location !== 'undefined' && /[?&]perception=0\\b/.test(location.search || ''));"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/perception-check.js",
+      "tools/ai-sim-harness/stress-reactions-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "perfTimings",
+    "previewForwarded": true,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/53-fbx-soldier-backend.js",
+        "line": 187,
+        "text": "var m = typeof location !== 'undefined' && /[?&]perfTimings=([01])\\b/.exec(location.search || '');"
+      }
+    ],
+    "testMentions": [],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "pin",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle_sim.php",
+        "line": 10,
+        "text": "$pinRequested = isset($_GET['pin']) && $_GET['pin'] === '1';"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/fled-man-check.js",
+      "tools/ai-sim-harness/soldier-mind-check.js",
+      "tools/ai-sim-harness/soldier-events-check.js",
+      "tools/ai-sim-harness/fbx-clip-pack-integrity-check.js",
+      "tools/ai-sim-harness/grenade-check.js",
+      "tools/ai-sim-harness/initial-seed-url-check.js",
+      "tools/ai-sim-harness/wound-restart-isolation-check.js",
+      "tools/ai-sim-harness/grenade-audio-check.js",
+      "tools/ai-sim-harness/stress-memory-check.js",
+      "tools/ai-sim-harness/strategic-recovery-review-check.js",
+      "tools/ai-sim-harness/stats-levers-check.js",
+      "tools/ai-sim-harness/threat-disposition-check.js",
+      "tools/ai-sim-harness/stress-reactions-check.js",
+      "tools/ai-sim-harness/status-writers-check.js",
+      "tools/ai-sim-harness/state-ownership-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "pinSeed",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/scenario-generator.js",
+        "line": 764,
+        "text": "autoUrlSeed = /^live-[a-z0-9]+-[a-z0-9]+$/i.test(urlSeed) && params.get('pinSeed') !== '1',"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/initial-seed-url-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "playerFaction",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/camera-controls.js",
+        "line": 447,
+        "text": "playerFaction = queryParams().get('playerFaction') === 'ge' ? 'ge' : 'us',"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/player-death-camera-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "rageGuard",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/engagement.js",
+        "line": 886,
+        "text": "var RAGE_GUARD_CHARGE = !/[?&]rageGuard=0(?:&|#|$)/.test("
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/stress-reactions-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "rageLock",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/engagement.js",
+        "line": 882,
+        "text": "var RAGE_LOCK = !/[?&]rageLock=0(?:&|#|$)/.test((typeof location !== 'undefined' && location.search) || '');"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/stress-reactions-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "rageTrance",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/engagement.js",
+        "line": 894,
+        "text": "var RAGE_TRANCE = !/[?&]rageTrance=0(?:&|#|$)/.test("
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/benchmark-compare-check.js",
+      "tools/ai-sim-harness/stress-reactions-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "rallyRecovery",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/16-squad-plan-stability.js",
+        "line": 282,
+        "text": "return !/[?&]rallyRecovery=(?:0|off|false)(?:&|#|$)/i.test(search || '');"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/rally-recovery-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "rangeAuto",
+    "previewForwarded": true,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/97z-damage-range-session.js",
+        "line": 107,
+        "text": "auto = q.get('rangeAuto') === '1',"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/damage-range-panel-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "rangeDist",
+    "previewForwarded": true,
+    "classification": "preview-only candidate",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [],
+    "testMentions": [],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "rangeExit",
+    "previewForwarded": true,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/97z-damage-range-session.js",
+        "line": 106,
+        "text": "exit = q.get('rangeExit') !== '0',"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/damage-range-panel-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "rangeFps",
+    "previewForwarded": true,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/97z-damage-range-session.js",
+        "line": 114,
+        "text": "fps = q.get('rangeFps') === '1',"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/damage-range-panel-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "rangeInterval",
+    "previewForwarded": true,
+    "classification": "preview-only candidate",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [],
+    "testMentions": [],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "rangeOrbit",
+    "previewForwarded": true,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/97z-damage-range-session.js",
+        "line": 108,
+        "text": "orbit = q.get('rangeOrbit') === '1',"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/damage-range-panel-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "rangeTarget",
+    "previewForwarded": true,
+    "classification": "preview-only candidate",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [],
+    "testMentions": [
+      "tools/ai-sim-harness/damage-range-panel-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "rangeUi",
+    "previewForwarded": true,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/97z-damage-range-session.js",
+        "line": 113,
+        "text": "panelCollapsed = q.get('rangeUi') === 'compact' || (auto && q.get('rangeUi') !== 'full'),"
+      }
+    ],
+    "testMentions": [],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "rangeZone",
+    "previewForwarded": true,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/97z-damage-range-session.js",
+        "line": 105,
+        "text": "zone = ZONES.indexOf(q.get('rangeZone')) >= 0 ? q.get('rangeZone') : 'chest',"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/damage-range-panel-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "reconBudget",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/15c-squad-leader-scouts-forward.js",
+        "line": 50,
+        "text": "!/[?&]reconBudget=(?:0|off|false)(?:&|#|$)/i.test(location.search || '');"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/recon-budget-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "reconCorridors",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/59-strategic-aerial-recon.js",
+        "line": 48,
+        "text": "return interceptionOn() && !flagOff('reconCorridors');"
+      },
+      {
+        "file": "battle/modules/59b-strategic-interception.js",
+        "line": 33,
+        "text": "return !/(?:^|[?&])reconCorridors=0(?:&|$)/.test((root.location && root.location.search) || '');"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/strategic-interception-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "reconLedger",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/16-squad-plan-stability.js",
+        "line": 357,
+        "text": "var RECON_LEDGER_ON = !/[?&]reconLedger=(?:0|off|false)(?:&|#|$)/i.test("
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/recon-outcomes-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "reconOverflight",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/59-strategic-aerial-recon.js",
+        "line": 74,
+        "text": "return interceptionOn() && !flagOff('reconOverflight');"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/strategic-interception-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "reconPosts",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/15c-squad-leader-scouts-forward.js",
+        "line": 43,
+        "text": "!/[?&]reconPosts=(?:0|off|false)(?:&|#|$)/i.test(location.search || '');"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/scouts-forward-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "ref",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle_sim.php",
+        "line": 11,
+        "text": "$requestedRef = ($pinRequested && isset($_GET['ref']) && $_GET['ref'] !== '') ? $_GET['ref'] : 'main';"
+      },
+      {
+        "file": "preview.php",
+        "line": 385,
+        "text": "$refInput = isset($_GET['ref']) ? (string)$_GET['ref'] : '';"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/benchmark-compare-check.js",
+      "tools/ai-sim-harness/ref-preview-vehicle-staging-check.js",
+      "tools/ai-sim-harness/stress-reactions-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "reinforcementSortie",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/21c-strategic-reinforcements.js",
+        "line": 32,
+        "text": "return /(?:^|[?&])reinforcementSortie=1(?:&|$)/.test((root.location && root.location.search) || '');"
+      }
+    ],
+    "testMentions": [],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "reinforcements",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/21c-strategic-reinforcements.js",
+        "line": 20,
+        "text": "return /(?:^|[?&])reinforcements=1(?:&|$)/.test((root.location && root.location.search) || '');"
+      }
+    ],
+    "testMentions": [],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "retreatArrival",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/15f-squad-leader-retreat-anchor.js",
+        "line": 62,
+        "text": "var RETREAT_ARRIVAL_ON = !/[?&]retreatArrival=(?:0|off|false)(?:&|#|$)/i.test("
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/retreat-anchor-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "retreatLostContact",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/15h-squad-leader-fireteams.js",
+        "line": 50,
+        "text": "LOST_CONTACT_RETREAT_ON = !/[?&]retreatLostContact=(?:0|off|false)(?:&|#|$)/i.test("
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/retreat-lost-contact-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "retreatPosture",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/engagement.js",
+        "line": 32,
+        "text": "/[?&]retreatPosture=(?:0|off|false)(?:&|#|$)/i.test(location.search || '')"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/retreat-posture-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "retreatStride",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/15f-squad-leader-retreat-anchor.js",
+        "line": 79,
+        "text": "var RETREAT_STRIDE_ON = !/[?&]retreatStride=(?:0|off|false)(?:&|#|$)/i.test("
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/retreat-anchor-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "roadFromHere",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/21b-strategic-front-lines.js",
+        "line": 199,
+        "text": "return !/(?:^|[?&])roadFromHere=0(?:&|$)/.test((root.location && root.location.search) || '');"
+      }
+    ],
+    "testMentions": [],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "routeTransition",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/16-squad-plan-stability.js",
+        "line": 47,
+        "text": "ROUTE_TRANSITION_ON = !/[?&]routeTransition=(?:0|off|false)(?:&|#|$)/i.test("
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/route-transition-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "scoutsForward",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/16-squad-plan-stability.js",
+        "line": 322,
+        "text": "return !/[?&]scoutsForward=(?:0|off|false)(?:&|#|$)/i.test(search || '');"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/transport-resume-check.js",
+      "tools/ai-sim-harness/scouts-forward-check.js",
+      "tools/ai-sim-harness/recon-budget-check.js",
+      "tools/ai-sim-harness/local-mission-tasks-check.js",
+      "tools/ai-sim-harness/recon-outcomes-check.js",
+      "tools/ai-sim-harness/covered-pressure-bound-check.js",
+      "tools/ai-sim-harness/tactical-postures-check.js",
+      "tools/ai-sim-harness/covered-fire-maneuver-causal-check.js",
+      "tools/ai-sim-harness/local-degradation-check.js",
+      "tools/ai-sim-harness/local-resources-check.js",
+      "tools/ai-sim-harness/movement-arrival-adoption-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "screenStallHold",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/22a-commander-strategic-recovery.js",
+        "line": 105,
+        "text": "if (/(?:^|[?&])screenStallHold=0(?:&|$)/.test((root.location && root.location.search) || ''))"
+      }
+    ],
+    "testMentions": [],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "secondaryThreat",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/squad-ai.js",
+        "line": 195,
+        "text": "/[?&]secondaryThreat=1\\b/.test(location.search)"
+      }
+    ],
+    "testMentions": [],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "seed",
+    "previewForwarded": true,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/scenario-generator.js",
+        "line": 762,
+        "text": "urlSeed = params.get('seed') || '',"
+      },
+      {
+        "file": "battle/phase-c-compact-range.js",
+        "line": 31,
+        "text": "scenarios[k].seed === params.get('seed') && scenarios[k].defender === (params.get('defender') || '')"
+      },
+      {
+        "file": "battle_sim.php",
+        "line": 272,
+        "text": "$requestedSeed = isset($_GET['seed']) ? substr(preg_replace('/[^a-zA-Z0-9_.-]/','-',strval($_GET['seed'])),0,100) : '';"
+      },
+      {
+        "file": "battle_sim_local.php",
+        "line": 89,
+        "text": "$requestedSeed=isset($_GET['seed'])?substr(preg_replace('/[^a-zA-Z0-9_.-]/','-',strval($_GET['seed'])),0,100):'';"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/perception-check.js",
+      "tools/ai-sim-harness/hill-stalemate-check.js",
+      "tools/ai-sim-harness/coa-check.js",
+      "tools/ai-sim-harness/transport-resume-check.js",
+      "tools/ai-sim-harness/scouts-forward-check.js",
+      "tools/ai-sim-harness/retreat-lost-contact-check.js",
+      "tools/ai-sim-harness/loop-evidence-window-check.js",
+      "tools/ai-sim-harness/crest-fire-check.js",
+      "tools/ai-sim-harness/callouts-check.js",
+      "tools/ai-sim-harness/command-relay-check.js",
+      "tools/ai-sim-harness/command-reception-check.js",
+      "tools/ai-sim-harness/voice-observations-check.js",
+      "tools/ai-sim-harness/engagement-state-check.js",
+      "tools/ai-sim-harness/benchmark-compare-check.js",
+      "tools/ai-sim-harness/ballistics-geometry-check.js",
+      "tools/ai-sim-harness/macro-state-check.js",
+      "tools/ai-sim-harness/recon-budget-check.js",
+      "tools/ai-sim-harness/general-isolation-check.js",
+      "tools/ai-sim-harness/execution-contract-check.js",
+      "tools/ai-sim-harness/soldier-mind-check.js",
+      "tools/ai-sim-harness/player-fire-mode-check.js",
+      "tools/ai-sim-harness/mg-suppression-setup-check.js",
+      "tools/ai-sim-harness/tactical-situation-check.js",
+      "tools/ai-sim-harness/sidearm-rearm-check.js",
+      "tools/ai-sim-harness/battle-observer-check.js",
+      "tools/ai-sim-harness/command-posture-check.js",
+      "tools/ai-sim-harness/objective-nav-check.js",
+      "tools/ai-sim-harness/tactical-map-check.js",
+      "tools/ai-sim-harness/squad-phase-check.js",
+      "tools/ai-sim-harness/squad-performance-check.js",
+      "tools/ai-sim-harness/command-orientation-check.js",
+      "tools/ai-sim-harness/sidearm-check.js",
+      "tools/ai-sim-harness/retreat-posture-check.js",
+      "tools/ai-sim-harness/rally-recovery-check.js",
+      "tools/ai-sim-harness/grenade-check.js",
+      "tools/ai-sim-harness/initial-seed-url-check.js",
+      "tools/ai-sim-harness/genome-gate-check.js",
+      "tools/ai-sim-harness/fireteam-frontage-check.js",
+      "tools/ai-sim-harness/recon-outcomes-check.js",
+      "tools/ai-sim-harness/effective-fire-support-check.js",
+      "tools/ai-sim-harness/medic-check.js",
+      "tools/ai-sim-harness/retreat-men-export-check.js",
+      "tools/ai-sim-harness/clear-contact-check.js",
+      "tools/ai-sim-harness/buddy-pairs-check.js",
+      "tools/ai-sim-harness/combat-handoff-check.js",
+      "tools/ai-sim-harness/player-facing-bore-check.js",
+      "tools/ai-sim-harness/leaderless-retreat-reception-check.js",
+      "tools/ai-sim-harness/ground-stop-check.js",
+      "tools/ai-sim-harness/benchmark-restart-isolation-check.js",
+      "tools/ai-sim-harness/squad-broadcast-check.js",
+      "tools/ai-sim-harness/soldier-mind-telemetry-check.js",
+      "tools/ai-sim-harness/local-withdraw-check.js",
+      "tools/ai-sim-harness/squad-stress-check.js",
+      "tools/ai-sim-harness/strategic-transport-check.js",
+      "tools/ai-sim-harness/loadout-check.js",
+      "tools/ai-sim-harness/strategic-aerial-recon-check.js",
+      "tools/ai-sim-harness/tactical-diagnostics-check.js",
+      "tools/ai-sim-harness/stress-memory-check.js",
+      "tools/ai-sim-harness/voice-determinism-check.js",
+      "tools/ai-sim-harness/suppression-integrity-check.js",
+      "tools/ai-sim-harness/fire-control-check.js",
+      "tools/ai-sim-harness/morale-check.js",
+      "tools/ai-sim-harness/urban-operating-picture-check.js",
+      "tools/ai-sim-harness/movement-arrival-adoption-check.js",
+      "tools/ai-sim-harness/strategic-interception-check.js",
+      "tools/ai-sim-harness/observer-diagnostic-trigger-check.js",
+      "tools/ai-sim-harness/retreat-anchor-check.js",
+      "tools/ai-sim-harness/loop-period-check.js",
+      "tools/ai-sim-harness/threat-disposition-check.js",
+      "tools/ai-sim-harness/stress-reactions-check.js",
+      "tools/ai-sim-harness/map-pipeline-check.js",
+      "tools/ai-sim-harness/macro-relief-height-check.js",
+      "tools/ai-sim-harness/squad-relay-check.js",
+      "tools/ai-sim-harness/local-steering-check.js",
+      "tools/ai-sim-harness/sight-query-check.js",
+      "tools/ai-sim-harness/intent-evidence-check.js",
+      "tools/ai-sim-harness/soldier-mind-behaviour-check.js",
+      "tools/ai-sim-harness/world-placement-check.js",
+      "tools/ai-sim-harness/weapon-wound-check.js",
+      "tools/ai-sim-harness/unreachable-anchor-check.js",
+      "tools/ai-sim-harness/command-movement-check.js",
+      "tools/ai-sim-harness/soldier-beliefs-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "slStress",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/16-squad-plan-stability.js",
+        "line": 2003,
+        "text": "var m = /[?&]slStress=([^&#]*)/.exec(search || ''),"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/local-mission-tasks-check.js",
+      "tools/ai-sim-harness/covered-pressure-bound-check.js",
+      "tools/ai-sim-harness/buddy-pairs-check.js",
+      "tools/ai-sim-harness/squad-stress-check.js",
+      "tools/ai-sim-harness/tactical-postures-check.js",
+      "tools/ai-sim-harness/covered-fire-maneuver-causal-check.js",
+      "tools/ai-sim-harness/local-degradation-check.js",
+      "tools/ai-sim-harness/local-resources-check.js",
+      "tools/ai-sim-harness/local-plan-check.js",
+      "tools/ai-sim-harness/lease-conflict-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "smartIndoorIngress",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle_sim_local.php",
+        "line": 93,
+        "text": "$smartIndoorIngress=!(isset($_GET['smartIndoorIngress']) && $_GET['smartIndoorIngress'] === '0');"
+      }
+    ],
+    "testMentions": [],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "smooth",
+    "previewForwarded": true,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/53-fbx-soldier-backend.js",
+        "line": 176,
+        "text": "var SMOOTH_NORMALS = !(typeof location !== 'undefined' && /[?&]smooth=0\\b/.test(location.search || ''));"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/player-possession-flight-check.js",
+      "tools/ai-sim-harness/player-control-check.js",
+      "tools/ai-sim-harness/macro-relief-height-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "soldierBeliefs",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/squad-ai.js",
+        "line": 175,
+        "text": "return !/[?&]soldierBeliefs=(?:0|off|false|none)(?:&|#|$)/i.test(search || '');"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/perception-check.js",
+      "tools/ai-sim-harness/callouts-check.js",
+      "tools/ai-sim-harness/soldier-mind-check.js",
+      "tools/ai-sim-harness/effective-fire-support-check.js",
+      "tools/ai-sim-harness/stance-ownership-check.js",
+      "tools/ai-sim-harness/advance-stance-reason-check.js",
+      "tools/ai-sim-harness/loadout-check.js",
+      "tools/ai-sim-harness/suppression-integrity-check.js",
+      "tools/ai-sim-harness/stress-reactions-check.js",
+      "tools/ai-sim-harness/autonomous-movement-handoff-check.js",
+      "tools/ai-sim-harness/soldier-beliefs-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "soldierCull",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/52-fbx-render-lod.js",
+        "line": 68,
+        "text": "on: !(typeof location !== 'undefined' && /[?&]soldierCull=0\\b/.test(location.search || '')),"
+      }
+    ],
+    "testMentions": [],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "soldierLod",
+    "previewForwarded": true,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/52-fbx-mesh-lod.js",
+        "line": 27,
+        "text": "on: !(typeof location !== 'undefined' && /[?&]soldierLod=0\\b/.test(location.search || '')),"
+      }
+    ],
+    "testMentions": [],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "soldierTex",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/53-fbx-soldier-backend.js",
+        "line": 841,
+        "text": "var q = root.location && /[?&]soldierTex=(\\d+)/.exec(root.location.search || '');"
+      }
+    ],
+    "testMentions": [],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "soldiers",
+    "previewForwarded": true,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/53-fbx-soldier-backend.js",
+        "line": 78,
+        "text": "typeof location !== 'undefined' && /[?&]soldiers=rifleman\\b/.test(location.search || '')"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/combat-audio-check.js",
+      "tools/ai-sim-harness/tactical-positions-check.js",
+      "tools/ai-sim-harness/objective-nav-check.js",
+      "tools/ai-sim-harness/ref-preview-vehicle-staging-check.js",
+      "tools/ai-sim-harness/soldier-stats-check.js",
+      "tools/ai-sim-harness/player-control-check.js",
+      "tools/ai-sim-harness/movement-recovery-check.js",
+      "tools/ai-sim-harness/grenade-audio-check.js",
+      "tools/ai-sim-harness/cover-positions-check.js",
+      "tools/ai-sim-harness/strategic-transport-check.js",
+      "tools/ai-sim-harness/residual-small-debt-check.js",
+      "tools/ai-sim-harness/movement-arrival-adoption-check.js",
+      "tools/ai-sim-harness/threat-disposition-check.js",
+      "tools/ai-sim-harness/weapon-foley-audio-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "splitRoads",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/21b-strategic-front-lines.js",
+        "line": 180,
+        "text": "return !/(?:^|[?&])splitRoads=0(?:&|$)/.test((root.location && root.location.search) || '');"
+      }
+    ],
+    "testMentions": [],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "squadBroadcast",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/49-squad-broadcast.js",
+        "line": 33,
+        "text": "typeof location !== 'undefined' && /[?&]squadBroadcast=(?:0|off|false)\\b/i.test(location.search || '')"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/tactical-default-flags-check.js",
+      "tools/ai-sim-harness/squad-broadcast-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "squadRelay",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/18-command-reception.js",
+        "line": 30,
+        "text": "SQUAD_RELAY_ON = RELAY_ON && !/[?&]squadRelay=(?:0|off|false)(?:&|#|$)/i.test(SEARCH);"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/squad-relay-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "stanceVis",
+    "previewForwarded": true,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/squad-ai.js",
+        "line": 141,
+        "text": "var STANCE_VIS_ON = !(typeof location !== 'undefined' && /[?&]stanceVis=0\\b/.test(location.search || ''));"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/perception-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "stats",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/10-soldier-stats.js",
+        "line": 39,
+        "text": "var m = /[?&]stats=([^&#]*)/.exec(search || ''),"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/strategic-mobile-defense-check.js",
+      "tools/ai-sim-harness/ballistics-geometry-check.js",
+      "tools/ai-sim-harness/fled-man-check.js",
+      "tools/ai-sim-harness/player-fire-mode-check.js",
+      "tools/ai-sim-harness/soldier-events-check.js",
+      "tools/ai-sim-harness/sidearm-rearm-check.js",
+      "tools/ai-sim-harness/listener-acoustics-check.js",
+      "tools/ai-sim-harness/audio-mix-check.js",
+      "tools/ai-sim-harness/command-posture-check.js",
+      "tools/ai-sim-harness/objective-nav-check.js",
+      "tools/ai-sim-harness/impact-fx-check.js",
+      "tools/ai-sim-harness/sidearm-check.js",
+      "tools/ai-sim-harness/retreat-posture-check.js",
+      "tools/ai-sim-harness/soldier-stats-check.js",
+      "tools/ai-sim-harness/medic-check.js",
+      "tools/ai-sim-harness/covered-pressure-bound-check.js",
+      "tools/ai-sim-harness/player-facing-bore-check.js",
+      "tools/ai-sim-harness/ground-stop-check.js",
+      "tools/ai-sim-harness/soldier-mind-telemetry-check.js",
+      "tools/ai-sim-harness/tactical-postures-check.js",
+      "tools/ai-sim-harness/strategic-transport-check.js",
+      "tools/ai-sim-harness/loadout-check.js",
+      "tools/ai-sim-harness/covered-fire-maneuver-causal-check.js",
+      "tools/ai-sim-harness/stress-memory-check.js",
+      "tools/ai-sim-harness/causal-inaction-check.js",
+      "tools/ai-sim-harness/squad-fit-check.js",
+      "tools/ai-sim-harness/fire-control-check.js",
+      "tools/ai-sim-harness/movement-arrival-adoption-check.js",
+      "tools/ai-sim-harness/stats-levers-check.js",
+      "tools/ai-sim-harness/gunner-trace-check.js",
+      "tools/ai-sim-harness/fbx-animation-state-check.js",
+      "tools/ai-sim-harness/stress-reactions-check.js",
+      "tools/ai-sim-harness/map-pipeline-check.js",
+      "tools/ai-sim-harness/weapon-foley-audio-check.js",
+      "tools/ai-sim-harness/status-writers-check.js",
+      "tools/ai-sim-harness/soldier-mind-behaviour-check.js",
+      "tools/ai-sim-harness/weapon-wound-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "steerLeg",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/battle-sim.js",
+        "line": 537,
+        "text": "var STEER_LEG = !(typeof location !== 'undefined' && /[?&]steerLeg=0\\b/.test(location.search || ''));"
+      }
+    ],
+    "testMentions": [],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "steerNavForward",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/battle-sim.js",
+        "line": 541,
+        "text": "typeof location !== 'undefined' && /[?&]steerNavForward=0\\b/.test(location.search || '')"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/steer-navigation-leg-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "strategicInterception",
+    "previewForwarded": true,
+    "classification": "strategic gate executed in 64-case matrix",
+    "default": "baseline source: off; current-main source: on with prerequisites",
+    "production": "deployed state unverified",
+    "preview": "deployed state unverified; baseline requested flags dropped unless allowlisted",
+    "references": [
+      {
+        "file": "battle/scenario-generator.js",
+        "line": 670,
+        "text": "((typeof location !== 'undefined' && /[?&]strategicInterception=1(?:&|$)/.test(location.search || '')) ||"
+      },
+      {
+        "file": "battle/battle-sim.js",
+        "line": 12,
+        "text": "(root.location && /[?&]strategicInterception=1(?:&|$)/.test(root.location.search || '')));"
+      },
+      {
+        "file": "battle/modules/59-strategic-aerial-recon.js",
+        "line": 35,
+        "text": "/(?:^|[?&])strategicInterception=1(?:&|$)/.test(search) &&"
+      },
+      {
+        "file": "battle/modules/59b-strategic-interception.js",
+        "line": 25,
+        "text": "/(?:^|[?&])strategicInterception=1(?:&|$)/.test(search) &&"
+      },
+      {
+        "file": "battle/modules/59-strategic-truck-visual.js",
+        "line": 123,
+        "text": "/(?:^|[?&])strategicInterception=1(?:&|$)/.test(search) &&"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/strategic-aerial-recon-check.js",
+      "tools/ai-sim-harness/strategic-interception-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "stressAct",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/engagement.js",
+        "line": 865,
+        "text": "var m = /[?&]stressAct=([^&#]*)/.exec((typeof location !== 'undefined' && location.search) || ''),"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/transport-resume-check.js",
+      "tools/ai-sim-harness/scouts-forward-check.js",
+      "tools/ai-sim-harness/command-relay-check.js",
+      "tools/ai-sim-harness/benchmark-compare-check.js",
+      "tools/ai-sim-harness/recon-budget-check.js",
+      "tools/ai-sim-harness/fled-man-check.js",
+      "tools/ai-sim-harness/execution-contract-check.js",
+      "tools/ai-sim-harness/mg-suppression-setup-check.js",
+      "tools/ai-sim-harness/local-mission-tasks-check.js",
+      "tools/ai-sim-harness/command-posture-check.js",
+      "tools/ai-sim-harness/command-orientation-check.js",
+      "tools/ai-sim-harness/retreat-posture-check.js",
+      "tools/ai-sim-harness/grenade-check.js",
+      "tools/ai-sim-harness/effective-fire-support-check.js",
+      "tools/ai-sim-harness/covered-pressure-bound-check.js",
+      "tools/ai-sim-harness/stress-reactions-ctx-check.js",
+      "tools/ai-sim-harness/tactical-postures-check.js",
+      "tools/ai-sim-harness/covered-fire-maneuver-causal-check.js",
+      "tools/ai-sim-harness/suppression-integrity-check.js",
+      "tools/ai-sim-harness/fire-control-check.js",
+      "tools/ai-sim-harness/movement-arrival-adoption-check.js",
+      "tools/ai-sim-harness/loop-period-check.js",
+      "tools/ai-sim-harness/stress-reactions-check.js",
+      "tools/ai-sim-harness/squad-relay-check.js",
+      "tools/ai-sim-harness/unreachable-anchor-check.js",
+      "tools/ai-sim-harness/command-movement-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "stressMem",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/17-soldier-mind.js",
+        "line": 54,
+        "text": "var m = /[?&]stressMem=([^&#]*)/.exec(search || ''),"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/benchmark-compare-check.js",
+      "tools/ai-sim-harness/stress-memory-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "tacticalSituation",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/54-tactical-situation.js",
+        "line": 10,
+        "text": "return /[?&]tacticalSituation=1\\b/.test((root.location && root.location.search) || '');"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/tactical-situation-check.js",
+      "tools/ai-sim-harness/tactical-diagnostics-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "tracerPool",
+    "previewForwarded": true,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/13-combat-fx-consistency.js",
+        "line": 150,
+        "text": "var TRACER_POOL = !(typeof location !== 'undefined' && /[?&]tracerPool=0\\b/.test(location.search || ''));"
+      }
+    ],
+    "testMentions": [],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "transportHandoff",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/15l-squad-leader-mission-execution.js",
+        "line": 53,
+        "text": "return !/(?:^|[?&])transportHandoff=0(?:&|$)/.test((root.location && root.location.search) || '');"
+      }
+    ],
+    "testMentions": [],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "truckAccess",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/58-strategic-abstract-transport.js",
+        "line": 90,
+        "text": "return /(?:^|[?&])truckAccess=1(?:&|$)/.test((root.location && root.location.search) || '');"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/strategic-transport-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "truckCollision",
+    "previewForwarded": false,
+    "classification": "strategic gate executed in 64-case matrix",
+    "default": "baseline source: off; current-main source: on with prerequisites",
+    "production": "deployed state unverified",
+    "preview": "deployed state unverified; baseline requested flags dropped unless allowlisted",
+    "references": [
+      {
+        "file": "battle/modules/58-strategic-abstract-transport.js",
+        "line": 310,
+        "text": "/(?:^|[?&])truckCollision=1(?:&|$)/.test((root.location && root.location.search) || '')"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/strategic-transport-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "truckLite",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/59-strategic-truck-visual.js",
+        "line": 51,
+        "text": "return !/(?:^|[?&])truckLite=0(?:&|$)/.test((root.location && root.location.search) || '');"
+      }
+    ],
+    "testMentions": [],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "truckOnRoad",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/58-strategic-abstract-transport.js",
+        "line": 411,
+        "text": "return !/(?:^|[?&])truckOnRoad=0(?:&|$)/.test((root.location && root.location.search) || '');"
+      }
+    ],
+    "testMentions": [],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "truckPhysics",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/58-strategic-abstract-transport.js",
+        "line": 968,
+        "text": "return !/(?:^|[?&])truckPhysics=0(?:&|$)/.test((root.location && root.location.search) || '');"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/strategic-transport-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "truckReach",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/58-strategic-abstract-transport.js",
+        "line": 1021,
+        "text": "return !/(?:^|[?&])truckReach=0(?:&|$)/.test((root.location && root.location.search) || '');"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/strategic-transport-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "truckSpacing",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/58-strategic-abstract-transport.js",
+        "line": 470,
+        "text": "return !/(?:^|[?&])truckSpacing=0(?:&|$)/.test((root.location && root.location.search) || '');"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/strategic-transport-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "truckStaysPut",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/58-strategic-abstract-transport.js",
+        "line": 553,
+        "text": "return !/(?:^|[?&])truckStaysPut=0(?:&|$)/.test((root.location && root.location.search) || '');"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/strategic-transport-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "truckTex",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/59-strategic-truck-visual.js",
+        "line": 55,
+        "text": "var q = /[?&]truckTex=(\\d+)/.exec((root.location && root.location.search) || '');"
+      }
+    ],
+    "testMentions": [],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "truckVisual",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/59-strategic-truck-visual.js",
+        "line": 125,
+        "text": "!/(?:^|[?&])truckVisual=0(?:&|$)/.test(search)"
+      }
+    ],
+    "testMentions": [],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "unreachableAnchor",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/16-squad-plan-stability.js",
+        "line": 296,
+        "text": "var UNREACHABLE_ANCHOR_ON = !/[?&]unreachableAnchor=(?:0|off|false)(?:&|#|$)/i.test("
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/unreachable-anchor-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "urbanPicture",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/54a-urban-operating-picture.js",
+        "line": 12,
+        "text": "return /[?&]urbanPicture=1\\b/.test((root.location && root.location.search) || '');"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/tactical-diagnostics-check.js",
+      "tools/ai-sim-harness/urban-operating-picture-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "weaponFoley",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/15-weapon-foley-audio.js",
+        "line": 81,
+        "text": "var ON = !(typeof location !== 'undefined' && /[?&]weaponFoley=0\\b/.test(location.search || ''));"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/weapon-foley-audio-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "weaponInstances",
+    "previewForwarded": true,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/53-fbx-soldier-backend.js",
+        "line": 1694,
+        "text": "typeof location !== 'undefined' && /[?&]weaponInstances=0\\b/.test(location.search || '')"
+      }
+    ],
+    "testMentions": [],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "windowPort",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/battle-navigation.js",
+        "line": 34,
+        "text": "var PORT = !(typeof location !== 'undefined' && /[?&]windowPort=0\\b/.test(location.search || ''));"
+      },
+      {
+        "file": "battle/modules/19b-engagement-fire-stance.js",
+        "line": 678,
+        "text": "var PORT_ON = !(typeof location !== 'undefined' && /[?&]windowPort=0\\b/.test(location.search || ''));"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/window-port-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  },
+  {
+    "name": "woundMap",
+    "previewForwarded": false,
+    "classification": "query-read candidate; manual semantics verification required",
+    "default": "unresolved",
+    "production": "unresolved",
+    "preview": "unresolved",
+    "references": [
+      {
+        "file": "battle/modules/52-fbx-surface-damage.js",
+        "line": 208,
+        "text": "var q = root.location && /[?&]woundMap=(\\d+)/.exec(root.location.search || '');"
+      }
+    ],
+    "testMentions": [
+      "tools/ai-sim-harness/fbx-surface-damage-check.js"
+    ],
+    "testMentionCaveat": "Source mention only, not a coverage assertion"
+  }
+]

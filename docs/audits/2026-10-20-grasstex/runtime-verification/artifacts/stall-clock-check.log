@@ -1,0 +1,33 @@
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[AI-HEALTH] objective assignment and replan health active
+PASS one constant: the sampler's threshold is the General's strategic-stall clock
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[AI-HEALTH] objective assignment and replan health active
+PASS the replan flag flips when the General wakes on the stall, not before
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[AI-HEALTH] objective assignment and replan health active
+PASS a stalled side whose squads are all defending is flagged too, under its own reason (#361 defect 8)
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[AI-HEALTH] objective assignment and replan health active
+PASS opponent progress does not reset this side's strategic stall clock
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[AI-HEALTH] objective assignment and replan health active
+PASS with no General loaded nobody replans, so no stall is ever due
+stall-clock-check: 5 passed

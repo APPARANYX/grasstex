@@ -1,0 +1,16 @@
+PASS A: a squad with half its men blocked is frozen on main and carries the order out with the report
+PASS A: the fireteam does not wait on a blocked teammate
+PASS A: a squad most of whose men are blocked tells the General once; the General reconsiders that brief
+PASS A: the report is off with ?executionReport=0 (main)
+PASS B: a higher-priority movement authority is held, never blocked and never progressing
+PASS C: a living man with no order from a brief the squad holds reads pending, not executing
+PASS D: a report about a replaced brief never wakes the new one, and the new brief starts unreported
+PASS E: a squad holding a prepared defence is neither blocked nor reported
+PASS F: another squad making objective progress does not hide a blocked squad from the General
+PASS A: the General answers the report with a replacement brief that the men physically carry out
+PASS A: a block the objective does not cure is escalated once, not swapped back and forth
+PASS G: a recon detail ending without contact is labelled as its own outcome for the standing brief
+PASS A: a trapped man keeps his status and rejoins the squad when his obstruction clears
+PASS Review: an older brief order and its physical blocker are not the standing brief failure
+PASS Review: reading an outcome does not settle Command Reception
+15 execution-contract checks passed

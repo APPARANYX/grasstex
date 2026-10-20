@@ -1,0 +1,9 @@
+{
+  "nativeInterceptionExitCode": 0,
+  "nativeInterceptionEnvironment": {
+    "STRATEGIC_INTERCEPT_QA_URL": "http://127.0.0.1:8876/grasstex/battle_sim_local.php",
+    "STRATEGIC_INTERCEPT_QA_OUT": "docs/audits/2026-10-20-grasstex/runtime-verification/artifacts/native-interception",
+    "STRATEGIC_INTERCEPT_QA_SECONDS": "900"
+  },
+  "mediaFixture": "/Users/ivanpopov/Desktop/Ai training/grasstex/scripts/audit/private-audio-fixture.cjs"
+}

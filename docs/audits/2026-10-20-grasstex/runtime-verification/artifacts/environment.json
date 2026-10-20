@@ -1,0 +1,40 @@
+{
+  "baseline": "f89939f2f6e8ff21063d1b24c28a8ab73fe9d2e9",
+  "auditSource": "5945793baa5a78762a4105039f23857115b1cac0",
+  "mainAtStart": "fa99ec8f15acf0f76d83e7f5a4317191ab5a61e5",
+  "branch": "audit/runtime-verification-20261020",
+  "platform": "macOS-26.6-arm64-arm-64bit-Mach-O",
+  "cpu": "Apple M1",
+  "ramBytes": "17179869184",
+  "node": "v26.7.0",
+  "php": "PHP 8.5.10 (cli) (built: Aug 25 2026 21:09:32) (NTS)\nCopyright (c) The PHP Group\nBuilt by Homebrew\nZend Engine v4.5.10, Copyright (c) Zend Technologies\n    with Zend OPcache v8.5.10, Copyright (c), by Zend Technologies",
+  "playwright": "1.55.0",
+  "dateUTC": "2026-10-20T12:18:47Z",
+  "previewProbe": {
+    "url": "https://test.ivandpopov.com/grasstex/preview/ref-f89939f2f6e8/battle_sim.php",
+    "status": 404
+  },
+  "hooks": "script and Codex/Claude hook config present; trust not exercised",
+  "openPRs": [
+    {
+      "headRefName": "work/star-commander-ideation-qa-20261019",
+      "number": 584,
+      "title": "chore(actions): star Commander Ideation Site QA"
+    },
+    {
+      "headRefName": "work/phase-c-natural-readiness-diagnostics",
+      "number": 527,
+      "title": "[PARKED \u2014 urban tactics] Phase C: natural readiness, firing-line continuity and covered-maneuver acceptance"
+    },
+    {
+      "headRefName": "feat/reported-contact-tactical-map",
+      "number": 499,
+      "title": "feat(ui): tactical map of squad-reported enemy positions and movement"
+    },
+    {
+      "headRefName": "work/tactics-campaign-v1-all",
+      "number": 299,
+      "title": "AI Tactics Campaign v1 \u2014 Phases A-J (all 28 sub-phases)"
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "fixture": "shipping transport; stub navigation rejects all exits for 600s, then permits them",
+  "query": "?motorTransport=1&truckAccess=1",
+  "blocked": {
+    "elapsed": 599.9999999999532,
+    "phase": "disembarking",
+    "exited": 0,
+    "passengers": 10,
+    "vehicle": {
+      "id": "us-base-0-truck-0",
+      "faction": "us",
+      "baseId": "us-base-0",
+      "baseIndex": 0,
+      "slot": 0,
+      "position": {
+        "x": -12,
+        "z": 12
+      },
+      "parking": {
+        "x": -12,
+        "z": 12
+      },
+      "heading": {
+        "x": 0,
+        "z": 1
+      },
+      "phase": "disembarking",
+      "squadId": "us-1"
+    }
+  },
+  "recovered": {
+    "phase": "dismounted",
+    "passengers": 0
+  }
+}

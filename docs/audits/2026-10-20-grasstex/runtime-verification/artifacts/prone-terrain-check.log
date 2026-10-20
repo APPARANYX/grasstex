@@ -1,0 +1,17 @@
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[BALLISTICS] direct fire uses combat-calibrated dispersed raycasts
+PASS: standing and flat prone remain unchanged
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[BALLISTICS] direct fire uses combat-calibrated dispersed raycasts
+PASS: uphill prone MG42 clears ground, ballistic gate and player ray agree
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[BALLISTICS] direct fire uses combat-calibrated dispersed raycasts
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[BALLISTICS] direct fire uses combat-calibrated dispersed raycasts
+PASS: directional pitch and roll follow local slope
+PASS: visual slope alignment is render-only, simulation root stays upright
+PASS: dead soldiers blend into the terrain tangent without rotating the simulation root
