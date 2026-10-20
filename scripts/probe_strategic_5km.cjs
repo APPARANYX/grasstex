@@ -71,6 +71,13 @@ const out = path.resolve(process.env.STRATEGIC_QA_OUT || 'closeups/strategic-5km
       }
       return {
         profile: s.profile,
+        activation: window.BattleStrategicConfig.snapshot(b),
+        ownerActivation: {
+          transport: window.BattleSquadTransport.fleetSummary(b).length > 0,
+          recon: window.BattleAerialRecon.status(b, 'us').enabled,
+          interception: window.BattleStrategicInterception.enabled(b),
+          truckCollision: (b.obstacles.__dynamicFootprints || []).length > 0
+        },
         map: s.map,
         objectives: s.objectives.length,
         roads: s.roads.length,
@@ -115,6 +122,13 @@ const out = path.resolve(process.env.STRATEGIC_QA_OUT || 'closeups/strategic-5km
     report.audioFixture = 'silent PCM for private audio files omitted from public checkout';
     report.mockedPrivateAudio = mockedPrivateAudio;
     assert.equal(report.profile, 'strategic');
+    assert.equal(report.activation.version, 1);
+    assert.equal(report.activation.features.transport, true);
+    assert.equal(report.activation.features.recon, true);
+    assert.equal(report.activation.features.interception, true);
+    for (const [feature, active] of Object.entries(report.ownerActivation)) {
+      assert.equal(active, report.activation.features[feature], 'actual owner activation: ' + feature);
+    }
     assert.equal(report.map.width, 5000);
     assert.equal(report.map.depth, 5000);
     assert.equal(report.objectives, 12);
@@ -248,6 +262,13 @@ const out = path.resolve(process.env.STRATEGIC_QA_OUT || 'closeups/strategic-5km
     report.legacy = await legacy.evaluate(() => {
       const b = window.__battle__, s = window.__scenario__;
       return {
+        activation: window.BattleStrategicConfig.snapshot(b),
+        ownerActivation: {
+          transport: window.BattleSquadTransport.fleetSummary(b).length > 0,
+          recon: window.BattleAerialRecon.status(b, 'us').enabled,
+          interception: window.BattleStrategicInterception.enabled(b),
+          truckCollision: (b.obstacles.__dynamicFootprints || []).length > 0
+        },
         map: s.map,
         objectives: s.objectives.length,
         terrainVertices: b.scene.getMeshByName('battleField').getTotalVertices(),
@@ -262,6 +283,8 @@ const out = path.resolve(process.env.STRATEGIC_QA_OUT || 'closeups/strategic-5km
       };
     });
     report.legacy.bootMs = Date.now() - legacyStart;
+    assert.ok(Object.values(report.legacy.activation.features).every(value => value === false));
+    assert.ok(Object.values(report.legacy.ownerActivation).every(value => value === false));
     assert.equal(report.legacy.map.width, 2000);
     assert.equal(report.legacy.map.depth, 1200);
     assert.equal(report.legacy.soldiers, 100);

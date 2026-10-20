@@ -8,6 +8,8 @@
 | Learning/telemetry backend | `battle_learning.php`, `battle_policy.php`, `battle_log*.php`, `battle_metrics.php` ("What We Learned" page) | Active. The page no longer reads or writes the policy and learning endpoints: the genome is stashed (below). |
 | FBX Motion Lab | `labs/fbx-animation-lab.html` (calibration workbench), in-page **Motion Lab** button | Previews clips; measures hand/weapon contacts and saves per-model sidecars the game loads. |
 
+`BattleStrategicConfig` in `battle/core-runtime.js` owns the pinned runtime's ten strategic flag defaults and transport/recon/interception/visual/collider activation dependencies. Consumers use its live query reads; `snapshot(sim)` reports flags and contextual activation for QA. PHP forwards controls without reinterpreting gameplay defaults. Explicit numeric-zero controls retain their existing semantics, including independent transport when the strategic master is off.
+
 ### Tactical overlay extension point
 
 The tactical status overlay is data-driven. `battle/module-registry.js` owns the

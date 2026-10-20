@@ -15,6 +15,7 @@ function make(search = '?strategicInterception=1&aerialRecon=1&interception=0', 
     BattleModules: { registerSystem: (name, api) => (hooks[name] = api) },
     BattleTelemetry: { record: (type, payload) => events.push({ type, payload }) }
   };
+  require('./module-loader').loadModule(root, 'battle/core-runtime.js');
   const source = fs.readFileSync(
     path.join(__dirname, '../../battle/modules/59-strategic-aerial-recon.js'),
     'utf8'

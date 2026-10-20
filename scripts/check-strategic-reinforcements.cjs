@@ -65,6 +65,7 @@ function world(search = '?strategicInterception=1&frontLines=1&reinforcements=1'
       tick() {}
     }
   };
+  loadModule(root, 'battle/core-runtime.js', { console: quietConsole });
   loadModule(root, 'battle/modules/21b-strategic-front-lines.js');
   loadModule(root, 'battle/modules/21c-strategic-reinforcements.js');
   if (/aerialRecon=1/.test(search))

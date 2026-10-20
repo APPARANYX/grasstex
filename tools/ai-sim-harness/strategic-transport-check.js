@@ -91,6 +91,7 @@ function make(
       }
     }
   };
+  loadModule(root, 'battle/core-runtime.js');
   loadModule(root, 'battle/modules/58-strategic-abstract-transport.js');
   const system = hooks['strategic-abstract-transport'];
   const members = Array.from({ length: 10 }, (_, i) => ({
@@ -125,7 +126,6 @@ function make(
     heightAt: () => 0
   };
   if (flag.includes('truckCollision=1')) {
-    loadModule(root, 'battle/core-runtime.js');
     loadModule(root, 'battle/obstacle-field.js');
     loadModule(root, 'battle/battle-navigation.js');
     root.BattleNavigation.installScenario(town);

@@ -10,7 +10,7 @@
   var STRATEGIC_FIELD =
     !root.PHASE_C_COMBAT_LAB &&
     root.STRATEGIC_INTERCEPTION_ENABLED !== false &&
-    !/(?:^|[?&])strategicInterception=0(?:&|$)/.test((root.location && root.location.search) || '');
+    root.BattleStrategicConfig.flag('strategicInterception');
   var FIELD_W = root.PHASE_C_COMBAT_LAB ? 280 : STRATEGIC_FIELD ? 5000 : 2000,
     FIELD_D = root.PHASE_C_COMBAT_LAB ? 240 : STRATEGIC_FIELD ? 5000 : 1200,
     SPAWN_Z = 510,
