@@ -105,7 +105,7 @@ def retain_parent(parent):
     # Only non-main source snapshots need an extra durable ref.
     if run("git", "merge-base", "--is-ancestor", parent, "origin/main", check=False).returncode == 0:
         return "main-ancestor"
-    tag = f"benchmark-source-archive/{parent}"
+    tag = f"archive/benchmark-source/{parent}"
     path = f"repos/{REPO}/git/ref/tags/{tag}"
     existing = gh(path, missing_ok=True)
     if existing is None:
