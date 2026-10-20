@@ -24,6 +24,7 @@
   var D = root.BattleCommanderDoctrine,
     R = root.BattleCommanderRoutes;
   var oldStart = root.BattleSim.start;
+  var commandSessions = new WeakMap();
   var COMMAND_TICK = 0.45,
     OBJECTIVE_HOLD_WIN = 35,
     STRATEGIC_STALL_REPLAN = 120,
@@ -734,6 +735,39 @@
     };
   }
 
+  // Start and restart share one owner for Commander state. Objective attachment is the
+  // initial-session operation; reset retains its existing distinct objective lifecycle.
+  function initializeCommand(sim, town, enabled, initial) {
+    var objectives = root.BattleObjectiveSystem;
+    if (objectives)
+      objectives[initial ? 'attach' : 'reset'](sim, objectives.definitionsFromTown(town), {
+        town: town
+      });
+    R.initForce(sim, 'us', town);
+    R.initForce(sim, 'ge', town);
+    sim.macroCommandEnabled = enabled;
+    if (initial) sim.objectives = sim._objectives || [];
+    sim._commandAccum = 0;
+    sim._nextDecisionSnapshot = 0;
+    sim._objectiveRecovery = { us: { count: 0, last: null }, ge: { count: 0, last: null } };
+    sim._macroMissionState = null;
+    sim._generals = { us: newGeneralState('us'), ge: newGeneralState('ge') };
+    missionState(sim);
+  }
+
+  if (root.BattleModules && root.BattleModules.registerSystem)
+    root.BattleModules.registerSystem('commander-lifecycle', {
+      requiredHooks: ['afterBattleRosterReset'],
+      afterBattleRosterReset: function (sim) {
+        var session = commandSessions.get(sim);
+        if (!session) return;
+        var metadata = sim.scene.metadata || {};
+        session.town = metadata.battleScenario || metadata.battleTown || session.town;
+        initializeCommand(sim, session.town, sim.macroCommandEnabled !== false, false);
+        root.BattleModules.runHook('onBattleRestart', sim, { town: session.town });
+      }
+    });
+
   root.BattleSim.start = function (scene, opts) {
     var sim = oldStart(scene, opts),
       town =
@@ -742,20 +776,9 @@
       console.warn('[COMMAND] no scenario metadata; hierarchical infantry AI disabled');
       return sim;
     }
-    if (root.BattleObjectiveSystem)
-      root.BattleObjectiveSystem.attach(sim, root.BattleObjectiveSystem.definitionsFromTown(town), {
-        town: town
-      });
-    R.initForce(sim, 'us', town);
-    R.initForce(sim, 'ge', town);
-    sim.macroCommandEnabled = !(opts && opts.macroCommandEnabled === false);
-    sim.objectives = sim._objectives || [];
-    sim._commandAccum = 0;
-    sim._nextDecisionSnapshot = 0;
-    sim._objectiveRecovery = { us: { count: 0, last: null }, ge: { count: 0, last: null } };
-    sim._macroMissionState = null;
-    sim._generals = { us: newGeneralState('us'), ge: newGeneralState('ge') };
-    missionState(sim);
+    var session = { town: town };
+    commandSessions.set(sim, session);
+    initializeCommand(sim, town, !(opts && opts.macroCommandEnabled === false), true);
     var adapted = {};
     if (root.BattleAIPolicy) {
       ['us', 'ge'].forEach(function (f) {
@@ -771,36 +794,13 @@
     if (root.BattleModules) root.BattleModules.runHook('onBattleStart', sim, { town: town });
     installVictory(sim);
 
-    var stockRestart = sim.restart.bind(sim);
-    sim.restart = function () {
-      var macroCommandEnabled = sim.macroCommandEnabled !== false;
-      stockRestart();
-      town =
-        (scene.metadata && scene.metadata.battleScenario) ||
-        (scene.metadata && scene.metadata.battleTown) ||
-        town;
-      if (root.BattleObjectiveSystem)
-        root.BattleObjectiveSystem.reset(sim, root.BattleObjectiveSystem.definitionsFromTown(town), {
-          town: town
-        });
-      R.initForce(sim, 'us', town);
-      R.initForce(sim, 'ge', town);
-      sim.macroCommandEnabled = macroCommandEnabled;
-      sim._commandAccum = 0;
-      sim._nextDecisionSnapshot = 0;
-      sim._objectiveRecovery = { us: { count: 0, last: null }, ge: { count: 0, last: null } };
-      sim._macroMissionState = null;
-      sim._generals = { us: newGeneralState('us'), ge: newGeneralState('ge') };
-      missionState(sim);
-      if (root.BattleModules) root.BattleModules.runHook('onBattleRestart', sim, { town: town });
-    };
     /* The fixed-step clock calls this after each 0.15s soldier-AI step, just like
        deterministic replay. Pages without the optional clock retain the legacy observer. */
     sim._liveCommanderTick = function (dt) {
       sim._commandAccum += dt;
       while (sim._commandAccum + 1e-9 >= COMMAND_TICK && !sim.winner) {
         sim._commandAccum -= COMMAND_TICK;
-        updateCommander(sim, town, COMMAND_TICK);
+        updateCommander(sim, session.town, COMMAND_TICK);
       }
     };
     scene.onBeforeRenderObservable.add(function () {

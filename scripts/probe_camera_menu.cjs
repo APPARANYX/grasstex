@@ -345,7 +345,7 @@ const OUT = path.resolve(process.env.CAMERA_MENU_OUT || 'closeups/camera-menu-ci
       'death tour must release pointer lock so Skip is clickable'
     );
     await page.waitForTimeout(1800);
-    await page.screenshot({ path: path.join(OUT, 'death-orbit.png') });
+    // Assert the time-sensitive orbit before screenshot work can advance the live tour.
     const deathMid = await page.evaluate(() => ({
       id: window.__qaDeathVictim.id,
       time: __battle__.time,
@@ -363,6 +363,7 @@ const OUT = path.resolve(process.env.CAMERA_MENU_OUT || 'closeups/camera-menu-ci
       'no living man can acquire player authority during the orbit'
     );
     assert.ok(deathMid.time > deathStart.time, 'presentation tour must leave the battle running');
+    await page.screenshot({ path: path.join(OUT, 'death-orbit.png') });
     assert.ok(
       Math.hypot(...deathMid.position.map((v, i) => v - deathStart.position[i])) > 0.1,
       'death camera must move'
