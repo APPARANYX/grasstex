@@ -5,7 +5,11 @@
 const assert = require('node:assert/strict');
 const { loadModule } = require('./module-loader');
 
-function make(scenario = 'strategic', flag = '?motorTransport=1&truckAccess=0&truckCollision=0', road = true) {
+function make(
+  scenario = 'strategic',
+  flag = '?motorTransport=1&truckAccess=0&truckCollision=0',
+  road = true
+) {
   const hooks = {},
     events = [],
     walls = { after: Infinity };
@@ -153,9 +157,9 @@ function make(scenario = 'strategic', flag = '?motorTransport=1&truckAccess=0&tr
 
 // Flag and scenario isolation. A transport mission cannot be assumed authorized.
 for (const args of [
-  ['tactical', '?motorTransport=1', true],
+  ['tactical', '?motorTransport=1&truckAccess=0&truckCollision=0', true],
   ['strategic', '?motorTransport=0', true],
-  ['strategic', '?motorTransport=1', false]
+  ['strategic', '?motorTransport=1&truckAccess=0&truckCollision=0', false]
 ]) {
   const w = make(...args);
   assert.equal(w.api.considerMission(w.sim, w.squad, w.brief()), false);
@@ -174,7 +178,7 @@ assert.equal(
   0,
   'explicit opt-out removes dynamic truck footprints'
 );
-const w = make(undefined, '?motorTransport=1&truckPhysics=0'); // the exact constant-speed carrier contract; handling below
+const w = make(undefined, '?motorTransport=1&truckPhysics=0&truckAccess=0&truckCollision=0'); // the exact constant-speed carrier contract; handling below
 const initialFleet = w.api.fleetSummary(w.sim);
 assert.equal(initialFleet.length, 12, 'all six bases own two parked trucks before the first mission');
 assert.equal(new Set(initialFleet.map(v => v.id)).size, 12, 'every truck has a stable unique identity');
@@ -471,8 +475,8 @@ assert.equal(changed.squad._transport.endReason, 'mission-changed-or-retreat');
 
 // A man on board with an enemy in his own sight stops the truck; ?crewEyes=0 keeps passengers blind.
 for (const [flag, stops] of [
-  ['?motorTransport=1', true],
-  ['?motorTransport=1&crewEyes=0', false]
+  ['?motorTransport=1&truckAccess=0&truckCollision=0', true],
+  ['?motorTransport=1&crewEyes=0&truckAccess=0&truckCollision=0', false]
 ]) {
   const seen = make('strategic', flag);
   assert.ok(seen.api.considerMission(seen.sim, seen.squad, seen.brief()));
@@ -489,7 +493,7 @@ for (const [flag, stops] of [
 // its lane with small corrections; seeded and identical run to run. ?truckPhysics=0 above keeps
 // the exact constant-speed carrier.
 function handledTrip() {
-  const h = make('strategic', '?motorTransport=1');
+  const h = make('strategic', '?motorTransport=1&truckAccess=0&truckCollision=0');
   assert.ok(h.api.considerMission(h.sim, h.squad, h.brief()));
   h.squad._macroMission.status = 'executing';
   while (h.squad._transport.phase === 'boarding' && h.sim.time < 60) h.run(0.15);
@@ -537,8 +541,8 @@ function handledTrip() {
 // Two trucks briefed down the same road do not stop in one turnout (Ivan's 10-19 "clone" truck);
 // ?truckSpacing=0 restores the shared spot.
 for (const [flag, apart] of [
-  ['?motorTransport=1', true],
-  ['?motorTransport=1&truckSpacing=0', false]
+  ['?motorTransport=1&truckAccess=0&truckCollision=0', true],
+  ['?motorTransport=1&truckSpacing=0&truckAccess=0&truckCollision=0', false]
 ]) {
   const two = make('strategic', flag);
   assert.ok(two.api.considerMission(two.sim, two.squad, two.brief()));
@@ -621,13 +625,13 @@ function bayExit(flag) {
   return { t, turns: yaw / (2 * Math.PI) };
 }
 {
-  const on = bayExit('?motorTransport=1');
+  const on = bayExit('?motorTransport=1&truckAccess=0&truckCollision=0');
   assert.equal(on.t.endReason, 'arrival', 'out of the bay and down the road');
   assert.ok(
     on.turns < 1.5,
     'one loop out of the bay at most, never circling: ' + on.turns.toFixed(2) + ' turns'
   );
-  const off = bayExit('?motorTransport=1&truckReach=0');
+  const off = bayExit('?motorTransport=1&truckReach=0&truckAccess=0&truckCollision=0');
   assert.ok(off.turns > 3, '?truckReach=0: the old steering circles the waypoint: ' + off.turns.toFixed(2));
 }
 
@@ -635,8 +639,8 @@ function bayExit(flag) {
 // (Ivan's 10-19 export: ge-3 came back to its truck, the order changed while it mounted, and the
 // truck vanished to its base bay). ?truckStaysPut=0 restores the jump back to the bay.
 for (const [flag, staysPut] of [
-  ['?motorTransport=1', true],
-  ['?motorTransport=1&truckStaysPut=0', false]
+  ['?motorTransport=1&truckAccess=0&truckCollision=0', true],
+  ['?motorTransport=1&truckStaysPut=0&truckAccess=0&truckCollision=0', false]
 ]) {
   const r = make(undefined, flag);
   r.town.objectives.push({ id: 'c', x: 0, z: 2450 });
@@ -729,7 +733,7 @@ console.log(
   'PASS six strategic depots with two persistent trucks each, exclusive allocation, real boarding/road travel, preserved parked/stopped trucks, collision-safe dismount and legacy isolation'
 );
 
-// Opt-in door/tailgate access: physical single-file queue, immediate serial seating,
+// Default-on door/tailgate access: physical single-file queue, immediate serial seating,
 // then serial ground exits and an outside-body walk to the rear staging line.
 for (const [collision, endReason] of [
   [false, 'arrival'],
@@ -737,7 +741,7 @@ for (const [collision, endReason] of [
   [true, 'arrival'],
   [true, 'crew-sighting']
 ]) {
-  const a = make('strategic', '?motorTransport=1&truckAccess=1' + (collision ? '&truckCollision=1' : ''));
+  const a = make('strategic', '?motorTransport=1&truckAccess=1&truckCollision=' + (collision ? '1' : '0'));
   if (endReason === 'crew-sighting')
     a.sim._strategicTransportFleet.vehicles.forEach(v => {
       v.heading = { x: 1, z: 0 };
