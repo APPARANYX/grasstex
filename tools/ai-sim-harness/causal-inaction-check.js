@@ -269,3 +269,39 @@ assert.equal(d.probe.report(d.sim).episodes.length, 0);
 console.log(
   'PASS causal inaction: verified vs inferred evidence, firing + movement, purity, bounds and filters'
 );
+
+// Retain transport episodes, but never interpret suspended infantry orders as walking failures.
+for (const phase of ['boarding', 'embarked']) {
+  const w = fixture('?probeIds=76', 'executing');
+  w.state.current = false;
+  w.soldier.squad._transport = {
+    phase,
+    vehicleId: 'truck-1',
+    missionVersion: 2,
+    requestedAt: 0,
+    boardedCount: 3,
+    boardTimeoutSeconds: 45,
+    travelled: 15,
+    position: { x: 4, z: 8 }
+  };
+  w.soldier._movementStopReason = phase === 'boarding' ? 'transport-boarding' : 'embarked-passenger';
+  for (let t = 0; t <= 13; t++) w.sample(t);
+  const e = w.probe.report(w.sim).episodes.find(e => e.kind === 'movement-inaction');
+  assert.equal(e.code, 'transport-owned-movement');
+  assert.equal(e.scope, 'transport-ownership');
+  assert.equal(e.evidence.order.current, false, 'stale order evidence is preserved');
+  assert.equal(e.evidence.transport.boardedCount, 3);
+  assert.equal(e.evidence.transport.travelledMeters, 15);
+  assert.equal(e.evidence.transport.elapsedSeconds, 12);
+  assert.equal(w.stats().mutations, 0);
+  // A stale stop string after release cannot hide a real infantry failure.
+  w.soldier.squad._transport.phase = 'dismounted';
+  for (let t = 14; t <= 27; t++) w.sample(t);
+  const infantry = w.probe
+    .report(w.sim)
+    .episodes.filter(e => e.kind === 'movement-inaction')
+    .at(-1);
+  assert.equal(infantry.code, 'stale-order-version');
+  assert.equal(infantry.evidence.transport, null);
+}
+console.log('PASS transport ownership classification retains boarding evidence and dismount failures');

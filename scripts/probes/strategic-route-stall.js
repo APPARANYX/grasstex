@@ -58,10 +58,27 @@
       phase: sq.commandPhase || null,
       contact: !!sq.inContact,
       mission: m
-        ? { version: m.version, intent: m.intent, status: m.status, objectiveId: m.objectiveId || null }
+        ? {
+            version: m.version,
+            intent: m.intent,
+            status: m.status,
+            objectiveId: m.objectiveId || null,
+            point: point(m.point)
+          }
         : null,
       transport: t
-        ? { phase: t.phase, vehicleId: t.vehicleId, reason: t.reason || t.abortReason || null, leg: t.leg }
+        ? {
+            phase: t.phase,
+            vehicleId: t.vehicleId,
+            reason: t.endReason || t.reason || t.abortReason || null,
+            leg: t.leg,
+            position: point(t.position),
+            travelled: round(t.travelled),
+            boardedCount: t.boardedCount,
+            requestedAt: round(t.requestedAt),
+            endedAt: t.endedAt == null ? null : round(t.endedAt),
+            missionVersion: t.missionVersion
+          }
         : null,
       men: men.map(function (s) {
         var r = s._movementResolver && s._movementResolver.last;
@@ -73,6 +90,14 @@
           waypoint: point(s._movementWaypoint),
           orderDestination: point(s.orderDestination),
           fireteamDestination: point(s._fireteamDestination),
+          adoptedEnvelope: s._fireteamAdoptedEnvelope || null,
+          committedOrder:
+            s._movementResolver && s._movementResolver.order
+              ? {
+                  point: point(s._movementResolver.order.point),
+                  intentPoint: point(s._movementResolver.order.intentPoint)
+                }
+              : null,
           detour: point(s._fieldDetour),
           moving: !!s.moving,
           speed: round(s.moveSpeed),

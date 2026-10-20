@@ -76,6 +76,21 @@
     var O = root.BattleExecutionOutcome;
     return O && O.man ? O.man(s, sim) : null;
   }
+  function transportEvidence(s, sim) {
+    var t = s.squad && s.squad._transport;
+    if (!t || (t.phase !== 'boarding' && t.phase !== 'embarked')) return null;
+    return {
+      phase: t.phase,
+      vehicleId: t.vehicleId || null,
+      missionVersion: t.missionVersion == null ? null : t.missionVersion,
+      requestedAt: t.requestedAt == null ? null : round(t.requestedAt),
+      elapsedSeconds: t.requestedAt == null ? null : round(sim.time - t.requestedAt),
+      boardedCount: t.boardedCount == null ? null : t.boardedCount,
+      boardTimeoutSeconds: t.boardTimeoutSeconds == null ? null : t.boardTimeoutSeconds,
+      travelledMeters: round(t.travelled),
+      carrierPosition: position(t.position)
+    };
+  }
   function sampleRow(s, o, sim) {
     var resolver = s._movementResolver && s._movementResolver.last;
     return {
@@ -94,6 +109,7 @@
         : null,
       stop: s._movementStopReason || null,
       speed: round(s.moveSpeed),
+      transport: transportEvidence(s, sim),
       losRejects: +s._losBlockedFire || 0,
       crestRejects: +s._crestBlockedFire || 0,
       terrainRejects: +s._terrainBlockedSuppressiveFire || 0
@@ -219,7 +235,15 @@
       }
     };
   }
-  function movementClassification(o) {
+  function movementClassification(o, transport) {
+    if (transport)
+      return {
+        code: 'transport-owned-movement',
+        confidence: 'verified',
+        scope: 'transport-ownership',
+        interpretation:
+          'Transport owns movement during boarding/embarkation; infantry walking and order-version checks do not establish a failure. Inspect carrier travel, boarding progress and timeout evidence.'
+      };
     if (o.current === false && o.envelopeId)
       return {
         code: 'stale-order-version',
@@ -291,7 +315,8 @@
   }
   function recordMovement(s, sim, d, o) {
     var here = position(s.root.position),
-      dest = position(s.destination);
+      dest = position(s.destination),
+      transport = transportEvidence(s, sim);
     if (
       s.dead ||
       !o ||
@@ -311,14 +336,16 @@
       '|' +
       round(dest.x) +
       ',' +
-      round(dest.z);
+      round(dest.z) +
+      '|' +
+      (transport ? transport.phase + ':' + transport.vehicleId : 'infantry');
     var m = d.move;
     if (!m || m.signature !== signature || range(m.anchor, here) >= 1.5) {
       m = { since: sim.time, anchor: here, signature: signature, reported: false };
       d.move = m;
     }
     if (!m.reported && sim.time - m.since >= MOVE_STILL && (+s.moveSpeed || 0) < 0.35) {
-      var result = movementClassification(o);
+      var result = movementClassification(o, transport);
       emit(
         'movement-inaction',
         s,
@@ -339,6 +366,7 @@
           displacementMeters: round(range(m.anchor, here)),
           distanceToDestinationMeters: round(range(here, dest)),
           stopReason: s._movementStopReason || null,
+          transport: transport,
           resolver: (d.history[d.history.length - 1] && d.history[d.history.length - 1].resolver) || null,
           coverDecisions: d.coverEvents
             .filter(function (e) {
@@ -427,7 +455,7 @@
               arrivedAt: null,
               firedAt: null,
               lastPosition: position(s.root.position),
-              nearestMeters: range(position(s.root.position),event.goal),
+              nearestMeters: range(position(s.root.position), event.goal),
               observedDeadAt: null,
               atDeathMeters: null,
               lastMovementOwner: null,
@@ -462,7 +490,7 @@
             resolver = s._movementResolver && s._movementResolver.last;
           trace.lastPosition = currentPosition;
           trace.nearestMeters = Math.min(trace.nearestMeters, gap);
-          trace.lastMovementOwner = resolver && resolver.owner || null;
+          trace.lastMovementOwner = (resolver && resolver.owner) || null;
           trace.lastStop = s._movementStopReason || null;
           if (s.dead && trace.observedDeadAt == null) {
             trace.observedDeadAt = round(sim.time);
