@@ -793,6 +793,11 @@ const { requestPreview } = require('./preview_request.cjs');
       const leaderlessBefore = b.factions.us.squads.filter(q => q._leaderlessIntent?.localValidity).length;
       if (!leaderlessBefore) throw Error('restart needs nonempty local validity');
       b.restart();
+      const terrainSettled = ['us', 'ge'].every(f =>
+        b._roster[f].every(
+          s => Math.abs(s.root.position.y - b.heightAt(s.root.position.x, s.root.position.z)) < 1e-5
+        )
+      );
       const historyCleared = !BattleAITimeline.snapshot(b).observations;
       const intentCleared = ['us', 'ge'].every(f =>
         b.factions[f].squads.every(
@@ -810,6 +815,7 @@ const { requestPreview } = require('./preview_request.cjs');
       const cleared = T.summary(b).tacticalSituation === null;
       T.sample(b);
       return {
+        terrainSettled,
         coveredAttemptsBefore,
         leaderlessBefore,
         localValidityCleared: ['us', 'ge'].every(f => b.factions[f].squads.every(q => !q._leaderlessIntent)),
@@ -842,6 +848,7 @@ const { requestPreview } = require('./preview_request.cjs');
       assert.ok(evidence.urban.visibilityProbes > 0);
     }
     assert.equal(evidence.restart.conflictsCleared, true);
+    assert.equal(evidence.restart.terrainSettled, true);
     assert.equal(evidence.restart.coveredBoundsCleared, true);
     assert.equal(evidence.restart.localTasksCleared, true);
     assert.equal(evidence.restart.localValidityCleared, true);

@@ -192,16 +192,18 @@
     var sim = baseStart.apply(this, arguments);
     sim.heightAt = heightAt;
     settleUnits(sim);
-    var restart = sim.restart && sim.restart.bind(sim);
-    if (restart)
-      sim.restart = function () {
-        var out = restart();
-        this.heightAt = heightAt;
-        settleUnits(this);
-        return out;
-      };
     return sim;
   };
+
+  // Core dispatches this only after Commander and its module resets have completed.
+  if (root.BattleModules)
+    root.BattleModules.registerSystem('macro-relief', {
+      requiredHooks: ['afterBattleRestart'],
+      afterBattleRestart: function (sim) {
+        sim.heightAt = heightAt;
+        settleUnits(sim);
+      }
+    });
 
   root.BattleMacroRelief = {
     version: '1.1-mesh-authoritative',

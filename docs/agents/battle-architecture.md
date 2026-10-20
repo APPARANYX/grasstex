@@ -354,11 +354,15 @@ body with the real registry/clock and fixture spawning to verify reset order, re
 observer counts and battle isolation.
 
 The core restart sequence is `beforeBattleRestart` → roster replacement →
-`afterBattleRosterReset`. Commander registers its required initialization on the last hook,
+`afterBattleRosterReset` → `afterBattleRestart`. Commander registers its required initialization on
+`afterBattleRosterReset`,
 then emits the existing `onBattleRestart` notification after objective reset, force setup and
 General-state reset. Start and restart share one Commander initializer. A weak per-battle scenario
 context supplies both the reset and Commander scheduler, preserving the last valid scenario when
 metadata is absent. Commander adds no per-instance restart wrapper.
+Macro relief restores the terrain sampler and settles replacement actors on `afterBattleRestart`,
+after Commander and its nested module notifications finish. It adds no restart wrapper. Operator
+UI/telemetry still completes outside this core sequence; its raw restart entry retains that bypass.
 
 Registry systems may declare `requiredHooks: [name]`: an exception is logged and rethrown unchanged,
 so later hooks and restart-complete notifications cannot claim success after required setup fails.
