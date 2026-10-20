@@ -664,16 +664,18 @@
     return scenario;
   }
 
-  /* Query is read here before battle-sim.js loads; Combat Lab always wins isolation. */
+  /* Match battle-sim's early geometry gate regardless of module load order.
+     Both 5 km and front-line objectives ship on; explicit =0 restores the
+     previous scenario for A/B tests. Combat Lab always wins isolation. */
+  var query = (root.location && root.location.search) || '';
   root.STRATEGIC_INTERCEPTION_ENABLED =
     !root.PHASE_C_COMBAT_LAB &&
-    ((typeof location !== 'undefined' && /[?&]strategicInterception=1(?:&|$)/.test(location.search || '')) ||
-      root.STRATEGIC_INTERCEPTION_ENABLED === true);
-  /* ?frontLines=1 swaps the 5 km layout for the front-lines variant (strategic profile only). */
+    root.STRATEGIC_INTERCEPTION_ENABLED !== false &&
+    !/(?:^|[?&])strategicInterception=0(?:&|$)/.test(query);
   root.STRATEGIC_FRONT_LINES =
     !root.PHASE_C_COMBAT_LAB &&
-    ((typeof location !== 'undefined' && /[?&]frontLines=1(?:&|$)/.test(location.search || '')) ||
-      root.STRATEGIC_FRONT_LINES === true);
+    root.STRATEGIC_FRONT_LINES !== false &&
+    !/(?:^|[?&])frontLines=0(?:&|$)/.test(query);
 
   function create(seed, opts) {
     opts = opts || {};
