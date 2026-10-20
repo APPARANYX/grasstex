@@ -79,7 +79,8 @@ const env = {
     'squad-local-starvation',
     ...(process.env.CAUSAL_GEOMETRY === '1' ? ['crest-geometry'] : []),
     ...(process.env.CAUSAL_LIFECYCLE === '1' ? ['command-lifecycle'] : []),
-    ...(process.env.CAUSAL_NAVTRACE === '1' ? ['route-361'] : [])
+    ...(process.env.CAUSAL_NAVTRACE === '1' ? ['route-361'] : []),
+    ...(process.env.CAUSAL_ROUTE_TRACE === '1' ? ['strategic-route-stall'] : [])
   ].join(','),
   PROBE_BATTLES: battles.join(','),
   PROBE_SECONDS: String(seconds),
@@ -127,7 +128,9 @@ const summary = {
   lifecycle: [],
   /* Observed independently per squad; a protected tactical hold is not a command failure. */
   squadLocal: [],
-  navigationRegressions: []
+  navigationRegressions: [],
+  strategicRouteStalls: [],
+  routeEvidenceOmitted: 0
 };
 function bump(obj, key, n = 1) {
   obj[key] = (obj[key] || 0) + n;
@@ -143,6 +146,24 @@ for (const b of record.battles) {
   if (env.PROBE_CONTROL === '1' && b.sameBattle !== true)
     summary.failures.push(b.seed + ': probe/control mismatch');
   if ((b.errors || []).length) summary.failures.push(b.seed + ': runtime errors');
+  if (process.env.CAUSAL_ROUTE_TRACE === '1') {
+    const trace = b.reports && b.reports['strategic-route-stall'];
+    if (!trace || trace.schema !== 'strategic-route-stall-v1' || trace.interval !== 0.15)
+      summary.failures.push(b.seed + ': missing or invalid per-tick strategic route trace');
+    else {
+      summary.routeEvidenceOmitted += trace.omitted || 0;
+      summary.strategicRouteStalls.push({
+        type: b.type, seed: b.seed, sampledTicks: trace.sampledTicks,
+        incidents: (trace.counts?.us || 0) + (trace.counts?.ge || 0),
+        captured: trace.recorded, omitted: trace.omitted,
+        examples: (trace.events || []).slice(0, 6).map(x => ({
+          faction: x.faction, squad: x.squad, at: x.at, waypointIndex: x.routeIndex,
+          distanceToWaypoint: x.distanceToWaypoint, beforeTicks: x.before?.length || 0,
+          afterTicks: x.after?.length || 0
+        }))
+      });
+    }
+  }
   const r = b.reports && b.reports['causal-inaction'];
   if (!r || r.schema !== 'grasstex-causal-inaction-v1') {
     summary.failures.push(b.seed + ': missing causal probe');
@@ -378,6 +399,15 @@ if (summary.coverDecisionsOmitted)
       summary.coverDecisionsOmitted +
       ' planner decisions omitted from per-battle detail. Aggregated counts remain complete.'
   );
+if (process.env.CAUSAL_ROUTE_TRACE === '1') {
+  md.push('', '## Strategic route-stall per-tick forensic (0.15s; full frames in raw.json)', '');
+  for (const t of summary.strategicRouteStalls)
+    md.push('- ' + t.type + ':' + t.seed + ': ' + t.incidents +
+      ' route-stall candidates, ' + t.captured + ' captured, ' + t.omitted +
+      ' omitted, ' + t.sampledTicks + ' sampled simulation ticks. ' +
+      t.examples.map(e => e.faction + '/' + e.squad + ' @' + e.at + 's (' + e.distanceToWaypoint + 'm to waypoint; ' + e.beforeTicks + '+' + e.afterTicks + ' ticks)').join('; '));
+  md.push('- Captured incidents are candidates, not proven deadlocks; inspect physical positions/owners and route detours.');
+}
 md.push('', '## Direct Engagement decision denials within reported episodes', '');
 for (const [reason, n] of Object.entries(summary.directDecisionReasons).sort((a, b) => b[1] - a[1]))
   md.push('- ' + reason + ': ' + n);
