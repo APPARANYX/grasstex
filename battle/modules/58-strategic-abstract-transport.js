@@ -289,15 +289,6 @@
           : here
             ? here.route
             : supplied;
-    // A screen continues beyond the secured objective; that objective is
-    // still a mandatory road junction even when missionRouteFor omits its end.
-    if (mission.screen && goalId) {
-      var secured = (town.objectives || []).find(function (o) {
-        return o.id === goalId;
-      });
-      if (secured && (!stops.length || dist(stops[stops.length - 1], secured) > EPS))
-        stops = stops.concat([position(secured)]);
-    }
     if (vehicle.phase === 'stopped') {
       var entry = nearestRoadEntry(town, vehicle.position);
       if (!entry) return null;
