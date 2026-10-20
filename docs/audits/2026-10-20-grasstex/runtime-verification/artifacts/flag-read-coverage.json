@@ -1,0 +1,4346 @@
+{
+  "candidateCount": 174,
+  "withExecutedReads": 172,
+  "excludedNonQuery": [
+    "infantry"
+  ],
+  "unresolved": [
+    "grass"
+  ],
+  "rows": [
+    {
+      "name": "acoustics",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 0,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": null
+        }
+      ],
+      "modules": [
+        "battle/modules/12a-listener-acoustics.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/audio-format-check.js",
+        "tools/ai-sim-harness/battle-loader-player-camera-check.js",
+        "tools/ai-sim-harness/listener-acoustics-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "aerialRecon",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 2,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        },
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 7,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/modules/59-strategic-aerial-recon.js",
+        "battle/modules/59b-strategic-interception.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/retreat-men-export-check.js",
+        "tools/ai-sim-harness/strategic-aerial-recon-check.js",
+        "tools/ai-sim-harness/strategic-interception-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "alertAdvance",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 25,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/modules/16-squad-plan-stability.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/clear-contact-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "alertHold",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 31,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/engagement.js"
+      ],
+      "testMentions": [],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "ambushBeforeObjective",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "helpers",
+          "index": 0,
+          "scope": "helper output only; caller inversion/dependencies remain separate",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/modules/59-strategic-aerial-recon.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/strategic-interception-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "ambushNextObjective",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "helpers",
+          "index": 1,
+          "scope": "helper output only; caller inversion/dependencies remain separate",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/modules/59-strategic-aerial-recon.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/strategic-interception-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "animLod",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 40,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/modules/52-fbx-render-lod.js"
+      ],
+      "testMentions": [],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "audioFormat",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 43,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": null
+        }
+      ],
+      "modules": [
+        "battle/modules/00-audio-format.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/audio-format-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "audioMix",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 44,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/modules/00a-audio-mix.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/audio-mix-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "autonomousMovement",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "loader-range-flag-executions.json",
+          "section": "phpCases",
+          "field": "autonomousMovement",
+          "scope": "unchanged PHP loader fragment",
+          "absent": true
+        }
+      ],
+      "modules": [
+        "battle_sim_local.php"
+      ],
+      "testMentions": [],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "bench",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "loader-range-flag-executions.json",
+          "section": "phpCases",
+          "field": "deviceBenchRequested",
+          "scope": "unchanged PHP loader fragment",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/modules/97-device-benchmark.js",
+        "battle_sim.php",
+        "battle_sim_local.php"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/module-load-profile-check.js",
+        "tools/ai-sim-harness/benchmark-compare-check.js",
+        "tools/ai-sim-harness/map-pipeline-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "benchAuto",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "initializers",
+          "index": 4,
+          "scope": "original initializer in query-only fixture; errors explicitly unresolved",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/modules/97-device-benchmark.js"
+      ],
+      "testMentions": [],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "benchCam",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "initializers",
+          "index": 2,
+          "scope": "original initializer in query-only fixture; errors explicitly unresolved",
+          "absent": "overview"
+        }
+      ],
+      "modules": [
+        "battle/modules/97-device-benchmark.js"
+      ],
+      "testMentions": [],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "benchFollow",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "initializers",
+          "index": 3,
+          "scope": "original initializer in query-only fixture; errors explicitly unresolved",
+          "absent": 25
+        }
+      ],
+      "modules": [
+        "battle/modules/97-device-benchmark.js"
+      ],
+      "testMentions": [],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "benchHide",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "loader-range-flag-executions.json",
+          "section": "extraReadCases",
+          "scope": "original JS read expression in explicit dependency fixture",
+          "absent": []
+        }
+      ],
+      "modules": [
+        "battle/modules/97-device-benchmark.js"
+      ],
+      "testMentions": [],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "benchSeconds",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "initializers",
+          "index": 0,
+          "scope": "original initializer in query-only fixture; errors explicitly unresolved",
+          "absent": 60
+        }
+      ],
+      "modules": [
+        "battle/modules/97-device-benchmark.js"
+      ],
+      "testMentions": [],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "benchWarmup",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "initializers",
+          "index": 1,
+          "scope": "original initializer in query-only fixture; errors explicitly unresolved",
+          "absent": 60
+        }
+      ],
+      "modules": [
+        "battle/modules/97-device-benchmark.js"
+      ],
+      "testMentions": [],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "boardFacing",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 48,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": true
+        }
+      ],
+      "modules": [
+        "battle/battle-sim.js"
+      ],
+      "testMentions": [],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "boneTextures",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 54,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": null
+        }
+      ],
+      "modules": [
+        "battle/modules/53-fbx-soldier-backend.js"
+      ],
+      "testMentions": [],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "breadcrumb",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 57,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/modules/98-reload-breadcrumb.js"
+      ],
+      "testMentions": [],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "buddyPairs",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 20,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": true
+        }
+      ],
+      "modules": [
+        "battle/modules/16-squad-plan-stability.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/buddy-pairs-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "callouts",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 58,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/modules/09-tactical-callouts.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/perception-check.js",
+        "tools/ai-sim-harness/scouts-forward-check.js",
+        "tools/ai-sim-harness/callouts-check.js",
+        "tools/ai-sim-harness/voice-observations-check.js",
+        "tools/ai-sim-harness/objective-nav-check.js",
+        "tools/ai-sim-harness/benchmark-restart-isolation-check.js",
+        "tools/ai-sim-harness/voice-determinism-check.js",
+        "tools/ai-sim-harness/voice-playback-check.js",
+        "tools/ai-sim-harness/soldier-beliefs-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "clipPack",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 53,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/modules/53-fbx-soldier-backend.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/fbx-library-lifecycle-check.js",
+        "tools/ai-sim-harness/fbx-prepared-pack-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "cloneBounds",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 55,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/modules/53-fbx-soldier-backend.js"
+      ],
+      "testMentions": [],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "coa",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 22,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/modules/16-squad-plan-stability.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/strategic-recovery-ctx-check.js",
+        "tools/ai-sim-harness/coa-check.js",
+        "tools/ai-sim-harness/execution-contract-check.js",
+        "tools/ai-sim-harness/local-mission-tasks-check.js",
+        "tools/ai-sim-harness/squad-phase-check.js",
+        "tools/ai-sim-harness/squad-status-overlay-check.js",
+        "tools/ai-sim-harness/covered-pressure-bound-check.js",
+        "tools/ai-sim-harness/clear-contact-check.js",
+        "tools/ai-sim-harness/buddy-pairs-check.js",
+        "tools/ai-sim-harness/squad-stress-check.js",
+        "tools/ai-sim-harness/tactical-postures-check.js",
+        "tools/ai-sim-harness/mind-read-map-check.js",
+        "tools/ai-sim-harness/covered-fire-maneuver-causal-check.js",
+        "tools/ai-sim-harness/local-degradation-check.js",
+        "tools/ai-sim-harness/strategic-recovery-review-check.js",
+        "tools/ai-sim-harness/local-resources-check.js",
+        "tools/ai-sim-harness/fire-control-check.js",
+        "tools/ai-sim-harness/morale-check.js",
+        "tools/ai-sim-harness/local-plan-check.js",
+        "tools/ai-sim-harness/lease-conflict-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "combatAudio",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 59,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/modules/15-combat-audio.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/combat-audio-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "combatHandoff",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 32,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": true
+        }
+      ],
+      "modules": [
+        "battle/engagement.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/combat-handoff-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "combatLab",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "loader-range-flag-executions.json",
+          "section": "phpCases",
+          "field": "labRequested",
+          "scope": "unchanged PHP loader fragment",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle_sim_local.php"
+      ],
+      "testMentions": [],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "commandMovement",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 62,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": true
+        }
+      ],
+      "modules": [
+        "battle/modules/18-command-reception.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/transport-resume-check.js",
+        "tools/ai-sim-harness/scouts-forward-check.js",
+        "tools/ai-sim-harness/command-relay-check.js",
+        "tools/ai-sim-harness/command-reception-check.js",
+        "tools/ai-sim-harness/recon-budget-check.js",
+        "tools/ai-sim-harness/leaderless-intent-check.js",
+        "tools/ai-sim-harness/local-mission-tasks-check.js",
+        "tools/ai-sim-harness/command-posture-check.js",
+        "tools/ai-sim-harness/recon-outcomes-check.js",
+        "tools/ai-sim-harness/movement-recovery-check.js",
+        "tools/ai-sim-harness/leaderless-retreat-reception-check.js",
+        "tools/ai-sim-harness/stance-ownership-check.js",
+        "tools/ai-sim-harness/tactical-postures-check.js",
+        "tools/ai-sim-harness/advance-stance-reason-check.js",
+        "tools/ai-sim-harness/movement-arrival-adoption-check.js",
+        "tools/ai-sim-harness/spawn-slots-check.js",
+        "tools/ai-sim-harness/autonomous-movement-handoff-check.js",
+        "tools/ai-sim-harness/unreachable-anchor-check.js",
+        "tools/ai-sim-harness/command-movement-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "commandPosture",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 61,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": true
+        }
+      ],
+      "modules": [
+        "battle/modules/18-command-reception.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/command-reception-check.js",
+        "tools/ai-sim-harness/command-posture-check.js",
+        "tools/ai-sim-harness/retreat-posture-check.js",
+        "tools/ai-sim-harness/grenade-check.js",
+        "tools/ai-sim-harness/effective-fire-support-check.js",
+        "tools/ai-sim-harness/stance-ownership-check.js",
+        "tools/ai-sim-harness/advance-stance-reason-check.js",
+        "tools/ai-sim-harness/fire-control-check.js",
+        "tools/ai-sim-harness/loop-period-check.js",
+        "tools/ai-sim-harness/autonomous-movement-handoff-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "commandReception",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 60,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": true
+        }
+      ],
+      "modules": [
+        "battle/modules/18-command-reception.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/command-relay-check.js",
+        "tools/ai-sim-harness/command-reception-check.js",
+        "tools/ai-sim-harness/command-orientation-check.js",
+        "tools/ai-sim-harness/squad-relay-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "commandRelay",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 63,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": true
+        }
+      ],
+      "modules": [
+        "battle/modules/18-command-reception.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/transport-resume-check.js",
+        "tools/ai-sim-harness/scouts-forward-check.js",
+        "tools/ai-sim-harness/command-relay-check.js",
+        "tools/ai-sim-harness/command-reception-check.js",
+        "tools/ai-sim-harness/recon-budget-check.js",
+        "tools/ai-sim-harness/leaderless-intent-check.js",
+        "tools/ai-sim-harness/command-posture-check.js",
+        "tools/ai-sim-harness/recon-outcomes-check.js",
+        "tools/ai-sim-harness/movement-recovery-check.js",
+        "tools/ai-sim-harness/stance-ownership-check.js",
+        "tools/ai-sim-harness/advance-stance-reason-check.js",
+        "tools/ai-sim-harness/spawn-slots-check.js",
+        "tools/ai-sim-harness/autonomous-movement-handoff-check.js",
+        "tools/ai-sim-harness/command-movement-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "contactStance",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 30,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/engagement.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/stance-ownership-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "contestedPost",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 11,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": true
+        }
+      ],
+      "modules": [
+        "battle/modules/59b-strategic-interception.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/strategic-interception-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "coverFire",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 34,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/engagement.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/cover-positions-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "coverStance",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 35,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/engagement.js"
+      ],
+      "testMentions": [],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "coveredBounds",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 68,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        },
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 69,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/modules/15o-squad-leader-tactical-postures.js",
+        "battle/modules/19-engagement-cover-positions.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/covered-bounds-check.js",
+        "tools/ai-sim-harness/covered-pressure-bound-check.js",
+        "tools/ai-sim-harness/tactical-postures-check.js",
+        "tools/ai-sim-harness/covered-fire-maneuver-causal-check.js",
+        "tools/ai-sim-harness/local-degradation-check.js",
+        "tools/ai-sim-harness/local-resources-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "crawlFit",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 33,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/engagement.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/cover-positions-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "crewEyes",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 76,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": true
+        },
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 85,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": true
+        }
+      ],
+      "modules": [
+        "battle/modules/58-strategic-abstract-transport.js",
+        "battle/squad-ai.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/strategic-transport-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "damageRange",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "loader-range-flag-executions.json",
+          "section": "phpCases",
+          "field": "damageRangeRequested",
+          "scope": "unchanged PHP loader fragment",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/modules/98-damage-range.js",
+        "battle_sim.php",
+        "battle_sim_local.php"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/module-load-profile-check.js",
+        "tools/ai-sim-harness/start-wrapper-contract-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "defender",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "loader-range-flag-executions.json",
+          "section": "phpCases",
+          "field": "requestedDefender",
+          "scope": "unchanged PHP loader fragment",
+          "absent": ""
+        }
+      ],
+      "modules": [
+        "battle/phase-c-compact-range.js",
+        "battle_sim_local.php"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/hill-stalemate-check.js",
+        "tools/ai-sim-harness/strategic-mobile-defense-check.js",
+        "tools/ai-sim-harness/scouts-forward-check.js",
+        "tools/ai-sim-harness/wire-map-check.js",
+        "tools/ai-sim-harness/recon-budget-check.js",
+        "tools/ai-sim-harness/fled-man-check.js",
+        "tools/ai-sim-harness/local-mission-tasks-check.js",
+        "tools/ai-sim-harness/objective-nav-check.js",
+        "tools/ai-sim-harness/squad-phase-check.js",
+        "tools/ai-sim-harness/initial-seed-url-check.js",
+        "tools/ai-sim-harness/reconstitution-check.js",
+        "tools/ai-sim-harness/command-adoption-ratchet-check.js",
+        "tools/ai-sim-harness/recon-outcomes-check.js",
+        "tools/ai-sim-harness/strategic-route-stall-check.js",
+        "tools/ai-sim-harness/retreat-men-export-check.js",
+        "tools/ai-sim-harness/cover-positions-check.js",
+        "tools/ai-sim-harness/strategic-recovery-review-check.js",
+        "tools/ai-sim-harness/retreat-defender-fireteam-check.js",
+        "tools/ai-sim-harness/state-ownership-check.js",
+        "tools/ai-sim-harness/command-movement-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "devModules",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "loader-range-flag-executions.json",
+          "section": "phpCases",
+          "field": "allDevModules",
+          "scope": "unchanged PHP loader fragment",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle_sim.php",
+        "battle_sim_local.php"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/module-load-profile-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "editor",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "loader-range-flag-executions.json",
+          "section": "phpCases",
+          "field": "graphUiRequested",
+          "scope": "unchanged PHP loader fragment",
+          "absent": false
+        },
+        {
+          "artifact": "loader-range-flag-executions.json",
+          "section": "extraReadCases",
+          "scope": "original JS read expression in explicit dependency fixture",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/modules/30-ai-graph-editor.js",
+        "battle_sim.php",
+        "battle_sim_local.php"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/module-load-profile-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "effectiveFire",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 27,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/engagement.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/effective-fire-support-check.js",
+        "tools/ai-sim-harness/tactical-postures-check.js",
+        "tools/ai-sim-harness/local-degradation-check.js",
+        "tools/ai-sim-harness/local-resources-check.js",
+        "tools/ai-sim-harness/local-plan-check.js",
+        "tools/ai-sim-harness/stress-reactions-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "engineerGarrison",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 86,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/modules/21-defender-engineers.js"
+      ],
+      "testMentions": [],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "enrollMissing",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 64,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": true
+        }
+      ],
+      "modules": [
+        "battle/modules/18-command-reception.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/command-reception-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "executionReport",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 15,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": true
+        }
+      ],
+      "modules": [
+        "battle/modules/16-squad-plan-stability.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/execution-contract-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "farHz",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 41,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": null
+        }
+      ],
+      "modules": [
+        "battle/modules/52-fbx-render-lod.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/fbx-presentation-lod-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "fastRetarget",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 87,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/modules/52-fbx-model-retarget.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/fbx-model-retarget-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "fireControl",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 23,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/modules/16-squad-plan-stability.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/strategic-recovery-ctx-check.js",
+        "tools/ai-sim-harness/command-reception-check.js",
+        "tools/ai-sim-harness/execution-contract-check.js",
+        "tools/ai-sim-harness/soldier-mind-check.js",
+        "tools/ai-sim-harness/mg-suppression-setup-check.js",
+        "tools/ai-sim-harness/local-mission-tasks-check.js",
+        "tools/ai-sim-harness/command-posture-check.js",
+        "tools/ai-sim-harness/retreat-posture-check.js",
+        "tools/ai-sim-harness/grenade-check.js",
+        "tools/ai-sim-harness/player-control-check.js",
+        "tools/ai-sim-harness/effective-fire-support-check.js",
+        "tools/ai-sim-harness/squad-status-overlay-check.js",
+        "tools/ai-sim-harness/clear-contact-check.js",
+        "tools/ai-sim-harness/buddy-pairs-check.js",
+        "tools/ai-sim-harness/stance-ownership-check.js",
+        "tools/ai-sim-harness/squad-stress-check.js",
+        "tools/ai-sim-harness/tactical-postures-check.js",
+        "tools/ai-sim-harness/covered-fire-maneuver-causal-check.js",
+        "tools/ai-sim-harness/local-degradation-check.js",
+        "tools/ai-sim-harness/strategic-recovery-review-check.js",
+        "tools/ai-sim-harness/local-resources-check.js",
+        "tools/ai-sim-harness/fire-control-check.js",
+        "tools/ai-sim-harness/local-plan-check.js",
+        "tools/ai-sim-harness/autonomous-movement-handoff-check.js",
+        "tools/ai-sim-harness/lease-conflict-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "fireLineContact",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 29,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/engagement.js"
+      ],
+      "testMentions": [],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "fireteamSplit",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 24,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/modules/16-squad-plan-stability.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/tactical-default-flags-check.js",
+        "tools/ai-sim-harness/covered-pressure-bound-check.js",
+        "tools/ai-sim-harness/covered-fire-maneuver-causal-check.js",
+        "tools/ai-sim-harness/local-degradation-check.js",
+        "tools/ai-sim-harness/local-resources-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "fixedClock",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 88,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        },
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 89,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": true
+        }
+      ],
+      "modules": [
+        "battle/modules/00-fixed-step-clock.js"
+      ],
+      "testMentions": [],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "fledBriefEnd",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 90,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": true
+        }
+      ],
+      "modules": [
+        "battle/modules/22-commander-reconstitution.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/fled-man-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "fledElimination",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 92,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": true
+        }
+      ],
+      "modules": [
+        "battle/commander-doctrine.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/fled-man-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "fledWaitMerge",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 91,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": true
+        }
+      ],
+      "modules": [
+        "battle/modules/22-commander-reconstitution.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/reconstitution-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "follow",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "initializers",
+          "index": 14,
+          "scope": "original initializer in query-only fixture; errors explicitly unresolved",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/camera-controls.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/coa-check.js",
+        "tools/ai-sim-harness/impact-fx-check.js",
+        "tools/ai-sim-harness/sidearm-check.js",
+        "tools/ai-sim-harness/player-control-check.js",
+        "tools/ai-sim-harness/recon-outcomes-check.js",
+        "tools/ai-sim-harness/squad-status-overlay-check.js",
+        "tools/ai-sim-harness/player-facing-bore-check.js",
+        "tools/ai-sim-harness/stats-levers-check.js",
+        "tools/ai-sim-harness/stress-reactions-check.js",
+        "tools/ai-sim-harness/strategic-chain-check.js",
+        "tools/ai-sim-harness/weapon-wound-check.js",
+        "tools/ai-sim-harness/state-ownership-check.js",
+        "tools/ai-sim-harness/soldier-beliefs-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "frontLineRule",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 94,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": true
+        }
+      ],
+      "modules": [
+        "battle/modules/21b-strategic-front-lines.js"
+      ],
+      "testMentions": [],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "frontLines",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 98,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/scenario-generator.js"
+      ],
+      "testMentions": [],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "fxPrewarm",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 99,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        },
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 101,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/modules/13-combat-fx-consistency.js",
+        "battle/modules/15-bullet-impact-fx.js"
+      ],
+      "testMentions": [],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "garrisonAmbush",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 10,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": true
+        }
+      ],
+      "modules": [
+        "battle/modules/59b-strategic-interception.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/strategic-interception-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "geScout",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 102,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/weapons.js"
+      ],
+      "testMentions": [],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "generalIntel",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 93,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": true
+        }
+      ],
+      "modules": [
+        "battle/commander-doctrine.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/squad-fit-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "grass",
+      "classification": "preview-only candidate, no runtime reader found",
+      "evidence": [],
+      "modules": [],
+      "testMentions": [],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "grenadeAudio",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 103,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/modules/24a-grenade-audio.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/grenade-audio-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "grenadeFog",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 104,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": true
+        }
+      ],
+      "modules": [
+        "battle/modules/24-grenade-fx.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/grenade-fog-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "grenades",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 105,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": null
+        }
+      ],
+      "modules": [
+        "battle/modules/23-grenades.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/grenade-check.js",
+        "tools/ai-sim-harness/player-grenade-check.js",
+        "tools/ai-sim-harness/grenade-audio-check.js",
+        "tools/ai-sim-harness/extension-order-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "groundSteps",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 106,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": null
+        }
+      ],
+      "modules": [
+        "battle/modules/14-z-ballistic-raycast.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/ground-stop-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "incomingFireReveal",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 74,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": true
+        }
+      ],
+      "modules": [
+        "battle/squad-ai.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/perception-check.js",
+        "tools/ai-sim-harness/squad-broadcast-check.js",
+        "tools/ai-sim-harness/soldier-beliefs-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "infantry",
+      "classification": "not a URL flag: Map lookup",
+      "evidence": [],
+      "modules": [
+        "battle/modules/55-reported-contact-tactical-map.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/transport-resume-check.js",
+        "tools/ai-sim-harness/tactical-symbol-registry-check.js",
+        "tools/ai-sim-harness/module-unit-set-restart-check.js",
+        "tools/ai-sim-harness/world-debug-check.js",
+        "tools/ai-sim-harness/objective-nav-check.js",
+        "tools/ai-sim-harness/tactical-map-check.js",
+        "tools/ai-sim-harness/squad-status-overlay-check.js",
+        "tools/ai-sim-harness/strategic-transport-check.js",
+        "tools/ai-sim-harness/causal-inaction-check.js",
+        "tools/ai-sim-harness/strategic-interception-check.js",
+        "tools/ai-sim-harness/route-final-objective-check.js",
+        "tools/ai-sim-harness/camera-strategic-fast-flight-check.js",
+        "tools/ai-sim-harness/objective-marker-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "interception",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 3,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        },
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 4,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        },
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 8,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/modules/59-strategic-aerial-recon.js",
+        "battle/modules/59b-strategic-interception.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/retreat-men-export-check.js",
+        "tools/ai-sim-harness/strategic-interception-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "labInterior",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "initializers",
+          "index": 9,
+          "scope": "original initializer in query-only fixture; errors explicitly unresolved",
+          "absent": true
+        }
+      ],
+      "modules": [
+        "battle/phase-c-compact-range.js"
+      ],
+      "testMentions": [],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "labMove",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "initializers",
+          "index": 8,
+          "scope": "original initializer in query-only fixture; errors explicitly unresolved",
+          "absent": "autonomous"
+        }
+      ],
+      "modules": [
+        "battle/phase-c-compact-range.js"
+      ],
+      "testMentions": [],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "labPreset",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "initializers",
+          "index": 6,
+          "scope": "original initializer in query-only fixture; errors explicitly unresolved",
+          "absent": "C"
+        }
+      ],
+      "modules": [
+        "battle/phase-c-compact-range.js"
+      ],
+      "testMentions": [],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "labRange",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "initializers",
+          "index": 7,
+          "scope": "original initializer in query-only fixture; errors explicitly unresolved",
+          "absent": 0
+        }
+      ],
+      "modules": [
+        "battle/phase-c-compact-range.js"
+      ],
+      "testMentions": [],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "leaderlessIntent",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 19,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": true
+        }
+      ],
+      "modules": [
+        "battle/modules/16-squad-plan-stability.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/coa-check.js",
+        "tools/ai-sim-harness/leaderless-intent-check.js",
+        "tools/ai-sim-harness/movement-recovery-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "leaseConflicts",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 13,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/modules/16-squad-plan-stability.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/lease-conflict-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "lineApproachPost",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "helpers",
+          "index": 2,
+          "scope": "helper output only; caller inversion/dependencies remain separate",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/modules/59-strategic-aerial-recon.js"
+      ],
+      "testMentions": [],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "lineSortie",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "helpers",
+          "index": 3,
+          "scope": "helper output only; caller inversion/dependencies remain separate",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/modules/59-strategic-aerial-recon.js"
+      ],
+      "testMentions": [],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "localAmbush",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 66,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/modules/15o-squad-leader-tactical-postures.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/covered-pressure-bound-check.js",
+        "tools/ai-sim-harness/tactical-postures-check.js",
+        "tools/ai-sim-harness/covered-fire-maneuver-causal-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "localContactResume",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 116,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/modules/15n-squad-leader-local-plan.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/local-mission-tasks-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "localContinuity",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 117,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/modules/15n-squad-leader-local-plan.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/local-mission-tasks-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "localDegrade",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 109,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/modules/15n-squad-leader-local-plan.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/local-mission-tasks-check.js",
+        "tools/ai-sim-harness/local-degradation-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "localEntry",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 112,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/modules/15n-squad-leader-local-plan.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/local-mission-tasks-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "localEntryGate",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 113,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/modules/15n-squad-leader-local-plan.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/local-mission-tasks-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "localManeuver",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 67,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/modules/15o-squad-leader-tactical-postures.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/covered-pressure-bound-check.js",
+        "tools/ai-sim-harness/tactical-postures-check.js",
+        "tools/ai-sim-harness/covered-fire-maneuver-causal-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "localPlan",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 70,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        },
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 107,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/modules/15n-squad-leader-local-plan.js",
+        "battle/modules/19-engagement-cover-positions.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/covered-bounds-check.js",
+        "tools/ai-sim-harness/local-mission-tasks-check.js",
+        "tools/ai-sim-harness/covered-pressure-bound-check.js",
+        "tools/ai-sim-harness/tactical-postures-check.js",
+        "tools/ai-sim-harness/covered-fire-maneuver-causal-check.js",
+        "tools/ai-sim-harness/local-degradation-check.js",
+        "tools/ai-sim-harness/local-resources-check.js",
+        "tools/ai-sim-harness/local-plan-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "localResources",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 108,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/modules/15n-squad-leader-local-plan.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/local-mission-tasks-check.js",
+        "tools/ai-sim-harness/local-degradation-check.js",
+        "tools/ai-sim-harness/local-resources-check.js",
+        "tools/ai-sim-harness/local-plan-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "localStructureOrders",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 118,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        },
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "initializers",
+          "index": 10,
+          "scope": "original initializer in query-only fixture; errors explicitly unresolved",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/modules/15n-squad-leader-local-plan.js",
+        "battle/phase-c-compact-range.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/local-mission-tasks-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "localStructures",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 111,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/modules/15n-squad-leader-local-plan.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/local-mission-tasks-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "localSurvey",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 114,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/modules/15n-squad-leader-local-plan.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/local-mission-tasks-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "localTasks",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 110,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/modules/15n-squad-leader-local-plan.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/local-mission-tasks-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "localWatch",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 115,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/modules/15n-squad-leader-local-plan.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/local-mission-tasks-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "log",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 119,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/core-runtime.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/perception-check.js",
+        "tools/ai-sim-harness/hill-stalemate-check.js",
+        "tools/ai-sim-harness/covered-bounds-check.js",
+        "tools/ai-sim-harness/module-load-profile-check.js",
+        "tools/ai-sim-harness/strategic-recovery-ctx-check.js",
+        "tools/ai-sim-harness/coa-check.js",
+        "tools/ai-sim-harness/reconstitution-ctx-check.js",
+        "tools/ai-sim-harness/audio-format-check.js",
+        "tools/ai-sim-harness/benchmark-evidence-check.js",
+        "tools/ai-sim-harness/damage-range-geometry-check.js",
+        "tools/ai-sim-harness/transport-resume-check.js",
+        "tools/ai-sim-harness/strategic-mobile-defense-check.js",
+        "tools/ai-sim-harness/scouts-forward-check.js",
+        "tools/ai-sim-harness/fbx-model-retarget-check.js",
+        "tools/ai-sim-harness/retreat-lost-contact-check.js",
+        "tools/ai-sim-harness/loop-evidence-window-check.js",
+        "tools/ai-sim-harness/fbx-library-lifecycle-check.js",
+        "tools/ai-sim-harness/crest-fire-check.js",
+        "tools/ai-sim-harness/camera-possession-lease-check.js",
+        "tools/ai-sim-harness/callouts-check.js",
+        "tools/ai-sim-harness/command-relay-check.js",
+        "tools/ai-sim-harness/wire-map-check.js",
+        "tools/ai-sim-harness/command-reception-check.js",
+        "tools/ai-sim-harness/tactical-default-flags-check.js",
+        "tools/ai-sim-harness/tactical-symbol-registry-check.js",
+        "tools/ai-sim-harness/combat-audio-check.js",
+        "tools/ai-sim-harness/module-unit-set-restart-check.js",
+        "tools/ai-sim-harness/plan-local-widening-check.js",
+        "tools/ai-sim-harness/fbx-surface-damage-check.js",
+        "tools/ai-sim-harness/camera-lifecycle-stop-check.js",
+        "tools/ai-sim-harness/fbx-weapon-calibration-check.js",
+        "tools/ai-sim-harness/damage-range-input-check.js",
+        "tools/ai-sim-harness/voice-observations-check.js",
+        "tools/ai-sim-harness/regroup-axis-check.js",
+        "tools/ai-sim-harness/engagement-state-check.js",
+        "tools/ai-sim-harness/benchmark-compare-check.js",
+        "tools/ai-sim-harness/forward-progress-check.js",
+        "tools/ai-sim-harness/ballistics-geometry-check.js",
+        "tools/ai-sim-harness/macro-state-check.js",
+        "tools/ai-sim-harness/recon-budget-check.js",
+        "tools/ai-sim-harness/general-isolation-check.js",
+        "tools/ai-sim-harness/fled-man-check.js",
+        "tools/ai-sim-harness/execution-contract-check.js",
+        "tools/ai-sim-harness/outcome-probe-check.js",
+        "tools/ai-sim-harness/cover-positions-ctx-check.js",
+        "tools/ai-sim-harness/soldier-mind-check.js",
+        "tools/ai-sim-harness/player-fire-mode-check.js",
+        "tools/ai-sim-harness/mg-station-setup-check.js",
+        "tools/ai-sim-harness/soldier-events-check.js",
+        "tools/ai-sim-harness/mg-suppression-setup-check.js",
+        "tools/ai-sim-harness/tactical-situation-check.js",
+        "tools/ai-sim-harness/anchor-publisher-check.js",
+        "tools/ai-sim-harness/battle-loader-player-camera-check.js",
+        "tools/ai-sim-harness/fbx-clip-pack-integrity-check.js",
+        "tools/ai-sim-harness/sidearm-rearm-check.js",
+        "tools/ai-sim-harness/leaderless-intent-check.js",
+        "tools/ai-sim-harness/fbx-asset-import-check.js",
+        "tools/ai-sim-harness/listener-acoustics-check.js",
+        "tools/ai-sim-harness/benchmark-window-diagnostics-check.js",
+        "tools/ai-sim-harness/tactical-positions-check.js",
+        "tools/ai-sim-harness/battle-observer-check.js",
+        "tools/ai-sim-harness/local-mission-tasks-check.js",
+        "tools/ai-sim-harness/window-port-check.js",
+        "tools/ai-sim-harness/audio-mix-check.js",
+        "tools/ai-sim-harness/command-posture-check.js",
+        "tools/ai-sim-harness/screen-space-lod-check.js",
+        "tools/ai-sim-harness/world-debug-check.js",
+        "tools/ai-sim-harness/objective-nav-check.js",
+        "tools/ai-sim-harness/tactical-map-check.js",
+        "tools/ai-sim-harness/squad-phase-check.js",
+        "tools/ai-sim-harness/steer-navigation-leg-check.js",
+        "tools/ai-sim-harness/impact-fx-check.js",
+        "tools/ai-sim-harness/fbx-presentation-lod-check.js",
+        "tools/ai-sim-harness/squad-performance-check.js",
+        "tools/ai-sim-harness/command-orientation-check.js",
+        "tools/ai-sim-harness/sidearm-check.js",
+        "tools/ai-sim-harness/retreat-posture-check.js",
+        "tools/ai-sim-harness/fbx-prepared-pack-check.js",
+        "tools/ai-sim-harness/rally-recovery-check.js",
+        "tools/ai-sim-harness/lease-check.js",
+        "tools/ai-sim-harness/player-possession-flight-check.js",
+        "tools/ai-sim-harness/grenade-check.js",
+        "tools/ai-sim-harness/fbx-clip-mixer-check.js",
+        "tools/ai-sim-harness/player-grenade-check.js",
+        "tools/ai-sim-harness/ref-preview-vehicle-staging-check.js",
+        "tools/ai-sim-harness/impact-fx-restart-check.js",
+        "tools/ai-sim-harness/initial-seed-url-check.js",
+        "tools/ai-sim-harness/reconstitution-check.js",
+        "tools/ai-sim-harness/player-death-camera-check.js",
+        "tools/ai-sim-harness/genome-gate-check.js",
+        "tools/ai-sim-harness/soldier-stats-check.js",
+        "tools/ai-sim-harness/muzzle-fx-origin-check.js",
+        "tools/ai-sim-harness/fireteam-frontage-check.js",
+        "tools/ai-sim-harness/player-control-check.js",
+        "tools/ai-sim-harness/command-hierarchy-observer-check.js",
+        "tools/ai-sim-harness/fbx-rig-canon-check.js",
+        "tools/ai-sim-harness/camera-player-menu-template-check.js",
+        "tools/ai-sim-harness/formation-backward-check.js",
+        "tools/ai-sim-harness/squad-command-stack-check.js",
+        "tools/ai-sim-harness/command-adoption-ratchet-check.js",
+        "tools/ai-sim-harness/fbx-retarget-quat-check.js",
+        "tools/ai-sim-harness/recon-outcomes-check.js",
+        "tools/ai-sim-harness/movement-recovery-check.js",
+        "tools/ai-sim-harness/effective-fire-support-check.js",
+        "tools/ai-sim-harness/squad-status-overlay-check.js",
+        "tools/ai-sim-harness/medic-check.js",
+        "tools/ai-sim-harness/player-restart-possession-check.js",
+        "tools/ai-sim-harness/lifecycle-checkpoints-check.js",
+        "tools/ai-sim-harness/camera-touch-handoff-check.js",
+        "tools/ai-sim-harness/strategic-route-stall-check.js",
+        "tools/ai-sim-harness/voice-retry-deadline-check.js",
+        "tools/ai-sim-harness/covered-pressure-bound-check.js",
+        "tools/ai-sim-harness/retreat-men-export-check.js",
+        "tools/ai-sim-harness/clear-contact-check.js",
+        "tools/ai-sim-harness/buddy-pairs-check.js",
+        "tools/ai-sim-harness/wound-restart-isolation-check.js",
+        "tools/ai-sim-harness/combat-handoff-check.js",
+        "tools/ai-sim-harness/player-facing-bore-check.js",
+        "tools/ai-sim-harness/leaderless-retreat-reception-check.js",
+        "tools/ai-sim-harness/fbx-clip-converter-check.js",
+        "tools/ai-sim-harness/fbx-retarget-rest-check.js",
+        "tools/ai-sim-harness/ground-stop-check.js",
+        "tools/ai-sim-harness/benchmark-restart-isolation-check.js",
+        "tools/ai-sim-harness/stance-ownership-check.js",
+        "tools/ai-sim-harness/stress-reactions-ctx-check.js",
+        "tools/ai-sim-harness/grenade-audio-check.js",
+        "tools/ai-sim-harness/cover-positions-check.js",
+        "tools/ai-sim-harness/squad-broadcast-check.js",
+        "tools/ai-sim-harness/soldier-mind-telemetry-check.js",
+        "tools/ai-sim-harness/local-withdraw-check.js",
+        "tools/ai-sim-harness/squad-stress-check.js",
+        "tools/ai-sim-harness/tactical-postures-check.js",
+        "tools/ai-sim-harness/advance-stance-reason-check.js",
+        "tools/ai-sim-harness/strategic-transport-check.js",
+        "tools/ai-sim-harness/loadout-check.js",
+        "tools/ai-sim-harness/strategic-aerial-recon-check.js",
+        "tools/ai-sim-harness/mind-read-map-check.js",
+        "tools/ai-sim-harness/route-transition-check.js",
+        "tools/ai-sim-harness/covered-fire-maneuver-causal-check.js",
+        "tools/ai-sim-harness/tactical-diagnostics-check.js",
+        "tools/ai-sim-harness/grenade-fog-check.js",
+        "tools/ai-sim-harness/movement-state-check.js",
+        "tools/ai-sim-harness/local-degradation-check.js",
+        "tools/ai-sim-harness/stress-memory-check.js",
+        "tools/ai-sim-harness/voice-determinism-check.js",
+        "tools/ai-sim-harness/stall-clock-check.js",
+        "tools/ai-sim-harness/causal-inaction-check.js",
+        "tools/ai-sim-harness/strategic-recovery-review-check.js",
+        "tools/ai-sim-harness/local-resources-check.js",
+        "tools/ai-sim-harness/fbx-render-pose-check.js",
+        "tools/ai-sim-harness/squad-fit-check.js",
+        "tools/ai-sim-harness/start-wrapper-contract-check.js",
+        "tools/ai-sim-harness/faction-progress-check.js",
+        "tools/ai-sim-harness/suppression-integrity-check.js",
+        "tools/ai-sim-harness/extension-order-check.js",
+        "tools/ai-sim-harness/fire-control-check.js",
+        "tools/ai-sim-harness/player-menu-audio-check.js",
+        "tools/ai-sim-harness/morale-check.js",
+        "tools/ai-sim-harness/lean-runtime-check.js",
+        "tools/ai-sim-harness/fire-stance-ctx-check.js",
+        "tools/ai-sim-harness/flank-side-check.js",
+        "tools/ai-sim-harness/stress-reaction-animation-check.js",
+        "tools/ai-sim-harness/urban-operating-picture-check.js",
+        "tools/ai-sim-harness/residual-small-debt-check.js",
+        "tools/ai-sim-harness/movement-arrival-adoption-check.js",
+        "tools/ai-sim-harness/module-loader-check.js",
+        "tools/ai-sim-harness/strategic-interception-check.js",
+        "tools/ai-sim-harness/stats-levers-check.js",
+        "tools/ai-sim-harness/observer-diagnostic-trigger-check.js",
+        "tools/ai-sim-harness/fbx-restart-cleanup-check.js",
+        "tools/ai-sim-harness/gunner-trace-check.js",
+        "tools/ai-sim-harness/local-plan-check.js",
+        "tools/ai-sim-harness/spawn-slots-check.js",
+        "tools/ai-sim-harness/retreat-anchor-check.js",
+        "tools/ai-sim-harness/loop-period-check.js",
+        "tools/ai-sim-harness/route-final-objective-check.js",
+        "tools/ai-sim-harness/fbx-animation-state-check.js",
+        "tools/ai-sim-harness/threat-disposition-check.js",
+        "tools/ai-sim-harness/personal-space-check.js",
+        "tools/ai-sim-harness/macro-command-toggle-check.js",
+        "tools/ai-sim-harness/stress-reactions-check.js",
+        "tools/ai-sim-harness/retreat-defender-fireteam-check.js",
+        "tools/ai-sim-harness/map-pipeline-check.js",
+        "tools/ai-sim-harness/battle-page-inline-script-check.js",
+        "tools/ai-sim-harness/strategic-chain-check.js",
+        "tools/ai-sim-harness/autonomous-movement-handoff-check.js",
+        "tools/ai-sim-harness/macro-relief-height-check.js",
+        "tools/ai-sim-harness/weapon-foley-audio-check.js",
+        "tools/ai-sim-harness/squad-relay-check.js",
+        "tools/ai-sim-harness/voice-playback-check.js",
+        "tools/ai-sim-harness/local-steering-check.js",
+        "tools/ai-sim-harness/status-writers-check.js",
+        "tools/ai-sim-harness/sight-query-check.js",
+        "tools/ai-sim-harness/intent-evidence-check.js",
+        "tools/ai-sim-harness/soldier-mind-behaviour-check.js",
+        "tools/ai-sim-harness/world-placement-check.js",
+        "tools/ai-sim-harness/cohesion-regroup-ctx-check.js",
+        "tools/ai-sim-harness/weapon-wound-check.js",
+        "tools/ai-sim-harness/weapon-shot-buffer-check.js",
+        "tools/ai-sim-harness/forward-line-check.js",
+        "tools/ai-sim-harness/camera-strategic-fast-flight-check.js",
+        "tools/ai-sim-harness/squad-local-starvation-check.js",
+        "tools/ai-sim-harness/unreachable-anchor-check.js",
+        "tools/ai-sim-harness/objective-marker-check.js",
+        "tools/ai-sim-harness/camera-input-frame-check.js",
+        "tools/ai-sim-harness/camera-presentation-reset-check.js",
+        "tools/ai-sim-harness/state-ownership-check.js",
+        "tools/ai-sim-harness/control-scenario-rejection-check.js",
+        "tools/ai-sim-harness/lease-conflict-check.js",
+        "tools/ai-sim-harness/damage-range-panel-check.js",
+        "tools/ai-sim-harness/command-movement-check.js",
+        "tools/ai-sim-harness/soldier-beliefs-check.js",
+        "tools/ai-sim-harness/damage-range-lifecycle-check.js",
+        "tools/ai-sim-harness/succession-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "medic",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 120,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": true
+        }
+      ],
+      "modules": [
+        "battle/modules/14-wound-model.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/medic-check.js",
+        "tools/ai-sim-harness/wound-restart-isolation-check.js",
+        "tools/ai-sim-harness/stress-memory-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "mergeWalls",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 121,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/town-objectives.js"
+      ],
+      "testMentions": [],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "mind",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 123,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": null
+        }
+      ],
+      "modules": [
+        "battle/modules/17-soldier-mind.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/strategic-recovery-ctx-check.js",
+        "tools/ai-sim-harness/coa-check.js",
+        "tools/ai-sim-harness/retreat-lost-contact-check.js",
+        "tools/ai-sim-harness/wire-map-check.js",
+        "tools/ai-sim-harness/fled-man-check.js",
+        "tools/ai-sim-harness/execution-contract-check.js",
+        "tools/ai-sim-harness/soldier-mind-check.js",
+        "tools/ai-sim-harness/soldier-events-check.js",
+        "tools/ai-sim-harness/local-mission-tasks-check.js",
+        "tools/ai-sim-harness/command-posture-check.js",
+        "tools/ai-sim-harness/world-debug-check.js",
+        "tools/ai-sim-harness/reconstitution-check.js",
+        "tools/ai-sim-harness/leaderless-retreat-reception-check.js",
+        "tools/ai-sim-harness/stress-reactions-ctx-check.js",
+        "tools/ai-sim-harness/soldier-mind-telemetry-check.js",
+        "tools/ai-sim-harness/squad-stress-check.js",
+        "tools/ai-sim-harness/mind-read-map-check.js",
+        "tools/ai-sim-harness/stress-memory-check.js",
+        "tools/ai-sim-harness/strategic-recovery-review-check.js",
+        "tools/ai-sim-harness/fire-control-check.js",
+        "tools/ai-sim-harness/morale-check.js",
+        "tools/ai-sim-harness/fire-stance-ctx-check.js",
+        "tools/ai-sim-harness/retreat-anchor-check.js",
+        "tools/ai-sim-harness/stress-reactions-check.js",
+        "tools/ai-sim-harness/autonomous-movement-handoff-check.js",
+        "tools/ai-sim-harness/soldier-mind-behaviour-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "morale",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 21,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/modules/16-squad-plan-stability.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/strategic-recovery-ctx-check.js",
+        "tools/ai-sim-harness/coa-check.js",
+        "tools/ai-sim-harness/fled-man-check.js",
+        "tools/ai-sim-harness/execution-contract-check.js",
+        "tools/ai-sim-harness/squad-phase-check.js",
+        "tools/ai-sim-harness/rally-recovery-check.js",
+        "tools/ai-sim-harness/reconstitution-check.js",
+        "tools/ai-sim-harness/effective-fire-support-check.js",
+        "tools/ai-sim-harness/clear-contact-check.js",
+        "tools/ai-sim-harness/squad-stress-check.js",
+        "tools/ai-sim-harness/mind-read-map-check.js",
+        "tools/ai-sim-harness/stress-memory-check.js",
+        "tools/ai-sim-harness/strategic-recovery-review-check.js",
+        "tools/ai-sim-harness/morale-check.js",
+        "tools/ai-sim-harness/retreat-anchor-check.js",
+        "tools/ai-sim-harness/soldier-mind-behaviour-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "motorTransport",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 6,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        },
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 78,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        },
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 127,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/modules/58-strategic-abstract-transport.js",
+        "battle/modules/59-strategic-truck-visual.js",
+        "battle/modules/59b-strategic-interception.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/strategic-transport-check.js",
+        "tools/ai-sim-harness/strategic-interception-check.js",
+        "tools/ai-sim-harness/autonomous-movement-handoff-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "navCorner",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 129,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/modules/39-navigation-physicality-debug.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/objective-nav-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "orbit",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "initializers",
+          "index": 13,
+          "scope": "original initializer in query-only fixture; errors explicitly unresolved",
+          "absent": false
+        },
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "initializers",
+          "index": 14,
+          "scope": "original initializer in query-only fixture; errors explicitly unresolved",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/camera-controls.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/damage-range-input-check.js",
+        "tools/ai-sim-harness/player-death-camera-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "perception",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 72,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/squad-ai.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/perception-check.js",
+        "tools/ai-sim-harness/stress-reactions-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "perfTimings",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 51,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": null
+        }
+      ],
+      "modules": [
+        "battle/modules/53-fbx-soldier-backend.js"
+      ],
+      "testMentions": [],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "pin",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "loader-range-flag-executions.json",
+          "section": "phpCases",
+          "field": "pinRequested",
+          "scope": "unchanged PHP loader fragment",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle_sim.php"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/fled-man-check.js",
+        "tools/ai-sim-harness/soldier-mind-check.js",
+        "tools/ai-sim-harness/soldier-events-check.js",
+        "tools/ai-sim-harness/fbx-clip-pack-integrity-check.js",
+        "tools/ai-sim-harness/grenade-check.js",
+        "tools/ai-sim-harness/initial-seed-url-check.js",
+        "tools/ai-sim-harness/wound-restart-isolation-check.js",
+        "tools/ai-sim-harness/grenade-audio-check.js",
+        "tools/ai-sim-harness/stress-memory-check.js",
+        "tools/ai-sim-harness/strategic-recovery-review-check.js",
+        "tools/ai-sim-harness/stats-levers-check.js",
+        "tools/ai-sim-harness/threat-disposition-check.js",
+        "tools/ai-sim-harness/stress-reactions-check.js",
+        "tools/ai-sim-harness/status-writers-check.js",
+        "tools/ai-sim-harness/state-ownership-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "pinSeed",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "loader-range-flag-executions.json",
+          "section": "extraReadCases",
+          "scope": "original JS read expression in explicit dependency fixture",
+          "absent": null
+        }
+      ],
+      "modules": [
+        "battle/scenario-generator.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/initial-seed-url-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "playerFaction",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "initializers",
+          "index": 12,
+          "scope": "original initializer in query-only fixture; errors explicitly unresolved",
+          "absent": "us"
+        }
+      ],
+      "modules": [
+        "battle/camera-controls.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/player-death-camera-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "rageGuard",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 38,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": true
+        }
+      ],
+      "modules": [
+        "battle/engagement.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/stress-reactions-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "rageLock",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 37,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": true
+        }
+      ],
+      "modules": [
+        "battle/engagement.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/stress-reactions-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "rageTrance",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 39,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": true
+        }
+      ],
+      "modules": [
+        "battle/engagement.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/benchmark-compare-check.js",
+        "tools/ai-sim-harness/stress-reactions-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "rallyRecovery",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 14,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": true
+        }
+      ],
+      "modules": [
+        "battle/modules/16-squad-plan-stability.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/rally-recovery-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "rangeAuto",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "initializers",
+          "index": 20,
+          "scope": "original initializer in query-only fixture; errors explicitly unresolved",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/modules/97z-damage-range-session.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/damage-range-panel-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "rangeDist",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "loader-range-flag-executions.json",
+          "section": "rangeReader",
+          "scope": "original JS read expression in explicit dependency fixture",
+          "absent": 2.5
+        }
+      ],
+      "modules": [],
+      "testMentions": [],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "rangeExit",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "initializers",
+          "index": 19,
+          "scope": "original initializer in query-only fixture; errors explicitly unresolved",
+          "absent": true
+        }
+      ],
+      "modules": [
+        "battle/modules/97z-damage-range-session.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/damage-range-panel-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "rangeFps",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "initializers",
+          "index": 23,
+          "scope": "original initializer in query-only fixture; errors explicitly unresolved",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/modules/97z-damage-range-session.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/damage-range-panel-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "rangeInterval",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "loader-range-flag-executions.json",
+          "section": "rangeReader",
+          "scope": "original JS read expression in explicit dependency fixture",
+          "absent": 0.35
+        }
+      ],
+      "modules": [],
+      "testMentions": [],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "rangeOrbit",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "initializers",
+          "index": 21,
+          "scope": "original initializer in query-only fixture; errors explicitly unresolved",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/modules/97z-damage-range-session.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/damage-range-panel-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "rangeTarget",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "loader-range-flag-executions.json",
+          "section": "rangeReader",
+          "scope": "original JS read expression in explicit dependency fixture",
+          "absent": 0
+        }
+      ],
+      "modules": [],
+      "testMentions": [
+        "tools/ai-sim-harness/damage-range-panel-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "rangeUi",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "loader-range-flag-executions.json",
+          "section": "extraReadCases",
+          "scope": "original JS read expression in explicit dependency fixture",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/modules/97z-damage-range-session.js"
+      ],
+      "testMentions": [],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "rangeZone",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "loader-range-flag-executions.json",
+          "section": "extraReadCases",
+          "scope": "original JS read expression in explicit dependency fixture",
+          "absent": "chest"
+        }
+      ],
+      "modules": [
+        "battle/modules/97z-damage-range-session.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/damage-range-panel-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "reconBudget",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 131,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": true
+        }
+      ],
+      "modules": [
+        "battle/modules/15c-squad-leader-scouts-forward.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/recon-budget-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "reconCorridors",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 9,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": true
+        },
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "helpers",
+          "index": 4,
+          "scope": "helper output only; caller inversion/dependencies remain separate",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/modules/59-strategic-aerial-recon.js",
+        "battle/modules/59b-strategic-interception.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/strategic-interception-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "reconLedger",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 18,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": true
+        }
+      ],
+      "modules": [
+        "battle/modules/16-squad-plan-stability.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/recon-outcomes-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "reconOverflight",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "helpers",
+          "index": 5,
+          "scope": "helper output only; caller inversion/dependencies remain separate",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/modules/59-strategic-aerial-recon.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/strategic-interception-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "reconPosts",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 130,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": true
+        }
+      ],
+      "modules": [
+        "battle/modules/15c-squad-leader-scouts-forward.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/scouts-forward-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "ref",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "loader-range-flag-executions.json",
+          "section": "phpCases",
+          "field": "requestedRef",
+          "scope": "unchanged PHP loader fragment",
+          "absent": "main"
+        }
+      ],
+      "modules": [
+        "battle_sim.php",
+        "preview.php"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/benchmark-compare-check.js",
+        "tools/ai-sim-harness/ref-preview-vehicle-staging-check.js",
+        "tools/ai-sim-harness/stress-reactions-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "reinforcementSortie",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 133,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/modules/21c-strategic-reinforcements.js"
+      ],
+      "testMentions": [],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "reinforcements",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 132,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/modules/21c-strategic-reinforcements.js"
+      ],
+      "testMentions": [],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "retreatArrival",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 134,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": true
+        }
+      ],
+      "modules": [
+        "battle/modules/15f-squad-leader-retreat-anchor.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/retreat-anchor-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "retreatLostContact",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 136,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": true
+        }
+      ],
+      "modules": [
+        "battle/modules/15h-squad-leader-fireteams.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/retreat-lost-contact-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "retreatPosture",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 28,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/engagement.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/retreat-posture-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "retreatStride",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 135,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": true
+        }
+      ],
+      "modules": [
+        "battle/modules/15f-squad-leader-retreat-anchor.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/retreat-anchor-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "roadFromHere",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 96,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": true
+        }
+      ],
+      "modules": [
+        "battle/modules/21b-strategic-front-lines.js"
+      ],
+      "testMentions": [],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "routeTransition",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 12,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": true
+        }
+      ],
+      "modules": [
+        "battle/modules/16-squad-plan-stability.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/route-transition-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "scoutsForward",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 17,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": true
+        }
+      ],
+      "modules": [
+        "battle/modules/16-squad-plan-stability.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/transport-resume-check.js",
+        "tools/ai-sim-harness/scouts-forward-check.js",
+        "tools/ai-sim-harness/recon-budget-check.js",
+        "tools/ai-sim-harness/local-mission-tasks-check.js",
+        "tools/ai-sim-harness/recon-outcomes-check.js",
+        "tools/ai-sim-harness/covered-pressure-bound-check.js",
+        "tools/ai-sim-harness/tactical-postures-check.js",
+        "tools/ai-sim-harness/covered-fire-maneuver-causal-check.js",
+        "tools/ai-sim-harness/local-degradation-check.js",
+        "tools/ai-sim-harness/local-resources-check.js",
+        "tools/ai-sim-harness/movement-arrival-adoption-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "screenStallHold",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 137,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/modules/22a-commander-strategic-recovery.js"
+      ],
+      "testMentions": [],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "secondaryThreat",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 75,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/squad-ai.js"
+      ],
+      "testMentions": [],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "seed",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "initializers",
+          "index": 15,
+          "scope": "original initializer in query-only fixture; errors explicitly unresolved",
+          "absent": ""
+        },
+        {
+          "artifact": "loader-range-flag-executions.json",
+          "section": "phpCases",
+          "field": "requestedSeed",
+          "scope": "unchanged PHP loader fragment",
+          "absent": ""
+        }
+      ],
+      "modules": [
+        "battle/phase-c-compact-range.js",
+        "battle/scenario-generator.js",
+        "battle_sim.php",
+        "battle_sim_local.php"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/perception-check.js",
+        "tools/ai-sim-harness/hill-stalemate-check.js",
+        "tools/ai-sim-harness/coa-check.js",
+        "tools/ai-sim-harness/transport-resume-check.js",
+        "tools/ai-sim-harness/scouts-forward-check.js",
+        "tools/ai-sim-harness/retreat-lost-contact-check.js",
+        "tools/ai-sim-harness/loop-evidence-window-check.js",
+        "tools/ai-sim-harness/crest-fire-check.js",
+        "tools/ai-sim-harness/callouts-check.js",
+        "tools/ai-sim-harness/command-relay-check.js",
+        "tools/ai-sim-harness/command-reception-check.js",
+        "tools/ai-sim-harness/voice-observations-check.js",
+        "tools/ai-sim-harness/engagement-state-check.js",
+        "tools/ai-sim-harness/benchmark-compare-check.js",
+        "tools/ai-sim-harness/ballistics-geometry-check.js",
+        "tools/ai-sim-harness/macro-state-check.js",
+        "tools/ai-sim-harness/recon-budget-check.js",
+        "tools/ai-sim-harness/general-isolation-check.js",
+        "tools/ai-sim-harness/execution-contract-check.js",
+        "tools/ai-sim-harness/soldier-mind-check.js",
+        "tools/ai-sim-harness/player-fire-mode-check.js",
+        "tools/ai-sim-harness/mg-suppression-setup-check.js",
+        "tools/ai-sim-harness/tactical-situation-check.js",
+        "tools/ai-sim-harness/sidearm-rearm-check.js",
+        "tools/ai-sim-harness/battle-observer-check.js",
+        "tools/ai-sim-harness/command-posture-check.js",
+        "tools/ai-sim-harness/objective-nav-check.js",
+        "tools/ai-sim-harness/tactical-map-check.js",
+        "tools/ai-sim-harness/squad-phase-check.js",
+        "tools/ai-sim-harness/squad-performance-check.js",
+        "tools/ai-sim-harness/command-orientation-check.js",
+        "tools/ai-sim-harness/sidearm-check.js",
+        "tools/ai-sim-harness/retreat-posture-check.js",
+        "tools/ai-sim-harness/rally-recovery-check.js",
+        "tools/ai-sim-harness/grenade-check.js",
+        "tools/ai-sim-harness/initial-seed-url-check.js",
+        "tools/ai-sim-harness/genome-gate-check.js",
+        "tools/ai-sim-harness/fireteam-frontage-check.js",
+        "tools/ai-sim-harness/recon-outcomes-check.js",
+        "tools/ai-sim-harness/effective-fire-support-check.js",
+        "tools/ai-sim-harness/medic-check.js",
+        "tools/ai-sim-harness/retreat-men-export-check.js",
+        "tools/ai-sim-harness/clear-contact-check.js",
+        "tools/ai-sim-harness/buddy-pairs-check.js",
+        "tools/ai-sim-harness/combat-handoff-check.js",
+        "tools/ai-sim-harness/player-facing-bore-check.js",
+        "tools/ai-sim-harness/leaderless-retreat-reception-check.js",
+        "tools/ai-sim-harness/ground-stop-check.js",
+        "tools/ai-sim-harness/benchmark-restart-isolation-check.js",
+        "tools/ai-sim-harness/squad-broadcast-check.js",
+        "tools/ai-sim-harness/soldier-mind-telemetry-check.js",
+        "tools/ai-sim-harness/local-withdraw-check.js",
+        "tools/ai-sim-harness/squad-stress-check.js",
+        "tools/ai-sim-harness/strategic-transport-check.js",
+        "tools/ai-sim-harness/loadout-check.js",
+        "tools/ai-sim-harness/strategic-aerial-recon-check.js",
+        "tools/ai-sim-harness/tactical-diagnostics-check.js",
+        "tools/ai-sim-harness/stress-memory-check.js",
+        "tools/ai-sim-harness/voice-determinism-check.js",
+        "tools/ai-sim-harness/suppression-integrity-check.js",
+        "tools/ai-sim-harness/fire-control-check.js",
+        "tools/ai-sim-harness/morale-check.js",
+        "tools/ai-sim-harness/urban-operating-picture-check.js",
+        "tools/ai-sim-harness/movement-arrival-adoption-check.js",
+        "tools/ai-sim-harness/strategic-interception-check.js",
+        "tools/ai-sim-harness/observer-diagnostic-trigger-check.js",
+        "tools/ai-sim-harness/retreat-anchor-check.js",
+        "tools/ai-sim-harness/loop-period-check.js",
+        "tools/ai-sim-harness/threat-disposition-check.js",
+        "tools/ai-sim-harness/stress-reactions-check.js",
+        "tools/ai-sim-harness/map-pipeline-check.js",
+        "tools/ai-sim-harness/macro-relief-height-check.js",
+        "tools/ai-sim-harness/squad-relay-check.js",
+        "tools/ai-sim-harness/local-steering-check.js",
+        "tools/ai-sim-harness/sight-query-check.js",
+        "tools/ai-sim-harness/intent-evidence-check.js",
+        "tools/ai-sim-harness/soldier-mind-behaviour-check.js",
+        "tools/ai-sim-harness/world-placement-check.js",
+        "tools/ai-sim-harness/weapon-wound-check.js",
+        "tools/ai-sim-harness/unreachable-anchor-check.js",
+        "tools/ai-sim-harness/command-movement-check.js",
+        "tools/ai-sim-harness/soldier-beliefs-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "slStress",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 26,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": null
+        }
+      ],
+      "modules": [
+        "battle/modules/16-squad-plan-stability.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/local-mission-tasks-check.js",
+        "tools/ai-sim-harness/covered-pressure-bound-check.js",
+        "tools/ai-sim-harness/buddy-pairs-check.js",
+        "tools/ai-sim-harness/squad-stress-check.js",
+        "tools/ai-sim-harness/tactical-postures-check.js",
+        "tools/ai-sim-harness/covered-fire-maneuver-causal-check.js",
+        "tools/ai-sim-harness/local-degradation-check.js",
+        "tools/ai-sim-harness/local-resources-check.js",
+        "tools/ai-sim-harness/local-plan-check.js",
+        "tools/ai-sim-harness/lease-conflict-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "smartIndoorIngress",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "loader-range-flag-executions.json",
+          "section": "phpCases",
+          "field": "smartIndoorIngress",
+          "scope": "unchanged PHP loader fragment",
+          "absent": true
+        }
+      ],
+      "modules": [
+        "battle_sim_local.php"
+      ],
+      "testMentions": [],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "smooth",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 50,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/modules/53-fbx-soldier-backend.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/player-possession-flight-check.js",
+        "tools/ai-sim-harness/player-control-check.js",
+        "tools/ai-sim-harness/macro-relief-height-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "soldierBeliefs",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 73,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": true
+        }
+      ],
+      "modules": [
+        "battle/squad-ai.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/perception-check.js",
+        "tools/ai-sim-harness/callouts-check.js",
+        "tools/ai-sim-harness/soldier-mind-check.js",
+        "tools/ai-sim-harness/effective-fire-support-check.js",
+        "tools/ai-sim-harness/stance-ownership-check.js",
+        "tools/ai-sim-harness/advance-stance-reason-check.js",
+        "tools/ai-sim-harness/loadout-check.js",
+        "tools/ai-sim-harness/suppression-integrity-check.js",
+        "tools/ai-sim-harness/stress-reactions-check.js",
+        "tools/ai-sim-harness/autonomous-movement-handoff-check.js",
+        "tools/ai-sim-harness/soldier-beliefs-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "soldierCull",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 42,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/modules/52-fbx-render-lod.js"
+      ],
+      "testMentions": [],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "soldierLod",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 138,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/modules/52-fbx-mesh-lod.js"
+      ],
+      "testMentions": [],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "soldierTex",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 52,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": null
+        }
+      ],
+      "modules": [
+        "battle/modules/53-fbx-soldier-backend.js"
+      ],
+      "testMentions": [],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "soldiers",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 49,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/modules/53-fbx-soldier-backend.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/combat-audio-check.js",
+        "tools/ai-sim-harness/tactical-positions-check.js",
+        "tools/ai-sim-harness/objective-nav-check.js",
+        "tools/ai-sim-harness/ref-preview-vehicle-staging-check.js",
+        "tools/ai-sim-harness/soldier-stats-check.js",
+        "tools/ai-sim-harness/player-control-check.js",
+        "tools/ai-sim-harness/movement-recovery-check.js",
+        "tools/ai-sim-harness/grenade-audio-check.js",
+        "tools/ai-sim-harness/cover-positions-check.js",
+        "tools/ai-sim-harness/strategic-transport-check.js",
+        "tools/ai-sim-harness/residual-small-debt-check.js",
+        "tools/ai-sim-harness/movement-arrival-adoption-check.js",
+        "tools/ai-sim-harness/threat-disposition-check.js",
+        "tools/ai-sim-harness/weapon-foley-audio-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "splitRoads",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 95,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": true
+        }
+      ],
+      "modules": [
+        "battle/modules/21b-strategic-front-lines.js"
+      ],
+      "testMentions": [],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "squadBroadcast",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 139,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/modules/49-squad-broadcast.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/tactical-default-flags-check.js",
+        "tools/ai-sim-harness/squad-broadcast-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "squadRelay",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 65,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": true
+        }
+      ],
+      "modules": [
+        "battle/modules/18-command-reception.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/squad-relay-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "stanceVis",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 71,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/squad-ai.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/perception-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "stats",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 140,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": null
+        }
+      ],
+      "modules": [
+        "battle/modules/10-soldier-stats.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/strategic-mobile-defense-check.js",
+        "tools/ai-sim-harness/ballistics-geometry-check.js",
+        "tools/ai-sim-harness/fled-man-check.js",
+        "tools/ai-sim-harness/player-fire-mode-check.js",
+        "tools/ai-sim-harness/soldier-events-check.js",
+        "tools/ai-sim-harness/sidearm-rearm-check.js",
+        "tools/ai-sim-harness/listener-acoustics-check.js",
+        "tools/ai-sim-harness/audio-mix-check.js",
+        "tools/ai-sim-harness/command-posture-check.js",
+        "tools/ai-sim-harness/objective-nav-check.js",
+        "tools/ai-sim-harness/impact-fx-check.js",
+        "tools/ai-sim-harness/sidearm-check.js",
+        "tools/ai-sim-harness/retreat-posture-check.js",
+        "tools/ai-sim-harness/soldier-stats-check.js",
+        "tools/ai-sim-harness/medic-check.js",
+        "tools/ai-sim-harness/covered-pressure-bound-check.js",
+        "tools/ai-sim-harness/player-facing-bore-check.js",
+        "tools/ai-sim-harness/ground-stop-check.js",
+        "tools/ai-sim-harness/soldier-mind-telemetry-check.js",
+        "tools/ai-sim-harness/tactical-postures-check.js",
+        "tools/ai-sim-harness/strategic-transport-check.js",
+        "tools/ai-sim-harness/loadout-check.js",
+        "tools/ai-sim-harness/covered-fire-maneuver-causal-check.js",
+        "tools/ai-sim-harness/stress-memory-check.js",
+        "tools/ai-sim-harness/causal-inaction-check.js",
+        "tools/ai-sim-harness/squad-fit-check.js",
+        "tools/ai-sim-harness/fire-control-check.js",
+        "tools/ai-sim-harness/movement-arrival-adoption-check.js",
+        "tools/ai-sim-harness/stats-levers-check.js",
+        "tools/ai-sim-harness/gunner-trace-check.js",
+        "tools/ai-sim-harness/fbx-animation-state-check.js",
+        "tools/ai-sim-harness/stress-reactions-check.js",
+        "tools/ai-sim-harness/map-pipeline-check.js",
+        "tools/ai-sim-harness/weapon-foley-audio-check.js",
+        "tools/ai-sim-harness/status-writers-check.js",
+        "tools/ai-sim-harness/soldier-mind-behaviour-check.js",
+        "tools/ai-sim-harness/weapon-wound-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "steerLeg",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 46,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/battle-sim.js"
+      ],
+      "testMentions": [],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "steerNavForward",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 47,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/battle-sim.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/steer-navigation-leg-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "strategicInterception",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 1,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        },
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 5,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        },
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 45,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        },
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 97,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        },
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 126,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/battle-sim.js",
+        "battle/modules/59-strategic-aerial-recon.js",
+        "battle/modules/59-strategic-truck-visual.js",
+        "battle/modules/59b-strategic-interception.js",
+        "battle/scenario-generator.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/strategic-aerial-recon-check.js",
+        "tools/ai-sim-harness/strategic-interception-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "stressAct",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 36,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": null
+        }
+      ],
+      "modules": [
+        "battle/engagement.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/transport-resume-check.js",
+        "tools/ai-sim-harness/scouts-forward-check.js",
+        "tools/ai-sim-harness/command-relay-check.js",
+        "tools/ai-sim-harness/benchmark-compare-check.js",
+        "tools/ai-sim-harness/recon-budget-check.js",
+        "tools/ai-sim-harness/fled-man-check.js",
+        "tools/ai-sim-harness/execution-contract-check.js",
+        "tools/ai-sim-harness/mg-suppression-setup-check.js",
+        "tools/ai-sim-harness/local-mission-tasks-check.js",
+        "tools/ai-sim-harness/command-posture-check.js",
+        "tools/ai-sim-harness/command-orientation-check.js",
+        "tools/ai-sim-harness/retreat-posture-check.js",
+        "tools/ai-sim-harness/grenade-check.js",
+        "tools/ai-sim-harness/effective-fire-support-check.js",
+        "tools/ai-sim-harness/covered-pressure-bound-check.js",
+        "tools/ai-sim-harness/stress-reactions-ctx-check.js",
+        "tools/ai-sim-harness/tactical-postures-check.js",
+        "tools/ai-sim-harness/covered-fire-maneuver-causal-check.js",
+        "tools/ai-sim-harness/suppression-integrity-check.js",
+        "tools/ai-sim-harness/fire-control-check.js",
+        "tools/ai-sim-harness/movement-arrival-adoption-check.js",
+        "tools/ai-sim-harness/loop-period-check.js",
+        "tools/ai-sim-harness/stress-reactions-check.js",
+        "tools/ai-sim-harness/squad-relay-check.js",
+        "tools/ai-sim-harness/unreachable-anchor-check.js",
+        "tools/ai-sim-harness/command-movement-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "stressMem",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 122,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": null
+        }
+      ],
+      "modules": [
+        "battle/modules/17-soldier-mind.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/benchmark-compare-check.js",
+        "tools/ai-sim-harness/stress-memory-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "tacticalSituation",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 141,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/modules/54-tactical-situation.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/tactical-situation-check.js",
+        "tools/ai-sim-harness/tactical-diagnostics-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "tracerPool",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 100,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/modules/13-combat-fx-consistency.js"
+      ],
+      "testMentions": [],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "transportHandoff",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 142,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": true
+        }
+      ],
+      "modules": [
+        "battle/modules/15l-squad-leader-mission-execution.js"
+      ],
+      "testMentions": [],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "truckAccess",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 77,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/modules/58-strategic-abstract-transport.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/strategic-transport-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "truckCollision",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 79,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/modules/58-strategic-abstract-transport.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/strategic-transport-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "truckLite",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 124,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": true
+        }
+      ],
+      "modules": [
+        "battle/modules/59-strategic-truck-visual.js"
+      ],
+      "testMentions": [],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "truckOnRoad",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 80,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": true
+        }
+      ],
+      "modules": [
+        "battle/modules/58-strategic-abstract-transport.js"
+      ],
+      "testMentions": [],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "truckPhysics",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 83,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": true
+        }
+      ],
+      "modules": [
+        "battle/modules/58-strategic-abstract-transport.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/strategic-transport-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "truckReach",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 84,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": true
+        }
+      ],
+      "modules": [
+        "battle/modules/58-strategic-abstract-transport.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/strategic-transport-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "truckSpacing",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 81,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": true
+        }
+      ],
+      "modules": [
+        "battle/modules/58-strategic-abstract-transport.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/strategic-transport-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "truckStaysPut",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 82,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": true
+        }
+      ],
+      "modules": [
+        "battle/modules/58-strategic-abstract-transport.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/strategic-transport-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "truckTex",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 125,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": null
+        }
+      ],
+      "modules": [
+        "battle/modules/59-strategic-truck-visual.js"
+      ],
+      "testMentions": [],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "truckVisual",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 128,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": true
+        }
+      ],
+      "modules": [
+        "battle/modules/59-strategic-truck-visual.js"
+      ],
+      "testMentions": [],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "unreachableAnchor",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 16,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": true
+        }
+      ],
+      "modules": [
+        "battle/modules/16-squad-plan-stability.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/unreachable-anchor-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "urbanPicture",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 143,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/modules/54a-urban-operating-picture.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/tactical-diagnostics-check.js",
+        "tools/ai-sim-harness/urban-operating-picture-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "weaponFoley",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 144,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/modules/15-weapon-foley-audio.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/weapon-foley-audio-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "weaponInstances",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 56,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/modules/53-fbx-soldier-backend.js"
+      ],
+      "testMentions": [],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "windowPort",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 145,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        },
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 146,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": false
+        }
+      ],
+      "modules": [
+        "battle/battle-navigation.js",
+        "battle/modules/19b-engagement-fire-stance.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/window-port-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    },
+    {
+      "name": "woundMap",
+      "classification": "executed isolated read",
+      "evidence": [
+        {
+          "artifact": "flag-predicate-executions.json",
+          "section": "rows",
+          "index": 147,
+          "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated",
+          "absent": null
+        }
+      ],
+      "modules": [
+        "battle/modules/52-fbx-surface-damage.js"
+      ],
+      "testMentions": [
+        "tools/ai-sim-harness/fbx-surface-damage-check.js"
+      ],
+      "deployedEffective": "unverified",
+      "note": "Read result is not full-module activation; dependencies/caller inversion still apply."
+    }
+  ]
+}

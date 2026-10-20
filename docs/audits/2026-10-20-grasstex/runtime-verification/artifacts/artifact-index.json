@@ -5,6 +5,11 @@
     "sha256": "47d990db2f17d408de22b78230245911f8d4f1f853f06d46cd73af91b3523556"
   },
   {
+    "path": "aerial-followup-regression.log",
+    "bytes": 89,
+    "sha256": "88a597f1727d1ad6aa2c3c58583a6fd5fcec85b957320d3221d3708d869a25f9"
+  },
+  {
     "path": "all-intended/battle-benchmark.csv",
     "bytes": 1621,
     "sha256": "da2e499a84822759af0d72aee94c1628777ba797cd23d5213a942cc1cb076c0b"
@@ -176,8 +181,8 @@
   },
   {
     "path": "campaign-summary.json",
-    "bytes": 150233,
-    "sha256": "9f96e4eb589253c1da09c9c2462f3eab80e3f6d6b479182158c612fd364ace25"
+    "bytes": 150234,
+    "sha256": "0c60496dc05561e152b189596bd1bc4cfc6faee089f5577055dae3fb4ea22bb7"
   },
   {
     "path": "causal-inaction-check.log",
@@ -495,6 +500,21 @@
     "sha256": "35ff38bc0add68b9b3b9f0d0d18194750bbad328c202ab9f01bd59e9e6977134"
   },
   {
+    "path": "flag-executions.log",
+    "bytes": 469,
+    "sha256": "ddfea5e408266281b68c85b315172c83111eeeb05a5618de009dde2452a36df7"
+  },
+  {
+    "path": "flag-predicate-executions.json",
+    "bytes": 179042,
+    "sha256": "5ddd47472e58e73a0d0d1aef8ff112b23457b5e7765b385b0dac79e4321347aa"
+  },
+  {
+    "path": "flag-read-coverage.json",
+    "bytes": 161630,
+    "sha256": "9185a077ff3dfd29ef22a862fa669df18a326a6634c624835c24a09f59816ef3"
+  },
+  {
     "path": "flank-side-check.log",
     "bytes": 627,
     "sha256": "609c63efc9f129503981a324e959c6e46eb679040eb6b8f4a253ab4f0475c34a"
@@ -503,6 +523,16 @@
     "path": "fled-man-check.log",
     "bytes": 18109,
     "sha256": "4a977a044ac0c67f67a0dedc8e731fb63d199e2d3c5ae9dec861970d038bc8d5"
+  },
+  {
+    "path": "followup-execution.json",
+    "bytes": 1788,
+    "sha256": "cd010e618cf66f7f958a03211d9ac5c0d1a6fd0e35b4dd4a3fcc590806abfdc0"
+  },
+  {
+    "path": "followup-script-validation.json",
+    "bytes": 1398,
+    "sha256": "7e3fddc44e56519908d59c32697da4e8fd1ce0ec8142ac565962431249eb16b7"
   },
   {
     "path": "formation-backward-check.log",
@@ -533,6 +563,31 @@
     "path": "full-fidelity-execution.json",
     "bytes": 359,
     "sha256": "0f5fdba3124af5f4f1a1760df90826c5c2d69c6ffc6a237982ddf9dd3004cf3f"
+  },
+  {
+    "path": "full-fidelity-followup/execution.json",
+    "bytes": 604,
+    "sha256": "a292c77bb010e0cddfa0ff121ff4b27bf16950c59b03021ffbfd8d0e53c6d0e7"
+  },
+  {
+    "path": "full-fidelity-followup/full-fidelity.json",
+    "bytes": 34273,
+    "sha256": "2647831d6a5c806a5266c388f875bb7d188523872b13e2356cca0d16a8b680bb"
+  },
+  {
+    "path": "full-fidelity-followup/full-fidelity.md",
+    "bytes": 4568,
+    "sha256": "47e3ecfa055815ac3c98b23e98f368d09c23d5ee5db13c369cb6f4d5c07a52cc"
+  },
+  {
+    "path": "full-fidelity-followup/media-fixture.json",
+    "bytes": 127,
+    "sha256": "7b9be98df2a95e84ca8ca47ef229752aff615030bf6328e26e91060ef05514ef"
+  },
+  {
+    "path": "full-fidelity-followup.log",
+    "bytes": 4708,
+    "sha256": "f6a12c3ff240cd52219c441dc1a9fcd9f91f6f40d440252aa1e67d57b19bb55b"
   },
   {
     "path": "full-fidelity.log",
@@ -640,6 +695,26 @@
     "sha256": "ff56e89d570ec713da0d74562c8b302b8fce9824b27c985cfc3b0dd8c5a9a945"
   },
   {
+    "path": "interception-followup/native-interception-evidence.json",
+    "bytes": 70463,
+    "sha256": "bf9f6ec55b599cebfff605a32917cedb0e75468f7fa363097d95ae4fd7027ab4"
+  },
+  {
+    "path": "interception-followup-regression.log",
+    "bytes": 155,
+    "sha256": "4db2a48d121f0d4e27698a59e513a688e7fcb5abad1669f037bc922284493146"
+  },
+  {
+    "path": "interception-followup-summary.json",
+    "bytes": 1119,
+    "sha256": "62cb1a6099dc9e11fd79ac05ed8eeb309ba92b6e7fd7b1e0fcea13bd55956e79"
+  },
+  {
+    "path": "interception-followup.log",
+    "bytes": 19969,
+    "sha256": "8af756f40fec68f9acb0b3a27a030b0214548c9949321a9ea5f5b241e441a3f3"
+  },
+  {
     "path": "leaderless-intent-check.log",
     "bytes": 7594,
     "sha256": "07d86b9076d968e8dd4536bbeb2dafbb15316f42a85c0bed93d5ad6effd0471d"
@@ -678,6 +753,11 @@
     "path": "load-profile.log",
     "bytes": 372,
     "sha256": "7b288643c9fda94ca822df305abe5201139367991e55d10d86ff0df2ec1921a2"
+  },
+  {
+    "path": "loader-range-flag-executions.json",
+    "bytes": 19223,
+    "sha256": "6987772f7558c2256b10372fea57640aad6721812ec34935baa8441e8bd3ebc4"
   },
   {
     "path": "loadout-check.log",
@@ -891,8 +971,8 @@
   },
   {
     "path": "native-interception-media-fixture.json",
-    "bytes": 125,
-    "sha256": "24f6622d6abdecd83b1f9ccfb8745ae50ebddd7f6f01614ee121350b646f87c4"
+    "bytes": 128,
+    "sha256": "4157daaac4fe0bb32ada991772902bd60d3f4e3995b58f69dffe4f9d4f98f763"
   },
   {
     "path": "native-interception.log",
@@ -938,6 +1018,11 @@
     "path": "personal-space-check.log",
     "bytes": 3581,
     "sha256": "29b6875595c129dc6f2a88f01bf7dfead2d74b74794bddf12d0a6d56f2a320a1"
+  },
+  {
+    "path": "php-followup.log",
+    "bytes": 344454,
+    "sha256": "d887235532f41a1ea0fb0c40bd3e0f1ac7b409c927802e4ccf1ef9b3e04e889d"
   },
   {
     "path": "php-server.log.gz",
@@ -1498,6 +1583,31 @@
     "path": "transport-resume-check.log",
     "bytes": 1981,
     "sha256": "b8fd06712df099762e1eb3467f3027e1b755ceac1f055c20bafaa2bbf8a013ea"
+  },
+  {
+    "path": "truck-visual-followup/ge-actual-squad-seated.png",
+    "bytes": 937952,
+    "sha256": "2b7e3891d3d5c20feece2d6bbd58dbaa21c979480c6351a7baec26da068010bc"
+  },
+  {
+    "path": "truck-visual-followup/truck-visual-report.json",
+    "bytes": 31574,
+    "sha256": "0c5d71b335a661ed800077d592880b287cda5832b60eba3c8151320b086d9e99"
+  },
+  {
+    "path": "truck-visual-followup/us-actual-squad-seated.png",
+    "bytes": 933200,
+    "sha256": "48f6a9507b2eec4e51d94cce416f924d2304f08c718df202b00b72841b3fbd15"
+  },
+  {
+    "path": "truck-visual-followup-execution.json",
+    "bytes": 418,
+    "sha256": "a12e9c7d249704ede6d94b5ad2c93f4c2b1620f0b22178b6e0ae32eb8306991c"
+  },
+  {
+    "path": "truck-visual-followup.log",
+    "bytes": 625,
+    "sha256": "9d2c09844a99fd3e111e41f4f67749104ede916230ba0ccd28d4212d08b70ffc"
   },
   {
     "path": "unreachable-anchor-check.log",

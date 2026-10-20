@@ -16,11 +16,23 @@ function playwright() {
 const base = process.env.STRATEGIC_INTERCEPT_QA_URL || 'http://127.0.0.1:8765/grasstex/battle_sim_local.php';
 const dir = path.resolve(process.env.STRATEGIC_INTERCEPT_QA_OUT || 'closeups/strategic-interception-ci');
 const limit = Number(process.env.STRATEGIC_INTERCEPT_QA_SECONDS || 900);
-const seeds = [
+const defaultSeeds = [
   { seed: 'strategic-diag-001-meeting-0001', type: 'meeting' },
   { seed: 'strategic-diag-001-ge-defend-0001', type: 'ge-defend' },
   { seed: 'strategic-diag-001-us-defend-0005', type: 'us-defend' }
 ].slice(0, Math.max(1, Math.min(3, +process.env.STRATEGIC_INTERCEPT_QA_CASES || 3)));
+const seeds = process.env.STRATEGIC_INTERCEPT_QA_SEED_SPECS
+  ? JSON.parse(process.env.STRATEGIC_INTERCEPT_QA_SEED_SPECS) : defaultSeeds;
+if (!Array.isArray(seeds) || !seeds.length || seeds.some(s => !s || typeof s.seed !== 'string' ||
+  !s.seed || !['meeting', 'ge-defend', 'us-defend'].includes(s.type)))
+  throw new Error('STRATEGIC_INTERCEPT_QA_SEED_SPECS must be a nonempty array of {seed,type}');
+const modeInput = process.env.STRATEGIC_INTERCEPT_QA_MODES || 'off,on';
+const modes = modeInput.split(',').map(value => {
+  if (value !== 'off' && value !== 'on') throw new Error('STRATEGIC_INTERCEPT_QA_MODES accepts off,on');
+  return value === 'on';
+});
+const probePath = process.env.STRATEGIC_INTERCEPT_QA_PROBE || null;
+
 (async () => {
   fs.mkdirSync(dir, { recursive: true });
   const { chromium } = playwright(),
@@ -37,7 +49,7 @@ const seeds = [
   const results = [];
   try {
     for (const spec of seeds)
-      for (const enabled of [false, true]) {
+      for (const enabled of modes) {
         const page = await browser.newPage({ viewport: { width: 1000, height: 700 } });
         const jsErrors = [];
         page.on('pageerror', e => jsErrors.push(String(e.stack || e).slice(0, 900)));
@@ -63,6 +75,7 @@ const seeds = [
           null,
           { timeout: 180000 }
         );
+        if (probePath) await page.addScriptTag({ path: path.resolve(probePath) });
         const record = await page.evaluate(
           async ({ limit, enabled }) => {
             const root = window,
@@ -256,7 +269,8 @@ const seeds = [
                 })
               ),
               interceptions: Object.values(observed),
-              shots
+              shots,
+              availabilityAudit: root.BattleInterceptionAudit?.report?.() || null
             };
             function dataSnapshot(f) {
               const x = root.BattleStrategicInterception.summary(sim)[f];

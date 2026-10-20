@@ -1,16 +1,9 @@
 /* Headless harness for the battle AI.
 
-   obstacle-field.js, squad-ai.js, engagement.js and the squad-level modules are all deliberately
-   free of Babylon, so the real decision code can be exercised in node. Only two things are
-   reimplemented here:
-
-     - a minimal BABYLON stub, just enough for weapons.js to hand over the real weapon stats
-       instead of the harness inventing its own numbers;
-     - a movement integrator that mirrors stepMovement() in battle-sim.js (speed ramp, crouch and
-       crawl speed factors, turn rates, prone cannot walk). If that function changes, change this.
-
-   Everything else - perception, engagement states, stances, fire gating, squad orders - is the
-   shipping code. */
+   The shipping AI sources execute without a browser. Babylon/model presentation is stubbed.
+   Movement is extracted from battle-sim.js below, rather than reimplemented: animation is a
+   no-op and local obstacle steering is stubbed. Navigation is optional through _movementRoot.
+   These fixtures do not execute the full browser/render scheduler or every production module. */
 'use strict';
 const { loadSquadCommandStack } = require('./squad-command-stack');
 const { loadModule } = require('./module-loader');

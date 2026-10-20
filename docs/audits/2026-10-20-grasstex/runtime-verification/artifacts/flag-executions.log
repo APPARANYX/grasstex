@@ -1,0 +1,29 @@
+{
+  "predicates": 148,
+  "cases": 740,
+  "covered": 133,
+  "initializerNames": 18,
+  "helperNames": 6,
+  "remaining": [
+    "autonomousMovement",
+    "bench",
+    "benchHide",
+    "combatLab",
+    "damageRange",
+    "defender",
+    "devModules",
+    "editor",
+    "grass",
+    "infantry",
+    "pin",
+    "pinSeed",
+    "rangeDist",
+    "rangeInterval",
+    "rangeTarget",
+    "rangeUi",
+    "rangeZone",
+    "ref",
+    "smartIndoorIngress"
+  ],
+  "parseFailures": []
+}

@@ -1,0 +1,70 @@
+[
+  {
+    "file": "scripts/audit/execute-flag-predicates.cjs",
+    "exitCode": 0
+  },
+  {
+    "file": "scripts/audit/execute-loader-range-flags.cjs",
+    "exitCode": 0
+  },
+  {
+    "file": "scripts/audit/interception-availability.js",
+    "exitCode": 0
+  },
+  {
+    "file": "scripts/audit/inventory-runtime-flags.py",
+    "exitCode": 0
+  },
+  {
+    "file": "scripts/audit/package-runtime-artifacts.py",
+    "exitCode": 0
+  },
+  {
+    "file": "scripts/audit/private-audio-fixture.cjs",
+    "exitCode": 0
+  },
+  {
+    "file": "scripts/audit/profile-runtime.cjs",
+    "exitCode": 0
+  },
+  {
+    "file": "scripts/audit/run-runtime-batches.py",
+    "exitCode": 0
+  },
+  {
+    "file": "scripts/audit/run-runtime-checks.py",
+    "exitCode": 0
+  },
+  {
+    "file": "scripts/audit/summarize-followup.py",
+    "exitCode": 0
+  },
+  {
+    "file": "scripts/audit/summarize-runtime.py",
+    "exitCode": 0
+  },
+  {
+    "file": "scripts/audit/verify-blocked-dismount.cjs",
+    "exitCode": 0
+  },
+  {
+    "file": "scripts/audit/verify-default-drift.cjs",
+    "exitCode": 0
+  },
+  {
+    "file": "scripts/audit/verify-observer-retention.cjs",
+    "exitCode": 0
+  },
+  {
+    "file": "scripts/audit/verify-public-lifecycle.cjs",
+    "exitCode": 0
+  },
+  {
+    "file": "scripts/audit/verify-runtime-contracts.cjs",
+    "exitCode": 0
+  },
+  {
+    "file": "scripts/audit/write-runtime-reports.py",
+    "exitCode": 0
+  }
+]

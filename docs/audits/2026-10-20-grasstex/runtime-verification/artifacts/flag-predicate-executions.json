@@ -1,0 +1,6899 @@
+{
+  "method": "Parse production JS with Acorn; execute original RegExp pattern/flags and directly enclosing ! on five inputs. No production code changed.",
+  "sourceBaseline": "f89939f2f6e8ff21063d1b24c28a8ab73fe9d2e9",
+  "candidateCount": 174,
+  "predicates": 148,
+  "cases": 740,
+  "coveredNames": [
+    "acoustics",
+    "aerialRecon",
+    "alertAdvance",
+    "alertHold",
+    "animLod",
+    "audioFormat",
+    "audioMix",
+    "boardFacing",
+    "boneTextures",
+    "breadcrumb",
+    "buddyPairs",
+    "callouts",
+    "clipPack",
+    "cloneBounds",
+    "coa",
+    "combatAudio",
+    "combatHandoff",
+    "commandMovement",
+    "commandPosture",
+    "commandReception",
+    "commandRelay",
+    "contactStance",
+    "contestedPost",
+    "coverFire",
+    "coverStance",
+    "coveredBounds",
+    "crawlFit",
+    "crewEyes",
+    "effectiveFire",
+    "engineerGarrison",
+    "enrollMissing",
+    "executionReport",
+    "farHz",
+    "fastRetarget",
+    "fireControl",
+    "fireLineContact",
+    "fireteamSplit",
+    "fixedClock",
+    "fledBriefEnd",
+    "fledElimination",
+    "fledWaitMerge",
+    "frontLineRule",
+    "frontLines",
+    "fxPrewarm",
+    "garrisonAmbush",
+    "geScout",
+    "generalIntel",
+    "grenadeAudio",
+    "grenadeFog",
+    "grenades",
+    "groundSteps",
+    "incomingFireReveal",
+    "interception",
+    "leaderlessIntent",
+    "leaseConflicts",
+    "localAmbush",
+    "localContactResume",
+    "localContinuity",
+    "localDegrade",
+    "localEntry",
+    "localEntryGate",
+    "localManeuver",
+    "localPlan",
+    "localResources",
+    "localStructureOrders",
+    "localStructures",
+    "localSurvey",
+    "localTasks",
+    "localWatch",
+    "log",
+    "medic",
+    "mergeWalls",
+    "mind",
+    "morale",
+    "motorTransport",
+    "navCorner",
+    "perception",
+    "perfTimings",
+    "rageGuard",
+    "rageLock",
+    "rageTrance",
+    "rallyRecovery",
+    "reconBudget",
+    "reconCorridors",
+    "reconLedger",
+    "reconPosts",
+    "reinforcementSortie",
+    "reinforcements",
+    "retreatArrival",
+    "retreatLostContact",
+    "retreatPosture",
+    "retreatStride",
+    "roadFromHere",
+    "routeTransition",
+    "scoutsForward",
+    "screenStallHold",
+    "secondaryThreat",
+    "slStress",
+    "smooth",
+    "soldierBeliefs",
+    "soldierCull",
+    "soldierLod",
+    "soldierTex",
+    "soldiers",
+    "splitRoads",
+    "squadBroadcast",
+    "squadRelay",
+    "stanceVis",
+    "stats",
+    "steerLeg",
+    "steerNavForward",
+    "strategicInterception",
+    "stressAct",
+    "stressMem",
+    "tacticalSituation",
+    "tracerPool",
+    "transportHandoff",
+    "truckAccess",
+    "truckCollision",
+    "truckLite",
+    "truckOnRoad",
+    "truckPhysics",
+    "truckReach",
+    "truckSpacing",
+    "truckStaysPut",
+    "truckTex",
+    "truckVisual",
+    "unreachableAnchor",
+    "urbanPicture",
+    "weaponFoley",
+    "weaponInstances",
+    "windowPort",
+    "woundMap"
+  ],
+  "unresolvedNames": [
+    "ambushBeforeObjective",
+    "ambushNextObjective",
+    "autonomousMovement",
+    "bench",
+    "benchAuto",
+    "benchCam",
+    "benchFollow",
+    "benchHide",
+    "benchSeconds",
+    "benchWarmup",
+    "combatLab",
+    "damageRange",
+    "defender",
+    "devModules",
+    "editor",
+    "follow",
+    "grass",
+    "infantry",
+    "labInterior",
+    "labMove",
+    "labPreset",
+    "labRange",
+    "lineApproachPost",
+    "lineSortie",
+    "orbit",
+    "pin",
+    "pinSeed",
+    "playerFaction",
+    "rangeAuto",
+    "rangeDist",
+    "rangeExit",
+    "rangeFps",
+    "rangeInterval",
+    "rangeOrbit",
+    "rangeTarget",
+    "rangeUi",
+    "rangeZone",
+    "reconOverflight",
+    "ref",
+    "seed",
+    "smartIndoorIngress"
+  ],
+  "parseFailures": [],
+  "rows": [
+    {
+      "name": "acoustics",
+      "file": "battle/modules/12a-listener-acoustics.js",
+      "line": 12,
+      "column": 15,
+      "expression": "/(?:^|[?&])acoustics=(off|standard|high)(?:&|$)/.exec(\n    typeof location !== 'undefined' ? location.search || '' : ''\n  )",
+      "pattern": "(?:^|[?&])acoustics=(off|standard|high)(?:&|$)",
+      "flags": "",
+      "method": "exec",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": null
+        },
+        {
+          "query": "?acoustics=0",
+          "output": null
+        },
+        {
+          "query": "?acoustics=1",
+          "output": null
+        },
+        {
+          "query": "?acoustics=off",
+          "output": [
+            "?acoustics=off",
+            "off"
+          ]
+        },
+        {
+          "query": "?acoustics=false",
+          "output": null
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "strategicInterception",
+      "file": "battle/modules/59-strategic-aerial-recon.js",
+      "line": 35,
+      "column": 7,
+      "expression": "/(?:^|[?&])strategicInterception=1(?:&|$)/.test(search)",
+      "pattern": "(?:^|[?&])strategicInterception=1(?:&|$)",
+      "flags": "",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?strategicInterception=0",
+          "output": false
+        },
+        {
+          "query": "?strategicInterception=1",
+          "output": true
+        },
+        {
+          "query": "?strategicInterception=off",
+          "output": false
+        },
+        {
+          "query": "?strategicInterception=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "aerialRecon",
+      "file": "battle/modules/59-strategic-aerial-recon.js",
+      "line": 36,
+      "column": 7,
+      "expression": "/(?:^|[?&])aerialRecon=1(?:&|$)/.test(search)",
+      "pattern": "(?:^|[?&])aerialRecon=1(?:&|$)",
+      "flags": "",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?aerialRecon=0",
+          "output": false
+        },
+        {
+          "query": "?aerialRecon=1",
+          "output": true
+        },
+        {
+          "query": "?aerialRecon=off",
+          "output": false
+        },
+        {
+          "query": "?aerialRecon=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "interception",
+      "file": "battle/modules/59-strategic-aerial-recon.js",
+      "line": 43,
+      "column": 12,
+      "expression": "/(?:^|[?&])interception=1(?:&|$)/.test((root.location && root.location.search) || '')",
+      "pattern": "(?:^|[?&])interception=1(?:&|$)",
+      "flags": "",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?interception=0",
+          "output": false
+        },
+        {
+          "query": "?interception=1",
+          "output": true
+        },
+        {
+          "query": "?interception=off",
+          "output": false
+        },
+        {
+          "query": "?interception=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "interception",
+      "file": "battle/modules/59-strategic-aerial-recon.js",
+      "line": 453,
+      "column": 26,
+      "expression": "/(?:^|[?&])interception=1(?:&|$)/.test(\n      (root.location && root.location.search) || ''\n    )",
+      "pattern": "(?:^|[?&])interception=1(?:&|$)",
+      "flags": "",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?interception=0",
+          "output": false
+        },
+        {
+          "query": "?interception=1",
+          "output": true
+        },
+        {
+          "query": "?interception=off",
+          "output": false
+        },
+        {
+          "query": "?interception=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "strategicInterception",
+      "file": "battle/modules/59b-strategic-interception.js",
+      "line": 25,
+      "column": 7,
+      "expression": "/(?:^|[?&])strategicInterception=1(?:&|$)/.test(search)",
+      "pattern": "(?:^|[?&])strategicInterception=1(?:&|$)",
+      "flags": "",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?strategicInterception=0",
+          "output": false
+        },
+        {
+          "query": "?strategicInterception=1",
+          "output": true
+        },
+        {
+          "query": "?strategicInterception=off",
+          "output": false
+        },
+        {
+          "query": "?strategicInterception=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "motorTransport",
+      "file": "battle/modules/59b-strategic-interception.js",
+      "line": 26,
+      "column": 7,
+      "expression": "/(?:^|[?&])motorTransport=1(?:&|$)/.test(search)",
+      "pattern": "(?:^|[?&])motorTransport=1(?:&|$)",
+      "flags": "",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?motorTransport=0",
+          "output": false
+        },
+        {
+          "query": "?motorTransport=1",
+          "output": true
+        },
+        {
+          "query": "?motorTransport=off",
+          "output": false
+        },
+        {
+          "query": "?motorTransport=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "aerialRecon",
+      "file": "battle/modules/59b-strategic-interception.js",
+      "line": 27,
+      "column": 7,
+      "expression": "/(?:^|[?&])aerialRecon=1(?:&|$)/.test(search)",
+      "pattern": "(?:^|[?&])aerialRecon=1(?:&|$)",
+      "flags": "",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?aerialRecon=0",
+          "output": false
+        },
+        {
+          "query": "?aerialRecon=1",
+          "output": true
+        },
+        {
+          "query": "?aerialRecon=off",
+          "output": false
+        },
+        {
+          "query": "?aerialRecon=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "interception",
+      "file": "battle/modules/59b-strategic-interception.js",
+      "line": 28,
+      "column": 7,
+      "expression": "/(?:^|[?&])interception=1(?:&|$)/.test(search)",
+      "pattern": "(?:^|[?&])interception=1(?:&|$)",
+      "flags": "",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?interception=0",
+          "output": false
+        },
+        {
+          "query": "?interception=1",
+          "output": true
+        },
+        {
+          "query": "?interception=off",
+          "output": false
+        },
+        {
+          "query": "?interception=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "reconCorridors",
+      "file": "battle/modules/59b-strategic-interception.js",
+      "line": 33,
+      "column": 13,
+      "expression": "!/(?:^|[?&])reconCorridors=0(?:&|$)/.test((root.location && root.location.search) || '')",
+      "pattern": "(?:^|[?&])reconCorridors=0(?:&|$)",
+      "flags": "",
+      "method": "test",
+      "negated": true,
+      "cases": [
+        {
+          "query": "",
+          "output": true
+        },
+        {
+          "query": "?reconCorridors=0",
+          "output": false
+        },
+        {
+          "query": "?reconCorridors=1",
+          "output": true
+        },
+        {
+          "query": "?reconCorridors=off",
+          "output": true
+        },
+        {
+          "query": "?reconCorridors=false",
+          "output": true
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "garrisonAmbush",
+      "file": "battle/modules/59b-strategic-interception.js",
+      "line": 221,
+      "column": 13,
+      "expression": "!/(?:^|[?&])garrisonAmbush=0(?:&|$)/.test((root.location && root.location.search) || '')",
+      "pattern": "(?:^|[?&])garrisonAmbush=0(?:&|$)",
+      "flags": "",
+      "method": "test",
+      "negated": true,
+      "cases": [
+        {
+          "query": "",
+          "output": true
+        },
+        {
+          "query": "?garrisonAmbush=0",
+          "output": false
+        },
+        {
+          "query": "?garrisonAmbush=1",
+          "output": true
+        },
+        {
+          "query": "?garrisonAmbush=off",
+          "output": true
+        },
+        {
+          "query": "?garrisonAmbush=false",
+          "output": true
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "contestedPost",
+      "file": "battle/modules/59b-strategic-interception.js",
+      "line": 342,
+      "column": 13,
+      "expression": "!/(?:^|[?&])contestedPost=0(?:&|$)/.test((root.location && root.location.search) || '')",
+      "pattern": "(?:^|[?&])contestedPost=0(?:&|$)",
+      "flags": "",
+      "method": "test",
+      "negated": true,
+      "cases": [
+        {
+          "query": "",
+          "output": true
+        },
+        {
+          "query": "?contestedPost=0",
+          "output": false
+        },
+        {
+          "query": "?contestedPost=1",
+          "output": true
+        },
+        {
+          "query": "?contestedPost=off",
+          "output": true
+        },
+        {
+          "query": "?contestedPost=false",
+          "output": true
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "routeTransition",
+      "file": "battle/modules/16-squad-plan-stability.js",
+      "line": 47,
+      "column": 28,
+      "expression": "!/[?&]routeTransition=(?:0|off|false)(?:&|#|$)/i.test(\n      typeof location !== 'undefined' ? location.search || '' : ''\n    )",
+      "pattern": "[?&]routeTransition=(?:0|off|false)(?:&|#|$)",
+      "flags": "i",
+      "method": "test",
+      "negated": true,
+      "cases": [
+        {
+          "query": "",
+          "output": true
+        },
+        {
+          "query": "?routeTransition=0",
+          "output": false
+        },
+        {
+          "query": "?routeTransition=1",
+          "output": true
+        },
+        {
+          "query": "?routeTransition=off",
+          "output": false
+        },
+        {
+          "query": "?routeTransition=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "leaseConflicts",
+      "file": "battle/modules/16-squad-plan-stability.js",
+      "line": 50,
+      "column": 28,
+      "expression": "/[?&]leaseConflicts=(?:1|on|true)(?:&|#|$)/i.test(\n    typeof location !== 'undefined' ? location.search || '' : ''\n  )",
+      "pattern": "[?&]leaseConflicts=(?:1|on|true)(?:&|#|$)",
+      "flags": "i",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?leaseConflicts=0",
+          "output": false
+        },
+        {
+          "query": "?leaseConflicts=1",
+          "output": true
+        },
+        {
+          "query": "?leaseConflicts=off",
+          "output": false
+        },
+        {
+          "query": "?leaseConflicts=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "rallyRecovery",
+      "file": "battle/modules/16-squad-plan-stability.js",
+      "line": 282,
+      "column": 13,
+      "expression": "!/[?&]rallyRecovery=(?:0|off|false)(?:&|#|$)/i.test(search || '')",
+      "pattern": "[?&]rallyRecovery=(?:0|off|false)(?:&|#|$)",
+      "flags": "i",
+      "method": "test",
+      "negated": true,
+      "cases": [
+        {
+          "query": "",
+          "output": true
+        },
+        {
+          "query": "?rallyRecovery=0",
+          "output": false
+        },
+        {
+          "query": "?rallyRecovery=1",
+          "output": true
+        },
+        {
+          "query": "?rallyRecovery=off",
+          "output": false
+        },
+        {
+          "query": "?rallyRecovery=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "executionReport",
+      "file": "battle/modules/16-squad-plan-stability.js",
+      "line": 292,
+      "column": 25,
+      "expression": "!/[?&]executionReport=(?:0|off|false)(?:&|#|$)/i.test(\n    typeof location !== 'undefined' ? location.search || '' : ''\n  )",
+      "pattern": "[?&]executionReport=(?:0|off|false)(?:&|#|$)",
+      "flags": "i",
+      "method": "test",
+      "negated": true,
+      "cases": [
+        {
+          "query": "",
+          "output": true
+        },
+        {
+          "query": "?executionReport=0",
+          "output": false
+        },
+        {
+          "query": "?executionReport=1",
+          "output": true
+        },
+        {
+          "query": "?executionReport=off",
+          "output": false
+        },
+        {
+          "query": "?executionReport=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "unreachableAnchor",
+      "file": "battle/modules/16-squad-plan-stability.js",
+      "line": 296,
+      "column": 32,
+      "expression": "!/[?&]unreachableAnchor=(?:0|off|false)(?:&|#|$)/i.test(\n    typeof location !== 'undefined' ? location.search || '' : ''\n  )",
+      "pattern": "[?&]unreachableAnchor=(?:0|off|false)(?:&|#|$)",
+      "flags": "i",
+      "method": "test",
+      "negated": true,
+      "cases": [
+        {
+          "query": "",
+          "output": true
+        },
+        {
+          "query": "?unreachableAnchor=0",
+          "output": false
+        },
+        {
+          "query": "?unreachableAnchor=1",
+          "output": true
+        },
+        {
+          "query": "?unreachableAnchor=off",
+          "output": false
+        },
+        {
+          "query": "?unreachableAnchor=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "scoutsForward",
+      "file": "battle/modules/16-squad-plan-stability.js",
+      "line": 322,
+      "column": 13,
+      "expression": "!/[?&]scoutsForward=(?:0|off|false)(?:&|#|$)/i.test(search || '')",
+      "pattern": "[?&]scoutsForward=(?:0|off|false)(?:&|#|$)",
+      "flags": "i",
+      "method": "test",
+      "negated": true,
+      "cases": [
+        {
+          "query": "",
+          "output": true
+        },
+        {
+          "query": "?scoutsForward=0",
+          "output": false
+        },
+        {
+          "query": "?scoutsForward=1",
+          "output": true
+        },
+        {
+          "query": "?scoutsForward=off",
+          "output": false
+        },
+        {
+          "query": "?scoutsForward=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "reconLedger",
+      "file": "battle/modules/16-squad-plan-stability.js",
+      "line": 357,
+      "column": 26,
+      "expression": "!/[?&]reconLedger=(?:0|off|false)(?:&|#|$)/i.test(\n    typeof location !== 'undefined' ? location.search || '' : ''\n  )",
+      "pattern": "[?&]reconLedger=(?:0|off|false)(?:&|#|$)",
+      "flags": "i",
+      "method": "test",
+      "negated": true,
+      "cases": [
+        {
+          "query": "",
+          "output": true
+        },
+        {
+          "query": "?reconLedger=0",
+          "output": false
+        },
+        {
+          "query": "?reconLedger=1",
+          "output": true
+        },
+        {
+          "query": "?reconLedger=off",
+          "output": false
+        },
+        {
+          "query": "?reconLedger=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "leaderlessIntent",
+      "file": "battle/modules/16-squad-plan-stability.js",
+      "line": 368,
+      "column": 13,
+      "expression": "!/[?&]leaderlessIntent=(?:0|off|false)(?:&|#|$)/i.test(search || '')",
+      "pattern": "[?&]leaderlessIntent=(?:0|off|false)(?:&|#|$)",
+      "flags": "i",
+      "method": "test",
+      "negated": true,
+      "cases": [
+        {
+          "query": "",
+          "output": true
+        },
+        {
+          "query": "?leaderlessIntent=0",
+          "output": false
+        },
+        {
+          "query": "?leaderlessIntent=1",
+          "output": true
+        },
+        {
+          "query": "?leaderlessIntent=off",
+          "output": false
+        },
+        {
+          "query": "?leaderlessIntent=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "buddyPairs",
+      "file": "battle/modules/16-squad-plan-stability.js",
+      "line": 382,
+      "column": 13,
+      "expression": "!/[?&]buddyPairs=(?:0|off|false)(?:&|$)/i.test(search || '')",
+      "pattern": "[?&]buddyPairs=(?:0|off|false)(?:&|$)",
+      "flags": "i",
+      "method": "test",
+      "negated": true,
+      "cases": [
+        {
+          "query": "",
+          "output": true
+        },
+        {
+          "query": "?buddyPairs=0",
+          "output": false
+        },
+        {
+          "query": "?buddyPairs=1",
+          "output": true
+        },
+        {
+          "query": "?buddyPairs=off",
+          "output": false
+        },
+        {
+          "query": "?buddyPairs=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "morale",
+      "file": "battle/modules/16-squad-plan-stability.js",
+      "line": 399,
+      "column": 56,
+      "expression": "/[?&]morale=0\\b/.test(location.search || '')",
+      "pattern": "[?&]morale=0\\b",
+      "flags": "",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?morale=0",
+          "output": true
+        },
+        {
+          "query": "?morale=1",
+          "output": false
+        },
+        {
+          "query": "?morale=off",
+          "output": false
+        },
+        {
+          "query": "?morale=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "coa",
+      "file": "battle/modules/16-squad-plan-stability.js",
+      "line": 416,
+      "column": 53,
+      "expression": "/[?&]coa=(?:0|off|false)\\b/.test(location.search || '')",
+      "pattern": "[?&]coa=(?:0|off|false)\\b",
+      "flags": "",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?coa=0",
+          "output": true
+        },
+        {
+          "query": "?coa=1",
+          "output": false
+        },
+        {
+          "query": "?coa=off",
+          "output": true
+        },
+        {
+          "query": "?coa=false",
+          "output": true
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "fireControl",
+      "file": "battle/modules/16-squad-plan-stability.js",
+      "line": 448,
+      "column": 40,
+      "expression": "/[?&]fireControl=(?:0|off|false)\\b/.test(location.search || '')",
+      "pattern": "[?&]fireControl=(?:0|off|false)\\b",
+      "flags": "",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?fireControl=0",
+          "output": true
+        },
+        {
+          "query": "?fireControl=1",
+          "output": false
+        },
+        {
+          "query": "?fireControl=off",
+          "output": true
+        },
+        {
+          "query": "?fireControl=false",
+          "output": true
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "fireteamSplit",
+      "file": "battle/modules/16-squad-plan-stability.js",
+      "line": 455,
+      "column": 40,
+      "expression": "/[?&]fireteamSplit=(?:0|off|false)\\b/i.test(location.search || '')",
+      "pattern": "[?&]fireteamSplit=(?:0|off|false)\\b",
+      "flags": "i",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?fireteamSplit=0",
+          "output": true
+        },
+        {
+          "query": "?fireteamSplit=1",
+          "output": false
+        },
+        {
+          "query": "?fireteamSplit=off",
+          "output": true
+        },
+        {
+          "query": "?fireteamSplit=false",
+          "output": true
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "alertAdvance",
+      "file": "battle/modules/16-squad-plan-stability.js",
+      "line": 1832,
+      "column": 40,
+      "expression": "/[?&]alertAdvance=(?:0|off|false)\\b/.test(location.search || '')",
+      "pattern": "[?&]alertAdvance=(?:0|off|false)\\b",
+      "flags": "",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?alertAdvance=0",
+          "output": true
+        },
+        {
+          "query": "?alertAdvance=1",
+          "output": false
+        },
+        {
+          "query": "?alertAdvance=off",
+          "output": true
+        },
+        {
+          "query": "?alertAdvance=false",
+          "output": true
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "slStress",
+      "file": "battle/modules/16-squad-plan-stability.js",
+      "line": 2003,
+      "column": 13,
+      "expression": "/[?&]slStress=([^&#]*)/.exec(search || '')",
+      "pattern": "[?&]slStress=([^&#]*)",
+      "flags": "",
+      "method": "exec",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": null
+        },
+        {
+          "query": "?slStress=0",
+          "output": [
+            "?slStress=0",
+            "0"
+          ]
+        },
+        {
+          "query": "?slStress=1",
+          "output": [
+            "?slStress=1",
+            "1"
+          ]
+        },
+        {
+          "query": "?slStress=off",
+          "output": [
+            "?slStress=off",
+            "off"
+          ]
+        },
+        {
+          "query": "?slStress=false",
+          "output": [
+            "?slStress=false",
+            "false"
+          ]
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "effectiveFire",
+      "file": "battle/engagement.js",
+      "line": 25,
+      "column": 5,
+      "expression": "/[?&]effectiveFire=(?:0|off|false)(?:&|#|$)/i.test(location.search || '')",
+      "pattern": "[?&]effectiveFire=(?:0|off|false)(?:&|#|$)",
+      "flags": "i",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?effectiveFire=0",
+          "output": true
+        },
+        {
+          "query": "?effectiveFire=1",
+          "output": false
+        },
+        {
+          "query": "?effectiveFire=off",
+          "output": true
+        },
+        {
+          "query": "?effectiveFire=false",
+          "output": true
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "retreatPosture",
+      "file": "battle/engagement.js",
+      "line": 32,
+      "column": 5,
+      "expression": "/[?&]retreatPosture=(?:0|off|false)(?:&|#|$)/i.test(location.search || '')",
+      "pattern": "[?&]retreatPosture=(?:0|off|false)(?:&|#|$)",
+      "flags": "i",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?retreatPosture=0",
+          "output": true
+        },
+        {
+          "query": "?retreatPosture=1",
+          "output": false
+        },
+        {
+          "query": "?retreatPosture=off",
+          "output": true
+        },
+        {
+          "query": "?retreatPosture=false",
+          "output": true
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "fireLineContact",
+      "file": "battle/engagement.js",
+      "line": 45,
+      "column": 40,
+      "expression": "/[?&]fireLineContact=0\\b/.test(location.search || '')",
+      "pattern": "[?&]fireLineContact=0\\b",
+      "flags": "",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?fireLineContact=0",
+          "output": true
+        },
+        {
+          "query": "?fireLineContact=1",
+          "output": false
+        },
+        {
+          "query": "?fireLineContact=off",
+          "output": false
+        },
+        {
+          "query": "?fireLineContact=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "contactStance",
+      "file": "battle/engagement.js",
+      "line": 331,
+      "column": 40,
+      "expression": "/[?&]contactStance=0\\b/.test(location.search || '')",
+      "pattern": "[?&]contactStance=0\\b",
+      "flags": "",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?contactStance=0",
+          "output": true
+        },
+        {
+          "query": "?contactStance=1",
+          "output": false
+        },
+        {
+          "query": "?contactStance=off",
+          "output": false
+        },
+        {
+          "query": "?contactStance=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "alertHold",
+      "file": "battle/engagement.js",
+      "line": 491,
+      "column": 58,
+      "expression": "/[?&]alertHold=0\\b/.test(location.search || '')",
+      "pattern": "[?&]alertHold=0\\b",
+      "flags": "",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?alertHold=0",
+          "output": true
+        },
+        {
+          "query": "?alertHold=1",
+          "output": false
+        },
+        {
+          "query": "?alertHold=off",
+          "output": false
+        },
+        {
+          "query": "?alertHold=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "combatHandoff",
+      "file": "battle/engagement.js",
+      "line": 493,
+      "column": 13,
+      "expression": "!/[?&]combatHandoff=(?:0|off|false)(?:&|#|$)/i.test(search || '')",
+      "pattern": "[?&]combatHandoff=(?:0|off|false)(?:&|#|$)",
+      "flags": "i",
+      "method": "test",
+      "negated": true,
+      "cases": [
+        {
+          "query": "",
+          "output": true
+        },
+        {
+          "query": "?combatHandoff=0",
+          "output": false
+        },
+        {
+          "query": "?combatHandoff=1",
+          "output": true
+        },
+        {
+          "query": "?combatHandoff=off",
+          "output": false
+        },
+        {
+          "query": "?combatHandoff=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "crawlFit",
+      "file": "battle/engagement.js",
+      "line": 497,
+      "column": 56,
+      "expression": "/[?&]crawlFit=0\\b/.test(location.search || '')",
+      "pattern": "[?&]crawlFit=0\\b",
+      "flags": "",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?crawlFit=0",
+          "output": true
+        },
+        {
+          "query": "?crawlFit=1",
+          "output": false
+        },
+        {
+          "query": "?crawlFit=off",
+          "output": false
+        },
+        {
+          "query": "?crawlFit=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "coverFire",
+      "file": "battle/engagement.js",
+      "line": 499,
+      "column": 57,
+      "expression": "/[?&]coverFire=0\\b/.test(location.search || '')",
+      "pattern": "[?&]coverFire=0\\b",
+      "flags": "",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?coverFire=0",
+          "output": true
+        },
+        {
+          "query": "?coverFire=1",
+          "output": false
+        },
+        {
+          "query": "?coverFire=off",
+          "output": false
+        },
+        {
+          "query": "?coverFire=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "coverStance",
+      "file": "battle/engagement.js",
+      "line": 500,
+      "column": 59,
+      "expression": "/[?&]coverStance=0\\b/.test(location.search || '')",
+      "pattern": "[?&]coverStance=0\\b",
+      "flags": "",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?coverStance=0",
+          "output": true
+        },
+        {
+          "query": "?coverStance=1",
+          "output": false
+        },
+        {
+          "query": "?coverStance=off",
+          "output": false
+        },
+        {
+          "query": "?coverStance=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "stressAct",
+      "file": "battle/engagement.js",
+      "line": 865,
+      "column": 13,
+      "expression": "/[?&]stressAct=([^&#]*)/.exec((typeof location !== 'undefined' && location.search) || '')",
+      "pattern": "[?&]stressAct=([^&#]*)",
+      "flags": "",
+      "method": "exec",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": null
+        },
+        {
+          "query": "?stressAct=0",
+          "output": [
+            "?stressAct=0",
+            "0"
+          ]
+        },
+        {
+          "query": "?stressAct=1",
+          "output": [
+            "?stressAct=1",
+            "1"
+          ]
+        },
+        {
+          "query": "?stressAct=off",
+          "output": [
+            "?stressAct=off",
+            "off"
+          ]
+        },
+        {
+          "query": "?stressAct=false",
+          "output": [
+            "?stressAct=false",
+            "false"
+          ]
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "rageLock",
+      "file": "battle/engagement.js",
+      "line": 882,
+      "column": 20,
+      "expression": "!/[?&]rageLock=0(?:&|#|$)/.test((typeof location !== 'undefined' && location.search) || '')",
+      "pattern": "[?&]rageLock=0(?:&|#|$)",
+      "flags": "",
+      "method": "test",
+      "negated": true,
+      "cases": [
+        {
+          "query": "",
+          "output": true
+        },
+        {
+          "query": "?rageLock=0",
+          "output": false
+        },
+        {
+          "query": "?rageLock=1",
+          "output": true
+        },
+        {
+          "query": "?rageLock=off",
+          "output": true
+        },
+        {
+          "query": "?rageLock=false",
+          "output": true
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "rageGuard",
+      "file": "battle/engagement.js",
+      "line": 886,
+      "column": 28,
+      "expression": "!/[?&]rageGuard=0(?:&|#|$)/.test(\n    (typeof location !== 'undefined' && location.search) || ''\n  )",
+      "pattern": "[?&]rageGuard=0(?:&|#|$)",
+      "flags": "",
+      "method": "test",
+      "negated": true,
+      "cases": [
+        {
+          "query": "",
+          "output": true
+        },
+        {
+          "query": "?rageGuard=0",
+          "output": false
+        },
+        {
+          "query": "?rageGuard=1",
+          "output": true
+        },
+        {
+          "query": "?rageGuard=off",
+          "output": true
+        },
+        {
+          "query": "?rageGuard=false",
+          "output": true
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "rageTrance",
+      "file": "battle/engagement.js",
+      "line": 894,
+      "column": 22,
+      "expression": "!/[?&]rageTrance=0(?:&|#|$)/.test(\n    (typeof location !== 'undefined' && location.search) || ''\n  )",
+      "pattern": "[?&]rageTrance=0(?:&|#|$)",
+      "flags": "",
+      "method": "test",
+      "negated": true,
+      "cases": [
+        {
+          "query": "",
+          "output": true
+        },
+        {
+          "query": "?rageTrance=0",
+          "output": false
+        },
+        {
+          "query": "?rageTrance=1",
+          "output": true
+        },
+        {
+          "query": "?rageTrance=off",
+          "output": true
+        },
+        {
+          "query": "?rageTrance=false",
+          "output": true
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "animLod",
+      "file": "battle/modules/52-fbx-render-lod.js",
+      "line": 43,
+      "column": 50,
+      "expression": "/[?&]animLod=0\\b/.test(location.search || '')",
+      "pattern": "[?&]animLod=0\\b",
+      "flags": "",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?animLod=0",
+          "output": true
+        },
+        {
+          "query": "?animLod=1",
+          "output": false
+        },
+        {
+          "query": "?animLod=off",
+          "output": false
+        },
+        {
+          "query": "?animLod=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "farHz",
+      "file": "battle/modules/52-fbx-render-lod.js",
+      "line": 56,
+      "column": 52,
+      "expression": "/[?&]farHz=([0-9.]+)/.exec(location.search || '')",
+      "pattern": "[?&]farHz=([0-9.]+)",
+      "flags": "",
+      "method": "exec",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": null
+        },
+        {
+          "query": "?farHz=0",
+          "output": [
+            "?farHz=0",
+            "0"
+          ]
+        },
+        {
+          "query": "?farHz=1",
+          "output": [
+            "?farHz=1",
+            "1"
+          ]
+        },
+        {
+          "query": "?farHz=off",
+          "output": null
+        },
+        {
+          "query": "?farHz=false",
+          "output": null
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "soldierCull",
+      "file": "battle/modules/52-fbx-render-lod.js",
+      "line": 68,
+      "column": 50,
+      "expression": "/[?&]soldierCull=0\\b/.test(location.search || '')",
+      "pattern": "[?&]soldierCull=0\\b",
+      "flags": "",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?soldierCull=0",
+          "output": true
+        },
+        {
+          "query": "?soldierCull=1",
+          "output": false
+        },
+        {
+          "query": "?soldierCull=off",
+          "output": false
+        },
+        {
+          "query": "?soldierCull=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "audioFormat",
+      "file": "battle/modules/00-audio-format.js",
+      "line": 16,
+      "column": 46,
+      "expression": "/[?&]audioFormat=(mp3|caf|ogg)\\b/.exec(location.search || '')",
+      "pattern": "[?&]audioFormat=(mp3|caf|ogg)\\b",
+      "flags": "",
+      "method": "exec",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": null
+        },
+        {
+          "query": "?audioFormat=0",
+          "output": null
+        },
+        {
+          "query": "?audioFormat=1",
+          "output": null
+        },
+        {
+          "query": "?audioFormat=off",
+          "output": null
+        },
+        {
+          "query": "?audioFormat=false",
+          "output": null
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "audioMix",
+      "file": "battle/modules/00a-audio-mix.js",
+      "line": 22,
+      "column": 40,
+      "expression": "/(?:^|[?&])audioMix=legacy(?:&|$)/.test(location.search || '')",
+      "pattern": "(?:^|[?&])audioMix=legacy(?:&|$)",
+      "flags": "",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?audioMix=0",
+          "output": false
+        },
+        {
+          "query": "?audioMix=1",
+          "output": false
+        },
+        {
+          "query": "?audioMix=off",
+          "output": false
+        },
+        {
+          "query": "?audioMix=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "strategicInterception",
+      "file": "battle/battle-sim.js",
+      "line": 12,
+      "column": 25,
+      "expression": "/[?&]strategicInterception=1(?:&|$)/.test(root.location.search || '')",
+      "pattern": "[?&]strategicInterception=1(?:&|$)",
+      "flags": "",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?strategicInterception=0",
+          "output": false
+        },
+        {
+          "query": "?strategicInterception=1",
+          "output": true
+        },
+        {
+          "query": "?strategicInterception=off",
+          "output": false
+        },
+        {
+          "query": "?strategicInterception=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "steerLeg",
+      "file": "battle/battle-sim.js",
+      "line": 537,
+      "column": 56,
+      "expression": "/[?&]steerLeg=0\\b/.test(location.search || '')",
+      "pattern": "[?&]steerLeg=0\\b",
+      "flags": "",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?steerLeg=0",
+          "output": true
+        },
+        {
+          "query": "?steerLeg=1",
+          "output": false
+        },
+        {
+          "query": "?steerLeg=off",
+          "output": false
+        },
+        {
+          "query": "?steerLeg=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "steerNavForward",
+      "file": "battle/battle-sim.js",
+      "line": 541,
+      "column": 40,
+      "expression": "/[?&]steerNavForward=0\\b/.test(location.search || '')",
+      "pattern": "[?&]steerNavForward=0\\b",
+      "flags": "",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?steerNavForward=0",
+          "output": true
+        },
+        {
+          "query": "?steerNavForward=1",
+          "output": false
+        },
+        {
+          "query": "?steerNavForward=off",
+          "output": false
+        },
+        {
+          "query": "?steerNavForward=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "boardFacing",
+      "file": "battle/battle-sim.js",
+      "line": 624,
+      "column": 23,
+      "expression": "!/(?:^|[?&])boardFacing=0(?:&|$)/.test((root.location && root.location.search) || '')",
+      "pattern": "(?:^|[?&])boardFacing=0(?:&|$)",
+      "flags": "",
+      "method": "test",
+      "negated": true,
+      "cases": [
+        {
+          "query": "",
+          "output": true
+        },
+        {
+          "query": "?boardFacing=0",
+          "output": false
+        },
+        {
+          "query": "?boardFacing=1",
+          "output": true
+        },
+        {
+          "query": "?boardFacing=off",
+          "output": true
+        },
+        {
+          "query": "?boardFacing=false",
+          "output": true
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "soldiers",
+      "file": "battle/modules/53-fbx-soldier-backend.js",
+      "line": 78,
+      "column": 40,
+      "expression": "/[?&]soldiers=rifleman\\b/.test(location.search || '')",
+      "pattern": "[?&]soldiers=rifleman\\b",
+      "flags": "",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?soldiers=0",
+          "output": false
+        },
+        {
+          "query": "?soldiers=1",
+          "output": false
+        },
+        {
+          "query": "?soldiers=off",
+          "output": false
+        },
+        {
+          "query": "?soldiers=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "smooth",
+      "file": "battle/modules/53-fbx-soldier-backend.js",
+      "line": 176,
+      "column": 61,
+      "expression": "/[?&]smooth=0\\b/.test(location.search || '')",
+      "pattern": "[?&]smooth=0\\b",
+      "flags": "",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?smooth=0",
+          "output": true
+        },
+        {
+          "query": "?smooth=1",
+          "output": false
+        },
+        {
+          "query": "?smooth=off",
+          "output": false
+        },
+        {
+          "query": "?smooth=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "perfTimings",
+      "file": "battle/modules/53-fbx-soldier-backend.js",
+      "line": 187,
+      "column": 48,
+      "expression": "/[?&]perfTimings=([01])\\b/.exec(location.search || '')",
+      "pattern": "[?&]perfTimings=([01])\\b",
+      "flags": "",
+      "method": "exec",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": null
+        },
+        {
+          "query": "?perfTimings=0",
+          "output": [
+            "?perfTimings=0",
+            "0"
+          ]
+        },
+        {
+          "query": "?perfTimings=1",
+          "output": [
+            "?perfTimings=1",
+            "1"
+          ]
+        },
+        {
+          "query": "?perfTimings=off",
+          "output": null
+        },
+        {
+          "query": "?perfTimings=false",
+          "output": null
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "soldierTex",
+      "file": "battle/modules/53-fbx-soldier-backend.js",
+      "line": 841,
+      "column": 30,
+      "expression": "/[?&]soldierTex=(\\d+)/.exec(root.location.search || '')",
+      "pattern": "[?&]soldierTex=(\\d+)",
+      "flags": "",
+      "method": "exec",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": null
+        },
+        {
+          "query": "?soldierTex=0",
+          "output": [
+            "?soldierTex=0",
+            "0"
+          ]
+        },
+        {
+          "query": "?soldierTex=1",
+          "output": [
+            "?soldierTex=1",
+            "1"
+          ]
+        },
+        {
+          "query": "?soldierTex=off",
+          "output": null
+        },
+        {
+          "query": "?soldierTex=false",
+          "output": null
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "clipPack",
+      "file": "battle/modules/53-fbx-soldier-backend.js",
+      "line": 1079,
+      "column": 59,
+      "expression": "/[?&]clipPack=0\\b/.test(location.search || '')",
+      "pattern": "[?&]clipPack=0\\b",
+      "flags": "",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?clipPack=0",
+          "output": true
+        },
+        {
+          "query": "?clipPack=1",
+          "output": false
+        },
+        {
+          "query": "?clipPack=off",
+          "output": false
+        },
+        {
+          "query": "?clipPack=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "boneTextures",
+      "file": "battle/modules/53-fbx-soldier-backend.js",
+      "line": 1411,
+      "column": 48,
+      "expression": "/[?&]boneTextures=([01])\\b/.exec(location.search || '')",
+      "pattern": "[?&]boneTextures=([01])\\b",
+      "flags": "",
+      "method": "exec",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": null
+        },
+        {
+          "query": "?boneTextures=0",
+          "output": [
+            "?boneTextures=0",
+            "0"
+          ]
+        },
+        {
+          "query": "?boneTextures=1",
+          "output": [
+            "?boneTextures=1",
+            "1"
+          ]
+        },
+        {
+          "query": "?boneTextures=off",
+          "output": null
+        },
+        {
+          "query": "?boneTextures=false",
+          "output": null
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "cloneBounds",
+      "file": "battle/modules/53-fbx-soldier-backend.js",
+      "line": 1428,
+      "column": 57,
+      "expression": "/[?&]cloneBounds=1\\b/.test(location.search || '')",
+      "pattern": "[?&]cloneBounds=1\\b",
+      "flags": "",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?cloneBounds=0",
+          "output": false
+        },
+        {
+          "query": "?cloneBounds=1",
+          "output": true
+        },
+        {
+          "query": "?cloneBounds=off",
+          "output": false
+        },
+        {
+          "query": "?cloneBounds=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "weaponInstances",
+      "file": "battle/modules/53-fbx-soldier-backend.js",
+      "line": 1694,
+      "column": 40,
+      "expression": "/[?&]weaponInstances=0\\b/.test(location.search || '')",
+      "pattern": "[?&]weaponInstances=0\\b",
+      "flags": "",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?weaponInstances=0",
+          "output": true
+        },
+        {
+          "query": "?weaponInstances=1",
+          "output": false
+        },
+        {
+          "query": "?weaponInstances=off",
+          "output": false
+        },
+        {
+          "query": "?weaponInstances=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "breadcrumb",
+      "file": "battle/modules/98-reload-breadcrumb.js",
+      "line": 15,
+      "column": 7,
+      "expression": "/(?:^|[?&])breadcrumb=0(?:&|$)/.test(search)",
+      "pattern": "(?:^|[?&])breadcrumb=0(?:&|$)",
+      "flags": "",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?breadcrumb=0",
+          "output": true
+        },
+        {
+          "query": "?breadcrumb=1",
+          "output": false
+        },
+        {
+          "query": "?breadcrumb=off",
+          "output": false
+        },
+        {
+          "query": "?breadcrumb=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "callouts",
+      "file": "battle/modules/09-tactical-callouts.js",
+      "line": 19,
+      "column": 49,
+      "expression": "/[?&]callouts=(0|off|none)\\b/.test(location.search || '')",
+      "pattern": "[?&]callouts=(0|off|none)\\b",
+      "flags": "",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?callouts=0",
+          "output": true
+        },
+        {
+          "query": "?callouts=1",
+          "output": false
+        },
+        {
+          "query": "?callouts=off",
+          "output": true
+        },
+        {
+          "query": "?callouts=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "combatAudio",
+      "file": "battle/modules/15-combat-audio.js",
+      "line": 45,
+      "column": 49,
+      "expression": "/[?&]combatAudio=0\\b/.test(location.search || '')",
+      "pattern": "[?&]combatAudio=0\\b",
+      "flags": "",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?combatAudio=0",
+          "output": true
+        },
+        {
+          "query": "?combatAudio=1",
+          "output": false
+        },
+        {
+          "query": "?combatAudio=off",
+          "output": false
+        },
+        {
+          "query": "?combatAudio=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "commandReception",
+      "file": "battle/modules/18-command-reception.js",
+      "line": 16,
+      "column": 11,
+      "expression": "!/[?&]commandReception=(?:0|off|false)(?:&|#|$)/i.test(SEARCH)",
+      "pattern": "[?&]commandReception=(?:0|off|false)(?:&|#|$)",
+      "flags": "i",
+      "method": "test",
+      "negated": true,
+      "cases": [
+        {
+          "query": "",
+          "output": true
+        },
+        {
+          "query": "?commandReception=0",
+          "output": false
+        },
+        {
+          "query": "?commandReception=1",
+          "output": true
+        },
+        {
+          "query": "?commandReception=off",
+          "output": false
+        },
+        {
+          "query": "?commandReception=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "commandPosture",
+      "file": "battle/modules/18-command-reception.js",
+      "line": 24,
+      "column": 25,
+      "expression": "!/[?&]commandPosture=(?:0|off|false)(?:&|#|$)/i.test(SEARCH)",
+      "pattern": "[?&]commandPosture=(?:0|off|false)(?:&|#|$)",
+      "flags": "i",
+      "method": "test",
+      "negated": true,
+      "cases": [
+        {
+          "query": "",
+          "output": true
+        },
+        {
+          "query": "?commandPosture=0",
+          "output": false
+        },
+        {
+          "query": "?commandPosture=1",
+          "output": true
+        },
+        {
+          "query": "?commandPosture=off",
+          "output": false
+        },
+        {
+          "query": "?commandPosture=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "commandMovement",
+      "file": "battle/modules/18-command-reception.js",
+      "line": 25,
+      "column": 26,
+      "expression": "!/[?&]commandMovement=(?:0|off|false)(?:&|#|$)/i.test(SEARCH)",
+      "pattern": "[?&]commandMovement=(?:0|off|false)(?:&|#|$)",
+      "flags": "i",
+      "method": "test",
+      "negated": true,
+      "cases": [
+        {
+          "query": "",
+          "output": true
+        },
+        {
+          "query": "?commandMovement=0",
+          "output": false
+        },
+        {
+          "query": "?commandMovement=1",
+          "output": true
+        },
+        {
+          "query": "?commandMovement=off",
+          "output": false
+        },
+        {
+          "query": "?commandMovement=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "commandRelay",
+      "file": "battle/modules/18-command-reception.js",
+      "line": 26,
+      "column": 23,
+      "expression": "!/[?&]commandRelay=(?:0|off|false)(?:&|#|$)/i.test(SEARCH)",
+      "pattern": "[?&]commandRelay=(?:0|off|false)(?:&|#|$)",
+      "flags": "i",
+      "method": "test",
+      "negated": true,
+      "cases": [
+        {
+          "query": "",
+          "output": true
+        },
+        {
+          "query": "?commandRelay=0",
+          "output": false
+        },
+        {
+          "query": "?commandRelay=1",
+          "output": true
+        },
+        {
+          "query": "?commandRelay=off",
+          "output": false
+        },
+        {
+          "query": "?commandRelay=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "enrollMissing",
+      "file": "battle/modules/18-command-reception.js",
+      "line": 28,
+      "column": 23,
+      "expression": "!/[?&]enrollMissing=(?:0|off|false)(?:&|#|$)/i.test(SEARCH)",
+      "pattern": "[?&]enrollMissing=(?:0|off|false)(?:&|#|$)",
+      "flags": "i",
+      "method": "test",
+      "negated": true,
+      "cases": [
+        {
+          "query": "",
+          "output": true
+        },
+        {
+          "query": "?enrollMissing=0",
+          "output": false
+        },
+        {
+          "query": "?enrollMissing=1",
+          "output": true
+        },
+        {
+          "query": "?enrollMissing=off",
+          "output": false
+        },
+        {
+          "query": "?enrollMissing=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "squadRelay",
+      "file": "battle/modules/18-command-reception.js",
+      "line": 30,
+      "column": 35,
+      "expression": "!/[?&]squadRelay=(?:0|off|false)(?:&|#|$)/i.test(SEARCH)",
+      "pattern": "[?&]squadRelay=(?:0|off|false)(?:&|#|$)",
+      "flags": "i",
+      "method": "test",
+      "negated": true,
+      "cases": [
+        {
+          "query": "",
+          "output": true
+        },
+        {
+          "query": "?squadRelay=0",
+          "output": false
+        },
+        {
+          "query": "?squadRelay=1",
+          "output": true
+        },
+        {
+          "query": "?squadRelay=off",
+          "output": false
+        },
+        {
+          "query": "?squadRelay=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "localAmbush",
+      "file": "battle/modules/15o-squad-leader-tactical-postures.js",
+      "line": 15,
+      "column": 9,
+      "expression": "/[?&]localAmbush=(?:1|on|true)(?:&|#|$)/i.test(query)",
+      "pattern": "[?&]localAmbush=(?:1|on|true)(?:&|#|$)",
+      "flags": "i",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?localAmbush=0",
+          "output": false
+        },
+        {
+          "query": "?localAmbush=1",
+          "output": true
+        },
+        {
+          "query": "?localAmbush=off",
+          "output": false
+        },
+        {
+          "query": "?localAmbush=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "localManeuver",
+      "file": "battle/modules/15o-squad-leader-tactical-postures.js",
+      "line": 19,
+      "column": 9,
+      "expression": "/[?&]localManeuver=(?:1|on|true)(?:&|#|$)/i.test(query)",
+      "pattern": "[?&]localManeuver=(?:1|on|true)(?:&|#|$)",
+      "flags": "i",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?localManeuver=0",
+          "output": false
+        },
+        {
+          "query": "?localManeuver=1",
+          "output": true
+        },
+        {
+          "query": "?localManeuver=off",
+          "output": false
+        },
+        {
+          "query": "?localManeuver=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "coveredBounds",
+      "file": "battle/modules/15o-squad-leader-tactical-postures.js",
+      "line": 20,
+      "column": 9,
+      "expression": "/[?&]coveredBounds=(?:1|on|true)(?:&|#|$)/i.test(query)",
+      "pattern": "[?&]coveredBounds=(?:1|on|true)(?:&|#|$)",
+      "flags": "i",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?coveredBounds=0",
+          "output": false
+        },
+        {
+          "query": "?coveredBounds=1",
+          "output": true
+        },
+        {
+          "query": "?coveredBounds=off",
+          "output": false
+        },
+        {
+          "query": "?coveredBounds=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "coveredBounds",
+      "file": "battle/modules/19-engagement-cover-positions.js",
+      "line": 42,
+      "column": 9,
+      "expression": "/[?&]coveredBounds=(1|on|true)\\b/.test(query)",
+      "pattern": "[?&]coveredBounds=(1|on|true)\\b",
+      "flags": "",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?coveredBounds=0",
+          "output": false
+        },
+        {
+          "query": "?coveredBounds=1",
+          "output": true
+        },
+        {
+          "query": "?coveredBounds=off",
+          "output": false
+        },
+        {
+          "query": "?coveredBounds=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "localPlan",
+      "file": "battle/modules/19-engagement-cover-positions.js",
+      "line": 42,
+      "column": 58,
+      "expression": "/[?&]localPlan=(1|on|true)\\b/.test(query)",
+      "pattern": "[?&]localPlan=(1|on|true)\\b",
+      "flags": "",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?localPlan=0",
+          "output": false
+        },
+        {
+          "query": "?localPlan=1",
+          "output": true
+        },
+        {
+          "query": "?localPlan=off",
+          "output": false
+        },
+        {
+          "query": "?localPlan=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "stanceVis",
+      "file": "battle/squad-ai.js",
+      "line": 141,
+      "column": 60,
+      "expression": "/[?&]stanceVis=0\\b/.test(location.search || '')",
+      "pattern": "[?&]stanceVis=0\\b",
+      "flags": "",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?stanceVis=0",
+          "output": true
+        },
+        {
+          "query": "?stanceVis=1",
+          "output": false
+        },
+        {
+          "query": "?stanceVis=off",
+          "output": false
+        },
+        {
+          "query": "?stanceVis=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "perception",
+      "file": "battle/squad-ai.js",
+      "line": 169,
+      "column": 60,
+      "expression": "/[?&]perception=0\\b/.test(location.search || '')",
+      "pattern": "[?&]perception=0\\b",
+      "flags": "",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?perception=0",
+          "output": true
+        },
+        {
+          "query": "?perception=1",
+          "output": false
+        },
+        {
+          "query": "?perception=off",
+          "output": false
+        },
+        {
+          "query": "?perception=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "soldierBeliefs",
+      "file": "battle/squad-ai.js",
+      "line": 175,
+      "column": 13,
+      "expression": "!/[?&]soldierBeliefs=(?:0|off|false|none)(?:&|#|$)/i.test(search || '')",
+      "pattern": "[?&]soldierBeliefs=(?:0|off|false|none)(?:&|#|$)",
+      "flags": "i",
+      "method": "test",
+      "negated": true,
+      "cases": [
+        {
+          "query": "",
+          "output": true
+        },
+        {
+          "query": "?soldierBeliefs=0",
+          "output": false
+        },
+        {
+          "query": "?soldierBeliefs=1",
+          "output": true
+        },
+        {
+          "query": "?soldierBeliefs=off",
+          "output": false
+        },
+        {
+          "query": "?soldierBeliefs=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "incomingFireReveal",
+      "file": "battle/squad-ai.js",
+      "line": 183,
+      "column": 13,
+      "expression": "!/[?&]incomingFireReveal=(?:0|off|false)(?:&|#|$)/i.test(search || '')",
+      "pattern": "[?&]incomingFireReveal=(?:0|off|false)(?:&|#|$)",
+      "flags": "i",
+      "method": "test",
+      "negated": true,
+      "cases": [
+        {
+          "query": "",
+          "output": true
+        },
+        {
+          "query": "?incomingFireReveal=0",
+          "output": false
+        },
+        {
+          "query": "?incomingFireReveal=1",
+          "output": true
+        },
+        {
+          "query": "?incomingFireReveal=off",
+          "output": false
+        },
+        {
+          "query": "?incomingFireReveal=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "secondaryThreat",
+      "file": "battle/squad-ai.js",
+      "line": 195,
+      "column": 5,
+      "expression": "/[?&]secondaryThreat=1\\b/.test(location.search)",
+      "pattern": "[?&]secondaryThreat=1\\b",
+      "flags": "",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?secondaryThreat=0",
+          "output": false
+        },
+        {
+          "query": "?secondaryThreat=1",
+          "output": true
+        },
+        {
+          "query": "?secondaryThreat=off",
+          "output": false
+        },
+        {
+          "query": "?secondaryThreat=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "crewEyes",
+      "file": "battle/squad-ai.js",
+      "line": 2179,
+      "column": 20,
+      "expression": "!/(?:^|[?&])crewEyes=0(?:&|$)/.test((root.location && root.location.search) || '')",
+      "pattern": "(?:^|[?&])crewEyes=0(?:&|$)",
+      "flags": "",
+      "method": "test",
+      "negated": true,
+      "cases": [
+        {
+          "query": "",
+          "output": true
+        },
+        {
+          "query": "?crewEyes=0",
+          "output": false
+        },
+        {
+          "query": "?crewEyes=1",
+          "output": true
+        },
+        {
+          "query": "?crewEyes=off",
+          "output": true
+        },
+        {
+          "query": "?crewEyes=false",
+          "output": true
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "truckAccess",
+      "file": "battle/modules/58-strategic-abstract-transport.js",
+      "line": 90,
+      "column": 12,
+      "expression": "/(?:^|[?&])truckAccess=1(?:&|$)/.test((root.location && root.location.search) || '')",
+      "pattern": "(?:^|[?&])truckAccess=1(?:&|$)",
+      "flags": "",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?truckAccess=0",
+          "output": false
+        },
+        {
+          "query": "?truckAccess=1",
+          "output": true
+        },
+        {
+          "query": "?truckAccess=off",
+          "output": false
+        },
+        {
+          "query": "?truckAccess=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "motorTransport",
+      "file": "battle/modules/58-strategic-abstract-transport.js",
+      "line": 254,
+      "column": 7,
+      "expression": "/(?:^|[?&])motorTransport=1(?:&|$)/.test(params || '')",
+      "pattern": "(?:^|[?&])motorTransport=1(?:&|$)",
+      "flags": "",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?motorTransport=0",
+          "output": false
+        },
+        {
+          "query": "?motorTransport=1",
+          "output": true
+        },
+        {
+          "query": "?motorTransport=off",
+          "output": false
+        },
+        {
+          "query": "?motorTransport=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "truckCollision",
+      "file": "battle/modules/58-strategic-abstract-transport.js",
+      "line": 310,
+      "column": 7,
+      "expression": "/(?:^|[?&])truckCollision=1(?:&|$)/.test((root.location && root.location.search) || '')",
+      "pattern": "(?:^|[?&])truckCollision=1(?:&|$)",
+      "flags": "",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?truckCollision=0",
+          "output": false
+        },
+        {
+          "query": "?truckCollision=1",
+          "output": true
+        },
+        {
+          "query": "?truckCollision=off",
+          "output": false
+        },
+        {
+          "query": "?truckCollision=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "truckOnRoad",
+      "file": "battle/modules/58-strategic-abstract-transport.js",
+      "line": 411,
+      "column": 13,
+      "expression": "!/(?:^|[?&])truckOnRoad=0(?:&|$)/.test((root.location && root.location.search) || '')",
+      "pattern": "(?:^|[?&])truckOnRoad=0(?:&|$)",
+      "flags": "",
+      "method": "test",
+      "negated": true,
+      "cases": [
+        {
+          "query": "",
+          "output": true
+        },
+        {
+          "query": "?truckOnRoad=0",
+          "output": false
+        },
+        {
+          "query": "?truckOnRoad=1",
+          "output": true
+        },
+        {
+          "query": "?truckOnRoad=off",
+          "output": true
+        },
+        {
+          "query": "?truckOnRoad=false",
+          "output": true
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "truckSpacing",
+      "file": "battle/modules/58-strategic-abstract-transport.js",
+      "line": 470,
+      "column": 13,
+      "expression": "!/(?:^|[?&])truckSpacing=0(?:&|$)/.test((root.location && root.location.search) || '')",
+      "pattern": "(?:^|[?&])truckSpacing=0(?:&|$)",
+      "flags": "",
+      "method": "test",
+      "negated": true,
+      "cases": [
+        {
+          "query": "",
+          "output": true
+        },
+        {
+          "query": "?truckSpacing=0",
+          "output": false
+        },
+        {
+          "query": "?truckSpacing=1",
+          "output": true
+        },
+        {
+          "query": "?truckSpacing=off",
+          "output": true
+        },
+        {
+          "query": "?truckSpacing=false",
+          "output": true
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "truckStaysPut",
+      "file": "battle/modules/58-strategic-abstract-transport.js",
+      "line": 553,
+      "column": 13,
+      "expression": "!/(?:^|[?&])truckStaysPut=0(?:&|$)/.test((root.location && root.location.search) || '')",
+      "pattern": "(?:^|[?&])truckStaysPut=0(?:&|$)",
+      "flags": "",
+      "method": "test",
+      "negated": true,
+      "cases": [
+        {
+          "query": "",
+          "output": true
+        },
+        {
+          "query": "?truckStaysPut=0",
+          "output": false
+        },
+        {
+          "query": "?truckStaysPut=1",
+          "output": true
+        },
+        {
+          "query": "?truckStaysPut=off",
+          "output": true
+        },
+        {
+          "query": "?truckStaysPut=false",
+          "output": true
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "truckPhysics",
+      "file": "battle/modules/58-strategic-abstract-transport.js",
+      "line": 968,
+      "column": 13,
+      "expression": "!/(?:^|[?&])truckPhysics=0(?:&|$)/.test((root.location && root.location.search) || '')",
+      "pattern": "(?:^|[?&])truckPhysics=0(?:&|$)",
+      "flags": "",
+      "method": "test",
+      "negated": true,
+      "cases": [
+        {
+          "query": "",
+          "output": true
+        },
+        {
+          "query": "?truckPhysics=0",
+          "output": false
+        },
+        {
+          "query": "?truckPhysics=1",
+          "output": true
+        },
+        {
+          "query": "?truckPhysics=off",
+          "output": true
+        },
+        {
+          "query": "?truckPhysics=false",
+          "output": true
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "truckReach",
+      "file": "battle/modules/58-strategic-abstract-transport.js",
+      "line": 1021,
+      "column": 13,
+      "expression": "!/(?:^|[?&])truckReach=0(?:&|$)/.test((root.location && root.location.search) || '')",
+      "pattern": "(?:^|[?&])truckReach=0(?:&|$)",
+      "flags": "",
+      "method": "test",
+      "negated": true,
+      "cases": [
+        {
+          "query": "",
+          "output": true
+        },
+        {
+          "query": "?truckReach=0",
+          "output": false
+        },
+        {
+          "query": "?truckReach=1",
+          "output": true
+        },
+        {
+          "query": "?truckReach=off",
+          "output": true
+        },
+        {
+          "query": "?truckReach=false",
+          "output": true
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "crewEyes",
+      "file": "battle/modules/58-strategic-abstract-transport.js",
+      "line": 1216,
+      "column": 13,
+      "expression": "!/(?:^|[?&])crewEyes=0(?:&|$)/.test((root.location && root.location.search) || '')",
+      "pattern": "(?:^|[?&])crewEyes=0(?:&|$)",
+      "flags": "",
+      "method": "test",
+      "negated": true,
+      "cases": [
+        {
+          "query": "",
+          "output": true
+        },
+        {
+          "query": "?crewEyes=0",
+          "output": false
+        },
+        {
+          "query": "?crewEyes=1",
+          "output": true
+        },
+        {
+          "query": "?crewEyes=off",
+          "output": true
+        },
+        {
+          "query": "?crewEyes=false",
+          "output": true
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "engineerGarrison",
+      "file": "battle/modules/21-defender-engineers.js",
+      "line": 443,
+      "column": 7,
+      "expression": "/[?&]engineerGarrison=(?:0|off|false)\\b/i.test(location.search || '')",
+      "pattern": "[?&]engineerGarrison=(?:0|off|false)\\b",
+      "flags": "i",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?engineerGarrison=0",
+          "output": true
+        },
+        {
+          "query": "?engineerGarrison=1",
+          "output": false
+        },
+        {
+          "query": "?engineerGarrison=off",
+          "output": true
+        },
+        {
+          "query": "?engineerGarrison=false",
+          "output": true
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "fastRetarget",
+      "file": "battle/modules/52-fbx-model-retarget.js",
+      "line": 32,
+      "column": 44,
+      "expression": "/[?&]fastRetarget=0\\b/.test(location.search || '')",
+      "pattern": "[?&]fastRetarget=0\\b",
+      "flags": "",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?fastRetarget=0",
+          "output": true
+        },
+        {
+          "query": "?fastRetarget=1",
+          "output": false
+        },
+        {
+          "query": "?fastRetarget=off",
+          "output": false
+        },
+        {
+          "query": "?fastRetarget=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "fixedClock",
+      "file": "battle/modules/00-fixed-step-clock.js",
+      "line": 71,
+      "column": 9,
+      "expression": "/[?&]fixedClock=0(?:&|$)/.test(search)",
+      "pattern": "[?&]fixedClock=0(?:&|$)",
+      "flags": "",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?fixedClock=0",
+          "output": true
+        },
+        {
+          "query": "?fixedClock=1",
+          "output": false
+        },
+        {
+          "query": "?fixedClock=off",
+          "output": false
+        },
+        {
+          "query": "?fixedClock=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "fixedClock",
+      "file": "battle/modules/00-fixed-step-clock.js",
+      "line": 77,
+      "column": 10,
+      "expression": "!/[?&]fixedClock=all(?:&|$)/.test(search)",
+      "pattern": "[?&]fixedClock=all(?:&|$)",
+      "flags": "",
+      "method": "test",
+      "negated": true,
+      "cases": [
+        {
+          "query": "",
+          "output": true
+        },
+        {
+          "query": "?fixedClock=0",
+          "output": true
+        },
+        {
+          "query": "?fixedClock=1",
+          "output": true
+        },
+        {
+          "query": "?fixedClock=off",
+          "output": true
+        },
+        {
+          "query": "?fixedClock=false",
+          "output": true
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "fledBriefEnd",
+      "file": "battle/modules/22-commander-reconstitution.js",
+      "line": 49,
+      "column": 28,
+      "expression": "!/[?&]fledBriefEnd=(?:0|off|false)(?:&|#|$)/i.test(\n        typeof location !== 'undefined' ? location.search || '' : ''\n      )",
+      "pattern": "[?&]fledBriefEnd=(?:0|off|false)(?:&|#|$)",
+      "flags": "i",
+      "method": "test",
+      "negated": true,
+      "cases": [
+        {
+          "query": "",
+          "output": true
+        },
+        {
+          "query": "?fledBriefEnd=0",
+          "output": false
+        },
+        {
+          "query": "?fledBriefEnd=1",
+          "output": true
+        },
+        {
+          "query": "?fledBriefEnd=off",
+          "output": false
+        },
+        {
+          "query": "?fledBriefEnd=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "fledWaitMerge",
+      "file": "battle/modules/22-commander-reconstitution.js",
+      "line": 442,
+      "column": 34,
+      "expression": "!/[?&]fledWaitMerge=(?:0|off|false)(?:&|#|$)/i.test(\n      typeof location !== 'undefined' ? location.search || '' : ''\n    )",
+      "pattern": "[?&]fledWaitMerge=(?:0|off|false)(?:&|#|$)",
+      "flags": "i",
+      "method": "test",
+      "negated": true,
+      "cases": [
+        {
+          "query": "",
+          "output": true
+        },
+        {
+          "query": "?fledWaitMerge=0",
+          "output": false
+        },
+        {
+          "query": "?fledWaitMerge=1",
+          "output": true
+        },
+        {
+          "query": "?fledWaitMerge=off",
+          "output": false
+        },
+        {
+          "query": "?fledWaitMerge=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "fledElimination",
+      "file": "battle/commander-doctrine.js",
+      "line": 141,
+      "column": 13,
+      "expression": "!/[?&]fledElimination=(?:0|off|false)(?:&|#|$)/i.test(search || '')",
+      "pattern": "[?&]fledElimination=(?:0|off|false)(?:&|#|$)",
+      "flags": "i",
+      "method": "test",
+      "negated": true,
+      "cases": [
+        {
+          "query": "",
+          "output": true
+        },
+        {
+          "query": "?fledElimination=0",
+          "output": false
+        },
+        {
+          "query": "?fledElimination=1",
+          "output": true
+        },
+        {
+          "query": "?fledElimination=off",
+          "output": false
+        },
+        {
+          "query": "?fledElimination=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "generalIntel",
+      "file": "battle/commander-doctrine.js",
+      "line": 162,
+      "column": 13,
+      "expression": "!/[?&]generalIntel=(?:0|off|false)(?:&|#|$)/i.test(search || '')",
+      "pattern": "[?&]generalIntel=(?:0|off|false)(?:&|#|$)",
+      "flags": "i",
+      "method": "test",
+      "negated": true,
+      "cases": [
+        {
+          "query": "",
+          "output": true
+        },
+        {
+          "query": "?generalIntel=0",
+          "output": false
+        },
+        {
+          "query": "?generalIntel=1",
+          "output": true
+        },
+        {
+          "query": "?generalIntel=off",
+          "output": false
+        },
+        {
+          "query": "?generalIntel=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "frontLineRule",
+      "file": "battle/modules/21b-strategic-front-lines.js",
+      "line": 45,
+      "column": 13,
+      "expression": "!/(?:^|[?&])frontLineRule=0(?:&|$)/.test((root.location && root.location.search) || '')",
+      "pattern": "(?:^|[?&])frontLineRule=0(?:&|$)",
+      "flags": "",
+      "method": "test",
+      "negated": true,
+      "cases": [
+        {
+          "query": "",
+          "output": true
+        },
+        {
+          "query": "?frontLineRule=0",
+          "output": false
+        },
+        {
+          "query": "?frontLineRule=1",
+          "output": true
+        },
+        {
+          "query": "?frontLineRule=off",
+          "output": true
+        },
+        {
+          "query": "?frontLineRule=false",
+          "output": true
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "splitRoads",
+      "file": "battle/modules/21b-strategic-front-lines.js",
+      "line": 180,
+      "column": 13,
+      "expression": "!/(?:^|[?&])splitRoads=0(?:&|$)/.test((root.location && root.location.search) || '')",
+      "pattern": "(?:^|[?&])splitRoads=0(?:&|$)",
+      "flags": "",
+      "method": "test",
+      "negated": true,
+      "cases": [
+        {
+          "query": "",
+          "output": true
+        },
+        {
+          "query": "?splitRoads=0",
+          "output": false
+        },
+        {
+          "query": "?splitRoads=1",
+          "output": true
+        },
+        {
+          "query": "?splitRoads=off",
+          "output": true
+        },
+        {
+          "query": "?splitRoads=false",
+          "output": true
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "roadFromHere",
+      "file": "battle/modules/21b-strategic-front-lines.js",
+      "line": 199,
+      "column": 13,
+      "expression": "!/(?:^|[?&])roadFromHere=0(?:&|$)/.test((root.location && root.location.search) || '')",
+      "pattern": "(?:^|[?&])roadFromHere=0(?:&|$)",
+      "flags": "",
+      "method": "test",
+      "negated": true,
+      "cases": [
+        {
+          "query": "",
+          "output": true
+        },
+        {
+          "query": "?roadFromHere=0",
+          "output": false
+        },
+        {
+          "query": "?roadFromHere=1",
+          "output": true
+        },
+        {
+          "query": "?roadFromHere=off",
+          "output": true
+        },
+        {
+          "query": "?roadFromHere=false",
+          "output": true
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "strategicInterception",
+      "file": "battle/scenario-generator.js",
+      "line": 670,
+      "column": 42,
+      "expression": "/[?&]strategicInterception=1(?:&|$)/.test(location.search || '')",
+      "pattern": "[?&]strategicInterception=1(?:&|$)",
+      "flags": "",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?strategicInterception=0",
+          "output": false
+        },
+        {
+          "query": "?strategicInterception=1",
+          "output": true
+        },
+        {
+          "query": "?strategicInterception=off",
+          "output": false
+        },
+        {
+          "query": "?strategicInterception=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "frontLines",
+      "file": "battle/scenario-generator.js",
+      "line": 675,
+      "column": 42,
+      "expression": "/[?&]frontLines=1(?:&|$)/.test(location.search || '')",
+      "pattern": "[?&]frontLines=1(?:&|$)",
+      "flags": "",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?frontLines=0",
+          "output": false
+        },
+        {
+          "query": "?frontLines=1",
+          "output": true
+        },
+        {
+          "query": "?frontLines=off",
+          "output": false
+        },
+        {
+          "query": "?frontLines=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "fxPrewarm",
+      "file": "battle/modules/15-bullet-impact-fx.js",
+      "line": 766,
+      "column": 57,
+      "expression": "/[?&]fxPrewarm=0\\b/.test(location.search || '')",
+      "pattern": "[?&]fxPrewarm=0\\b",
+      "flags": "",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?fxPrewarm=0",
+          "output": true
+        },
+        {
+          "query": "?fxPrewarm=1",
+          "output": false
+        },
+        {
+          "query": "?fxPrewarm=off",
+          "output": false
+        },
+        {
+          "query": "?fxPrewarm=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "tracerPool",
+      "file": "battle/modules/13-combat-fx-consistency.js",
+      "line": 150,
+      "column": 58,
+      "expression": "/[?&]tracerPool=0\\b/.test(location.search || '')",
+      "pattern": "[?&]tracerPool=0\\b",
+      "flags": "",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?tracerPool=0",
+          "output": true
+        },
+        {
+          "query": "?tracerPool=1",
+          "output": false
+        },
+        {
+          "query": "?tracerPool=off",
+          "output": false
+        },
+        {
+          "query": "?tracerPool=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "fxPrewarm",
+      "file": "battle/modules/13-combat-fx-consistency.js",
+      "line": 249,
+      "column": 57,
+      "expression": "/[?&]fxPrewarm=0\\b/.test(location.search || '')",
+      "pattern": "[?&]fxPrewarm=0\\b",
+      "flags": "",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?fxPrewarm=0",
+          "output": true
+        },
+        {
+          "query": "?fxPrewarm=1",
+          "output": false
+        },
+        {
+          "query": "?fxPrewarm=off",
+          "output": false
+        },
+        {
+          "query": "?fxPrewarm=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "geScout",
+      "file": "battle/weapons.js",
+      "line": 276,
+      "column": 42,
+      "expression": "/[?&]geScout=carbine\\b/.test(location.search || '')",
+      "pattern": "[?&]geScout=carbine\\b",
+      "flags": "",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?geScout=0",
+          "output": false
+        },
+        {
+          "query": "?geScout=1",
+          "output": false
+        },
+        {
+          "query": "?geScout=off",
+          "output": false
+        },
+        {
+          "query": "?geScout=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "grenadeAudio",
+      "file": "battle/modules/24a-grenade-audio.js",
+      "line": 32,
+      "column": 42,
+      "expression": "/[?&]grenadeAudio=0\\b/.test(location.search || '')",
+      "pattern": "[?&]grenadeAudio=0\\b",
+      "flags": "",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?grenadeAudio=0",
+          "output": true
+        },
+        {
+          "query": "?grenadeAudio=1",
+          "output": false
+        },
+        {
+          "query": "?grenadeAudio=off",
+          "output": false
+        },
+        {
+          "query": "?grenadeAudio=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "grenadeFog",
+      "file": "battle/modules/24-grenade-fx.js",
+      "line": 21,
+      "column": 15,
+      "expression": "!/(?:^|[?&])grenadeFog=(?:0|off)(?:&|$)/.test(\n      typeof location !== 'undefined' ? location.search || '' : ''\n    )",
+      "pattern": "(?:^|[?&])grenadeFog=(?:0|off)(?:&|$)",
+      "flags": "",
+      "method": "test",
+      "negated": true,
+      "cases": [
+        {
+          "query": "",
+          "output": true
+        },
+        {
+          "query": "?grenadeFog=0",
+          "output": false
+        },
+        {
+          "query": "?grenadeFog=1",
+          "output": true
+        },
+        {
+          "query": "?grenadeFog=off",
+          "output": false
+        },
+        {
+          "query": "?grenadeFog=false",
+          "output": true
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "grenades",
+      "file": "battle/modules/23-grenades.js",
+      "line": 16,
+      "column": 13,
+      "expression": "/[?&]grenades=([^&#]*)/.exec(search || '')",
+      "pattern": "[?&]grenades=([^&#]*)",
+      "flags": "",
+      "method": "exec",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": null
+        },
+        {
+          "query": "?grenades=0",
+          "output": [
+            "?grenades=0",
+            "0"
+          ]
+        },
+        {
+          "query": "?grenades=1",
+          "output": [
+            "?grenades=1",
+            "1"
+          ]
+        },
+        {
+          "query": "?grenades=off",
+          "output": [
+            "?grenades=off",
+            "off"
+          ]
+        },
+        {
+          "query": "?grenades=false",
+          "output": [
+            "?grenades=false",
+            "false"
+          ]
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "groundSteps",
+      "file": "battle/modules/14-z-ballistic-raycast.js",
+      "line": 21,
+      "column": 48,
+      "expression": "/[?&]groundSteps=(\\d+)\\b/.exec(location.search || '')",
+      "pattern": "[?&]groundSteps=(\\d+)\\b",
+      "flags": "",
+      "method": "exec",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": null
+        },
+        {
+          "query": "?groundSteps=0",
+          "output": [
+            "?groundSteps=0",
+            "0"
+          ]
+        },
+        {
+          "query": "?groundSteps=1",
+          "output": [
+            "?groundSteps=1",
+            "1"
+          ]
+        },
+        {
+          "query": "?groundSteps=off",
+          "output": null
+        },
+        {
+          "query": "?groundSteps=false",
+          "output": null
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "localPlan",
+      "file": "battle/modules/15n-squad-leader-local-plan.js",
+      "line": 11,
+      "column": 12,
+      "expression": "/[?&]localPlan=(?:1|on|true)(?:&|#|$)/i.test((root.location && root.location.search) || '')",
+      "pattern": "[?&]localPlan=(?:1|on|true)(?:&|#|$)",
+      "flags": "i",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?localPlan=0",
+          "output": false
+        },
+        {
+          "query": "?localPlan=1",
+          "output": true
+        },
+        {
+          "query": "?localPlan=off",
+          "output": false
+        },
+        {
+          "query": "?localPlan=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "localResources",
+      "file": "battle/modules/15n-squad-leader-local-plan.js",
+      "line": 14,
+      "column": 9,
+      "expression": "/[?&]localResources=(?:1|on|true)(?:&|#|$)/i.test((root.location && root.location.search) || '')",
+      "pattern": "[?&]localResources=(?:1|on|true)(?:&|#|$)",
+      "flags": "i",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?localResources=0",
+          "output": false
+        },
+        {
+          "query": "?localResources=1",
+          "output": true
+        },
+        {
+          "query": "?localResources=off",
+          "output": false
+        },
+        {
+          "query": "?localResources=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "localDegrade",
+      "file": "battle/modules/15n-squad-leader-local-plan.js",
+      "line": 16,
+      "column": 15,
+      "expression": "/[?&]localDegrade=(?:1|on|true)(?:&|#|$)/i.test((root.location && root.location.search) || '')",
+      "pattern": "[?&]localDegrade=(?:1|on|true)(?:&|#|$)",
+      "flags": "i",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?localDegrade=0",
+          "output": false
+        },
+        {
+          "query": "?localDegrade=1",
+          "output": true
+        },
+        {
+          "query": "?localDegrade=off",
+          "output": false
+        },
+        {
+          "query": "?localDegrade=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "localTasks",
+      "file": "battle/modules/15n-squad-leader-local-plan.js",
+      "line": 18,
+      "column": 15,
+      "expression": "/[?&]localTasks=(?:1|on|true)(?:&|#|$)/i.test((root.location && root.location.search) || '')",
+      "pattern": "[?&]localTasks=(?:1|on|true)(?:&|#|$)",
+      "flags": "i",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?localTasks=0",
+          "output": false
+        },
+        {
+          "query": "?localTasks=1",
+          "output": true
+        },
+        {
+          "query": "?localTasks=off",
+          "output": false
+        },
+        {
+          "query": "?localTasks=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "localStructures",
+      "file": "battle/modules/15n-squad-leader-local-plan.js",
+      "line": 21,
+      "column": 9,
+      "expression": "/[?&]localStructures=(?:1|on|true)(?:&|#|$)/i.test((root.location && root.location.search) || '')",
+      "pattern": "[?&]localStructures=(?:1|on|true)(?:&|#|$)",
+      "flags": "i",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?localStructures=0",
+          "output": false
+        },
+        {
+          "query": "?localStructures=1",
+          "output": true
+        },
+        {
+          "query": "?localStructures=off",
+          "output": false
+        },
+        {
+          "query": "?localStructures=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "localEntry",
+      "file": "battle/modules/15n-squad-leader-local-plan.js",
+      "line": 24,
+      "column": 9,
+      "expression": "/[?&]localEntry=(?:1|on|true)(?:&|#|$)/i.test((root.location && root.location.search) || '')",
+      "pattern": "[?&]localEntry=(?:1|on|true)(?:&|#|$)",
+      "flags": "i",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?localEntry=0",
+          "output": false
+        },
+        {
+          "query": "?localEntry=1",
+          "output": true
+        },
+        {
+          "query": "?localEntry=off",
+          "output": false
+        },
+        {
+          "query": "?localEntry=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "localEntryGate",
+      "file": "battle/modules/15n-squad-leader-local-plan.js",
+      "line": 27,
+      "column": 9,
+      "expression": "/[?&]localEntryGate=(?:1|on|true)(?:&|#|$)/i.test((root.location && root.location.search) || '')",
+      "pattern": "[?&]localEntryGate=(?:1|on|true)(?:&|#|$)",
+      "flags": "i",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?localEntryGate=0",
+          "output": false
+        },
+        {
+          "query": "?localEntryGate=1",
+          "output": true
+        },
+        {
+          "query": "?localEntryGate=off",
+          "output": false
+        },
+        {
+          "query": "?localEntryGate=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "localSurvey",
+      "file": "battle/modules/15n-squad-leader-local-plan.js",
+      "line": 30,
+      "column": 9,
+      "expression": "/[?&]localSurvey=(?:1|on|true)(?:&|#|$)/i.test((root.location && root.location.search) || '')",
+      "pattern": "[?&]localSurvey=(?:1|on|true)(?:&|#|$)",
+      "flags": "i",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?localSurvey=0",
+          "output": false
+        },
+        {
+          "query": "?localSurvey=1",
+          "output": true
+        },
+        {
+          "query": "?localSurvey=off",
+          "output": false
+        },
+        {
+          "query": "?localSurvey=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "localWatch",
+      "file": "battle/modules/15n-squad-leader-local-plan.js",
+      "line": 33,
+      "column": 9,
+      "expression": "/[?&]localWatch=(?:1|on|true)(?:&|#|$)/i.test((root.location && root.location.search) || '')",
+      "pattern": "[?&]localWatch=(?:1|on|true)(?:&|#|$)",
+      "flags": "i",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?localWatch=0",
+          "output": false
+        },
+        {
+          "query": "?localWatch=1",
+          "output": true
+        },
+        {
+          "query": "?localWatch=off",
+          "output": false
+        },
+        {
+          "query": "?localWatch=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "localContactResume",
+      "file": "battle/modules/15n-squad-leader-local-plan.js",
+      "line": 36,
+      "column": 9,
+      "expression": "/[?&]localContactResume=(?:1|on|true)(?:&|#|$)/i.test((root.location && root.location.search) || '')",
+      "pattern": "[?&]localContactResume=(?:1|on|true)(?:&|#|$)",
+      "flags": "i",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?localContactResume=0",
+          "output": false
+        },
+        {
+          "query": "?localContactResume=1",
+          "output": true
+        },
+        {
+          "query": "?localContactResume=off",
+          "output": false
+        },
+        {
+          "query": "?localContactResume=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "localContinuity",
+      "file": "battle/modules/15n-squad-leader-local-plan.js",
+      "line": 39,
+      "column": 9,
+      "expression": "/[?&]localContinuity=(?:1|on|true)(?:&|#|$)/i.test((root.location && root.location.search) || '')",
+      "pattern": "[?&]localContinuity=(?:1|on|true)(?:&|#|$)",
+      "flags": "i",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?localContinuity=0",
+          "output": false
+        },
+        {
+          "query": "?localContinuity=1",
+          "output": true
+        },
+        {
+          "query": "?localContinuity=off",
+          "output": false
+        },
+        {
+          "query": "?localContinuity=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "localStructureOrders",
+      "file": "battle/modules/15n-squad-leader-local-plan.js",
+      "line": 44,
+      "column": 9,
+      "expression": "/[?&]localStructureOrders=(?:1|on|true)(?:&|#|$)/i.test(\n          (root.location && root.location.search) || ''\n        )",
+      "pattern": "[?&]localStructureOrders=(?:1|on|true)(?:&|#|$)",
+      "flags": "i",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?localStructureOrders=0",
+          "output": false
+        },
+        {
+          "query": "?localStructureOrders=1",
+          "output": true
+        },
+        {
+          "query": "?localStructureOrders=off",
+          "output": false
+        },
+        {
+          "query": "?localStructureOrders=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "log",
+      "file": "battle/core-runtime.js",
+      "line": 58,
+      "column": 53,
+      "expression": "/[?&]log=0\\b/.test(location.search || '')",
+      "pattern": "[?&]log=0\\b",
+      "flags": "",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?log=0",
+          "output": true
+        },
+        {
+          "query": "?log=1",
+          "output": false
+        },
+        {
+          "query": "?log=off",
+          "output": false
+        },
+        {
+          "query": "?log=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "medic",
+      "file": "battle/modules/14-wound-model.js",
+      "line": 57,
+      "column": 13,
+      "expression": "!/[?&]medic=(?:0|off|false)(?:&|#|$)/i.test(search || '')",
+      "pattern": "[?&]medic=(?:0|off|false)(?:&|#|$)",
+      "flags": "i",
+      "method": "test",
+      "negated": true,
+      "cases": [
+        {
+          "query": "",
+          "output": true
+        },
+        {
+          "query": "?medic=0",
+          "output": false
+        },
+        {
+          "query": "?medic=1",
+          "output": true
+        },
+        {
+          "query": "?medic=off",
+          "output": false
+        },
+        {
+          "query": "?medic=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "mergeWalls",
+      "file": "battle/town-objectives.js",
+      "line": 191,
+      "column": 52,
+      "expression": "/[?&]mergeWalls=0\\b/.test(location.search || '')",
+      "pattern": "[?&]mergeWalls=0\\b",
+      "flags": "",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?mergeWalls=0",
+          "output": true
+        },
+        {
+          "query": "?mergeWalls=1",
+          "output": false
+        },
+        {
+          "query": "?mergeWalls=off",
+          "output": false
+        },
+        {
+          "query": "?mergeWalls=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "stressMem",
+      "file": "battle/modules/17-soldier-mind.js",
+      "line": 54,
+      "column": 13,
+      "expression": "/[?&]stressMem=([^&#]*)/.exec(search || '')",
+      "pattern": "[?&]stressMem=([^&#]*)",
+      "flags": "",
+      "method": "exec",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": null
+        },
+        {
+          "query": "?stressMem=0",
+          "output": [
+            "?stressMem=0",
+            "0"
+          ]
+        },
+        {
+          "query": "?stressMem=1",
+          "output": [
+            "?stressMem=1",
+            "1"
+          ]
+        },
+        {
+          "query": "?stressMem=off",
+          "output": [
+            "?stressMem=off",
+            "off"
+          ]
+        },
+        {
+          "query": "?stressMem=false",
+          "output": [
+            "?stressMem=false",
+            "false"
+          ]
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "mind",
+      "file": "battle/modules/17-soldier-mind.js",
+      "line": 68,
+      "column": 13,
+      "expression": "/[?&]mind=([^&#]*)/.exec(search || '')",
+      "pattern": "[?&]mind=([^&#]*)",
+      "flags": "",
+      "method": "exec",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": null
+        },
+        {
+          "query": "?mind=0",
+          "output": [
+            "?mind=0",
+            "0"
+          ]
+        },
+        {
+          "query": "?mind=1",
+          "output": [
+            "?mind=1",
+            "1"
+          ]
+        },
+        {
+          "query": "?mind=off",
+          "output": [
+            "?mind=off",
+            "off"
+          ]
+        },
+        {
+          "query": "?mind=false",
+          "output": [
+            "?mind=false",
+            "false"
+          ]
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "truckLite",
+      "file": "battle/modules/59-strategic-truck-visual.js",
+      "line": 51,
+      "column": 13,
+      "expression": "!/(?:^|[?&])truckLite=0(?:&|$)/.test((root.location && root.location.search) || '')",
+      "pattern": "(?:^|[?&])truckLite=0(?:&|$)",
+      "flags": "",
+      "method": "test",
+      "negated": true,
+      "cases": [
+        {
+          "query": "",
+          "output": true
+        },
+        {
+          "query": "?truckLite=0",
+          "output": false
+        },
+        {
+          "query": "?truckLite=1",
+          "output": true
+        },
+        {
+          "query": "?truckLite=off",
+          "output": true
+        },
+        {
+          "query": "?truckLite=false",
+          "output": true
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "truckTex",
+      "file": "battle/modules/59-strategic-truck-visual.js",
+      "line": 55,
+      "column": 13,
+      "expression": "/[?&]truckTex=(\\d+)/.exec((root.location && root.location.search) || '')",
+      "pattern": "[?&]truckTex=(\\d+)",
+      "flags": "",
+      "method": "exec",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": null
+        },
+        {
+          "query": "?truckTex=0",
+          "output": [
+            "?truckTex=0",
+            "0"
+          ]
+        },
+        {
+          "query": "?truckTex=1",
+          "output": [
+            "?truckTex=1",
+            "1"
+          ]
+        },
+        {
+          "query": "?truckTex=off",
+          "output": null
+        },
+        {
+          "query": "?truckTex=false",
+          "output": null
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "strategicInterception",
+      "file": "battle/modules/59-strategic-truck-visual.js",
+      "line": 123,
+      "column": 7,
+      "expression": "/(?:^|[?&])strategicInterception=1(?:&|$)/.test(search)",
+      "pattern": "(?:^|[?&])strategicInterception=1(?:&|$)",
+      "flags": "",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?strategicInterception=0",
+          "output": false
+        },
+        {
+          "query": "?strategicInterception=1",
+          "output": true
+        },
+        {
+          "query": "?strategicInterception=off",
+          "output": false
+        },
+        {
+          "query": "?strategicInterception=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "motorTransport",
+      "file": "battle/modules/59-strategic-truck-visual.js",
+      "line": 124,
+      "column": 7,
+      "expression": "/(?:^|[?&])motorTransport=1(?:&|$)/.test(search)",
+      "pattern": "(?:^|[?&])motorTransport=1(?:&|$)",
+      "flags": "",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?motorTransport=0",
+          "output": false
+        },
+        {
+          "query": "?motorTransport=1",
+          "output": true
+        },
+        {
+          "query": "?motorTransport=off",
+          "output": false
+        },
+        {
+          "query": "?motorTransport=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "truckVisual",
+      "file": "battle/modules/59-strategic-truck-visual.js",
+      "line": 125,
+      "column": 8,
+      "expression": "!/(?:^|[?&])truckVisual=0(?:&|$)/.test(search)",
+      "pattern": "(?:^|[?&])truckVisual=0(?:&|$)",
+      "flags": "",
+      "method": "test",
+      "negated": true,
+      "cases": [
+        {
+          "query": "",
+          "output": true
+        },
+        {
+          "query": "?truckVisual=0",
+          "output": false
+        },
+        {
+          "query": "?truckVisual=1",
+          "output": true
+        },
+        {
+          "query": "?truckVisual=off",
+          "output": true
+        },
+        {
+          "query": "?truckVisual=false",
+          "output": true
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "navCorner",
+      "file": "battle/modules/39-navigation-physicality-debug.js",
+      "line": 813,
+      "column": 57,
+      "expression": "/[?&]navCorner=0\\b/.test(location.search || '')",
+      "pattern": "[?&]navCorner=0\\b",
+      "flags": "",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?navCorner=0",
+          "output": true
+        },
+        {
+          "query": "?navCorner=1",
+          "output": false
+        },
+        {
+          "query": "?navCorner=off",
+          "output": false
+        },
+        {
+          "query": "?navCorner=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "reconPosts",
+      "file": "battle/modules/15c-squad-leader-scouts-forward.js",
+      "line": 43,
+      "column": 8,
+      "expression": "!/[?&]reconPosts=(?:0|off|false)(?:&|#|$)/i.test(location.search || '')",
+      "pattern": "[?&]reconPosts=(?:0|off|false)(?:&|#|$)",
+      "flags": "i",
+      "method": "test",
+      "negated": true,
+      "cases": [
+        {
+          "query": "",
+          "output": true
+        },
+        {
+          "query": "?reconPosts=0",
+          "output": false
+        },
+        {
+          "query": "?reconPosts=1",
+          "output": true
+        },
+        {
+          "query": "?reconPosts=off",
+          "output": false
+        },
+        {
+          "query": "?reconPosts=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "reconBudget",
+      "file": "battle/modules/15c-squad-leader-scouts-forward.js",
+      "line": 50,
+      "column": 8,
+      "expression": "!/[?&]reconBudget=(?:0|off|false)(?:&|#|$)/i.test(location.search || '')",
+      "pattern": "[?&]reconBudget=(?:0|off|false)(?:&|#|$)",
+      "flags": "i",
+      "method": "test",
+      "negated": true,
+      "cases": [
+        {
+          "query": "",
+          "output": true
+        },
+        {
+          "query": "?reconBudget=0",
+          "output": false
+        },
+        {
+          "query": "?reconBudget=1",
+          "output": true
+        },
+        {
+          "query": "?reconBudget=off",
+          "output": false
+        },
+        {
+          "query": "?reconBudget=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "reinforcements",
+      "file": "battle/modules/21c-strategic-reinforcements.js",
+      "line": 20,
+      "column": 12,
+      "expression": "/(?:^|[?&])reinforcements=1(?:&|$)/.test((root.location && root.location.search) || '')",
+      "pattern": "(?:^|[?&])reinforcements=1(?:&|$)",
+      "flags": "",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?reinforcements=0",
+          "output": false
+        },
+        {
+          "query": "?reinforcements=1",
+          "output": true
+        },
+        {
+          "query": "?reinforcements=off",
+          "output": false
+        },
+        {
+          "query": "?reinforcements=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "reinforcementSortie",
+      "file": "battle/modules/21c-strategic-reinforcements.js",
+      "line": 32,
+      "column": 12,
+      "expression": "/(?:^|[?&])reinforcementSortie=1(?:&|$)/.test((root.location && root.location.search) || '')",
+      "pattern": "(?:^|[?&])reinforcementSortie=1(?:&|$)",
+      "flags": "",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?reinforcementSortie=0",
+          "output": false
+        },
+        {
+          "query": "?reinforcementSortie=1",
+          "output": true
+        },
+        {
+          "query": "?reinforcementSortie=off",
+          "output": false
+        },
+        {
+          "query": "?reinforcementSortie=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "retreatArrival",
+      "file": "battle/modules/15f-squad-leader-retreat-anchor.js",
+      "line": 62,
+      "column": 31,
+      "expression": "!/[?&]retreatArrival=(?:0|off|false)(?:&|#|$)/i.test(\n      typeof location !== 'undefined' ? location.search || '' : ''\n    )",
+      "pattern": "[?&]retreatArrival=(?:0|off|false)(?:&|#|$)",
+      "flags": "i",
+      "method": "test",
+      "negated": true,
+      "cases": [
+        {
+          "query": "",
+          "output": true
+        },
+        {
+          "query": "?retreatArrival=0",
+          "output": false
+        },
+        {
+          "query": "?retreatArrival=1",
+          "output": true
+        },
+        {
+          "query": "?retreatArrival=off",
+          "output": false
+        },
+        {
+          "query": "?retreatArrival=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "retreatStride",
+      "file": "battle/modules/15f-squad-leader-retreat-anchor.js",
+      "line": 79,
+      "column": 30,
+      "expression": "!/[?&]retreatStride=(?:0|off|false)(?:&|#|$)/i.test(\n      typeof location !== 'undefined' ? location.search || '' : ''\n    )",
+      "pattern": "[?&]retreatStride=(?:0|off|false)(?:&|#|$)",
+      "flags": "i",
+      "method": "test",
+      "negated": true,
+      "cases": [
+        {
+          "query": "",
+          "output": true
+        },
+        {
+          "query": "?retreatStride=0",
+          "output": false
+        },
+        {
+          "query": "?retreatStride=1",
+          "output": true
+        },
+        {
+          "query": "?retreatStride=off",
+          "output": false
+        },
+        {
+          "query": "?retreatStride=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "retreatLostContact",
+      "file": "battle/modules/15h-squad-leader-fireteams.js",
+      "line": 50,
+      "column": 34,
+      "expression": "!/[?&]retreatLostContact=(?:0|off|false)(?:&|#|$)/i.test(\n        (root.location && root.location.search) || ''\n      )",
+      "pattern": "[?&]retreatLostContact=(?:0|off|false)(?:&|#|$)",
+      "flags": "i",
+      "method": "test",
+      "negated": true,
+      "cases": [
+        {
+          "query": "",
+          "output": true
+        },
+        {
+          "query": "?retreatLostContact=0",
+          "output": false
+        },
+        {
+          "query": "?retreatLostContact=1",
+          "output": true
+        },
+        {
+          "query": "?retreatLostContact=off",
+          "output": false
+        },
+        {
+          "query": "?retreatLostContact=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "screenStallHold",
+      "file": "battle/modules/22a-commander-strategic-recovery.js",
+      "line": 105,
+      "column": 11,
+      "expression": "/(?:^|[?&])screenStallHold=0(?:&|$)/.test((root.location && root.location.search) || '')",
+      "pattern": "(?:^|[?&])screenStallHold=0(?:&|$)",
+      "flags": "",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?screenStallHold=0",
+          "output": true
+        },
+        {
+          "query": "?screenStallHold=1",
+          "output": false
+        },
+        {
+          "query": "?screenStallHold=off",
+          "output": false
+        },
+        {
+          "query": "?screenStallHold=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "soldierLod",
+      "file": "battle/modules/52-fbx-mesh-lod.js",
+      "line": 27,
+      "column": 52,
+      "expression": "/[?&]soldierLod=0\\b/.test(location.search || '')",
+      "pattern": "[?&]soldierLod=0\\b",
+      "flags": "",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?soldierLod=0",
+          "output": true
+        },
+        {
+          "query": "?soldierLod=1",
+          "output": false
+        },
+        {
+          "query": "?soldierLod=off",
+          "output": false
+        },
+        {
+          "query": "?soldierLod=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "squadBroadcast",
+      "file": "battle/modules/49-squad-broadcast.js",
+      "line": 33,
+      "column": 40,
+      "expression": "/[?&]squadBroadcast=(?:0|off|false)\\b/i.test(location.search || '')",
+      "pattern": "[?&]squadBroadcast=(?:0|off|false)\\b",
+      "flags": "i",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?squadBroadcast=0",
+          "output": true
+        },
+        {
+          "query": "?squadBroadcast=1",
+          "output": false
+        },
+        {
+          "query": "?squadBroadcast=off",
+          "output": true
+        },
+        {
+          "query": "?squadBroadcast=false",
+          "output": true
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "stats",
+      "file": "battle/modules/10-soldier-stats.js",
+      "line": 39,
+      "column": 13,
+      "expression": "/[?&]stats=([^&#]*)/.exec(search || '')",
+      "pattern": "[?&]stats=([^&#]*)",
+      "flags": "",
+      "method": "exec",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": null
+        },
+        {
+          "query": "?stats=0",
+          "output": [
+            "?stats=0",
+            "0"
+          ]
+        },
+        {
+          "query": "?stats=1",
+          "output": [
+            "?stats=1",
+            "1"
+          ]
+        },
+        {
+          "query": "?stats=off",
+          "output": [
+            "?stats=off",
+            "off"
+          ]
+        },
+        {
+          "query": "?stats=false",
+          "output": [
+            "?stats=false",
+            "false"
+          ]
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "tacticalSituation",
+      "file": "battle/modules/54-tactical-situation.js",
+      "line": 10,
+      "column": 12,
+      "expression": "/[?&]tacticalSituation=1\\b/.test((root.location && root.location.search) || '')",
+      "pattern": "[?&]tacticalSituation=1\\b",
+      "flags": "",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?tacticalSituation=0",
+          "output": false
+        },
+        {
+          "query": "?tacticalSituation=1",
+          "output": true
+        },
+        {
+          "query": "?tacticalSituation=off",
+          "output": false
+        },
+        {
+          "query": "?tacticalSituation=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "transportHandoff",
+      "file": "battle/modules/15l-squad-leader-mission-execution.js",
+      "line": 53,
+      "column": 15,
+      "expression": "!/(?:^|[?&])transportHandoff=0(?:&|$)/.test((root.location && root.location.search) || '')",
+      "pattern": "(?:^|[?&])transportHandoff=0(?:&|$)",
+      "flags": "",
+      "method": "test",
+      "negated": true,
+      "cases": [
+        {
+          "query": "",
+          "output": true
+        },
+        {
+          "query": "?transportHandoff=0",
+          "output": false
+        },
+        {
+          "query": "?transportHandoff=1",
+          "output": true
+        },
+        {
+          "query": "?transportHandoff=off",
+          "output": true
+        },
+        {
+          "query": "?transportHandoff=false",
+          "output": true
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "urbanPicture",
+      "file": "battle/modules/54a-urban-operating-picture.js",
+      "line": 12,
+      "column": 12,
+      "expression": "/[?&]urbanPicture=1\\b/.test((root.location && root.location.search) || '')",
+      "pattern": "[?&]urbanPicture=1\\b",
+      "flags": "",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?urbanPicture=0",
+          "output": false
+        },
+        {
+          "query": "?urbanPicture=1",
+          "output": true
+        },
+        {
+          "query": "?urbanPicture=off",
+          "output": false
+        },
+        {
+          "query": "?urbanPicture=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "weaponFoley",
+      "file": "battle/modules/15-weapon-foley-audio.js",
+      "line": 81,
+      "column": 49,
+      "expression": "/[?&]weaponFoley=0\\b/.test(location.search || '')",
+      "pattern": "[?&]weaponFoley=0\\b",
+      "flags": "",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?weaponFoley=0",
+          "output": true
+        },
+        {
+          "query": "?weaponFoley=1",
+          "output": false
+        },
+        {
+          "query": "?weaponFoley=off",
+          "output": false
+        },
+        {
+          "query": "?weaponFoley=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "windowPort",
+      "file": "battle/battle-navigation.js",
+      "line": 34,
+      "column": 51,
+      "expression": "/[?&]windowPort=0\\b/.test(location.search || '')",
+      "pattern": "[?&]windowPort=0\\b",
+      "flags": "",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?windowPort=0",
+          "output": true
+        },
+        {
+          "query": "?windowPort=1",
+          "output": false
+        },
+        {
+          "query": "?windowPort=off",
+          "output": false
+        },
+        {
+          "query": "?windowPort=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "windowPort",
+      "file": "battle/modules/19b-engagement-fire-stance.js",
+      "line": 678,
+      "column": 56,
+      "expression": "/[?&]windowPort=0\\b/.test(location.search || '')",
+      "pattern": "[?&]windowPort=0\\b",
+      "flags": "",
+      "method": "test",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?windowPort=0",
+          "output": true
+        },
+        {
+          "query": "?windowPort=1",
+          "output": false
+        },
+        {
+          "query": "?windowPort=off",
+          "output": false
+        },
+        {
+          "query": "?windowPort=false",
+          "output": false
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    },
+    {
+      "name": "woundMap",
+      "file": "battle/modules/52-fbx-surface-damage.js",
+      "line": 208,
+      "column": 34,
+      "expression": "/[?&]woundMap=(\\d+)/.exec(root.location.search || '')",
+      "pattern": "[?&]woundMap=(\\d+)",
+      "flags": "",
+      "method": "exec",
+      "negated": false,
+      "cases": [
+        {
+          "query": "",
+          "output": null
+        },
+        {
+          "query": "?woundMap=0",
+          "output": [
+            "?woundMap=0",
+            "0"
+          ]
+        },
+        {
+          "query": "?woundMap=1",
+          "output": [
+            "?woundMap=1",
+            "1"
+          ]
+        },
+        {
+          "query": "?woundMap=off",
+          "output": null
+        },
+        {
+          "query": "?woundMap=false",
+          "output": null
+        }
+      ],
+      "scope": "literal regex predicate only; surrounding guards, fallback parsing and dependencies not evaluated"
+    }
+  ],
+  "initializers": [
+    {
+      "file": "battle/modules/97-device-benchmark.js",
+      "line": 27,
+      "variable": "SECONDS",
+      "expression": "Math.max(5,+q.get('benchSeconds')||60)",
+      "queryNames": [
+        "benchSeconds"
+      ],
+      "cases": [
+        {
+          "name": "benchSeconds",
+          "query": "",
+          "output": 60,
+          "queriedNames": [
+            "benchSeconds"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "benchSeconds",
+          "query": "?benchSeconds=0",
+          "output": 60,
+          "queriedNames": [
+            "benchSeconds"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "benchSeconds",
+          "query": "?benchSeconds=1",
+          "output": 5,
+          "queriedNames": [
+            "benchSeconds"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "benchSeconds",
+          "query": "?benchSeconds=off",
+          "output": 60,
+          "queriedNames": [
+            "benchSeconds"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "benchSeconds",
+          "query": "?benchSeconds=false",
+          "output": 60,
+          "queriedNames": [
+            "benchSeconds"
+          ],
+          "unexecuted": false
+        }
+      ],
+      "scope": "original initializer in query-only fixture; errors explicitly unresolved"
+    },
+    {
+      "file": "battle/modules/97-device-benchmark.js",
+      "line": 27,
+      "variable": "WARMUP",
+      "expression": "Math.max(0,q.get('benchWarmup')==null?60:+q.get('benchWarmup')||0)",
+      "queryNames": [
+        "benchWarmup"
+      ],
+      "cases": [
+        {
+          "name": "benchWarmup",
+          "query": "",
+          "output": 60,
+          "queriedNames": [
+            "benchWarmup"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "benchWarmup",
+          "query": "?benchWarmup=0",
+          "output": 0,
+          "queriedNames": [
+            "benchWarmup"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "benchWarmup",
+          "query": "?benchWarmup=1",
+          "output": 1,
+          "queriedNames": [
+            "benchWarmup"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "benchWarmup",
+          "query": "?benchWarmup=off",
+          "output": 0,
+          "queriedNames": [
+            "benchWarmup"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "benchWarmup",
+          "query": "?benchWarmup=false",
+          "output": 0,
+          "queriedNames": [
+            "benchWarmup"
+          ],
+          "unexecuted": false
+        }
+      ],
+      "scope": "original initializer in query-only fixture; errors explicitly unresolved"
+    },
+    {
+      "file": "battle/modules/97-device-benchmark.js",
+      "line": 28,
+      "variable": "CAM",
+      "expression": "/^(close|follow)$/.test(q.get('benchCam')||'')?q.get('benchCam'):'overview'",
+      "queryNames": [
+        "benchCam"
+      ],
+      "cases": [
+        {
+          "name": "benchCam",
+          "query": "",
+          "output": "overview",
+          "queriedNames": [
+            "benchCam"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "benchCam",
+          "query": "?benchCam=0",
+          "output": "overview",
+          "queriedNames": [
+            "benchCam"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "benchCam",
+          "query": "?benchCam=1",
+          "output": "overview",
+          "queriedNames": [
+            "benchCam"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "benchCam",
+          "query": "?benchCam=off",
+          "output": "overview",
+          "queriedNames": [
+            "benchCam"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "benchCam",
+          "query": "?benchCam=false",
+          "output": "overview",
+          "queriedNames": [
+            "benchCam"
+          ],
+          "unexecuted": false
+        }
+      ],
+      "scope": "original initializer in query-only fixture; errors explicitly unresolved"
+    },
+    {
+      "file": "battle/modules/97-device-benchmark.js",
+      "line": 29,
+      "variable": "FOLLOW_DIST",
+      "expression": "Math.max(3,+q.get('benchFollow')||25)",
+      "queryNames": [
+        "benchFollow"
+      ],
+      "cases": [
+        {
+          "name": "benchFollow",
+          "query": "",
+          "output": 25,
+          "queriedNames": [
+            "benchFollow"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "benchFollow",
+          "query": "?benchFollow=0",
+          "output": 25,
+          "queriedNames": [
+            "benchFollow"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "benchFollow",
+          "query": "?benchFollow=1",
+          "output": 3,
+          "queriedNames": [
+            "benchFollow"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "benchFollow",
+          "query": "?benchFollow=off",
+          "output": 25,
+          "queriedNames": [
+            "benchFollow"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "benchFollow",
+          "query": "?benchFollow=false",
+          "output": 25,
+          "queriedNames": [
+            "benchFollow"
+          ],
+          "unexecuted": false
+        }
+      ],
+      "scope": "original initializer in query-only fixture; errors explicitly unresolved"
+    },
+    {
+      "file": "battle/modules/97-device-benchmark.js",
+      "line": 29,
+      "variable": "AUTO",
+      "expression": "q.get('benchAuto')==='1'",
+      "queryNames": [
+        "benchAuto"
+      ],
+      "cases": [
+        {
+          "name": "benchAuto",
+          "query": "",
+          "output": false,
+          "queriedNames": [
+            "benchAuto"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "benchAuto",
+          "query": "?benchAuto=0",
+          "output": false,
+          "queriedNames": [
+            "benchAuto"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "benchAuto",
+          "query": "?benchAuto=1",
+          "output": true,
+          "queriedNames": [
+            "benchAuto"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "benchAuto",
+          "query": "?benchAuto=off",
+          "output": false,
+          "queriedNames": [
+            "benchAuto"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "benchAuto",
+          "query": "?benchAuto=false",
+          "output": false,
+          "queriedNames": [
+            "benchAuto"
+          ],
+          "unexecuted": false
+        }
+      ],
+      "scope": "original initializer in query-only fixture; errors explicitly unresolved"
+    },
+    {
+      "file": "battle/modules/97-device-benchmark.js",
+      "line": 32,
+      "variable": "HIDE",
+      "expression": "(q.get('benchHide')||'').split(',').map(function(k){return HIDE_ALIAS[k.trim().toLowerCase()];}).filter(Boolean)",
+      "queryNames": [
+        "benchHide"
+      ],
+      "cases": [
+        {
+          "name": "benchHide",
+          "query": "",
+          "error": "ReferenceError: HIDE_ALIAS is not defined"
+        },
+        {
+          "name": "benchHide",
+          "query": "?benchHide=0",
+          "error": "ReferenceError: HIDE_ALIAS is not defined"
+        },
+        {
+          "name": "benchHide",
+          "query": "?benchHide=1",
+          "error": "ReferenceError: HIDE_ALIAS is not defined"
+        },
+        {
+          "name": "benchHide",
+          "query": "?benchHide=off",
+          "error": "ReferenceError: HIDE_ALIAS is not defined"
+        },
+        {
+          "name": "benchHide",
+          "query": "?benchHide=false",
+          "error": "ReferenceError: HIDE_ALIAS is not defined"
+        }
+      ],
+      "scope": "original initializer in query-only fixture; errors explicitly unresolved"
+    },
+    {
+      "file": "battle/phase-c-compact-range.js",
+      "line": 10,
+      "variable": "preset",
+      "expression": "(params.get('labPreset') || 'C').toUpperCase()",
+      "queryNames": [
+        "labPreset"
+      ],
+      "cases": [
+        {
+          "name": "labPreset",
+          "query": "",
+          "output": "C",
+          "queriedNames": [
+            "labPreset"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "labPreset",
+          "query": "?labPreset=0",
+          "output": "0",
+          "queriedNames": [
+            "labPreset"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "labPreset",
+          "query": "?labPreset=1",
+          "output": "1",
+          "queriedNames": [
+            "labPreset"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "labPreset",
+          "query": "?labPreset=off",
+          "output": "OFF",
+          "queriedNames": [
+            "labPreset"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "labPreset",
+          "query": "?labPreset=false",
+          "output": "FALSE",
+          "queriedNames": [
+            "labPreset"
+          ],
+          "unexecuted": false
+        }
+      ],
+      "scope": "original initializer in query-only fixture; errors explicitly unresolved"
+    },
+    {
+      "file": "battle/phase-c-compact-range.js",
+      "line": 14,
+      "variable": "rangeScale",
+      "expression": "Number(params.get('labRange'))",
+      "queryNames": [
+        "labRange"
+      ],
+      "cases": [
+        {
+          "name": "labRange",
+          "query": "",
+          "output": 0,
+          "queriedNames": [
+            "labRange"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "labRange",
+          "query": "?labRange=0",
+          "output": 0,
+          "queriedNames": [
+            "labRange"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "labRange",
+          "query": "?labRange=1",
+          "output": 1,
+          "queriedNames": [
+            "labRange"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "labRange",
+          "query": "?labRange=off",
+          "output": null,
+          "queriedNames": [
+            "labRange"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "labRange",
+          "query": "?labRange=false",
+          "output": null,
+          "queriedNames": [
+            "labRange"
+          ],
+          "unexecuted": false
+        }
+      ],
+      "scope": "original initializer in query-only fixture; errors explicitly unresolved"
+    },
+    {
+      "file": "battle/phase-c-compact-range.js",
+      "line": 16,
+      "variable": "movementPace",
+      "expression": "['baseline', 'purposeful'].indexOf(params.get('labMove')) >= 0 ? params.get('labMove') : 'autonomous'",
+      "queryNames": [
+        "labMove"
+      ],
+      "cases": [
+        {
+          "name": "labMove",
+          "query": "",
+          "output": "autonomous",
+          "queriedNames": [
+            "labMove"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "labMove",
+          "query": "?labMove=0",
+          "output": "autonomous",
+          "queriedNames": [
+            "labMove"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "labMove",
+          "query": "?labMove=1",
+          "output": "autonomous",
+          "queriedNames": [
+            "labMove"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "labMove",
+          "query": "?labMove=off",
+          "output": "autonomous",
+          "queriedNames": [
+            "labMove"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "labMove",
+          "query": "?labMove=false",
+          "output": "autonomous",
+          "queriedNames": [
+            "labMove"
+          ],
+          "unexecuted": false
+        }
+      ],
+      "scope": "original initializer in query-only fixture; errors explicitly unresolved"
+    },
+    {
+      "file": "battle/phase-c-compact-range.js",
+      "line": 18,
+      "variable": "interiorIngressRecovery",
+      "expression": "params.get('labInterior') !== '0'",
+      "queryNames": [
+        "labInterior"
+      ],
+      "cases": [
+        {
+          "name": "labInterior",
+          "query": "",
+          "output": true,
+          "queriedNames": [
+            "labInterior"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "labInterior",
+          "query": "?labInterior=0",
+          "output": false,
+          "queriedNames": [
+            "labInterior"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "labInterior",
+          "query": "?labInterior=1",
+          "output": true,
+          "queriedNames": [
+            "labInterior"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "labInterior",
+          "query": "?labInterior=off",
+          "output": true,
+          "queriedNames": [
+            "labInterior"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "labInterior",
+          "query": "?labInterior=false",
+          "output": true,
+          "queriedNames": [
+            "labInterior"
+          ],
+          "unexecuted": false
+        }
+      ],
+      "scope": "original initializer in query-only fixture; errors explicitly unresolved"
+    },
+    {
+      "file": "battle/phase-c-compact-range.js",
+      "line": 22,
+      "variable": "structureObservation",
+      "expression": "params.get('localStructureOrders') === '1'",
+      "queryNames": [
+        "localStructureOrders"
+      ],
+      "cases": [
+        {
+          "name": "localStructureOrders",
+          "query": "",
+          "output": false,
+          "queriedNames": [
+            "localStructureOrders"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "localStructureOrders",
+          "query": "?localStructureOrders=0",
+          "output": false,
+          "queriedNames": [
+            "localStructureOrders"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "localStructureOrders",
+          "query": "?localStructureOrders=1",
+          "output": true,
+          "queriedNames": [
+            "localStructureOrders"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "localStructureOrders",
+          "query": "?localStructureOrders=off",
+          "output": false,
+          "queriedNames": [
+            "localStructureOrders"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "localStructureOrders",
+          "query": "?localStructureOrders=false",
+          "output": false,
+          "queriedNames": [
+            "localStructureOrders"
+          ],
+          "unexecuted": false
+        }
+      ],
+      "scope": "original initializer in query-only fixture; errors explicitly unresolved"
+    },
+    {
+      "file": "battle/phase-c-compact-range.js",
+      "line": 28,
+      "variable": "scenarioKey",
+      "expression": "Object.keys(scenarios).find(function (k) {\n      return (\n        scenarios[k].seed === params.get('seed') && scenarios[k].defender === (params.get('defender') || '')\n      );\n    }) || 'ge15'",
+      "queryNames": [
+        "seed",
+        "defender"
+      ],
+      "cases": [
+        {
+          "name": "seed",
+          "query": "",
+          "error": "ReferenceError: scenarios is not defined"
+        },
+        {
+          "name": "seed",
+          "query": "?seed=0",
+          "error": "ReferenceError: scenarios is not defined"
+        },
+        {
+          "name": "seed",
+          "query": "?seed=1",
+          "error": "ReferenceError: scenarios is not defined"
+        },
+        {
+          "name": "seed",
+          "query": "?seed=off",
+          "error": "ReferenceError: scenarios is not defined"
+        },
+        {
+          "name": "seed",
+          "query": "?seed=false",
+          "error": "ReferenceError: scenarios is not defined"
+        },
+        {
+          "name": "defender",
+          "query": "",
+          "error": "ReferenceError: scenarios is not defined"
+        },
+        {
+          "name": "defender",
+          "query": "?defender=0",
+          "error": "ReferenceError: scenarios is not defined"
+        },
+        {
+          "name": "defender",
+          "query": "?defender=1",
+          "error": "ReferenceError: scenarios is not defined"
+        },
+        {
+          "name": "defender",
+          "query": "?defender=off",
+          "error": "ReferenceError: scenarios is not defined"
+        },
+        {
+          "name": "defender",
+          "query": "?defender=false",
+          "error": "ReferenceError: scenarios is not defined"
+        }
+      ],
+      "scope": "original initializer in query-only fixture; errors explicitly unresolved"
+    },
+    {
+      "file": "battle/camera-controls.js",
+      "line": 447,
+      "variable": "playerFaction",
+      "expression": "queryParams().get('playerFaction') === 'ge' ? 'ge' : 'us'",
+      "queryNames": [
+        "playerFaction"
+      ],
+      "cases": [
+        {
+          "name": "playerFaction",
+          "query": "",
+          "output": "us",
+          "queriedNames": [
+            "playerFaction"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "playerFaction",
+          "query": "?playerFaction=0",
+          "output": "us",
+          "queriedNames": [
+            "playerFaction"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "playerFaction",
+          "query": "?playerFaction=1",
+          "output": "us",
+          "queriedNames": [
+            "playerFaction"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "playerFaction",
+          "query": "?playerFaction=off",
+          "output": "us",
+          "queriedNames": [
+            "playerFaction"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "playerFaction",
+          "query": "?playerFaction=false",
+          "output": "us",
+          "queriedNames": [
+            "playerFaction"
+          ],
+          "unexecuted": false
+        }
+      ],
+      "scope": "original initializer in query-only fixture; errors explicitly unresolved"
+    },
+    {
+      "file": "battle/camera-controls.js",
+      "line": 2070,
+      "variable": "orbit",
+      "expression": "q.get('orbit') === '1'",
+      "queryNames": [
+        "orbit"
+      ],
+      "cases": [
+        {
+          "name": "orbit",
+          "query": "",
+          "output": false,
+          "queriedNames": [
+            "orbit"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "orbit",
+          "query": "?orbit=0",
+          "output": false,
+          "queriedNames": [
+            "orbit"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "orbit",
+          "query": "?orbit=1",
+          "output": true,
+          "queriedNames": [
+            "orbit"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "orbit",
+          "query": "?orbit=off",
+          "output": false,
+          "queriedNames": [
+            "orbit"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "orbit",
+          "query": "?orbit=false",
+          "output": false,
+          "queriedNames": [
+            "orbit"
+          ],
+          "unexecuted": false
+        }
+      ],
+      "scope": "original initializer in query-only fixture; errors explicitly unresolved"
+    },
+    {
+      "file": "battle/camera-controls.js",
+      "line": 2189,
+      "variable": "followRequested",
+      "expression": "q.get('follow') === '1' || q.get('orbit') === '1'",
+      "queryNames": [
+        "follow",
+        "orbit"
+      ],
+      "cases": [
+        {
+          "name": "follow",
+          "query": "",
+          "output": false,
+          "queriedNames": [
+            "follow",
+            "orbit"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "follow",
+          "query": "?follow=0",
+          "output": false,
+          "queriedNames": [
+            "follow",
+            "orbit"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "follow",
+          "query": "?follow=1",
+          "output": true,
+          "queriedNames": [
+            "follow"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "follow",
+          "query": "?follow=off",
+          "output": false,
+          "queriedNames": [
+            "follow",
+            "orbit"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "follow",
+          "query": "?follow=false",
+          "output": false,
+          "queriedNames": [
+            "follow",
+            "orbit"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "orbit",
+          "query": "",
+          "output": false,
+          "queriedNames": [
+            "follow",
+            "orbit"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "orbit",
+          "query": "?orbit=0",
+          "output": false,
+          "queriedNames": [
+            "follow",
+            "orbit"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "orbit",
+          "query": "?orbit=1",
+          "output": true,
+          "queriedNames": [
+            "follow",
+            "orbit"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "orbit",
+          "query": "?orbit=off",
+          "output": false,
+          "queriedNames": [
+            "follow",
+            "orbit"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "orbit",
+          "query": "?orbit=false",
+          "output": false,
+          "queriedNames": [
+            "follow",
+            "orbit"
+          ],
+          "unexecuted": false
+        }
+      ],
+      "scope": "original initializer in query-only fixture; errors explicitly unresolved"
+    },
+    {
+      "file": "battle/scenario-generator.js",
+      "line": 762,
+      "variable": "urlSeed",
+      "expression": "params.get('seed') || ''",
+      "queryNames": [
+        "seed"
+      ],
+      "cases": [
+        {
+          "name": "seed",
+          "query": "",
+          "output": "",
+          "queriedNames": [
+            "seed"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "seed",
+          "query": "?seed=0",
+          "output": "0",
+          "queriedNames": [
+            "seed"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "seed",
+          "query": "?seed=1",
+          "output": "1",
+          "queriedNames": [
+            "seed"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "seed",
+          "query": "?seed=off",
+          "output": "off",
+          "queriedNames": [
+            "seed"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "seed",
+          "query": "?seed=false",
+          "output": "false",
+          "queriedNames": [
+            "seed"
+          ],
+          "unexecuted": false
+        }
+      ],
+      "scope": "original initializer in query-only fixture; errors explicitly unresolved"
+    },
+    {
+      "file": "battle/scenario-generator.js",
+      "line": 764,
+      "variable": "autoUrlSeed",
+      "expression": "/^live-[a-z0-9]+-[a-z0-9]+$/i.test(urlSeed) && params.get('pinSeed') !== '1'",
+      "queryNames": [
+        "pinSeed"
+      ],
+      "cases": [
+        {
+          "name": "pinSeed",
+          "query": "",
+          "error": "ReferenceError: urlSeed is not defined"
+        },
+        {
+          "name": "pinSeed",
+          "query": "?pinSeed=0",
+          "error": "ReferenceError: urlSeed is not defined"
+        },
+        {
+          "name": "pinSeed",
+          "query": "?pinSeed=1",
+          "error": "ReferenceError: urlSeed is not defined"
+        },
+        {
+          "name": "pinSeed",
+          "query": "?pinSeed=off",
+          "error": "ReferenceError: urlSeed is not defined"
+        },
+        {
+          "name": "pinSeed",
+          "query": "?pinSeed=false",
+          "error": "ReferenceError: urlSeed is not defined"
+        }
+      ],
+      "scope": "original initializer in query-only fixture; errors explicitly unresolved"
+    },
+    {
+      "file": "battle/modules/55-reported-contact-tactical-map.js",
+      "line": 599,
+      "variable": "mark",
+      "expression": "spec && spec.get ? spec.get('infantry') : null",
+      "queryNames": [
+        "infantry"
+      ],
+      "cases": [
+        {
+          "name": "infantry",
+          "query": "",
+          "error": "ReferenceError: spec is not defined"
+        },
+        {
+          "name": "infantry",
+          "query": "?infantry=0",
+          "error": "ReferenceError: spec is not defined"
+        },
+        {
+          "name": "infantry",
+          "query": "?infantry=1",
+          "error": "ReferenceError: spec is not defined"
+        },
+        {
+          "name": "infantry",
+          "query": "?infantry=off",
+          "error": "ReferenceError: spec is not defined"
+        },
+        {
+          "name": "infantry",
+          "query": "?infantry=false",
+          "error": "ReferenceError: spec is not defined"
+        }
+      ],
+      "scope": "original initializer in query-only fixture; errors explicitly unresolved"
+    },
+    {
+      "file": "battle/modules/97z-damage-range-session.js",
+      "line": 105,
+      "variable": "zone",
+      "expression": "ZONES.indexOf(q.get('rangeZone')) >= 0 ? q.get('rangeZone') : 'chest'",
+      "queryNames": [
+        "rangeZone"
+      ],
+      "cases": [
+        {
+          "name": "rangeZone",
+          "query": "",
+          "error": "ReferenceError: ZONES is not defined"
+        },
+        {
+          "name": "rangeZone",
+          "query": "?rangeZone=0",
+          "error": "ReferenceError: ZONES is not defined"
+        },
+        {
+          "name": "rangeZone",
+          "query": "?rangeZone=1",
+          "error": "ReferenceError: ZONES is not defined"
+        },
+        {
+          "name": "rangeZone",
+          "query": "?rangeZone=off",
+          "error": "ReferenceError: ZONES is not defined"
+        },
+        {
+          "name": "rangeZone",
+          "query": "?rangeZone=false",
+          "error": "ReferenceError: ZONES is not defined"
+        }
+      ],
+      "scope": "original initializer in query-only fixture; errors explicitly unresolved"
+    },
+    {
+      "file": "battle/modules/97z-damage-range-session.js",
+      "line": 106,
+      "variable": "exit",
+      "expression": "q.get('rangeExit') !== '0'",
+      "queryNames": [
+        "rangeExit"
+      ],
+      "cases": [
+        {
+          "name": "rangeExit",
+          "query": "",
+          "output": true,
+          "queriedNames": [
+            "rangeExit"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "rangeExit",
+          "query": "?rangeExit=0",
+          "output": false,
+          "queriedNames": [
+            "rangeExit"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "rangeExit",
+          "query": "?rangeExit=1",
+          "output": true,
+          "queriedNames": [
+            "rangeExit"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "rangeExit",
+          "query": "?rangeExit=off",
+          "output": true,
+          "queriedNames": [
+            "rangeExit"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "rangeExit",
+          "query": "?rangeExit=false",
+          "output": true,
+          "queriedNames": [
+            "rangeExit"
+          ],
+          "unexecuted": false
+        }
+      ],
+      "scope": "original initializer in query-only fixture; errors explicitly unresolved"
+    },
+    {
+      "file": "battle/modules/97z-damage-range-session.js",
+      "line": 107,
+      "variable": "auto",
+      "expression": "q.get('rangeAuto') === '1'",
+      "queryNames": [
+        "rangeAuto"
+      ],
+      "cases": [
+        {
+          "name": "rangeAuto",
+          "query": "",
+          "output": false,
+          "queriedNames": [
+            "rangeAuto"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "rangeAuto",
+          "query": "?rangeAuto=0",
+          "output": false,
+          "queriedNames": [
+            "rangeAuto"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "rangeAuto",
+          "query": "?rangeAuto=1",
+          "output": true,
+          "queriedNames": [
+            "rangeAuto"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "rangeAuto",
+          "query": "?rangeAuto=off",
+          "output": false,
+          "queriedNames": [
+            "rangeAuto"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "rangeAuto",
+          "query": "?rangeAuto=false",
+          "output": false,
+          "queriedNames": [
+            "rangeAuto"
+          ],
+          "unexecuted": false
+        }
+      ],
+      "scope": "original initializer in query-only fixture; errors explicitly unresolved"
+    },
+    {
+      "file": "battle/modules/97z-damage-range-session.js",
+      "line": 108,
+      "variable": "orbit",
+      "expression": "q.get('rangeOrbit') === '1'",
+      "queryNames": [
+        "rangeOrbit"
+      ],
+      "cases": [
+        {
+          "name": "rangeOrbit",
+          "query": "",
+          "output": false,
+          "queriedNames": [
+            "rangeOrbit"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "rangeOrbit",
+          "query": "?rangeOrbit=0",
+          "output": false,
+          "queriedNames": [
+            "rangeOrbit"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "rangeOrbit",
+          "query": "?rangeOrbit=1",
+          "output": true,
+          "queriedNames": [
+            "rangeOrbit"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "rangeOrbit",
+          "query": "?rangeOrbit=off",
+          "output": false,
+          "queriedNames": [
+            "rangeOrbit"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "rangeOrbit",
+          "query": "?rangeOrbit=false",
+          "output": false,
+          "queriedNames": [
+            "rangeOrbit"
+          ],
+          "unexecuted": false
+        }
+      ],
+      "scope": "original initializer in query-only fixture; errors explicitly unresolved"
+    },
+    {
+      "file": "battle/modules/97z-damage-range-session.js",
+      "line": 113,
+      "variable": "panelCollapsed",
+      "expression": "q.get('rangeUi') === 'compact' || (auto && q.get('rangeUi') !== 'full')",
+      "queryNames": [
+        "rangeUi"
+      ],
+      "cases": [
+        {
+          "name": "rangeUi",
+          "query": "",
+          "error": "ReferenceError: auto is not defined"
+        },
+        {
+          "name": "rangeUi",
+          "query": "?rangeUi=0",
+          "error": "ReferenceError: auto is not defined"
+        },
+        {
+          "name": "rangeUi",
+          "query": "?rangeUi=1",
+          "error": "ReferenceError: auto is not defined"
+        },
+        {
+          "name": "rangeUi",
+          "query": "?rangeUi=off",
+          "error": "ReferenceError: auto is not defined"
+        },
+        {
+          "name": "rangeUi",
+          "query": "?rangeUi=false",
+          "error": "ReferenceError: auto is not defined"
+        }
+      ],
+      "scope": "original initializer in query-only fixture; errors explicitly unresolved"
+    },
+    {
+      "file": "battle/modules/97z-damage-range-session.js",
+      "line": 114,
+      "variable": "fps",
+      "expression": "q.get('rangeFps') === '1'",
+      "queryNames": [
+        "rangeFps"
+      ],
+      "cases": [
+        {
+          "name": "rangeFps",
+          "query": "",
+          "output": false,
+          "queriedNames": [
+            "rangeFps"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "rangeFps",
+          "query": "?rangeFps=0",
+          "output": false,
+          "queriedNames": [
+            "rangeFps"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "rangeFps",
+          "query": "?rangeFps=1",
+          "output": true,
+          "queriedNames": [
+            "rangeFps"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "rangeFps",
+          "query": "?rangeFps=off",
+          "output": false,
+          "queriedNames": [
+            "rangeFps"
+          ],
+          "unexecuted": false
+        },
+        {
+          "name": "rangeFps",
+          "query": "?rangeFps=false",
+          "output": false,
+          "queriedNames": [
+            "rangeFps"
+          ],
+          "unexecuted": false
+        }
+      ],
+      "scope": "original initializer in query-only fixture; errors explicitly unresolved"
+    }
+  ],
+  "helpers": [
+    {
+      "name": "ambushBeforeObjective",
+      "file": "battle/modules/59-strategic-aerial-recon.js",
+      "line": 39,
+      "function": "flagOff",
+      "expression": "function flagOff(name) {\n    return new RegExp('(?:^|[?&])' + name + '=0(?:&|$)').test((root.location && root.location.search) || '');\n  }",
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?ambushBeforeObjective=0",
+          "output": true
+        },
+        {
+          "query": "?ambushBeforeObjective=1",
+          "output": false
+        },
+        {
+          "query": "?ambushBeforeObjective=off",
+          "output": false
+        },
+        {
+          "query": "?ambushBeforeObjective=false",
+          "output": false
+        }
+      ],
+      "scope": "helper output only; caller inversion/dependencies remain separate"
+    },
+    {
+      "name": "ambushNextObjective",
+      "file": "battle/modules/59-strategic-aerial-recon.js",
+      "line": 39,
+      "function": "flagOff",
+      "expression": "function flagOff(name) {\n    return new RegExp('(?:^|[?&])' + name + '=0(?:&|$)').test((root.location && root.location.search) || '');\n  }",
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?ambushNextObjective=0",
+          "output": true
+        },
+        {
+          "query": "?ambushNextObjective=1",
+          "output": false
+        },
+        {
+          "query": "?ambushNextObjective=off",
+          "output": false
+        },
+        {
+          "query": "?ambushNextObjective=false",
+          "output": false
+        }
+      ],
+      "scope": "helper output only; caller inversion/dependencies remain separate"
+    },
+    {
+      "name": "lineApproachPost",
+      "file": "battle/modules/59-strategic-aerial-recon.js",
+      "line": 39,
+      "function": "flagOff",
+      "expression": "function flagOff(name) {\n    return new RegExp('(?:^|[?&])' + name + '=0(?:&|$)').test((root.location && root.location.search) || '');\n  }",
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?lineApproachPost=0",
+          "output": true
+        },
+        {
+          "query": "?lineApproachPost=1",
+          "output": false
+        },
+        {
+          "query": "?lineApproachPost=off",
+          "output": false
+        },
+        {
+          "query": "?lineApproachPost=false",
+          "output": false
+        }
+      ],
+      "scope": "helper output only; caller inversion/dependencies remain separate"
+    },
+    {
+      "name": "lineSortie",
+      "file": "battle/modules/59-strategic-aerial-recon.js",
+      "line": 39,
+      "function": "flagOff",
+      "expression": "function flagOff(name) {\n    return new RegExp('(?:^|[?&])' + name + '=0(?:&|$)').test((root.location && root.location.search) || '');\n  }",
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?lineSortie=0",
+          "output": true
+        },
+        {
+          "query": "?lineSortie=1",
+          "output": false
+        },
+        {
+          "query": "?lineSortie=off",
+          "output": false
+        },
+        {
+          "query": "?lineSortie=false",
+          "output": false
+        }
+      ],
+      "scope": "helper output only; caller inversion/dependencies remain separate"
+    },
+    {
+      "name": "reconCorridors",
+      "file": "battle/modules/59-strategic-aerial-recon.js",
+      "line": 39,
+      "function": "flagOff",
+      "expression": "function flagOff(name) {\n    return new RegExp('(?:^|[?&])' + name + '=0(?:&|$)').test((root.location && root.location.search) || '');\n  }",
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?reconCorridors=0",
+          "output": true
+        },
+        {
+          "query": "?reconCorridors=1",
+          "output": false
+        },
+        {
+          "query": "?reconCorridors=off",
+          "output": false
+        },
+        {
+          "query": "?reconCorridors=false",
+          "output": false
+        }
+      ],
+      "scope": "helper output only; caller inversion/dependencies remain separate"
+    },
+    {
+      "name": "reconOverflight",
+      "file": "battle/modules/59-strategic-aerial-recon.js",
+      "line": 39,
+      "function": "flagOff",
+      "expression": "function flagOff(name) {\n    return new RegExp('(?:^|[?&])' + name + '=0(?:&|$)').test((root.location && root.location.search) || '');\n  }",
+      "cases": [
+        {
+          "query": "",
+          "output": false
+        },
+        {
+          "query": "?reconOverflight=0",
+          "output": true
+        },
+        {
+          "query": "?reconOverflight=1",
+          "output": false
+        },
+        {
+          "query": "?reconOverflight=off",
+          "output": false
+        },
+        {
+          "query": "?reconOverflight=false",
+          "output": false
+        }
+      ],
+      "scope": "helper output only; caller inversion/dependencies remain separate"
+    }
+  ],
+  "successfulInitializerNames": [
+    "benchAuto",
+    "benchCam",
+    "benchFollow",
+    "benchSeconds",
+    "benchWarmup",
+    "follow",
+    "labInterior",
+    "labMove",
+    "labPreset",
+    "labRange",
+    "localStructureOrders",
+    "orbit",
+    "playerFaction",
+    "rangeAuto",
+    "rangeExit",
+    "rangeFps",
+    "rangeOrbit",
+    "seed"
+  ],
+  "helperNames": [
+    "ambushBeforeObjective",
+    "ambushNextObjective",
+    "lineApproachPost",
+    "lineSortie",
+    "reconCorridors",
+    "reconOverflight"
+  ],
+  "remainingWithoutExecutedRead": [
+    "autonomousMovement",
+    "bench",
+    "benchHide",
+    "combatLab",
+    "damageRange",
+    "defender",
+    "devModules",
+    "editor",
+    "grass",
+    "infantry",
+    "pin",
+    "pinSeed",
+    "rangeDist",
+    "rangeInterval",
+    "rangeTarget",
+    "rangeUi",
+    "rangeZone",
+    "ref",
+    "smartIndoorIngress"
+  ]
+}

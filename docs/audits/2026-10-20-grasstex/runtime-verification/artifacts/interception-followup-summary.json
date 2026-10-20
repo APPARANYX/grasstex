@@ -1,0 +1,51 @@
+{
+  "battles": 5,
+  "simulatedSeconds": 4500,
+  "dispatches": 0,
+  "decisionSnapshots": 10,
+  "repeatedSeedCounters": [
+    {
+      "seed": "strategic-diag-001-meeting-0001",
+      "fieldsCompared": [
+        "seconds",
+        "fleetStart",
+        "fleetEnd",
+        "general",
+        "interceptions",
+        "shots",
+        "forwardScreen"
+      ],
+      "allEqual": true,
+      "unequal": []
+    },
+    {
+      "seed": "strategic-diag-001-ge-defend-0001",
+      "fieldsCompared": [
+        "seconds",
+        "fleetStart",
+        "fleetEnd",
+        "general",
+        "interceptions",
+        "shots",
+        "forwardScreen"
+      ],
+      "allEqual": true,
+      "unequal": []
+    },
+    {
+      "seed": "strategic-diag-001-us-defend-0005",
+      "fieldsCompared": [
+        "seconds",
+        "fleetStart",
+        "fleetEnd",
+        "general",
+        "interceptions",
+        "shots",
+        "forwardScreen"
+      ],
+      "allEqual": true,
+      "unequal": []
+    }
+  ],
+  "classification": "Observed decisions; no forced squads, enemies or outcomes. Retasking or allocation changes not attempted."
+}

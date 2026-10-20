@@ -1,0 +1,17 @@
+{
+  "exitCode": 0,
+  "command": [
+    "node",
+    "--require",
+    "./scripts/audit/private-audio-fixture.cjs",
+    "scripts/benchmark_full_fidelity.cjs"
+  ],
+  "environment": {
+    "NODE_PATH": "/tmp/grasstex-runtime-tools/node_modules",
+    "AUDIT_MEDIA_FIXTURE_OUTPUT": "docs/audits/2026-10-20-grasstex/runtime-verification/artifacts/full-fidelity-followup/media-fixture.json",
+    "FF_URL": "http://127.0.0.1:8876/grasstex/battle_sim_local.php",
+    "FF_SECONDS": "15",
+    "FF_WARMUP": "90",
+    "FF_OUT": "docs/audits/2026-10-20-grasstex/runtime-verification/artifacts/full-fidelity-followup"
+  }
+}

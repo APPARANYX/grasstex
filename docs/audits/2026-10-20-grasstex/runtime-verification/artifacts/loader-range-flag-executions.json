@@ -1,0 +1,657 @@
+{
+  "sourceBaseline": "f89939f2f6e8ff21063d1b24c28a8ab73fe9d2e9",
+  "phpCases": [
+    {
+      "query": "",
+      "effective": {
+        "requestedSeed": "",
+        "requestedDefender": "",
+        "autonomousMovement": true,
+        "smartIndoorIngress": true,
+        "labRequested": false,
+        "allDevModules": false,
+        "graphUiRequested": false,
+        "deviceBenchRequested": false,
+        "damageRangeRequested": false,
+        "pinRequested": false,
+        "requestedRef": "main"
+      }
+    },
+    {
+      "query": "autonomousMovement=0&smartIndoorIngress=0",
+      "effective": {
+        "requestedSeed": "",
+        "requestedDefender": "",
+        "autonomousMovement": false,
+        "smartIndoorIngress": false,
+        "labRequested": false,
+        "allDevModules": false,
+        "graphUiRequested": false,
+        "deviceBenchRequested": false,
+        "damageRangeRequested": false,
+        "pinRequested": false,
+        "requestedRef": "main"
+      }
+    },
+    {
+      "query": "autonomousMovement=false&smartIndoorIngress=off",
+      "effective": {
+        "requestedSeed": "",
+        "requestedDefender": "",
+        "autonomousMovement": true,
+        "smartIndoorIngress": true,
+        "labRequested": false,
+        "allDevModules": false,
+        "graphUiRequested": false,
+        "deviceBenchRequested": false,
+        "damageRangeRequested": false,
+        "pinRequested": false,
+        "requestedRef": "main"
+      }
+    },
+    {
+      "query": "combatLab=1",
+      "effective": {
+        "requestedSeed": "",
+        "requestedDefender": "",
+        "autonomousMovement": true,
+        "smartIndoorIngress": true,
+        "labRequested": true,
+        "allDevModules": false,
+        "graphUiRequested": false,
+        "deviceBenchRequested": false,
+        "damageRangeRequested": false,
+        "pinRequested": false,
+        "requestedRef": "main"
+      }
+    },
+    {
+      "query": "devModules=1",
+      "effective": {
+        "requestedSeed": "",
+        "requestedDefender": "",
+        "autonomousMovement": true,
+        "smartIndoorIngress": true,
+        "labRequested": false,
+        "allDevModules": true,
+        "graphUiRequested": true,
+        "deviceBenchRequested": true,
+        "damageRangeRequested": true,
+        "pinRequested": false,
+        "requestedRef": "main"
+      }
+    },
+    {
+      "query": "editor=ai",
+      "effective": {
+        "requestedSeed": "",
+        "requestedDefender": "",
+        "autonomousMovement": true,
+        "smartIndoorIngress": true,
+        "labRequested": false,
+        "allDevModules": false,
+        "graphUiRequested": true,
+        "deviceBenchRequested": false,
+        "damageRangeRequested": false,
+        "pinRequested": false,
+        "requestedRef": "main"
+      }
+    },
+    {
+      "query": "bench=1",
+      "effective": {
+        "requestedSeed": "",
+        "requestedDefender": "",
+        "autonomousMovement": true,
+        "smartIndoorIngress": true,
+        "labRequested": false,
+        "allDevModules": false,
+        "graphUiRequested": false,
+        "deviceBenchRequested": true,
+        "damageRangeRequested": false,
+        "pinRequested": false,
+        "requestedRef": "main"
+      }
+    },
+    {
+      "query": "damageRange=1",
+      "effective": {
+        "requestedSeed": "",
+        "requestedDefender": "",
+        "autonomousMovement": true,
+        "smartIndoorIngress": true,
+        "labRequested": false,
+        "allDevModules": false,
+        "graphUiRequested": false,
+        "deviceBenchRequested": false,
+        "damageRangeRequested": true,
+        "pinRequested": false,
+        "requestedRef": "main"
+      }
+    },
+    {
+      "query": "pin=1&ref=f89939f2",
+      "effective": {
+        "requestedSeed": "",
+        "requestedDefender": "",
+        "autonomousMovement": true,
+        "smartIndoorIngress": true,
+        "labRequested": false,
+        "allDevModules": false,
+        "graphUiRequested": false,
+        "deviceBenchRequested": false,
+        "damageRangeRequested": false,
+        "pinRequested": true,
+        "requestedRef": "f89939f2"
+      }
+    },
+    {
+      "query": "ref=f89939f2",
+      "effective": {
+        "requestedSeed": "",
+        "requestedDefender": "",
+        "autonomousMovement": true,
+        "smartIndoorIngress": true,
+        "labRequested": false,
+        "allDevModules": false,
+        "graphUiRequested": false,
+        "deviceBenchRequested": false,
+        "damageRangeRequested": false,
+        "pinRequested": false,
+        "requestedRef": "main"
+      }
+    },
+    {
+      "query": "defender=ge",
+      "effective": {
+        "requestedSeed": "",
+        "requestedDefender": "ge",
+        "autonomousMovement": true,
+        "smartIndoorIngress": true,
+        "labRequested": false,
+        "allDevModules": false,
+        "graphUiRequested": false,
+        "deviceBenchRequested": false,
+        "damageRangeRequested": false,
+        "pinRequested": false,
+        "requestedRef": "main"
+      }
+    },
+    {
+      "query": "defender=invalid",
+      "effective": {
+        "requestedSeed": "",
+        "requestedDefender": "",
+        "autonomousMovement": true,
+        "smartIndoorIngress": true,
+        "labRequested": false,
+        "allDevModules": false,
+        "graphUiRequested": false,
+        "deviceBenchRequested": false,
+        "damageRangeRequested": false,
+        "pinRequested": false,
+        "requestedRef": "main"
+      }
+    }
+  ],
+  "extraReadCases": [
+    {
+      "name": "benchHide",
+      "file": "battle/modules/97-device-benchmark.js",
+      "line": 32,
+      "expression": "(q.get('benchHide')||'').split(',').map(function(k){return HIDE_ALIAS[k.trim().toLowerCase()];}).filter(Boolean)",
+      "query": "?",
+      "effective": []
+    },
+    {
+      "name": "benchHide",
+      "file": "battle/modules/97-device-benchmark.js",
+      "line": 32,
+      "expression": "(q.get('benchHide')||'').split(',').map(function(k){return HIDE_ALIAS[k.trim().toLowerCase()];}).filter(Boolean)",
+      "query": "?benchHide=0",
+      "effective": []
+    },
+    {
+      "name": "benchHide",
+      "file": "battle/modules/97-device-benchmark.js",
+      "line": 32,
+      "expression": "(q.get('benchHide')||'').split(',').map(function(k){return HIDE_ALIAS[k.trim().toLowerCase()];}).filter(Boolean)",
+      "query": "?benchHide=1",
+      "effective": []
+    },
+    {
+      "name": "benchHide",
+      "file": "battle/modules/97-device-benchmark.js",
+      "line": 32,
+      "expression": "(q.get('benchHide')||'').split(',').map(function(k){return HIDE_ALIAS[k.trim().toLowerCase()];}).filter(Boolean)",
+      "query": "?benchHide=off",
+      "effective": []
+    },
+    {
+      "name": "benchHide",
+      "file": "battle/modules/97-device-benchmark.js",
+      "line": 32,
+      "expression": "(q.get('benchHide')||'').split(',').map(function(k){return HIDE_ALIAS[k.trim().toLowerCase()];}).filter(Boolean)",
+      "query": "?benchHide=false",
+      "effective": []
+    },
+    {
+      "name": "rangeZone",
+      "file": "battle/modules/97z-damage-range-session.js",
+      "line": 105,
+      "expression": "ZONES.indexOf(q.get('rangeZone')) >= 0 ? q.get('rangeZone') : 'chest'",
+      "query": "?",
+      "effective": "chest"
+    },
+    {
+      "name": "rangeZone",
+      "file": "battle/modules/97z-damage-range-session.js",
+      "line": 105,
+      "expression": "ZONES.indexOf(q.get('rangeZone')) >= 0 ? q.get('rangeZone') : 'chest'",
+      "query": "?rangeZone=0",
+      "effective": "chest"
+    },
+    {
+      "name": "rangeZone",
+      "file": "battle/modules/97z-damage-range-session.js",
+      "line": 105,
+      "expression": "ZONES.indexOf(q.get('rangeZone')) >= 0 ? q.get('rangeZone') : 'chest'",
+      "query": "?rangeZone=1",
+      "effective": "chest"
+    },
+    {
+      "name": "rangeZone",
+      "file": "battle/modules/97z-damage-range-session.js",
+      "line": 105,
+      "expression": "ZONES.indexOf(q.get('rangeZone')) >= 0 ? q.get('rangeZone') : 'chest'",
+      "query": "?rangeZone=off",
+      "effective": "chest"
+    },
+    {
+      "name": "rangeZone",
+      "file": "battle/modules/97z-damage-range-session.js",
+      "line": 105,
+      "expression": "ZONES.indexOf(q.get('rangeZone')) >= 0 ? q.get('rangeZone') : 'chest'",
+      "query": "?rangeZone=false",
+      "effective": "chest"
+    },
+    {
+      "name": "rangeUi",
+      "file": "battle/modules/97z-damage-range-session.js",
+      "line": 113,
+      "expression": "q.get('rangeUi') === 'compact' || (auto && q.get('rangeUi') !== 'full')",
+      "query": "?",
+      "effective": false
+    },
+    {
+      "name": "rangeUi",
+      "file": "battle/modules/97z-damage-range-session.js",
+      "line": 113,
+      "expression": "q.get('rangeUi') === 'compact' || (auto && q.get('rangeUi') !== 'full')",
+      "query": "?rangeUi=0",
+      "effective": false
+    },
+    {
+      "name": "rangeUi",
+      "file": "battle/modules/97z-damage-range-session.js",
+      "line": 113,
+      "expression": "q.get('rangeUi') === 'compact' || (auto && q.get('rangeUi') !== 'full')",
+      "query": "?rangeUi=1",
+      "effective": false
+    },
+    {
+      "name": "rangeUi",
+      "file": "battle/modules/97z-damage-range-session.js",
+      "line": 113,
+      "expression": "q.get('rangeUi') === 'compact' || (auto && q.get('rangeUi') !== 'full')",
+      "query": "?rangeUi=off",
+      "effective": false
+    },
+    {
+      "name": "rangeUi",
+      "file": "battle/modules/97z-damage-range-session.js",
+      "line": 113,
+      "expression": "q.get('rangeUi') === 'compact' || (auto && q.get('rangeUi') !== 'full')",
+      "query": "?rangeUi=false",
+      "effective": false
+    },
+    {
+      "name": "rangeUi",
+      "file": "battle/modules/97z-damage-range-session.js",
+      "line": 113,
+      "expression": "q.get('rangeUi') === 'compact' || (auto && q.get('rangeUi') !== 'full')",
+      "query": "?rangeAuto=1",
+      "effective": true
+    },
+    {
+      "name": "rangeUi",
+      "file": "battle/modules/97z-damage-range-session.js",
+      "line": 113,
+      "expression": "q.get('rangeUi') === 'compact' || (auto && q.get('rangeUi') !== 'full')",
+      "query": "?rangeAuto=1&rangeUi=0",
+      "effective": true
+    },
+    {
+      "name": "rangeUi",
+      "file": "battle/modules/97z-damage-range-session.js",
+      "line": 113,
+      "expression": "q.get('rangeUi') === 'compact' || (auto && q.get('rangeUi') !== 'full')",
+      "query": "?rangeAuto=1&rangeUi=1",
+      "effective": true
+    },
+    {
+      "name": "rangeUi",
+      "file": "battle/modules/97z-damage-range-session.js",
+      "line": 113,
+      "expression": "q.get('rangeUi') === 'compact' || (auto && q.get('rangeUi') !== 'full')",
+      "query": "?rangeAuto=1&rangeUi=off",
+      "effective": true
+    },
+    {
+      "name": "rangeUi",
+      "file": "battle/modules/97z-damage-range-session.js",
+      "line": 113,
+      "expression": "q.get('rangeUi') === 'compact' || (auto && q.get('rangeUi') !== 'full')",
+      "query": "?rangeAuto=1&rangeUi=false",
+      "effective": true
+    },
+    {
+      "name": "pinSeed",
+      "file": "battle/scenario-generator.js",
+      "line": 764,
+      "expression": "/^live-[a-z0-9]+-[a-z0-9]+$/i.test(urlSeed) && params.get('pinSeed') !== '1'",
+      "query": "?seed=runtime-audit",
+      "effective": false
+    },
+    {
+      "name": "pinSeed",
+      "file": "battle/scenario-generator.js",
+      "line": 764,
+      "expression": "/^live-[a-z0-9]+-[a-z0-9]+$/i.test(urlSeed) && params.get('pinSeed') !== '1'",
+      "query": "?seed=runtime-audit&pinSeed=0",
+      "effective": false
+    },
+    {
+      "name": "pinSeed",
+      "file": "battle/scenario-generator.js",
+      "line": 764,
+      "expression": "/^live-[a-z0-9]+-[a-z0-9]+$/i.test(urlSeed) && params.get('pinSeed') !== '1'",
+      "query": "?seed=runtime-audit&pinSeed=1",
+      "effective": false
+    },
+    {
+      "name": "pinSeed",
+      "file": "battle/scenario-generator.js",
+      "line": 764,
+      "expression": "/^live-[a-z0-9]+-[a-z0-9]+$/i.test(urlSeed) && params.get('pinSeed') !== '1'",
+      "query": "?seed=runtime-audit&pinSeed=off",
+      "effective": false
+    },
+    {
+      "name": "pinSeed",
+      "file": "battle/scenario-generator.js",
+      "line": 764,
+      "expression": "/^live-[a-z0-9]+-[a-z0-9]+$/i.test(urlSeed) && params.get('pinSeed') !== '1'",
+      "query": "?seed=runtime-audit&pinSeed=false",
+      "effective": false
+    },
+    {
+      "name": "pinSeed",
+      "file": "battle/scenario-generator.js",
+      "line": 764,
+      "expression": "/^live-[a-z0-9]+-[a-z0-9]+$/i.test(urlSeed) && params.get('pinSeed') !== '1'",
+      "query": "?seed=live-abc-def",
+      "effective": true
+    },
+    {
+      "name": "pinSeed",
+      "file": "battle/scenario-generator.js",
+      "line": 764,
+      "expression": "/^live-[a-z0-9]+-[a-z0-9]+$/i.test(urlSeed) && params.get('pinSeed') !== '1'",
+      "query": "?seed=live-abc-def&pinSeed=0",
+      "effective": true
+    },
+    {
+      "name": "pinSeed",
+      "file": "battle/scenario-generator.js",
+      "line": 764,
+      "expression": "/^live-[a-z0-9]+-[a-z0-9]+$/i.test(urlSeed) && params.get('pinSeed') !== '1'",
+      "query": "?seed=live-abc-def&pinSeed=1",
+      "effective": false
+    },
+    {
+      "name": "pinSeed",
+      "file": "battle/scenario-generator.js",
+      "line": 764,
+      "expression": "/^live-[a-z0-9]+-[a-z0-9]+$/i.test(urlSeed) && params.get('pinSeed') !== '1'",
+      "query": "?seed=live-abc-def&pinSeed=off",
+      "effective": true
+    },
+    {
+      "name": "pinSeed",
+      "file": "battle/scenario-generator.js",
+      "line": 764,
+      "expression": "/^live-[a-z0-9]+-[a-z0-9]+$/i.test(urlSeed) && params.get('pinSeed') !== '1'",
+      "query": "?seed=live-abc-def&pinSeed=false",
+      "effective": true
+    },
+    {
+      "name": "editor",
+      "file": "battle/modules/30-ai-graph-editor.js",
+      "line": 1374,
+      "expression": "new URLSearchParams(location.search).get('editor') === 'ai' || location.hash === '#ai-graph'",
+      "query": "?",
+      "effective": false
+    },
+    {
+      "name": "editor",
+      "file": "battle/modules/30-ai-graph-editor.js",
+      "line": 1374,
+      "expression": "new URLSearchParams(location.search).get('editor') === 'ai' || location.hash === '#ai-graph'",
+      "query": "?editor=0",
+      "effective": false
+    },
+    {
+      "name": "editor",
+      "file": "battle/modules/30-ai-graph-editor.js",
+      "line": 1374,
+      "expression": "new URLSearchParams(location.search).get('editor') === 'ai' || location.hash === '#ai-graph'",
+      "query": "?editor=1",
+      "effective": false
+    },
+    {
+      "name": "editor",
+      "file": "battle/modules/30-ai-graph-editor.js",
+      "line": 1374,
+      "expression": "new URLSearchParams(location.search).get('editor') === 'ai' || location.hash === '#ai-graph'",
+      "query": "?editor=off",
+      "effective": false
+    },
+    {
+      "name": "editor",
+      "file": "battle/modules/30-ai-graph-editor.js",
+      "line": 1374,
+      "expression": "new URLSearchParams(location.search).get('editor') === 'ai' || location.hash === '#ai-graph'",
+      "query": "?editor=false",
+      "effective": false
+    }
+  ],
+  "rangeReader": {
+    "source": "battle/modules/98-damage-range.js:35",
+    "expression": "function num(name, fallback, a, b) {\n    var v = +q.get(name);\n    return isFinite(v) ? clamp(v, a, b) : fallback;\n  }",
+    "cases": [
+      {
+        "name": "rangeInterval",
+        "query": "",
+        "fallback": 1.25,
+        "min": 0.35,
+        "max": 8,
+        "effective": 0.35
+      },
+      {
+        "name": "rangeInterval",
+        "query": "?rangeInterval=",
+        "fallback": 1.25,
+        "min": 0.35,
+        "max": 8,
+        "effective": 0.35
+      },
+      {
+        "name": "rangeInterval",
+        "query": "?rangeInterval=0",
+        "fallback": 1.25,
+        "min": 0.35,
+        "max": 8,
+        "effective": 0.35
+      },
+      {
+        "name": "rangeInterval",
+        "query": "?rangeInterval=1",
+        "fallback": 1.25,
+        "min": 0.35,
+        "max": 8,
+        "effective": 1
+      },
+      {
+        "name": "rangeInterval",
+        "query": "?rangeInterval=off",
+        "fallback": 1.25,
+        "min": 0.35,
+        "max": 8,
+        "effective": 1.25
+      },
+      {
+        "name": "rangeInterval",
+        "query": "?rangeInterval=false",
+        "fallback": 1.25,
+        "min": 0.35,
+        "max": 8,
+        "effective": 1.25
+      },
+      {
+        "name": "rangeInterval",
+        "query": "?rangeInterval=100",
+        "fallback": 1.25,
+        "min": 0.35,
+        "max": 8,
+        "effective": 8
+      },
+      {
+        "name": "rangeDist",
+        "query": "",
+        "fallback": 5.4,
+        "min": 2.5,
+        "max": 14,
+        "effective": 2.5
+      },
+      {
+        "name": "rangeDist",
+        "query": "?rangeDist=",
+        "fallback": 5.4,
+        "min": 2.5,
+        "max": 14,
+        "effective": 2.5
+      },
+      {
+        "name": "rangeDist",
+        "query": "?rangeDist=0",
+        "fallback": 5.4,
+        "min": 2.5,
+        "max": 14,
+        "effective": 2.5
+      },
+      {
+        "name": "rangeDist",
+        "query": "?rangeDist=1",
+        "fallback": 5.4,
+        "min": 2.5,
+        "max": 14,
+        "effective": 2.5
+      },
+      {
+        "name": "rangeDist",
+        "query": "?rangeDist=off",
+        "fallback": 5.4,
+        "min": 2.5,
+        "max": 14,
+        "effective": 5.4
+      },
+      {
+        "name": "rangeDist",
+        "query": "?rangeDist=false",
+        "fallback": 5.4,
+        "min": 2.5,
+        "max": 14,
+        "effective": 5.4
+      },
+      {
+        "name": "rangeDist",
+        "query": "?rangeDist=100",
+        "fallback": 5.4,
+        "min": 2.5,
+        "max": 14,
+        "effective": 14
+      },
+      {
+        "name": "rangeTarget",
+        "query": "",
+        "fallback": 0,
+        "min": 0,
+        "max": 9,
+        "effective": 0
+      },
+      {
+        "name": "rangeTarget",
+        "query": "?rangeTarget=",
+        "fallback": 0,
+        "min": 0,
+        "max": 9,
+        "effective": 0
+      },
+      {
+        "name": "rangeTarget",
+        "query": "?rangeTarget=0",
+        "fallback": 0,
+        "min": 0,
+        "max": 9,
+        "effective": 0
+      },
+      {
+        "name": "rangeTarget",
+        "query": "?rangeTarget=1",
+        "fallback": 0,
+        "min": 0,
+        "max": 9,
+        "effective": 1
+      },
+      {
+        "name": "rangeTarget",
+        "query": "?rangeTarget=off",
+        "fallback": 0,
+        "min": 0,
+        "max": 9,
+        "effective": 0
+      },
+      {
+        "name": "rangeTarget",
+        "query": "?rangeTarget=false",
+        "fallback": 0,
+        "min": 0,
+        "max": 9,
+        "effective": 0
+      },
+      {
+        "name": "rangeTarget",
+        "query": "?rangeTarget=100",
+        "fallback": 0,
+        "min": 0,
+        "max": 9,
+        "effective": 9
+      }
+    ]
+  },
+  "classificationNotes": {
+    "infantry": "Map lookup in tactical-map rendering; excluded from runtime URL flag semantics",
+    "grass": "preview allowlist candidate without discovered runtime reader; activation unresolved"
+  }
+}

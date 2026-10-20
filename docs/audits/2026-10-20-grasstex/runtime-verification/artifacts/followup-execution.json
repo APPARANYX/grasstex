@@ -1,0 +1,44 @@
+{
+  "sourceBaseline": "f89939f2f6e8ff21063d1b24c28a8ab73fe9d2e9",
+  "auditParent": "4253ca0e467ed0e3dcd9263e7897cec6ec31fcc0",
+  "toolsInstall": "npm install --prefix /tmp/grasstex-runtime-tools --no-audit --no-fund playwright@1.55.0 acorn@8.14.0",
+  "environment": {
+    "NODE_PATH": "/tmp/grasstex-runtime-tools/node_modules",
+    "STRATEGIC_INTERCEPT_QA_URL": "http://127.0.0.1:8876/grasstex/battle_sim_local.php",
+    "STRATEGIC_INTERCEPT_QA_OUT": "docs/audits/2026-10-20-grasstex/runtime-verification/artifacts/interception-followup",
+    "STRATEGIC_INTERCEPT_QA_SECONDS": "900",
+    "STRATEGIC_INTERCEPT_QA_MODES": "on",
+    "STRATEGIC_INTERCEPT_QA_PROBE": "scripts/audit/interception-availability.js",
+    "STRATEGIC_INTERCEPT_QA_SEED_SPECS": [
+      {
+        "seed": "strategic-diag-001-meeting-0001",
+        "type": "meeting"
+      },
+      {
+        "seed": "strategic-diag-001-ge-defend-0001",
+        "type": "ge-defend"
+      },
+      {
+        "seed": "strategic-diag-001-us-defend-0005",
+        "type": "us-defend"
+      },
+      {
+        "seed": "strategic-diag-002-meeting-0001",
+        "type": "meeting"
+      },
+      {
+        "seed": "strategic-diag-003-meeting-0001",
+        "type": "meeting"
+      }
+    ]
+  },
+  "command": [
+    "node",
+    "--require",
+    "./scripts/audit/private-audio-fixture.cjs",
+    "scripts/probe_strategic_interception.cjs"
+  ],
+  "nativeExitCode": 0,
+  "visualInvestigation": "Deferred at user request; existing visual probe finished before termination attempt. Its screenshots have not been reviewed and establish no visual defect diagnosis.",
+  "harnessCorrection": "harness.js extracts shipping movement code; animation/local steering and Babylon are stubbed. Previous audit wording followed a stale header and is corrected."
+}

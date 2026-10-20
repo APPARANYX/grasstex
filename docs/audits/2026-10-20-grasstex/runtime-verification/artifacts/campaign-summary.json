@@ -5084,8 +5084,8 @@
     }
   ],
   "profileBattles": 28,
-  "nativeInterceptionBattles": 6,
-  "fixedStepBattleExecutions": 80,
+  "nativeInterceptionBattles": 11,
+  "fixedStepBattleExecutions": 85,
   "nativeInterceptionDispatches": 0,
   "nativePhysicallyEarly": 0,
   "harnessRuns": 227,

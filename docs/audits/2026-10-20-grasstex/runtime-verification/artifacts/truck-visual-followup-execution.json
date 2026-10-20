@@ -1,0 +1,9 @@
+{
+  "exitCode": 0,
+  "environment": {
+    "NODE_PATH": "/tmp/grasstex-runtime-tools/node_modules",
+    "STRATEGIC_QA_URL": "http://127.0.0.1:8876/grasstex/battle_sim_local.php",
+    "STRATEGIC_TRUCK_QA_OUT": "docs/audits/2026-10-20-grasstex/runtime-verification/artifacts/truck-visual-followup"
+  },
+  "visualReview": "Deferred at explicit user request; completed probe output preserved without visual conclusions."
+}
