@@ -6,7 +6,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-function make(search = '?strategicInterception=1&aerialRecon=1', profile = 'strategic') {
+function make(search = '?strategicInterception=1&aerialRecon=1&interception=0', profile = 'strategic') {
   const hooks = {};
   const events = [];
   const root = {
