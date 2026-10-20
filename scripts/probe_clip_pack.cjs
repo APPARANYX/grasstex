@@ -69,7 +69,10 @@ async function load(browser, query) {
   const t0 = Date.now();
   // Isolate the prepared soldier library from the separately authored truck-seat FBX prewarm.
   await page.goto(
-    URL + (URL.includes('?') ? '&' : '?') + 'seed=clip-pack&motorTransport=0' + (query ? '&' + query : ''),
+    URL +
+      (URL.includes('?') ? '&' : '?') +
+      'seed=clip-pack&strategicInterception=0&motorTransport=0' +
+      (query ? '&' + query : ''),
     { waitUntil: 'load', timeout: 90000 }
   );
   await page.waitForFunction(
