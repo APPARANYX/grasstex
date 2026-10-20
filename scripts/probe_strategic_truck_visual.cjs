@@ -337,6 +337,19 @@ const out = path.resolve(process.env.STRATEGIC_TRUCK_QA_OUT || 'closeups/strateg
         riders.every((r, i) => r.seat === i && r.clip?.startsWith('Truck - ')),
         faction + ' real seat assignment with one Truck animation each'
       );
+      // Simulate boarding after distant rendering, then bring the camera close.
+      await page.waitForFunction(
+        side => window.__truckQa.soldiers[side].every(s => s._fbx.meshLod),
+        faction,
+        { timeout: 30000 }
+      );
+      await page.evaluate(side => {
+        for (const soldier of window.__truckQa.soldiers[side]) {
+          const fx = soldier._fbx;
+          fx._meshFar = true;
+          for (const lod of fx.meshLod) lod.mesh.subMeshes = lod.far;
+        }
+      }, faction);
       await page.evaluate(side => {
         const b = window.__battle__,
           sq = window.__truckQa.squads[side];
@@ -348,6 +361,19 @@ const out = path.resolve(process.env.STRATEGIC_TRUCK_QA_OUT || 'closeups/strateg
         cam.setTarget(new BABYLON.Vector3(node.position.x, node.position.y + 2, node.position.z));
       }, faction);
       await page.waitForTimeout(800);
+      const detail = await page.evaluate(
+        side =>
+          window.__truckQa.soldiers[side].map(s => ({
+            id: s.id,
+            far: s._fbx._meshFar,
+            full: s._fbx.meshLod.every(l => l.mesh.subMeshes === l.full)
+          })),
+        faction
+      );
+      assert(
+        detail.every(s => !s.far && s.full),
+        faction + ' seated close-up restores full meshes: ' + JSON.stringify(detail)
+      );
       await page.screenshot({ path: path.join(out, faction + '-actual-squad-seated.png') });
     }
     // Measure actual axle groups and the change in wheel rotation from a
