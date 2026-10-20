@@ -85,4 +85,95 @@ function world() {
   assert.ok(e.burstPauseUntil > w.b.time, 'empty-sector burst starts the normal suppression pause');
 }
 
-console.log('PASS suppression eligibility, retention and burst accounting');
+/* Micro alone chooses when an individual rifleman briefly lowers behind real
+   cover. The Squad Leader's commands and suppressor assignments are untouched. */
+{
+  const off = world();
+  assert.equal(off.E.fireCoverCycleOn(), false, 'control arm retains its previous firing behavior');
+}
+{
+  H.resetIds();
+  const r = H.bootstrap({ search: '?soldierBeliefs=0&stressAct=0&fireCoverCycle=1' }),
+    b = H.makeBattle(r, { seed: 717 }),
+    us = H.addSquad(r, b, {
+      id: 'us-fire-cover',
+      faction: 'us',
+      x: 0,
+      z: 0,
+      objective: { x: 0, z: 100 }
+    }),
+    ge = H.addSquad(r, b, {
+      id: 'ge-fire-cover',
+      faction: 'ge',
+      x: 0,
+      z: 90,
+      objective: { x: 0, z: 0 }
+    }),
+    E = r.BattleEngagement,
+    s = us.members.find(m => m.role === 'rifleman'),
+    gunner = us.members.find(m => r.SquadAI.isMachineGun(m)),
+    e = E.stateOf(s),
+    F = r.BattleObstacleField;
+  b.time = 20;
+  s.target = ge.members[0];
+  gunner.target = ge.members[0];
+  s.moving = false;
+  s.reloading = false;
+  s.suppressedUntil = 0;
+  s.crawling = false;
+  assert.equal(E.fireCoverCycleOn(), true);
+  F.coverAt = () => 0.55;
+  const pulls = 2 + (E.fireCoverVariation(s) % 3);
+  assert.equal(E.fireCoverAfterShot(s, b, 0.55, 0), false, 'no actual trigger pull, no counter');
+  assert.equal(e.fireCoverPulls, 0);
+  for (let i = 0; i < pulls; i++) {
+    s.fireCooldown = 0.75;
+    E.fireCoverAfterShot(s, b, 0.55, 0);
+    s.fireCooldown = 0;
+  }
+  assert.ok(e.fireCoverUntil > b.time, 'actual repeated pulls lead to individual cover recovery');
+  assert.equal(e.fireCoverPulls, 0, 'next firing volley starts a fresh count');
+  assert.equal(E.fireCoverRecovering(s, b, 0.55), true);
+  assert.equal(E.stateOf(s).stance, 'prone', 'rifleman actually lowers behind cover');
+  assert.equal(E.fireCoverAfterShot(gunner, b, 0.55, 0), false, 'MG stays committed to its own burst cycle');
+  assert.equal(E.stateOf(gunner).fireCoverUntil, 0);
+  const until = e.fireCoverUntil;
+  b.time = until + 0.01;
+  assert.equal(E.fireCoverRecovering(s, b, 0.55), false, 'recovery ends independently');
+  assert.equal(e.fireCoverUntil, 0);
+  s.moving = true;
+  s.fireCooldown = 0.75;
+  assert.equal(E.fireCoverAfterShot(s, b, 0.55, 0), false, 'movement cannot start a voluntary pose drill');
+  s.moving = false;
+  F.coverAt = () => 1;
+  assert.equal(E.fireCoverAfterShot(s, b, 0.55, 0), false, 'no actual protective cover, no fake concealment');
+  s.target = null;
+  assert.equal(E.fireCoverAfterShot(s, b, 0.55, 0), false, 'no target, no new cycle');
+  s.target = ge.members[0];
+  F.coverAt = () => 0.55;
+  e.suppressOrder = true;
+  assert.equal(
+    E.fireCoverAfterShot(s, b, 0.55, 0),
+    false,
+    'assigned base-of-fire rifleman never abandons his personal support task on a fixed timer'
+  );
+  e.suppressOrder = false;
+  const M = r.BattleSoldierMind,
+    originalIncoming = M.recentIncoming;
+  M.recentIncoming = () => true;
+  const threatenedPulls = Math.max(1, pulls - 1);
+  for (let i = 0; i < threatenedPulls; i++) {
+    s.fireCooldown = 0.75;
+    E.fireCoverAfterShot(s, b, 0.55, 0);
+    s.fireCooldown = 0;
+  }
+  assert.ok(e.fireCoverUntil > b.time, 'recent incoming fire shortens the individual exposure interval');
+  assert.ok(e.fireCoverUntil - b.time >= 1.05, 'incoming fire extends protected recovery');
+  M.recentIncoming = originalIncoming;
+  assert.ok(
+    E.fireCoverVariation(s) !== E.fireCoverVariation(us.members.find(m => m !== s)),
+    'riflemen use their own stable identities rather than a shared squad clock'
+  );
+}
+
+console.log('PASS suppression eligibility, retention, burst accounting and autonomous covered fire cycle');

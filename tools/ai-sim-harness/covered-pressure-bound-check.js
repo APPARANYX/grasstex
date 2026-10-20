@@ -72,13 +72,22 @@ function world(maneuver = true, opts = {}) {
       inputs: { resources: { status: opts.overBudget ? 'over-budget' : 'reported', moverIds: ['0'] } }
     },
     posture = { mode: 'maneuver', stats: { rejectedUnsafeBounds: 0 } };
-  // Isolate the policy seam, not the shipping publisher or lease authority.
-  // A real eligible posture/route is verified independently in the geometry checks.
+  // A pinned reserve is native Squad Leader intent, not a second bound
+  // writer. This fixture supplies only the already authorized posture;
+  // the publisher, fireteam roster and leases below remain shipping code.
+  if (opts.reserveTeam) {
+    posture.reserveTeam = opts.reserveTeam;
+    posture.reserveActorIds = q.members
+      .filter(s => s._fireteamKey === opts.reserveTeam)
+      .map(s => String(s.id));
+    if (opts.partialReserve) q.members[2].reloading = true;
+  }
   E.updateSquad = () => report;
   S.localPlan.update = () => task;
   P.update = () => posture;
   P.current = () => (opts.postureOff ? null : posture);
-  P.coveredTeam = () => !opts.unsafe;
+  P.coveredTeam = (battle, squad, movers) =>
+    !opts.unsafe && !(opts.unsafeReserve && movers.some(s => s._fireteamKey === opts.reserveTeam));
   // Only this policy seam is under test; native E.orderBound remains unchanged.
   const before = q.members.map(s => s.destination);
   S.fireAndMovement(q, b);
@@ -101,6 +110,31 @@ assert.deepEqual(
   'the Squad Leader posture never writes destinations'
 );
 assert.equal(accepted.posture.stats.rejectedUnsafeBounds, 0);
+/* Under a valid staged reserve, the first alpha turn may be otherwise
+   eligible. The native Squad Leader must lease the actual bravo reserve,
+   not accidentally order its alpha support base to leave by rotation. */
+const reserved = world(true, { reserveTeam: 'bravo' });
+assert.equal(
+  reserved.L.get(reserved.q, 'bound')?.data?.team,
+  'bravo',
+  'native bound lease consumes the staged follow-on reserve regardless of alpha-first rotation'
+);
+assert.deepEqual(
+  reserved.q.members.filter(s => reserved.E.stateOf(s).boundOrder).map(s => s._fireteamKey),
+  ['bravo', 'bravo'],
+  'only intact reserved fireteam actors receive the Engagement bound'
+);
+for (const opts of [
+  { reserveTeam: 'bravo', unsafeReserve: true },
+  { reserveTeam: 'bravo', partialReserve: true }
+]) {
+  const denied = world(true, opts);
+  assert.equal(denied.L.get(denied.q, 'bound'), null, 'unsafe or partial reserve must hold');
+  assert.ok(
+    denied.q.members.every(s => !denied.E.stateOf(s).boundOrder),
+    'a blocked reserve must never send alternate alpha movers instead'
+  );
+}
 for (const [name, opts] of [
   ['no-posture', { postureOff: true }],
   ['emergency', { emergency: true }],

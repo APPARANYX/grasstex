@@ -2038,6 +2038,9 @@
         commanded: commanded,
         leaderlessActive: leaderlessActive,
         FIRE_CONTROL_ON: FIRE_CONTROL_ON,
+        ASSAULT_PHASES: ASSAULT_PHASES,
+        COA_ON: COA_ON,
+        COAS: COAS,
         telemetry: telemetry
       })
     : null;

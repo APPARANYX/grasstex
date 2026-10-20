@@ -39,6 +39,14 @@
   var MOVE_FIRE_FRACTION = 0.12; // above this fraction of top speed the weapon stays down
   var ALERT_HOLD = 4.5; // hold the threat sector this long after losing sight
   var ENGAGE_REVIEW = 7.0; // re-open the cover question this often while holding
+  var SQUAD_RETURN_FIRE_ON = /[?&]squadReturnFire=(?:1|on|true)(?:&|#|$)/i.test(
+    (root.location && root.location.search) || ''
+  );
+  /* Phase C: experimental, per-soldier Micro fire/conceal cycle. The Squad Leader
+     neither schedules the pause nor receives a new command/ownership surface. */
+  var FIRE_COVER_CYCLE = /[?&]fireCoverCycle=(?:1|on|true)(?:&|#|$)/i.test(
+    (root.location && root.location.search) || ''
+  );
   var NO_LINE_GRACE = 6.0; // a held target the man cannot fire on this long is observed, not engaged
   /* On by default; `?fireLineContact=0` is the old rule (every held target is contact, however long it has been unshootable). */
   var FIRE_LINE_CONTACT = !(
@@ -155,6 +163,8 @@
         suppressOrder: false,
         burstLeft: SUPPRESS_BURST,
         burstPauseUntil: 0,
+        fireCoverPulls: 0,
+        fireCoverUntil: 0,
         freezeStartedAt: null,
         freezeUntil: 0,
         freezeDuration: 0,
@@ -413,6 +423,9 @@
   }
   function underFireNow(s, battle) {
     return fireStanceImpl().underFireNow(s, battle);
+  }
+  function areaSupportOf(s, battle) {
+    return fireStanceImpl().areaSupportOf(s, battle);
   }
   function fireAuthorized(s, battle) {
     return fireStanceImpl().fireAuthorized(s, battle);
@@ -799,6 +812,10 @@
       if (next !== 'withdraw') e.withdrawPoint = null;
       /* A gun that leaves its firing position has to be emplaced again before it counts as set up. */
       if (next !== 'engage' && next !== 'station') e.setUpSince = 0;
+      if (next !== 'engage') {
+        e.fireCoverPulls = 0;
+        e.fireCoverUntil = 0;
+      }
       e.state = next;
       e.since = battle.time;
       e.moveReason = why || next;
@@ -1021,6 +1038,197 @@
     if (s && battle && !s.dead && reactionState(s) !== 'freeze') EXT.run('afterDrill', s, battle);
     return result;
   }
+
+  /* A defensive opportunity is personal, never instant squad mind-sharing.
+     Self-observed locations and DELIVERED own-squad callouts are sufficient
+     evidence, but a teammate's unseen private belief / an outside relay is
+     not. The callout owner already simulates delivery delay, noise and misses. */
+  function squadDefensiveContact(s, battle) {
+    var sq = s && s.squad,
+      men = sq && sq.members,
+      A = SA(),
+      now = battle && +battle.time,
+      active = false;
+    if (
+      !SQUAD_RETURN_FIRE_ON ||
+      !s ||
+      s.dead ||
+      s.isPlayer ||
+      !battle ||
+      !sq ||
+      sq.state === 'retreat' ||
+      !A ||
+      !Array.isArray(men) ||
+      men.length > 32
+    )
+      return null;
+    for (var i = 0; i < men.length; i++)
+      if (men[i] && !men[i].dead && underFireNow(men[i], battle)) {
+        active = true;
+        break;
+      }
+    if (!active) return null;
+    var own = A.soldierContact && A.soldierContact(s, battle),
+      first = !!(
+        own &&
+        ((own.source === 'seen' && String(own.seenBy) === String(s.id)) ||
+          (own.source === 'incoming' && own.precision === 'fire-origin' && underFireNow(s, battle)))
+      );
+    if (
+      first &&
+      isFinite(+own.x) &&
+      isFinite(+own.z) &&
+      isFinite(+own.at) &&
+      isFinite(+own.confidence) &&
+      +own.confidence >= 0.5 &&
+      now >= +own.at &&
+      now - +own.at <= 3
+    )
+      return { x: +own.x, z: +own.z, at: +own.at, source: own.source };
+    var C = root.BattleCallouts,
+      delivery = C && C.heardBy && C.enabled && C.enabled() ? C.heardBy(battle, s) : null,
+      msg = delivery && delivery.msg,
+      fact = msg && msg.fact;
+    if (
+      !msg ||
+      !fact ||
+      String(msg.fromSquad) !== String(sq.id) ||
+      (msg.kind !== 'contact' && msg.kind !== 'incomingFire') ||
+      (msg.kind === 'incomingFire' && fact.precision !== 'fire-origin') ||
+      !isFinite(+delivery.confidence) ||
+      +delivery.confidence < 0.5 ||
+      !isFinite(+fact.x) ||
+      !isFinite(+fact.z) ||
+      !isFinite(+fact.at) ||
+      now < +fact.at ||
+      now - +fact.at > 3
+    )
+      return null;
+    /* The sender is one of our currently known people, not an untrusted
+       foreign squad or a claimed source ID in an unrelated belief. */
+    for (var j = 0; j < men.length; j++)
+      if (men[j] && !men[j].dead && String(men[j].id) === String(msg.from))
+        return {
+          x: +fact.x,
+          z: +fact.z,
+          at: +fact.at,
+          source: msg.kind === 'incomingFire' ? 'incoming' : 'seen'
+        };
+    return null;
+  }
+  /* The three continuously held ambush actors are concealed CROUCHED but
+     their original posts were physically validated for a STANDING sight ray.
+     At contact they may rise to deliver fire. This does not let a non-core
+     soldier fire over terrain or change the Squad Leader's movement orders. */
+  function preparedStandingLine(s, battle, pt) {
+    var P = root.BattleSquadStability && root.BattleSquadStability.tacticalPostures,
+      posture = P && s && s.squad && P.current(battle, s.squad);
+    return !!(
+      pt &&
+      posture &&
+      posture.readyAt != null &&
+      Array.isArray(posture.heldActorIds) &&
+      posture.heldActorIds.indexOf(String(s.id)) >= 0 &&
+      SA().canSuppressStanding &&
+      SA().canSuppressStanding(s, pt, battle)
+    );
+  }
+  function defensiveLine(s, battle, pt) {
+    return !!(
+      pt &&
+      ((SA().canSuppress && SA().canSuppress(s, pt, battle, true)) || preparedStandingLine(s, battle, pt))
+    );
+  }
+  function defensiveFireStance(s, battle, pt) {
+    /* Choose the firing posture from its REAL ballistic ray, not from the
+       soldier's CURRENT stance. At a masked crest, crouch fails and stand
+       succeeds: probing the current pose makes each 0.15s support tick flip
+       stand -> crouch -> stand, continually restarting aim readiness. A
+       read-only crouched proxy uses the existing terrain/obstacle/ballistic
+       checks; the prepared-core standing exception stays just as narrow. */
+    var crouched = Object.assign({}, s, {
+      prone: false,
+      crouching: true,
+      tacticalCrouch: true
+    });
+    return SA().canSuppress && SA().canSuppress(crouched, pt, battle, true)
+      ? 'crouch'
+      : preparedStandingLine(s, battle, pt)
+        ? 'stand'
+        : 'crouch';
+  }
+  function autonomousDefensiveSupport(s, battle) {
+    var e = state(s),
+      pt = squadDefensiveContact(s, battle),
+      ammo = root.BattleAmmunition,
+      post = root.BattleTacticalPositions;
+    if (
+      !pt ||
+      combatThreat(s.target) ||
+      !s.weapon ||
+      !s.weapon.stats ||
+      s.moving ||
+      s.crawling ||
+      s.reloading ||
+      s.clearingStoppage ||
+      s.outOfAmmo ||
+      s.suppressedUntil > battle.time ||
+      e.boundOrder ||
+      (ammo && !ammo.available(s)) ||
+      (post && post.current && post.current(s)) ||
+      ['bound', 'pinned', 'withdraw', 'assault'].indexOf(e.state) >= 0 ||
+      !defensiveLine(s, battle, pt)
+    )
+      return false;
+    holdPosition(s, battle);
+    s.state = 'suppress';
+    if (ALERT_LATCH) e.engaged = true;
+    e.until = Math.max(+e.until || 0, battle.time + SUPPRESS_HOLD);
+    commitStanceRespectHold(
+      s,
+      battle,
+      defensiveFireStance(s, battle, pt),
+      0.8,
+      'individual defensive assist'
+    );
+    s._faceHint = { x: pt.x, z: pt.z };
+    if (SA().isMachineGun(s)) {
+      if (!e.setUpSince) e.setUpSince = battle.time;
+      s.setUp = battle.time - e.setUpSince > GUNNER_SETUP * statScale(s, 'setup');
+    }
+    suppress(s, battle, pt);
+    return true;
+  }
+
+  function orderedAreaSupport(s, battle) {
+    var point = areaSupportOf(s, battle),
+      e = state(s);
+    if (!point || combatThreat(s.target)) return false;
+    if (['bound', 'assault', 'pinned', 'withdraw'].indexOf(e.state) >= 0) return false;
+    holdPosition(s, battle);
+    s.state = 'suppress';
+    if (ALERT_LATCH) e.engaged = true;
+    e.until = Math.max(+e.until || 0, battle.time + SUPPRESS_HOLD);
+    commitStanceRespectHold(
+      s,
+      battle,
+      defensiveFireStance(s, battle, point),
+      0.8,
+      'squad support-fire order'
+    );
+    s._faceHint = { x: point.x, z: point.z };
+    /* An ordered machine gunner emplaces his gun on the held firing position exactly like a
+       station gunner: the emplacing clock runs while he delivers the sustained fire (the state
+       machine keeps it only across engage/station, and this path holds without a transition),
+       and he counts as capable support only once it completes. */
+    if (SA().isMachineGun(s)) {
+      if (!e.setUpSince) e.setUpSince = battle.time;
+      s.setUp = battle.time - e.setUpSince > GUNNER_SETUP * statScale(s, 'setup');
+    }
+    suppress(s, battle, point);
+    return true;
+  }
+
   function runDrill(s, battle) {
     var e = state(s),
       role = roleOf(s),
@@ -1099,6 +1307,7 @@
     if (ACT.any && reaction(s, battle)) return;
     if (root.BattleGrenades && root.BattleGrenades.on() && root.BattleGrenades.pendingOf(s, battle))
       return throwing(s, battle);
+    if (orderedAreaSupport(s, battle)) return;
     if (e.state === 'throw') {
       transition(s, battle, s.target ? 'engage' : 'alert', 0, 'grenade released');
     }
@@ -1115,6 +1324,7 @@
     if (ambushPost(s, battle)) return;
     if (fireControlPreparing(s, battle) && e.state !== 'bound' && e.state !== 'assault')
       return prepareFireControl(s, battle);
+    if (autonomousDefensiveSupport(s, battle)) return;
 
     if (structureObservation(s, battle)) return;
 
@@ -1192,6 +1402,7 @@
       !o ||
       e.suppressOrder ||
       underFireNow(s, battle) ||
+      squadDefensiveContact(s, battle) ||
       s.suppressedUntil > battle.time ||
       battle.time < shockUntil(s) ||
       ['bound', 'assault', 'pinned', 'withdraw'].indexOf(e.state) >= 0 ||
@@ -1200,8 +1411,20 @@
         !C.executionCurrent(s, battle, 'movement', 'soldier:' + String(s.id), s._fireteamAdoptedEnvelope))
     )
       return false;
-    var arrived = Math.hypot(posOf(s).x - o.point.x, posOf(s).z - o.point.z) <= 0.5;
-    var prepared = o.stage === 'ready' || o.stage === 'contact';
+    var endpoint = o.arrivalPoint || o.point,
+      outcome =
+        C && C.movementEnabled() && root.BattleExecutionOutcome
+          ? root.BattleExecutionOutcome.man(s, battle)
+          : null,
+      arrived = outcome
+        ? !!(
+            outcome.current &&
+            outcome.publishKey === o.key &&
+            (outcome.state === 'completed' ||
+              (o.arrivalPoint && Math.hypot(posOf(s).x - endpoint.x, posOf(s).z - endpoint.z) <= 0.5))
+          )
+        : Math.hypot(posOf(s).x - endpoint.x, posOf(s).z - endpoint.z) <= 0.5;
+    var prepared = o.readyAt != null || o.stage === 'ready' || o.stage === 'contact';
     if (s.target && prepared && e.state === 'orient' && battle.time < e.until) return false;
     if (s.target && arrived && prepared) {
       if (e.state !== 'engage') transition(s, battle, 'engage', 0, 'adopted ambush line');
@@ -1209,11 +1432,16 @@
       holdPosition(s, battle);
       commitStanceRespectHold(s, battle, seeingStance(s, battle, 'stand'), 0.5, 'ambush firing line');
       s._faceHint = posOf(s.target);
+      var F = field(),
+        here = F ? F.coverPotentialAt(battle.obstacles, posOf(s).x, posOf(s).z) : 1;
+      if (fireCoverRecovering(s, battle, here)) return true;
       if (SA().isMachineGun(s)) {
         if (!e.setUpSince) e.setUpSince = battle.time;
         s.setUp = battle.time - e.setUpSince > GUNNER_SETUP * statScale(s, 'setup');
       } else s.setUp = false;
+      var fireClockBefore = +s.fireCooldown || 0;
       tryFire(s, battle);
+      fireCoverAfterShot(s, battle, here, fireClockBefore);
     } else {
       if (e.state === 'engage' || e.state === 'orient')
         transition(s, battle, 'alert', 0, 'ambush target not actionable');
@@ -1227,7 +1455,12 @@
         'masked ambush preparation'
       );
       s._faceHint = arrived ? o.watchPoint : null;
-      followOrders(s, battle, false);
+      /* Movement already verified this physical post. Once prepared,
+         observation holds here just as aiming at a visible target does.
+         Returning authority to the original formation destination can move
+         the man off this post during the observation handoff. */
+      if (arrived && prepared) holdPosition(s, battle);
+      else followOrders(s, battle, false);
     }
     return true;
   }
@@ -1241,6 +1474,7 @@
       squadContact(s, battle) ||
       e.suppressOrder ||
       underFireNow(s, battle) ||
+      squadDefensiveContact(s, battle) ||
       s.suppressedUntil > battle.time ||
       battle.time < shockUntil(s) ||
       ['bound', 'assault', 'pinned', 'withdraw'].indexOf(e.state) >= 0
@@ -1480,6 +1714,77 @@
     move(s, battle, { x: cover.x, z: cover.z }, 'cover-bound');
   }
 
+  /* Micro alone owns a voluntary exposure break. Only a stationary rifleman
+     at actual usable cover can lower after several *real* trigger pulls; open
+     ground, pinned men, assigned supporters/stations and emplaced guns retain
+     their existing survival/suppression owners. A recent personally experienced
+     incoming volley shortens the exposure and lengthens recovery; ID-based
+     jitter keeps it individual without Squad Leader clocks or combat RNG. */
+  function fireCoverVariation(s) {
+    var id = String(s && s.id != null ? s.id : ''),
+      hash = 0;
+    for (var i = 0; i < id.length; i++) hash = (hash * 33 + id.charCodeAt(i)) % 997;
+    return hash;
+  }
+  function fireCoverEligible(s, battle, here) {
+    var F = field(),
+      p = posOf(s);
+    return !!(
+      FIRE_COVER_CYCLE &&
+      s.target &&
+      !s.dead &&
+      !s.isPlayer &&
+      !s.reloading &&
+      !s.crawling &&
+      !s.moving &&
+      !(s.suppressedUntil > battle.time) &&
+      PRONE_ROLES[s.role] &&
+      !SA().isMachineGun(s) &&
+      !state(s).suppressOrder &&
+      !areaSupportOf(s, battle) &&
+      !(root.BattleTacticalPositions && root.BattleTacticalPositions.current(s)) &&
+      F &&
+      F.coverAt &&
+      here <= USEFUL_COVER &&
+      F.coverAt(battle.obstacles, p.x, p.z, 'prone') <= USEFUL_COVER &&
+      dist(p.x, p.z, posOf(s.target).x, posOf(s.target).z) > 20
+    );
+  }
+  function fireCoverRecovering(s, battle, here) {
+    var e = state(s),
+      until = +e.fireCoverUntil || 0;
+    if (!until) return false;
+    if (battle.time >= until || !fireCoverEligible(s, battle, here)) {
+      e.fireCoverUntil = 0;
+      e.fireCoverPulls = 0;
+      return false;
+    }
+    holdPosition(s, battle);
+    commitStanceRespectHold(s, battle, 'prone', Math.max(0.15, until - battle.time), 'individual-fire-cover');
+    return true;
+  }
+  function fireCoverAfterShot(s, battle, here, priorCooldown) {
+    var e = state(s);
+    if (!fireCoverEligible(s, battle, here)) {
+      e.fireCoverPulls = 0;
+      return false;
+    }
+    /* Only an actual pull that advanced the weapon's fire clock counts;
+       Engagement.tryFire() may report true without a round during cooldown. */
+    if (!(+s.fireCooldown > Math.max(0, +priorCooldown || 0) + 0.001)) return false;
+    e.fireCoverPulls = (+e.fireCoverPulls || 0) + 1;
+    var phase = fireCoverVariation(s),
+      incoming = underFireNow(s, battle),
+      pulls = Math.max(1, 2 + (phase % 3) - (incoming ? 1 : 0));
+    if (e.fireCoverPulls < pulls) return false;
+    e.fireCoverPulls = 0;
+    e.fireCoverUntil = battle.time + 0.75 + ((phase >>> 2) % 5) * 0.15 + (incoming ? 0.3 : 0);
+    /* The rifleman chose to hide; its actual firing line must therefore cease
+       until he comes back up and satisfies the normal aim/stance checks. */
+    commitStance(s, battle, 'prone', e.fireCoverUntil - battle.time, 'individual-fire-cover');
+    return true;
+  }
+
   function engage(s, battle) {
     var e = state(s),
       p = posOf(s);
@@ -1498,6 +1803,7 @@
     }
 
     var d = dist(p.x, p.z, posOf(s.target).x, posOf(s.target).z);
+    if (fireCoverRecovering(s, battle, here)) return;
     /* A man who sees a head he cannot hit (fireLineLive) is observing, not fighting: he proposes no hold,
        so the Squad Leader's published order (the anchor's advance, a clearing move) takes him up to a
        position with a line instead of pinning him behind the crest for the rest of the battle. */
@@ -1527,7 +1833,9 @@
       if (!e.setUpSince) e.setUpSince = battle.time;
       s.setUp = battle.time - e.setUpSince > GUNNER_SETUP * statScale(s, 'setup');
     } else s.setUp = false;
+    var fireClockBefore = +s.fireCooldown || 0;
     tryFire(s, battle);
+    fireCoverAfterShot(s, battle, here, fireClockBefore);
     if (battle.time >= (e.reviewAt || 0)) {
       e.reviewAt = battle.time + ENGAGE_REVIEW + jitter(s, 0.3);
       /* Also re-decide when the man has no LOS to his target — a man behind a hedgerow who
@@ -1872,17 +2180,35 @@
       reacting(s) ||
       fledPhase(s) ||
       battle.time < e.fireReadyAt ||
+      battle.time < (+e.fireCoverUntil || 0) ||
       !fireAuthorized(s, battle) ||
       battle.time < shockUntil(s) ||
       (ammo && !ammo.available(s))
     )
       return false;
-    var post = root.BattleTacticalPositions && root.BattleTacticalPositions.current(s);
+    var post = root.BattleTacticalPositions && root.BattleTacticalPositions.current(s),
+      areaSupport = areaSupportOf(s, battle);
     if (
-      !(e.state === 'engage' || (e.state === 'station' && post && post.occupiedAt != null) || e.suppressOrder)
+      !(
+        e.state === 'engage' ||
+        (e.state === 'station' && post && post.occupiedAt != null) ||
+        e.suppressOrder ||
+        areaSupport ||
+        squadDefensiveContact(s, battle)
+      )
     )
       return false;
     if (SA().isMachineGun(s) && !s.setUp) return false;
+    var target = s.target;
+    if (!combatThreat(target) && areaSupport) {
+      if (
+        SA().canSuppress &&
+        SA().canSuppress(s, areaSupport, battle, true) &&
+        facingError(s, areaSupport) <= AIM_CONE
+      )
+        return true;
+      return false;
+    }
     if (e.suppressOrder) {
       var point = knownThreat(s, battle);
       if (
@@ -1893,7 +2219,9 @@
       )
         return true;
     }
-    var target = s.target;
+    var localDefence = squadDefensiveContact(s, battle);
+    if (!combatThreat(target) && localDefence)
+      return defensiveLine(s, battle, localDefence) && facingError(s, localDefence) <= AIM_CONE;
     return !!(
       combatThreat(target) &&
       dist(posOf(s).x, posOf(s).z, posOf(target).x, posOf(target).z) <= SA().engageRange(s) &&
@@ -1963,7 +2291,9 @@
         if (
           e.state === 'engage' ||
           (e.state === 'station' && position && position.occupiedAt != null) ||
-          e.suppressOrder
+          e.suppressOrder ||
+          areaSupportOf(s, battle) ||
+          squadDefensiveContact(s, battle)
         ) {
           if (!EFFECTIVE_FIRE || supportReady(s, battle)) {
             effective++;
@@ -1982,7 +2312,18 @@
        the Squad Leader's live hold/precision/reposition order. Recent first-hand contact keeps that preparation
        alive; heard/relayed word alone cannot freeze a squad in place. Incoming fire must keep contact live so
        the Squad Leader can escalate HOLD FIRE to OPEN FIRE instead of clearing the command before reading it. */
-    sq.inContact = contact > 0 || suppressing > 0 || underFireCount > 0 || preparingContact;
+    /* An independently adopted area-support job is real continuing contact
+       only when Engagement confirms that the man can actually fire now.
+       Neither an assigned name nor a suppressed or blocked gun maintains
+       contact. This lets one lawful rifle sustain the base of fire while
+       the second recovers, without inventing the two needed to bound. */
+    var actualAreaSupport =
+      EFFECTIVE_FIRE &&
+      fireSupport.some(function (man) {
+        return !!areaSupportOf(man, battle);
+      });
+    sq.inContact =
+      contact > 0 || suppressing > 0 || underFireCount > 0 || preparingContact || actualAreaSupport;
     var started = sq.inContact && !wasInContact;
     if (started) {
       sq.contactSince = battle.time;
@@ -2076,6 +2417,10 @@
     extensionOrder: EXT.order,
     updateSoldier: updateSoldier,
     updateSquad: updateSquad,
+    squadDefensiveContact: squadDefensiveContact,
+    squadReturnFireOn: function () {
+      return SQUAD_RETURN_FIRE_ON;
+    },
     orderBound: orderBound,
     clearBoundOrders: clearBoundOrders,
     coveredBoundTelemetry: function (battle) {
@@ -2112,7 +2457,14 @@
     facingError: facingError,
     fireAllowed: fireAllowed,
     fireAuthorized: fireAuthorized,
+    areaSupportOf: areaSupportOf,
     supportReady: supportReady,
+    fireCoverCycleOn: function () {
+      return FIRE_COVER_CYCLE;
+    },
+    fireCoverVariation: fireCoverVariation,
+    fireCoverRecovering: fireCoverRecovering,
+    fireCoverAfterShot: fireCoverAfterShot,
     effectiveFireOn: function () {
       return EFFECTIVE_FIRE;
     },

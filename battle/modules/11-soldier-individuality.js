@@ -234,6 +234,9 @@
       !point
     )
       return null;
+    /* Diagnostic-only removal of formation transit body overrides. Bounds and
+       firing station ingress retain their normal autonomy in this arm. */
+    if (root.BATTLE_DIAGNOSTIC_NO_AUTONOMOUS_FORMATION && pick.kind === 'formation') return null;
     var e = s.eng || {},
       now = +sim.time || 0,
       current = s.root.position,

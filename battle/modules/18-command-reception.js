@@ -74,12 +74,24 @@
     if (r === 'object') return (TUNING.ORIENT_OBJECT + h * TUNING.ORIENT_OBJECT_SPREAD) * scale;
     return 0;
   }
-  function copyData(v) {
-    if (!v || typeof v !== 'object') return null;
+  /* Envelope data is a small JSON-like payload owned by the issuing category (posture fire-control
+     carries a supportPoint {x,z} and a supporterIds array). Copy it faithfully but boundedly:
+     primitives as before, arrays element-wise, plain objects key-wise. Anything else (class
+     instances, functions) still drops, so no engine object is ever shared into the record store. */
+  function copyData(v, depth) {
+    depth = depth || 0;
+    if (v == null || typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') return v;
+    if (depth >= 3) return null;
+    if (Array.isArray(v)) {
+      var arr = [];
+      for (var i = 0; i < v.length && i < 64; i++) arr.push(copyData(v[i], depth + 1));
+      return arr;
+    }
+    var proto = Object.getPrototypeOf(v);
+    if (proto !== Object.prototype && proto !== null) return null;
     var out = {};
     Object.keys(v).forEach(function (k) {
-      var x = v[k];
-      if (x == null || typeof x === 'string' || typeof x === 'number' || typeof x === 'boolean') out[k] = x;
+      out[k] = copyData(v[k], depth + 1);
     });
     return out;
   }

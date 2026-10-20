@@ -132,7 +132,9 @@
         posture = postures && postures.current(battle, sq),
         security =
           (local && local.currentStructureOrders(battle, sq)) ||
-          (posture && posture.mode === 'ambush' ? posture : null);
+          (posture && (posture.mode === 'ambush' || (posture.mode === 'hold' && posture.orders.length))
+            ? posture
+            : null);
       if (security) {
         var securityStats = publishStats(battle);
         security.orders.forEach(function (o) {

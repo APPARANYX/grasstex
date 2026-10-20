@@ -29,8 +29,31 @@ const { requestPreview } = require('./preview_request.cjs');
     url.searchParams.set('localPlan', '1');
     url.searchParams.set('localAmbush', '1');
     const page = await context.newPage(),
-      errors = [];
+      errors = [],
+      networkFailures = [];
     page.on('pageerror', e => errors.push(String(e)));
+    /* Playwright's generic 'Failed to fetch' pageerror drops the request URL.
+       Capture the actual failed transport (not a guessed game subsystem) so
+       a flaky preview network dependency is actionable without suppressing
+       QA errors or changing simulation behavior. */
+    page.on('requestfailed', request => {
+      if (networkFailures.length < 32)
+        networkFailures.push({
+          url: request.url().split('?')[0],
+          method: request.method(),
+          resource: request.resourceType(),
+          error: request.failure()?.errorText || 'requestfailed'
+        });
+    });
+    page.on('response', response => {
+      if (response.status() >= 500 && networkFailures.length < 32)
+        networkFailures.push({
+          url: response.url().split('?')[0],
+          method: response.request().method(),
+          resource: response.request().resourceType(),
+          status: response.status()
+        });
+    });
     await page.goto(url.href, { waitUntil: 'load', timeout: 300000 });
     await page.waitForFunction(
       () => window.__battle__?.factions && window.BattleSquadStability?.tacticalPostures?.on,
@@ -192,6 +215,7 @@ const { requestPreview } = require('./preview_request.cjs');
     });
     const captured = new Set();
     let holdAt = null;
+    let verifiedPreparedAt = null;
     for (let tick = 0; tick < 140; tick++) {
       const st = await page.evaluate(() => {
         const b = __battle__,
@@ -235,11 +259,22 @@ const { requestPreview } = require('./preview_request.cjs');
         };
       });
       if (st.stage === 'hold' && holdAt == null) holdAt = st.time;
+      if (st.readyAt != null && st.heldSince != null && st.readyAt - st.heldSince >= 4 - 1e-6)
+        verifiedPreparedAt = st.readyAt;
       if (st.lastShot && !evidence.shots.some(e => e.at === st.lastShot.at))
         evidence.shots.push(st.lastShot);
       evidence.last = st;
+      /* A prepared posture can be released after contact ends. An autonomous
+         rifleman's later shot has no CURRENT posture.readyAt, but is not a
+         premature ambush volley: keep the verified readiness timestamp from
+         the earlier per-tick snapshots, never manufacture it after a shot. */
+      const shotAfterPreparation = !!(
+        st.lastShot &&
+        ((st.lastShot.readyAt != null && st.lastShot.at >= st.lastShot.readyAt) ||
+          (verifiedPreparedAt != null && st.lastShot.at >= verifiedPreparedAt))
+      );
       assert.ok(
-        st.ownShots === 0 || st.lastShot?.readyAt != null,
+        st.ownShots === 0 || shotAfterPreparation,
         'no premature round before real four-second ambush preparation'
       );
       const stages = [];
@@ -247,7 +282,7 @@ const { requestPreview } = require('./preview_request.cjs');
       // The native posture can enter 'contact' on the same tick it becomes
       // ready; readiness itself, while the guns remain silent, is the frame.
       if (st.readyAt != null && st.ownShots === 0) stages.push('prepared-line');
-      if (st.ownShots > 0 && st.lastShot?.readyAt != null) stages.push('first-contact-volley');
+      if (st.ownShots > 0 && shotAfterPreparation) stages.push('first-contact-volley');
       for (const name of stages)
         if (!captured.has(name)) {
           await page.evaluate(
@@ -300,6 +335,8 @@ const { requestPreview } = require('./preview_request.cjs');
       if (captured.size === 3) break;
     }
     evidence.errors = errors;
+    evidence.networkFailures = networkFailures;
+    if (errors.length) console.error('AMBUSH_PAGE_ERRORS', JSON.stringify({ errors, networkFailures }));
     assert.deepEqual(errors, []);
     assert.equal(captured.size, 3, 'all real gameplay stages captured');
     const volley = evidence.stages.find(s => s.name === 'first-contact-volley');

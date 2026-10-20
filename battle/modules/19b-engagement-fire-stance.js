@@ -114,29 +114,66 @@
           state: data.state || null,
           targetId: data.targetId == null ? null : data.targetId,
           shooterId: data.shooterId == null ? null : data.shooterId,
+          supportPoint:
+            data.supportPoint && isFinite(+data.supportPoint.x) && isFinite(+data.supportPoint.z)
+              ? { x: +data.supportPoint.x, z: +data.supportPoint.z }
+              : null,
+          supporterIds: Array.isArray(data.supporterIds) ? data.supporterIds.slice(0, 2).map(String) : [],
+          supportSource: data.supportSource || null,
+          supportAt: isFinite(+data.supportAt) ? +data.supportAt : null,
           commandVersion: rec.version,
           commandEnvelopeId: rec.envelopeId
         };
       }
       return (s && s.squad && s.squad.fireControl) || null;
     }
+    function areaSupportOf(s, battle) {
+      var f = fireControlOf(s, battle);
+      if (
+        !f ||
+        f.state !== 'open' ||
+        !f.supportPoint ||
+        (f.supportSource !== 'seen' && f.supportSource !== 'incoming') ||
+        !Array.isArray(f.supporterIds) ||
+        f.supporterIds.indexOf(String(s.id)) < 0
+      )
+        return null;
+      return { x: +f.supportPoint.x, z: +f.supportPoint.z };
+    }
     function fireAuthorized(s, battle) {
       var f = fireControlOf(s, battle),
+        defence =
+          root.BattleEngagement && root.BattleEngagement.squadDefensiveContact
+            ? root.BattleEngagement.squadDefensiveContact(s, battle)
+            : null,
         P = root.BattleSquadStability && root.BattleSquadStability.tacticalPostures,
         posture = P && s.squad && P.current(battle, s.squad);
       /* The posture can be adopted before the first Squad Leader fire-control
          order is received. Do not let an absent/old OPEN order fire the first
          round during the four-second concealed hold. Actual incoming fire
          still permits immediate self-defense under Engagement's authority. */
-      if (posture && posture.mode === 'ambush' && posture.readyAt == null && !underFireNow(s, battle))
+      if (
+        posture &&
+        posture.mode === 'ambush' &&
+        posture.readyAt == null &&
+        !underFireNow(s, battle) &&
+        !defence
+      )
         return false;
       if (!f || f.state === 'open') return true;
-      if (underFireNow(s, battle)) return true;
+      if (underFireNow(s, battle) || defence) return true;
       return f.state === 'precision' && String(f.shooterId) === String(s.id);
     }
     function fireControlPreparing(s, battle) {
       var f = fireControlOf(s, battle);
-      if (!f || underFireNow(s, battle)) return false;
+      if (
+        !f ||
+        underFireNow(s, battle) ||
+        (root.BattleEngagement &&
+          root.BattleEngagement.squadDefensiveContact &&
+          root.BattleEngagement.squadDefensiveContact(s, battle))
+      )
+        return false;
       if (f.state === 'hold') return true;
       if (f.state !== 'precision') return false;
       if (String(f.shooterId) !== String(s.id)) return true;
@@ -804,6 +841,8 @@
       engagementLive: engagementLive,
       squadOnHeels: squadOnHeels,
       underFireNow: underFireNow,
+      fireControlOf: fireControlOf,
+      areaSupportOf: areaSupportOf,
       fireAuthorized: fireAuthorized,
       fireControlPreparing: fireControlPreparing,
       canCrawlTo: canCrawlTo,

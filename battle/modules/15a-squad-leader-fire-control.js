@@ -32,6 +32,251 @@
           : !!(c && !c.heard && !c.relayedFrom);
       return c && c.unit && (!d || d.combatThreat) && own ? c : null;
     }
+    function supportAuthorityContact(sq, battle) {
+      var c = root.SquadAI.squadContact ? root.SquadAI.squadContact(sq, battle) : sq.contact,
+        windowSeconds = FIRE_CONTROL_TUNING.returnFireWindow,
+        direct = !!(c && c.seenBy != null && !c.heard && !c.relayedFrom),
+        incoming = !!(c && c.fireRevealed && c.precision === 'fire-origin' && !c.relayedFrom);
+      if (
+        c &&
+        isFinite(+c.x) &&
+        isFinite(+c.z) &&
+        isFinite(+c.at) &&
+        battle.time >= +c.at &&
+        battle.time - +c.at <= windowSeconds &&
+        (direct || incoming)
+      )
+        return {
+          x: +c.x,
+          z: +c.z,
+          at: +c.at,
+          source: incoming ? 'incoming' : 'seen',
+          targetId: c.unit && c.unit.id != null ? String(c.unit.id) : null
+        };
+      /* An incoming bullet's observed firing origin is a first-hand personal
+         belief, even when the squad's single shared contact now holds a relay.
+         Select only this soldier's actual sight/fire-origin record; a heard
+         shot or a told coordinate never becomes fire authority. */
+      var men = commanded(sq),
+        personalAuthority = null;
+      if (root.SquadAI.soldierContact)
+        for (var j = 0; j < men.length; j++) {
+          var soldier = men[j],
+            r = soldier && !soldier.dead && root.SquadAI.soldierContact(soldier, battle),
+            ownSight = !!(r && r.source === 'seen' && String(r.seenBy) === String(soldier.id)),
+            ownFireOrigin = !!(r && r.source === 'incoming' && r.precision === 'fire-origin');
+          if (
+            !r ||
+            (!ownSight && !ownFireOrigin) ||
+            !isFinite(+r.x) ||
+            !isFinite(+r.z) ||
+            !isFinite(+r.at) ||
+            !isFinite(+r.confidence) ||
+            +r.confidence < 0.5 ||
+            battle.time < +r.at ||
+            battle.time - +r.at > windowSeconds
+          )
+            continue;
+          if (!personalAuthority || +r.at > personalAuthority.at)
+            personalAuthority = {
+              x: +r.x,
+              z: +r.z,
+              at: +r.at,
+              source: ownSight ? 'seen' : 'incoming',
+              targetId: r.knownUnitId == null ? null : String(r.knownUnitId)
+            };
+        }
+      if (personalAuthority) return personalAuthority;
+      /* The legacy one-contact slot can prefer a newer relayed sighting over an
+         independent, still-fresh first-hand soldier belief. Consult the OWN
+         squad's multi-contact map rather than promoting the relayed coordinate
+         into fire authority. No live enemy transform or hearsay may enter here. */
+      var reports = root.SquadAI.squadContactsMap ? root.SquadAI.squadContactsMap(sq, battle) : null;
+      if (!Array.isArray(reports) || reports.length > 32) return null;
+      for (var i = 0; i < reports.length; i++) {
+        var r = reports[i];
+        if (
+          !r ||
+          r.source !== 'seen' ||
+          r.sourceSoldier == null ||
+          !isFinite(+r.x) ||
+          !isFinite(+r.z) ||
+          !isFinite(+r.at) ||
+          !isFinite(+r.confidence) ||
+          +r.confidence < 0.5 ||
+          battle.time < +r.at ||
+          battle.time - +r.at > windowSeconds
+        )
+          continue;
+        return {
+          x: +r.x,
+          z: +r.z,
+          at: +r.at,
+          source: 'seen',
+          targetId: r.targetId == null ? null : String(r.targetId)
+        };
+      }
+      return null;
+    }
+    /* A prepared line may face several independently reported firing origins.
+       The freshest first-hand position is not necessarily shootable from the
+       real posts. Try the OWN squad's other fresh, first-hand records before
+       abandoning its base of fire. Never substitute hearsay, stale coordinates
+       or an enemy actor's current transform. */
+    function supportAuthorityOptions(sq, battle) {
+      var options = [],
+        latest = supportAuthorityContact(sq, battle),
+        windowSeconds = FIRE_CONTROL_TUNING.returnFireWindow,
+        roster = commanded(sq);
+      function add(r) {
+        if (!r || !isFinite(+r.x) || !isFinite(+r.z) || !isFinite(+r.at)) return;
+        if (battle.time < +r.at || battle.time - +r.at > windowSeconds) return;
+        if (
+          options.some(function (p) {
+            return Math.hypot(p.x - +r.x, p.z - +r.z) < 1;
+          })
+        )
+          return;
+        options.push({ x: +r.x, z: +r.z, at: +r.at, source: r.source });
+      }
+      add(latest);
+      if (root.SquadAI.soldierContact)
+        roster.forEach(function (s) {
+          if (!s || s.dead || s.isPlayer) return;
+          var r = root.SquadAI.soldierContact(s, battle),
+            sight = r && r.source === 'seen' && String(r.seenBy) === String(s.id),
+            incoming = r && r.source === 'incoming' && r.precision === 'fire-origin';
+          if (!r || (!sight && !incoming) || !isFinite(+r.confidence) || +r.confidence < 0.5) return;
+          add({ x: r.x, z: r.z, at: r.at, source: sight ? 'seen' : 'incoming' });
+        });
+      var map = root.SquadAI.squadContactsMap && root.SquadAI.squadContactsMap(sq, battle);
+      if (Array.isArray(map) && map.length <= 32)
+        map.forEach(function (r) {
+          if (
+            r &&
+            r.source === 'seen' &&
+            r.sourceSoldier != null &&
+            roster.some(function (s) {
+              return s && !s.dead && String(s.id) === String(r.sourceSoldier);
+            }) &&
+            isFinite(+r.confidence) &&
+            +r.confidence >= 0.5
+          )
+            add({ x: r.x, z: r.z, at: r.at, source: 'seen' });
+        });
+      return options.slice(0, 32);
+    }
+    function supportCandidates(sq, battle, point, prior, posture) {
+      if (!point) return [];
+      var E = root.BattleEngagement,
+        A = root.BattleAmmunition,
+        T = root.BattleTacticalPositions,
+        previous = Array.isArray(prior) ? prior.map(String) : [],
+        men = commanded(sq).filter(function (s) {
+          if (
+            !s ||
+            s.dead ||
+            s.hp <= 0 ||
+            s.incapacitated ||
+            s.isPlayer ||
+            !s.weapon ||
+            !s.weapon.stats ||
+            s.weapon.jammed ||
+            s.target ||
+            s.moving ||
+            s.crawling ||
+            s.reloading ||
+            s.clearingStoppage ||
+            s.outOfAmmo ||
+            s.suppressedUntil > battle.time ||
+            (A && !A.available(s)) ||
+            (T && T.current && T.current(s))
+          )
+            return false;
+          var es = E && E.stateOf ? E.stateOf(s) : null;
+          if (
+            es &&
+            (es.state === 'bound' ||
+              es.state === 'pinned' ||
+              es.state === 'withdraw' ||
+              es.state === 'assault' ||
+              (E.reacting && E.reacting(s)))
+          )
+            return false;
+          /* Concealment holds the man crouched behind a crest. A genuinely
+             held, prepared fireteam member can RISE to a standing firing
+             ray on contact; do not discard him because today's low stance
+             is intentionally masked. The prospective ray remains the
+             shipping physical/ballistic test, not assumed fire capability. */
+          if (root.SquadAI.canSuppress && root.SquadAI.canSuppress(s, point, battle, true)) return true;
+          if (!posture || posture.readyAt == null || !Array.isArray(posture.heldActorIds)) return false;
+          if (posture.heldActorIds.indexOf(String(s.id)) < 0) return false;
+          return !!(root.SquadAI.canSuppressStanding && root.SquadAI.canSuppressStanding(s, point, battle));
+        });
+      men.sort(function (a, b) {
+        var pa = previous.indexOf(String(a.id)) >= 0 ? 0 : 1,
+          pb = previous.indexOf(String(b.id)) >= 0 ? 0 : 1;
+        if (pa !== pb) return pa - pb;
+        var ga = root.SquadAI.isMachineGun(a) ? 0 : 1,
+          gb = root.SquadAI.isMachineGun(b) ? 0 : 1;
+        if (ga !== gb) return ga - gb;
+        return (+a.slotIndex || 0) - (+b.slotIndex || 0);
+      });
+      return men.slice(0, 2);
+    }
+    function areaSupport(sq, battle, report, posture, prev) {
+      if (!posture || posture.readyAt == null || !report) return null;
+      var authority = supportAuthorityContact(sq, battle);
+      /* A directly observed threat can establish a lawful base of fire
+         BEFORE the first enemy volley. Being shot at isn't the sole way to
+         start support; heard/relayed contacts alone still have no authority. */
+      if (!(report.underFire > 0) && !authority) return null;
+      var oldPoint = prev && prev.supportPoint,
+        options = supportAuthorityOptions(sq, battle),
+        point =
+          oldPoint && isFinite(+oldPoint.x) && isFinite(+oldPoint.z)
+            ? { x: +oldPoint.x, z: +oldPoint.z }
+            : authority && { x: authority.x, z: authority.z },
+        men = supportCandidates(sq, battle, point, prev && prev.supporterIds, posture),
+        chosen = authority;
+      options.forEach(function (option) {
+        if (men.length >= 2) return;
+        var capable = supportCandidates(sq, battle, option, prev && prev.supporterIds, posture);
+        if (capable.length > men.length) {
+          men = capable;
+          point = { x: option.x, z: option.z };
+          chosen = option;
+        }
+      });
+      /* One lawful gunner may establish a base of fire while a second man
+         recovers from suppression or finds a lane. This is NOT maneuver
+         authorization: supportReady plus the tactical posture still require
+         two distinct capable shooters before any covered bound is issued. */
+      if (!men.length || !point) return null;
+      return {
+        point: point,
+        ids: men.map(function (s) {
+          return String(s.id);
+        }),
+        source: chosen ? chosen.source : prev && prev.supportSource,
+        at: chosen ? chosen.at : prev && prev.supportAt
+      };
+    }
+    function sameAreaSupport(fc, support) {
+      var oldIds = (fc && fc.supporterIds) || [],
+        ids = (support && support.ids) || [],
+        old = fc && fc.supportPoint,
+        point = support && support.point;
+      return (
+        oldIds.length === ids.length &&
+        oldIds.every(function (id, i) {
+          return String(id) === String(ids[i]);
+        }) &&
+        ((!old && !point) ||
+          (old && point && Math.abs(+old.x - +point.x) < 1e-6 && Math.abs(+old.z - +point.z) < 1e-6))
+      );
+    }
+
     function fireControlRange(sq, c) {
       var p = average(sq);
       return p && c ? dist(p, c) : Infinity;
@@ -144,7 +389,17 @@
               ? +prev.terrainCrestBlocked || 0
               : 0
             : +data.terrainCrestBlocked || 0,
-        proneReady: data.proneReady == null ? (prev ? +prev.proneReady || 0 : 0) : +data.proneReady || 0
+        proneReady: data.proneReady == null ? (prev ? +prev.proneReady || 0 : 0) : +data.proneReady || 0,
+        supportPoint:
+          data.areaSupport && data.areaSupport.point
+            ? { x: +data.areaSupport.point.x, z: +data.areaSupport.point.z }
+            : null,
+        supporterIds:
+          data.areaSupport && Array.isArray(data.areaSupport.ids)
+            ? data.areaSupport.ids.slice(0, 2).map(String)
+            : [],
+        supportSource: data.areaSupport ? data.areaSupport.source || null : null,
+        supportAt: data.areaSupport && isFinite(+data.areaSupport.at) ? +data.areaSupport.at : null
       };
       sq.fireControl = fc;
       var CR = root.BattleCommandReception,
@@ -158,14 +413,24 @@
                   '|' +
                   String(fc.targetId == null ? '' : fc.targetId) +
                   '|' +
-                  String(fc.shooterId == null ? '' : fc.shooterId),
+                  String(fc.shooterId == null ? '' : fc.shooterId) +
+                  '|' +
+                  fc.supporterIds.join(',') +
+                  '|' +
+                  (fc.supportPoint
+                    ? (+fc.supportPoint.x).toFixed(2) + ',' + (+fc.supportPoint.z).toFixed(2)
+                    : ''),
                 reason: reason || null,
                 spatial: false,
                 reference: 'none',
                 data: {
                   state: state,
                   targetId: fc.targetId == null ? null : String(fc.targetId),
-                  shooterId: fc.shooterId == null ? null : String(fc.shooterId)
+                  shooterId: fc.shooterId == null ? null : String(fc.shooterId),
+                  supportPoint: fc.supportPoint ? { x: +fc.supportPoint.x, z: +fc.supportPoint.z } : null,
+                  supporterIds: fc.supporterIds.slice(),
+                  supportSource: fc.supportSource,
+                  supportAt: fc.supportAt
                 }
               })
             : null;
@@ -212,19 +477,42 @@
       var fc = sq.fireControl;
       var postures = ctx.tacticalPostures && ctx.tacticalPostures(),
         posture = postures && postures.current(battle, sq);
-      if (posture && posture.mode === 'ambush') {
+      var preparedPosture = !!(
+        posture &&
+        posture.readyAt != null &&
+        (posture.mode === 'ambush' ||
+          (posture.mode === 'hold' &&
+            posture.stage === 'pressure-hold' &&
+            posture.orders &&
+            posture.orders.length >= 3))
+      );
+      if (posture && (posture.mode === 'ambush' || preparedPosture)) {
         var contact = firstHandContact(sq, battle),
           ambushCounts = fireControlCounts(commanded(sq), battle, root.BattleEngagement),
+          /* A fully prepared line with fresh, first-hand fire authority
+             may send ONE genuinely shootable supporter before a second
+             rifleman finishes his setup. Incoming fire remains autonomous;
+             hearsay never opens fire. This changes fire permission, NOT
+             the independent two-effective-supporter maneuver gate. */
+          authority = posture.readyAt != null ? supportAuthorityContact(sq, battle) : null,
           open =
             (report && report.underFire > 0) ||
-            (posture.readyAt != null && contact && ambushCounts.ready >= 2),
-          desired = open ? 'open' : 'hold';
-        if (fc && fc.state === desired && fc.reason === 'coordinated masked ambush') return fc;
+            (posture.readyAt != null && ((contact && ambushCounts.ready >= 2) || !!authority)),
+          desired = open ? 'open' : 'hold',
+          support = desired === 'open' ? areaSupport(sq, battle, report, posture, fc) : null;
+        if (
+          fc &&
+          fc.state === desired &&
+          fc.reason === 'coordinated masked ambush' &&
+          sameAreaSupport(fc, support)
+        )
+          return fc;
         return setFireControl(sq, battle, fc, desired, 'coordinated masked ambush', {
           targetId: contact && contact.unit.id,
           ready: ambushCounts.ready,
           requiredReady: 2,
-          living: posture.members.length
+          living: posture.members.length,
+          areaSupport: support
         });
       }
       if (fc && fc.state === 'reposition' && battle.time - fc.since >= FIRE_CONTROL_TUNING.repositionTimeout)
@@ -328,6 +616,8 @@
     return {
       mkm: mkm,
       firstHandContact: firstHandContact,
+      supportAuthorityContact: supportAuthorityContact,
+      areaSupport: areaSupport,
       fireControlRange: fireControlRange,
       precisionShooter: precisionShooter,
       fireControlTelemetry: fireControlTelemetry,

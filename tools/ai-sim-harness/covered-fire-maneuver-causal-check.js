@@ -259,6 +259,52 @@ console.log(
   })
 );
 
+/* Staged-team handoff regression under shipping terrain, Engagement fire
+   evidence, and native cover-slot selection. Alpha has the ONLY safe route;
+   when Bravo was the selected reserve, native Meso must HOLD rather than
+   abandon the actual base of fire for an opportunistic alpha bound. */
+const pinned = world();
+pinned.q.members[3]._fireteamKey = 'charlie';
+const pinnedAlpha = pinned.q.members[0],
+  pinnedBravo = pinned.q.members.slice(1, 3),
+  pinnedPosture = pinned.P.current();
+pinnedPosture.reserveTeam = 'bravo';
+pinnedPosture.reserveActorIds = pinnedBravo.map(s => String(s.id));
+pinned.q._boundTurn = 1; // Would rotate to alpha before bravo without handoff.
+for (let i = 0; i < 20; i++) {
+  pinned.b.time += 0.15;
+  for (const s of pinned.q.members.slice(1)) {
+    pinned.r.BattleEngagement.updateSoldier(s, pinned.b);
+    pinned.r.BattleMovementResolver.resolve(s, pinned.b);
+    H.stepMovement(pinned.b, s, 0.15);
+  }
+}
+const pinnedReport = pinned.r.BattleEngagement.updateSquad(pinned.q, pinned.b);
+assert.ok(
+  pinnedReport.fireSupport.filter(s => pinned.q.members.slice(1).includes(s)).length >= 2,
+  'a genuine firing base exists before testing reserve lock'
+);
+assert.equal(
+  pinned.P.coveredTeam(pinned.b, pinned.q, [pinnedAlpha], pinnedReport),
+  true,
+  'alpha physically has a safe candidate but was NOT the selected reserve'
+);
+assert.equal(
+  pinned.P.coveredTeam(pinned.b, pinned.q, pinnedBravo, pinnedReport),
+  false,
+  'the real reserved bravo team lacks a native fully covered route'
+);
+pinned.S.fireAndMovement(pinned.q, pinned.b);
+assert.equal(
+  pinned.r.BattleLeases.get(pinned.q, 'bound'),
+  null,
+  'native Squad Leader holds instead of leasing an alternate safe-looking team'
+);
+assert.ok(
+  pinned.q.members.every(s => !pinned.r.BattleEngagement.stateOf(s).boundOrder),
+  'no native Engagement bound order is published for the substitute alpha team'
+);
+
 // C3 causal denial: an armed/stationary ENGAGE state is insufficient when
 // every remaining supporter carries a short-range sidearm against this target.
 const incapable = world();

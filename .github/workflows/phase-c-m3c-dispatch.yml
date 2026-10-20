@@ -1,4 +1,4 @@
-name: ⭐ Dispatch Phase C Standard Comparisons
+name: Dispatch Phase C Standard Comparisons
 
 # This workflow uses GitHub's own Actions API so all three real M3C benchmark
 # runs appear under "M3C Standard Benchmark", not only our natural-field QA.
@@ -50,17 +50,17 @@ jobs:
           payload="$(jq -n \
             --arg ref "$SOURCE_REF" \
             --arg type "$BATTLE_TYPE" \
-            --arg correlation "phase-c-pr525-$SOURCE_SHA" \
+            --arg correlation "phase-c-pr527-$SOURCE_SHA" \
             '{ref:$ref, inputs:{
               seed:"phase-c-natural-20261012",
               seeds:"3",
               query_off:"",
-              query_on:"localPlan=1&localAmbush=1&localManeuver=1&coveredBounds=1",
+              query_on:"localPlan=1&localAmbush=1&localManeuver=1&coveredBounds=1&fireCoverCycle=1&squadReturnFire=1",
               battle_type:$type,
               windows:"contact+60,every60",
               origin_agent:"chatgpt",
               correlation_id:$correlation,
-              purpose:"Phase C #299/#525 final naturally seeded full-battle OFF/ON comparison (3 matched seeds)"
+              purpose:"Phase C #299/#527 final naturally seeded full-battle OFF/ON comparison (3 matched seeds)"
             }}')"
           http="$(curl -sS -o /tmp/dispatch.json -w '%{http_code}' \
             -X POST \

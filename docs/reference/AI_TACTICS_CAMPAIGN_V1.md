@@ -146,6 +146,16 @@ When the Squad Leader is unavailable (dead, fled, succession gap):
 
 **Validation:** harness check that leaderless squads hold position and don't invent tasks. Benchmark: INERT (degradation only).
 
+**Concealed posture execution:** With personal movement reception enabled, readiness
+uses the current adopted command's canonical execution outcome at Movement's legal
+final endpoint, never an intermediate waypoint. Three fixed soldier identities must
+remain stationary and masked for the full four-second hold. Their verified physical
+positions remain the reference during Engagement's stationary aim/fire handoff;
+holding the same post does not revoke readiness. A separately committed extra actor
+is removed from preparation, while reassignment of a held-core actor revokes it.
+Current mission, Navigation, report freshness, real supporting weapons and every
+mover's native covered route are still independently required.
+
 ---
 
 ### C3 — Effective fire support, out-of-range response and stress-state voice
@@ -172,6 +182,8 @@ reproduction unless configuration and outcomes also agree. C3 and full natural C
 stay open until their own evidence is verified.
 
 ## Phase D — Streets and structures
+
+**Goal:** Squads stop oscillating at corners/windows; can confirm structure control; can explain reroutes/aborts.
 
 ### D0 — AI visualization synchronization audit (first; prerequisite to D1)
 
