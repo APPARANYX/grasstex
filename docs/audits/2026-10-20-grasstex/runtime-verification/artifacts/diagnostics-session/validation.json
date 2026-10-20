@@ -1,0 +1,36 @@
+{
+  "pr": 600,
+  "baseline": "b37abac94169107d986480ce2bf8e2da3b9ac4cb",
+  "benchmarkedHead": "9270fd3c549586220e92764e2896ecd259e9251b",
+  "finalHead": "ffcd5c6fa7d7d1d70fdc9684bf2b1c2bde386a94",
+  "changedAfterBenchmark": [
+    "tools/ai-sim-harness/start-wrapper-contract-check.js"
+  ],
+  "productionSourcesIdentical": true,
+  "localInvocations": 251,
+  "initialPasses": 250,
+  "initialFailures": [
+    {
+      "group": "harness",
+      "command": [
+        "node",
+        "tools/ai-sim-harness/start-wrapper-contract-check.js"
+      ],
+      "exitCode": 1,
+      "seconds": 0.045,
+      "log": "182-start-wrapper-contract-check.log"
+    }
+  ],
+  "correctedGuardRerun": "pass",
+  "finalHeadCI": "all applicable checks success",
+  "baselineFixture": "fails: unpublished second simulation redirects cached diagnostics",
+  "candidateFixture": "pass",
+  "obsoleteHeadBrowserRun": {
+    "id": 39510660538,
+    "classification": "preview guard rejected superseded PR head; current-head browser checks passed"
+  },
+  "battleExecutions": 12,
+  "identicalRecordsPerArm": 3,
+  "runtimeErrors": 0,
+  "wholeBattleSpeedupClaim": false
+}

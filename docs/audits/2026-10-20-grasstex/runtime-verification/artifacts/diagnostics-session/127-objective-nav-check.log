@@ -1,0 +1,155 @@
+
+== a soldier never freezes permanently against a building ==
+  PASS  no traversal deadlocks across the worst benchmark seeds
+  PASS  no soldier is ever refused a step with nowhere to go
+  PASS  the probe actually exercised the geometry
+
+== Force Command masses on a main effort without orphaning objectives ==
+  PASS  saturation alone does not oscillate settled neutral assignments
+  PASS  no scenario sends every squad to one objective
+  PASS  a side attacks at most 2 objectives at once
+  PASS  every objective is attacked once the efforts before it close
+
+== capture progress survives a lapse in presence ==
+  PASS  an uninterrupted hold still captures at the designed rate
+  PASS  a repeatedly interrupted hold still captures
+  PASS  interruption costs time but does not reset the work
+
+== only dismounted living infantry can capture ==
+  PASS  a fully loaded truck cannot capture while passing through
+  PASS  boarding passengers cannot hold or contest a zone
+  PASS  the same soldiers can capture after physically dismounting
+
+== an assigned objective mission survives approach-route and lease boundaries ==
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+  PASS  an assigned outer objective stays the movement goal outside the terminal radius
+  PASS  a stale route index cannot resurrect an old approach waypoint
+  PASS  the Squad Leader stages one plan for the brief it is executing
+  PASS  lease expiry does not make Force Command reissue an unchanged assault
+  PASS  the Squad Leader transitions assault to capture inside the zone without a new mission
+
+== a single assigned squad can reach and capture an outer objective ==
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[OBJECTIVES] modular objective service v19 loaded
+[OBJECTIVE] capture zones v30: waving raise/lower flags + open sandbag boundary active
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[COMMAND] objective victory us reason=held all objectives
+  PASS  normal squad/engagement/resolver layers capture an uncontested outer zone
+  PASS  approach waypoint never replaces assigned intent before capture
+  PASS  the formation supplies at least the two required capture weights
+  probe: first capture 50.8s, peak presence 10, obsolete-goal frames 0
+
+== regroup waits for cohesion, then returns to its mission ==
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+  PASS  elapsed time alone does not release a dispersed regroup
+  PASS  the Squad Leader releases restored cohesion straight back into its mission
+  PASS  the restored squad stays on its mission
+
+== benchmark alerts distinguish approach intent from absent orders ==
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+  PASS  an objective mission is not measured against its obsolete route
+  PASS  a squad travelling a valid route has strategic intent
+  PASS  a squad at the terminal waypoint without an objective is targetless
+  PASS  missing route and objective remain detectable
+  PASS  an eliminated squad cannot have an actionable assignment gap
+
+== meeting engagements do not enter prepared-defender construction ==
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+  PASS  an engineer holding a meeting objective skips unsupported construction
+  PASS  skipping meeting construction creates no build state
+  PASS  prepared-defender runtime construction still works and respects its two-work limit
+
+== a squad on a live capture brief is not pinned as a garrison by its engineer ==
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+  PASS  the engineer still builds at the owned objective
+  PASS  an executing capture brief gets no standing garrison request
+  PASS  nor a garrison objective
+  PASS  a squad already on a defend brief is garrisoned as before
+
+== 5 km attacker objective-security is temporary, not an engineer garrison lock ==
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+  PASS  temporary attacker security still permits engineering work
+  PASS  temporary attacker DEFEND does not become a permanent prepared request
+  PASS  temporary attacker DEFEND does not assign a permanent garrison objective
+  PASS  attacker resumes CAPTURE without a defense obligation
+
+== an engineer's technical skill is his building rate ==
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+  PASS  technical 1 builds on the 2nd tick
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+  PASS  technical 0.5 builds on the 3rd tick, the flat 10 s
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+  PASS  technical 0 builds on the 5th tick
+
+== provenance distinguishes real competing writers from sampling noise ==
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+  PASS  sub-threshold assigned points are not mislabeled as in-place writes
+  PASS  one commander cannot conflict with the provenance sampler
+  PASS  unknown in-place changes remain in the trace
+  PASS  unknown identity does not count as a competing system
+  PASS  known writer ping-pong is still detected
+
+== physical wayfinding respects body clearance through hedgerows ==
+  PASS  a sub-body-width hedge gap is not movement-clear
+  PASS  the path detours around nearly touching hedges with planning clearance
+  PASS  rolling waypoints carry the soldier around the hedge gap
+  PASS  integration recovery never returns a footprint-illegal step
+  PASS  unreachable narrow-gap goals never produce illegal route segments
+  PASS  buffer escape cannot tunnel across a circular obstacle
+  PASS  buffer escape cannot tunnel across a hedgerow
+  PASS  tiny outward recovery steps are legal in a hedge buffer
+  PASS  wall sliding also respects hedgerow body collision
+  PASS  bounded waypoint candidates cannot omit collision geometry
+  PASS  a rotated passage wider than the clearance envelope remains usable
+  PASS  no-path results hold safely and retry on a timer
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+  PASS  confirmed regroup recovery escapes a closed hedge enclosure before restoring navigation
+  PASS  regroup recovery uses normal speed and the real terrain height
+  PASS  recovery restores collision only at legal body placement
+  PASS  an illegal lookahead point never blocks a reachable long-range destination
+  PASS  the frozen retreater physically leaves along a legal route
+  PASS  a far goal with no nearby building nodes still routes around buildings
+  PASS  the squad frozen behind a building physically leaves on a legal route
+  PASS  a formation slot inside a rock settles nearby instead of circling forever
+  PASS  slot recovery keeps body clearance and preserves the resolved order
+  PASS  a window station sits at its port inset (.45 m: just behind the wall's inner face; the old station was .775)
+  PASS  soldiers actually reach the closer window station
+  PASS  an exterior soldier reaches the window through the door without crossing walls
+  PASS  the fixture is the wedge: the straight line threads the door, then the hedge blocks it
+  PASS  a man inside a building finds a route out through the door when a hedge forces a detour
+  PASS  he walks out and reaches his slot instead of standing path-blocked in the building
+  PASS  the resolver accepts a sub-metre adjustment to a window station
+  PASS  a formation slot inside a transverse hedge resolves on the command-progress side
+  PASS  physical endpoint resolution preserves the Squad Leader fireteam intent
+  PASS  the resolved formation endpoint itself has route-margin clearance
+  PASS  a blocked formation intent routes around the hedge instead of parking on its near face
+  PASS  hedge-crossing endpoint recovery never violates body clearance
+  PASS  small aim changes ease over frames instead of snapping to the target
+  PASS  eased aim settles promptly without overshooting
+  PASS  aim across the angle wrap takes the short turn
+  PASS  the old rule holds a corner he stands on (control: ?navCorner=0)
+  PASS  a corner he stands on within the 0.35 m arrival is consumed, the next point is the waypoint
+
+all 86 checks passed

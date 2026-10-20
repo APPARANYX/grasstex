@@ -1,0 +1,7 @@
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[DIAG] compact + full end-session diagnostics export ready
+PASS General issue-time evidence, unknown confidence, version coalescing, faction isolation and detached diagnostics

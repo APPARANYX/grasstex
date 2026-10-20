@@ -1,0 +1,24 @@
+PASS react: a recognition is counted when it begins, stretched or not, by the band he was in
+PASS react: the orient window is one recognition however many ticks it lasts, and a new sector is another
+PASS react: with the lever off nothing is changed, and with the module off nothing is kept
+PASS aim: each round counts once; it is changed when his group is wider, by exactly the factor
+PASS hesitate: a bound start is counted; it is changed when he waited, by the seconds he waited
+PASS hesitate: an order that ended while he waited is a lapse, and no bound is counted
+PASS shock: a freeze that alone stopped a shot is counted as a fire decision, once per evaluation
+PASS shock: a freeze is not counted when something else stopped the decision
+PASS shock: asking whether he may fire gives the answer it always did, in every combination of conditions
+PASS shock: a burst of suppression the freeze stopped is counted, and only when nothing before it would have
+PASS shock: a frozen man who was ordered to bound, or only marching, is counted by which decision it was
+PASS counting draws no combat RNG and writes nothing but the man's own condition
+PASS a man with no condition yet, or a module that is off, is counted nowhere and throws nowhere
+PASS the series takes one row per side per simulated second, in the declared columns
+PASS men whose squad is in contact are counted apart: a column a second, and their seconds by band
+PASS the dead are out of the men and the bands, but the shocks they had stay in the count
+PASS a squad is over at mean 1/3: an entry marker at the simulated second, seconds over, and only for living squads
+PASS the markers are capped and the overflow is counted, not silently dropped
+PASS the block adds up: sides make the whole, bands make the man-seconds, bands make the changed decisions
+PASS with only the observing mode on the state is kept and no lever changed anything
+PASS reset clears the series and the tallies with the battle
+PASS the block is plain JSON and a full battle of it stays small
+PASS over a 10 v 10 firefight every count is consistent and the series tells the same story as the men
+23 soldier-mind telemetry checks passed

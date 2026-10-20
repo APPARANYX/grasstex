@@ -140,9 +140,34 @@
     "sha256": "a7f76a27228691ec21f6265b9352f15ff53fa22da50d3620d9698211fa9dbeb1"
   },
   {
+    "path": "architecture-rollout/599-deploy-result.json",
+    "bytes": 170,
+    "sha256": "c1f37b0054de0bf46ea5c6a6a2bf1a31edc9829e4d8e06643e1edb5f5bbd1fd9"
+  },
+  {
+    "path": "architecture-rollout/599-housekeeping-result.json",
+    "bytes": 117,
+    "sha256": "cad0ba3d93c1ecd10ceb24fe200543c8b4cdfb1226fbc88085af832ff8355275"
+  },
+  {
+    "path": "architecture-rollout/599-live-commander.json",
+    "bytes": 209,
+    "sha256": "e3851664bb0b8d4059aeacb6a70bd33e1979d07c9452ea26f0f6b358215b6d27"
+  },
+  {
+    "path": "architecture-rollout/599-merge-ci.json",
+    "bytes": 4172,
+    "sha256": "b71db8e79b3a43c07c22e70830e41ccf2d601cf005f44e12015c7627f48cf8e0"
+  },
+  {
     "path": "architecture-rollout/rollout-598.json",
     "bytes": 441,
     "sha256": "9550c6dee2cf343998d47f825d256e4902fb9da1dfdd69c9cfbe99e19a019ccc"
+  },
+  {
+    "path": "architecture-rollout/rollout-599.json",
+    "bytes": 455,
+    "sha256": "18d9ba02e034d17f77f64e225a1af49582adeafcfa270d615813a3436ce51375"
   },
   {
     "path": "architecture-rollout/rollout.json",
@@ -943,6 +968,1406 @@
     "path": "default-drift.json",
     "bytes": 1538,
     "sha256": "0c03f4a0738593511a02867e0a052a5950c7afc28c78e6142e3d74cc9260431f"
+  },
+  {
+    "path": "diagnostics-session/000-advance-stance-reason-check.log",
+    "bytes": 611,
+    "sha256": "47d990db2f17d408de22b78230245911f8d4f1f853f06d46cd73af91b3523556"
+  },
+  {
+    "path": "diagnostics-session/001-anchor-publisher-check.log",
+    "bytes": 2511,
+    "sha256": "7184d666747456abb9939fa21bd6dde448299bd9e726b126da00ad00596a713c"
+  },
+  {
+    "path": "diagnostics-session/002-audio-format-check.log",
+    "bytes": 758,
+    "sha256": "7bfe0776dee7c15d2fc558dfc85db9f76bac784e61c14e2b8438f7ec0cb064c5"
+  },
+  {
+    "path": "diagnostics-session/003-audio-mix-check.log",
+    "bytes": 22,
+    "sha256": "0a6a06cdb3c76412dd7d57550c7c96e1523a494c70974aa1e4c4560d7f864224"
+  },
+  {
+    "path": "diagnostics-session/004-autonomous-movement-handoff-check.log",
+    "bytes": 6493,
+    "sha256": "72d277ef5db83423490acdab2b81359fa64dd8e9a5eca9d045bbd582f408e6d2"
+  },
+  {
+    "path": "diagnostics-session/005-ballistics-geometry-check.log",
+    "bytes": 1761,
+    "sha256": "71d5eb7ef4645c24da8ab3f56325667087c7d0c31a9956f7816e80ac8519d553"
+  },
+  {
+    "path": "diagnostics-session/006-battle-loader-player-camera-check.log",
+    "bytes": 40,
+    "sha256": "1bbb2f362d5ca87af7fa4d000aa03bfef3e233f83ce6bd4f8e7ec5e609412a98"
+  },
+  {
+    "path": "diagnostics-session/007-battle-observer-check.log",
+    "bytes": 115,
+    "sha256": "f67d756a7c4ce564dec679105a248b3f9c4cd146f9b81f05cc12bd9a1d4eedd0"
+  },
+  {
+    "path": "diagnostics-session/008-battle-page-inline-script-check.log",
+    "bytes": 62,
+    "sha256": "c3b70042b0240f565b00a0019e67aba91207b8a85236bb57bfa21bbeaba846bd"
+  },
+  {
+    "path": "diagnostics-session/009-benchmark-compare-check.log",
+    "bytes": 1167,
+    "sha256": "34fa98e6828e0b5b80c8ae95e2ca7a39960ea11498cc14d823899fc45162523d"
+  },
+  {
+    "path": "diagnostics-session/010-benchmark-evidence-check.log",
+    "bytes": 115,
+    "sha256": "87302c5c12e99e7f2eb5a363ae3fe8158deb147a8ff4f636ad21b787d0a84ae6"
+  },
+  {
+    "path": "diagnostics-session/011-benchmark-restart-isolation-check.log",
+    "bytes": 66,
+    "sha256": "ab5b0e29638f1825a3b8881d91fc4df03e9c19fe0dcb85f36e762965ac5217d4"
+  },
+  {
+    "path": "diagnostics-session/012-benchmark-window-diagnostics-check.log",
+    "bytes": 75,
+    "sha256": "43f722d3d162fa24f1d4546278d78f8f811bf01298255c96db17554623126172"
+  },
+  {
+    "path": "diagnostics-session/013-buddy-pairs-check.log",
+    "bytes": 2200,
+    "sha256": "b68b1171e3ac97022f78c4384531c5e11c8b593698c2c36d4eb3023c3c6b107c"
+  },
+  {
+    "path": "diagnostics-session/014-callouts-check.log",
+    "bytes": 804,
+    "sha256": "9b3d3051ba2f9f38dbb95d9cf27cce2467be7bdd894f05fdc4d0becc22be764a"
+  },
+  {
+    "path": "diagnostics-session/015-camera-input-frame-check.log",
+    "bytes": 104,
+    "sha256": "c24a5265e864a8662f1c4fe696b6df90b7d20cba9af0fb9e172e7cd0905a3cdd"
+  },
+  {
+    "path": "diagnostics-session/016-camera-lifecycle-stop-check.log",
+    "bytes": 116,
+    "sha256": "a83e21bae134e3aba64b47960b5fa49af8be25493e8151f06df934fd4b06b7bc"
+  },
+  {
+    "path": "diagnostics-session/017-camera-player-menu-template-check.log",
+    "bytes": 73,
+    "sha256": "a4b4cd9efc6ed6fe2e2ff027f5d00e0a88bf86574666e8b03adcbda16b8e2fd0"
+  },
+  {
+    "path": "diagnostics-session/018-camera-possession-lease-check.log",
+    "bytes": 111,
+    "sha256": "72cd0823ecbfe4026cf17328bd97d65d94ee38f9135f9b7c2be4982dc81c0f0e"
+  },
+  {
+    "path": "diagnostics-session/019-camera-presentation-reset-check.log",
+    "bytes": 91,
+    "sha256": "855ea974591e957c228159b1a10d138303158c0ba0bb1502db35b2800d369783"
+  },
+  {
+    "path": "diagnostics-session/020-camera-strategic-fast-flight-check.log",
+    "bytes": 117,
+    "sha256": "e0cd124ab51287625989e829b90f33b2430110e72fe806c101a0fd5114a911fb"
+  },
+  {
+    "path": "diagnostics-session/021-camera-touch-handoff-check.log",
+    "bytes": 109,
+    "sha256": "bae38aa91235f079d260fc9f160a4cdc4fe27bc5bce6f82838e34c772bd698e3"
+  },
+  {
+    "path": "diagnostics-session/022-causal-inaction-check.log",
+    "bytes": 187,
+    "sha256": "db0b3d4b2b8751b4ab09e98606708a59515aa918fac3bc8ec3e4a1bb2e04df15"
+  },
+  {
+    "path": "diagnostics-session/023-clear-contact-check.log",
+    "bytes": 618,
+    "sha256": "e36cc6c1c8be2b734316ebe83e7b84f88236aef114bc223fbbd784dec85c727a"
+  },
+  {
+    "path": "diagnostics-session/024-coa-check.log",
+    "bytes": 1024,
+    "sha256": "6d94b00090a593cd48a765fd52cff9128bd5ac48ccda589afdc9ea66a58b2021"
+  },
+  {
+    "path": "diagnostics-session/025-cohesion-regroup-ctx-check.log",
+    "bytes": 1926,
+    "sha256": "eb7e708d463d6b9f67af7d996cc18e45a98279c08a99d8631bb1b77fe4c224b7"
+  },
+  {
+    "path": "diagnostics-session/026-combat-audio-check.log",
+    "bytes": 1349,
+    "sha256": "8133821db4f0c6754afa43a4c179c95610bac73b180db48d96748cf09a3dd543"
+  },
+  {
+    "path": "diagnostics-session/027-combat-handoff-check.log",
+    "bytes": 630,
+    "sha256": "d90592f3c8808a2ec643d53761531dad3690e7fbc2599128e7faa27bac4ba9cf"
+  },
+  {
+    "path": "diagnostics-session/028-command-adoption-ratchet-check.log",
+    "bytes": 77,
+    "sha256": "7d0b101f4628e9f03c05bb3f5c93ef3b2744b362f794d5520ce593142b4f82c7"
+  },
+  {
+    "path": "diagnostics-session/029-command-hierarchy-observer-check.log",
+    "bytes": 66,
+    "sha256": "6ce08acc31ac07431baaaca7e2c5d75ad0453a33f3b89cf50385df81b73ec21f"
+  },
+  {
+    "path": "diagnostics-session/030-command-movement-check.log",
+    "bytes": 959,
+    "sha256": "476a3850b414d904dd0a462b41337b7ebb073d92b469bd044eda98ab5dce8a20"
+  },
+  {
+    "path": "diagnostics-session/031-command-orientation-check.log",
+    "bytes": 563,
+    "sha256": "e8fd09c84ed249d935ee3a03276d6c607c6eb1e423f8adf179fc268b57fccd6e"
+  },
+  {
+    "path": "diagnostics-session/032-command-posture-check.log",
+    "bytes": 699,
+    "sha256": "fc70dde5eb39bfdc59a77dc4d76e47d1b4ce1148ccc0d7b3e792549ca2b700ca"
+  },
+  {
+    "path": "diagnostics-session/033-command-read-model-check.log",
+    "bytes": 672,
+    "sha256": "0977b4e017816aa5ffd57989aa8d7897d51474a5fe382a7f72e812cc236631da"
+  },
+  {
+    "path": "diagnostics-session/034-command-reception-check.log",
+    "bytes": 1016,
+    "sha256": "140c8160e54756342ede61ce3d2e9b81e560b7c9d8e07f7667bfd342efb25e2c"
+  },
+  {
+    "path": "diagnostics-session/035-command-relay-check.log",
+    "bytes": 1018,
+    "sha256": "03fa8646e6dbd7bee88348a8fe673adc80575390a410e48a1f70978e24862a94"
+  },
+  {
+    "path": "diagnostics-session/036-commander-lifecycle-check.log",
+    "bytes": 151,
+    "sha256": "b5b2c2ef824de26eb12568b563ffeba6822a8e60e1f2080def124764c5502e23"
+  },
+  {
+    "path": "diagnostics-session/037-control-scenario-rejection-check.log",
+    "bytes": 91,
+    "sha256": "ce77570515922131c9ed71d394a41e6e87bf90141c9abbc17dd09d1af1196e1c"
+  },
+  {
+    "path": "diagnostics-session/038-cover-positions-check.log",
+    "bytes": 18392,
+    "sha256": "26815bfbd25541cf6e25b6e3bc5c19d3b67661c9219d860265edba50fab5fb38"
+  },
+  {
+    "path": "diagnostics-session/039-cover-positions-ctx-check.log",
+    "bytes": 1538,
+    "sha256": "6557ddfa8b4fbb5e9e5cd62b15c4765637ae5e8d2193002360d152dd4fa7aa1b"
+  },
+  {
+    "path": "diagnostics-session/040-covered-bounds-check.log",
+    "bytes": 3580,
+    "sha256": "af68ae29b26e1adcfaf1677a6bbe762de1291a9a1829f638575fcbcb722c2284"
+  },
+  {
+    "path": "diagnostics-session/041-covered-fire-maneuver-causal-check.log",
+    "bytes": 2275,
+    "sha256": "96f2ae21f5ee503711881a9b7736ae5262944b91c54e06c477c0ae58b607ed88"
+  },
+  {
+    "path": "diagnostics-session/042-covered-pressure-bound-check.log",
+    "bytes": 5165,
+    "sha256": "a5215a4772460b88a26937e06d4ddb48d80b054de1361d2b4a81fbd13224fc09"
+  },
+  {
+    "path": "diagnostics-session/043-crest-fire-check.log",
+    "bytes": 359,
+    "sha256": "4bb387d5a6886da82d68a83a339af8ac91cf478e332a29d8f4215d04f54737e6"
+  },
+  {
+    "path": "diagnostics-session/044-damage-range-geometry-check.log",
+    "bytes": 99,
+    "sha256": "18a674ef1be7a16741d2c98fb4337447be3642b2a2020b7d75bac8e225e34f52"
+  },
+  {
+    "path": "diagnostics-session/045-damage-range-input-check.log",
+    "bytes": 96,
+    "sha256": "f25bd8f5f30b3d872ed0a8663672f98e8bba9e6aaaf3d0d71bd9ee416c471efb"
+  },
+  {
+    "path": "diagnostics-session/046-damage-range-lifecycle-check.log",
+    "bytes": 139,
+    "sha256": "c94b1586c0f30ec9cf92bb7e848819ed6229897d3580c309f07d7ec6a8db68e5"
+  },
+  {
+    "path": "diagnostics-session/047-damage-range-panel-check.log",
+    "bytes": 86,
+    "sha256": "77555b58f37e543385a2d299f3c2d4583ce521b8c8fbce2ff986242634ba77d6"
+  },
+  {
+    "path": "diagnostics-session/048-diagnostics-session-owner-check.log",
+    "bytes": 139,
+    "sha256": "8886bd47488d11842c01ac77e6536c0d9182fe64f3bf76ed79cfc3c5064b7014"
+  },
+  {
+    "path": "diagnostics-session/049-effective-fire-support-check.log",
+    "bytes": 9913,
+    "sha256": "73bdb5a8aceeb861633379f88a306f5c608b53c9c00b7945599d7151e0831361"
+  },
+  {
+    "path": "diagnostics-session/050-engagement-state-check.log",
+    "bytes": 643,
+    "sha256": "63db393b3aeffef385aab609e24c95df6f08f26dff6df3a99dfebdcdaa76698f"
+  },
+  {
+    "path": "diagnostics-session/051-execution-contract-check.log",
+    "bytes": 1348,
+    "sha256": "921bbebb3ec2a07bacd3d66bc8e16ca4c7c7eb446806dbd47d60034ea954efcf"
+  },
+  {
+    "path": "diagnostics-session/052-extension-order-check.log",
+    "bytes": 3131,
+    "sha256": "3439c209fe337dbbcec14a7cf1a03f457f3e4c487c46108a3915739613edc32b"
+  },
+  {
+    "path": "diagnostics-session/053-faction-progress-check.log",
+    "bytes": 79,
+    "sha256": "185aa4929ae05661df27dedc29a525e5daeea6a09697bcb31dc20ae4d7fa2c85"
+  },
+  {
+    "path": "diagnostics-session/054-fbx-animation-state-check.log",
+    "bytes": 173,
+    "sha256": "a9ae7e1f396712b515fc50173dfbf3ee89de76373023df9c4324d1dd09d79266"
+  },
+  {
+    "path": "diagnostics-session/055-fbx-asset-import-check.log",
+    "bytes": 147,
+    "sha256": "f303bb338909cc7e616b0d3d33bdffe509305cd2472f2ad7eac9ea699bf49e70"
+  },
+  {
+    "path": "diagnostics-session/056-fbx-clip-converter-check.log",
+    "bytes": 156,
+    "sha256": "1837e51ad21735bdbad50a002c09b86dbac2dcd024880b74058bef6c7103cff6"
+  },
+  {
+    "path": "diagnostics-session/057-fbx-clip-mixer-check.log",
+    "bytes": 180,
+    "sha256": "478972ceb6fe1f879624a3e0b7dc8ab1b57f9c87a633099df7ac29443e5f1435"
+  },
+  {
+    "path": "diagnostics-session/058-fbx-clip-pack-integrity-check.log",
+    "bytes": 145,
+    "sha256": "ca6fde328e8b92c622b60d5ab8a1900cc64f6b9083a265cb655e7b8c19af23ab"
+  },
+  {
+    "path": "diagnostics-session/059-fbx-library-lifecycle-check.log",
+    "bytes": 676,
+    "sha256": "033a5bab4424c5518f7ad272d98d57d5be8b1d303000dcdc548f132879246312"
+  },
+  {
+    "path": "diagnostics-session/060-fbx-model-retarget-check.log",
+    "bytes": 120,
+    "sha256": "31a31ed9d9315b8fd047ef8ad1b9c2d3740e2a124f191170a4ad5c03eaaa260b"
+  },
+  {
+    "path": "diagnostics-session/061-fbx-prepared-pack-check.log",
+    "bytes": 187,
+    "sha256": "91ba2edc86ff4df80568cd9083c7f3ea6841312f044d028185a47ea0d9a1ecc9"
+  },
+  {
+    "path": "diagnostics-session/062-fbx-presentation-lod-check.log",
+    "bytes": 178,
+    "sha256": "4c75ee012e0ce8f28c8bf9d2dca22fdcf0908a6a719f5e39c71785f6e4026281"
+  },
+  {
+    "path": "diagnostics-session/063-fbx-render-pose-check.log",
+    "bytes": 146,
+    "sha256": "7ab2f1ab47f6fe5f3a74af932a1248711279f50078175da1b464031e92f80559"
+  },
+  {
+    "path": "diagnostics-session/064-fbx-restart-cleanup-check.log",
+    "bytes": 73,
+    "sha256": "45595340769d05715ca8d9c995c8352510c8c03676463b823c11d1040d4eb1e7"
+  },
+  {
+    "path": "diagnostics-session/065-fbx-retarget-quat-check.log",
+    "bytes": 146,
+    "sha256": "0310e8b09d8fbc811bb29dcc99dea622bebb89fee03b8e621eb846507783b6b2"
+  },
+  {
+    "path": "diagnostics-session/066-fbx-retarget-rest-check.log",
+    "bytes": 142,
+    "sha256": "431902411c3372bca679c3421a2b155855c80a8e931fe23f02f02a7f4faace6c"
+  },
+  {
+    "path": "diagnostics-session/067-fbx-rig-canon-check.log",
+    "bytes": 108,
+    "sha256": "d1a8d5266a958a67d65fee7179c9c5bec45ae8c6c515336eea1426770dcb16c2"
+  },
+  {
+    "path": "diagnostics-session/068-fbx-surface-damage-check.log",
+    "bytes": 125,
+    "sha256": "5b5ca18a6d82432c7dd13c115c976af5b359be7f114de80a5661fde365bd070b"
+  },
+  {
+    "path": "diagnostics-session/069-fbx-weapon-calibration-check.log",
+    "bytes": 120,
+    "sha256": "1b51b5c7fd7f07dfbd509556fa36f462e7c95b10624b41322bec1550c7d0f817"
+  },
+  {
+    "path": "diagnostics-session/070-fire-control-check.log",
+    "bytes": 656,
+    "sha256": "df2de0d53799b656c9281e7ef66ea1e89b2790b26255a1dc0b61fa5af0eb926a"
+  },
+  {
+    "path": "diagnostics-session/071-fire-stance-ctx-check.log",
+    "bytes": 903,
+    "sha256": "bd58b34fbdf1a5d7f6d378784319cf3d127918bccbe2babf2aef99094c84ec74"
+  },
+  {
+    "path": "diagnostics-session/072-fireteam-frontage-check.log",
+    "bytes": 2027,
+    "sha256": "72b186770ae3159b685bcb286f859e59c757b89a1a45659870f937b58c6ef3b5"
+  },
+  {
+    "path": "diagnostics-session/073-fixed-clock-restart-check.log",
+    "bytes": 138,
+    "sha256": "9d56f4396183ec2fc854b8bdf2584f1989efbc48efcb558e2f9504fca14b73fc"
+  },
+  {
+    "path": "diagnostics-session/074-fixed-step-clock-check.log",
+    "bytes": 179,
+    "sha256": "35ff38bc0add68b9b3b9f0d0d18194750bbad328c202ab9f01bd59e9e6977134"
+  },
+  {
+    "path": "diagnostics-session/075-flank-side-check.log",
+    "bytes": 627,
+    "sha256": "609c63efc9f129503981a324e959c6e46eb679040eb6b8f4a253ab4f0475c34a"
+  },
+  {
+    "path": "diagnostics-session/076-fled-man-check.log",
+    "bytes": 18109,
+    "sha256": "4a977a044ac0c67f67a0dedc8e731fb63d199e2d3c5ae9dec861970d038bc8d5"
+  },
+  {
+    "path": "diagnostics-session/077-formation-backward-check.log",
+    "bytes": 4840,
+    "sha256": "b13d8e5f93eaaed6372c9aeecd589aec990bd7fd7ffc0d51c262f5cbacec9870"
+  },
+  {
+    "path": "diagnostics-session/078-forward-line-check.log",
+    "bytes": 6769,
+    "sha256": "bebeff6a18c231957162dfcb873faf3406e4afea5f532f4cae19351e84077fb7"
+  },
+  {
+    "path": "diagnostics-session/079-forward-progress-check.log",
+    "bytes": 361,
+    "sha256": "d09765dce5385ffebc8f0a9be6ec017d289a08c4f2a66c7e066511525c448fef"
+  },
+  {
+    "path": "diagnostics-session/080-general-isolation-check.log",
+    "bytes": 356,
+    "sha256": "87d3733a42983d2cfb74c849e0d59b3e97a3835ae95216755763dab3634040e4"
+  },
+  {
+    "path": "diagnostics-session/081-genome-gate-check.log",
+    "bytes": 919,
+    "sha256": "8a7f5ab76c2ee847325ecdc594e925a50dc183e83f51e4478b783c29e8e7b295"
+  },
+  {
+    "path": "diagnostics-session/082-grenade-audio-check.log",
+    "bytes": 699,
+    "sha256": "ccd26edd6120f420381d89b2f8bbee00f04c687e05785b5edf722ea532d6bb70"
+  },
+  {
+    "path": "diagnostics-session/083-grenade-check.log",
+    "bytes": 3004,
+    "sha256": "467fc7b75c237ec8e734d2f2c4f3b8a6e9536092aa70ef2521c4ca3112117504"
+  },
+  {
+    "path": "diagnostics-session/084-grenade-fog-check.log",
+    "bytes": 88,
+    "sha256": "6a021f11909a2df54b3570c3c54cd9c7cb6c66b3cc3843fe52ac1e84ce3b6e61"
+  },
+  {
+    "path": "diagnostics-session/085-ground-stop-check.log",
+    "bytes": 497,
+    "sha256": "015649bbf116df483da2e8d6fc6026eb3f09d1d4e30fa59d11e6c94c294e7ce5"
+  },
+  {
+    "path": "diagnostics-session/086-gunner-trace-check.log",
+    "bytes": 83,
+    "sha256": "32e8850a0ac26cfeb8180853f7d1ef0b7b8b86d9257615cda99a47956d48d437"
+  },
+  {
+    "path": "diagnostics-session/087-hill-stalemate-check.log",
+    "bytes": 449,
+    "sha256": "c84e427587ae1417a030cbc74005a5c3d765c49ce161529ab0be5585b114741e"
+  },
+  {
+    "path": "diagnostics-session/088-impact-fx-check.log",
+    "bytes": 623,
+    "sha256": "ae5a9a41c487f3e21f0f6eea9773edb35f521af632f7e6cee4a754bfe656a679"
+  },
+  {
+    "path": "diagnostics-session/089-impact-fx-restart-check.log",
+    "bytes": 59,
+    "sha256": "2b6b2dd0bd2308d6dfa16381478f5b32eaebbf398e6b2ca0811c694fc2adaa40"
+  },
+  {
+    "path": "diagnostics-session/090-initial-seed-url-check.log",
+    "bytes": 96,
+    "sha256": "5181435fccc840c4c15d84320a0d0c19d9dc2a0b5d80205acdf446adec1992ef"
+  },
+  {
+    "path": "diagnostics-session/091-intent-evidence-check.log",
+    "bytes": 465,
+    "sha256": "9685d99eefed5c85165d5c27c317e748ac4e1072b6844f98183769c2cd111319"
+  },
+  {
+    "path": "diagnostics-session/092-leaderless-intent-check.log",
+    "bytes": 7594,
+    "sha256": "07d86b9076d968e8dd4536bbeb2dafbb15316f42a85c0bed93d5ad6effd0471d"
+  },
+  {
+    "path": "diagnostics-session/093-leaderless-retreat-reception-check.log",
+    "bytes": 2568,
+    "sha256": "33e594676c63c107e6c80653f31ac9033b6da39117661e221eb0534f0510b1f6"
+  },
+  {
+    "path": "diagnostics-session/094-lean-runtime-check.log",
+    "bytes": 9537,
+    "sha256": "1699c78c1d5d12536c736978c9a034597ecba7473c125592c25873a853bc1c67"
+  },
+  {
+    "path": "diagnostics-session/095-lease-check.log",
+    "bytes": 4126,
+    "sha256": "3187c42eae6e9854726b96baf87a74fb7c147bd09fe232851d696fb612e118f4"
+  },
+  {
+    "path": "diagnostics-session/096-lease-conflict-check.log",
+    "bytes": 2540,
+    "sha256": "770e85d31fef3113e133c6a6243d34267bc7a2d1cc420826229ee6045cf579bf"
+  },
+  {
+    "path": "diagnostics-session/097-lifecycle-checkpoints-check.log",
+    "bytes": 68,
+    "sha256": "83d65e7cf1ed1796c27a35dbfb5804dc0bb7074645cd020078422cdb60feef51"
+  },
+  {
+    "path": "diagnostics-session/098-listener-acoustics-check.log",
+    "bytes": 31,
+    "sha256": "bb1a81233bb8fcd24e93733e8f4ddd444075468ada9162906ce278fcb2525475"
+  },
+  {
+    "path": "diagnostics-session/099-loadout-check.log",
+    "bytes": 525,
+    "sha256": "1b415f9357673576db7fee12d6aab64dd8683703957f3806ed631967073be07a"
+  },
+  {
+    "path": "diagnostics-session/100-local-degradation-check.log",
+    "bytes": 10143,
+    "sha256": "ba1a6806a3a0ff0cd1bbc60b715372d25afca04082a357058f53d5eec82e368c"
+  },
+  {
+    "path": "diagnostics-session/101-local-mission-tasks-check.log",
+    "bytes": 59819,
+    "sha256": "80781b16417ac2605851f0a49b7ef05b1bebeb4c2292f02be55423a95d761316"
+  },
+  {
+    "path": "diagnostics-session/102-local-plan-check.log",
+    "bytes": 2288,
+    "sha256": "11d82e43668278624102a0b747627abe4999a1d10e8860fc763243f24a671d46"
+  },
+  {
+    "path": "diagnostics-session/103-local-resources-check.log",
+    "bytes": 13433,
+    "sha256": "af41a97219640e9acd4b5f31f34ee4f8dc3c6774ed29bed65eb1d595637ed33d"
+  },
+  {
+    "path": "diagnostics-session/104-local-steering-check.log",
+    "bytes": 533,
+    "sha256": "2ea9f35cb2eaea8c4682f7515faded1d29f3b87e2eb304db0d7f5f86497b83d0"
+  },
+  {
+    "path": "diagnostics-session/105-local-withdraw-check.log",
+    "bytes": 715,
+    "sha256": "6b3a54697d7462afd30270a670a2528f8c0b422a35f7c748b2eb72fd66c16a9a"
+  },
+  {
+    "path": "diagnostics-session/106-loop-evidence-window-check.log",
+    "bytes": 63,
+    "sha256": "19a7b924aa32e9b92322621aede94c516e099d287b4fb6cfff9a68b2fd3d7ef1"
+  },
+  {
+    "path": "diagnostics-session/107-loop-period-check.log",
+    "bytes": 1503,
+    "sha256": "d3e313f903080a26e6434664514545dca13e129d1c2fc40735c4cd8ed7a92c4b"
+  },
+  {
+    "path": "diagnostics-session/108-macro-command-toggle-check.log",
+    "bytes": 77,
+    "sha256": "41eff5a50222aaebbac9b1df5e44d9130341183c2e082d8a01a8dfde18635e71"
+  },
+  {
+    "path": "diagnostics-session/109-macro-relief-height-check.log",
+    "bytes": 79,
+    "sha256": "76a8a5b492585ad27fbbd84bf394d76cc104a30c895b26fff39aaf2f1a5a3b6c"
+  },
+  {
+    "path": "diagnostics-session/110-macro-state-check.log",
+    "bytes": 371,
+    "sha256": "a659d62d6beca8741199931a5b6829d94675a2c2f017bbc5e5d4a5a494c9a871"
+  },
+  {
+    "path": "diagnostics-session/111-map-pipeline-check.log",
+    "bytes": 2354,
+    "sha256": "be4f9d2379e6c4e4e12180d2598b428c2c442bdfb381fd6350d54ae9c41054b8"
+  },
+  {
+    "path": "diagnostics-session/112-matrix-diagnostics-check.log",
+    "bytes": 130,
+    "sha256": "fb09d9b33e95a3a7e0c991c5eba7fce293474853b683a6a9b9ebe54b41389b81"
+  },
+  {
+    "path": "diagnostics-session/113-matrix-diagnostics-merge-check.log",
+    "bytes": 121,
+    "sha256": "ccd5b62d4d0c2cd18e06cd673a0e6e9ddfcf94041116e319f5984699d88ecaea"
+  },
+  {
+    "path": "diagnostics-session/114-medic-check.log",
+    "bytes": 75,
+    "sha256": "9fb3bac3f9ea6c4ed5b3adef6ea9dc480c05b88fe8829de0a4bcc31ad80c6897"
+  },
+  {
+    "path": "diagnostics-session/115-mg-station-setup-check.log",
+    "bytes": 877,
+    "sha256": "178359eccd2555a96ebf2b7755776a232e83339fb71e5f7d8ad399c0b87e1bc2"
+  },
+  {
+    "path": "diagnostics-session/116-mg-suppression-setup-check.log",
+    "bytes": 612,
+    "sha256": "a5f513d0fc42a956f69fbe5b700b468c5bb101737e5dc3cd76f090397ae97275"
+  },
+  {
+    "path": "diagnostics-session/117-mind-read-map-check.log",
+    "bytes": 1065,
+    "sha256": "536bdfa31d7d1a76426edfbcee9aa95b39ccb1d2038ac628f5708a72c47ff94b"
+  },
+  {
+    "path": "diagnostics-session/118-module-load-profile-check.log",
+    "bytes": 97,
+    "sha256": "aca7571ab0216d1acee487b7709fc200c9da6dad8f3c39373e88c219b9a18a39"
+  },
+  {
+    "path": "diagnostics-session/119-module-loader-check.log",
+    "bytes": 143,
+    "sha256": "baca001c762ea47ee36e9fdc31516dc62511b2890a23fae1cff3cac0a3d28fd1"
+  },
+  {
+    "path": "diagnostics-session/120-module-unit-set-restart-check.log",
+    "bytes": 39,
+    "sha256": "d1740eecd206abbee09b8ca9ed5d373fb860ecf59685046e8345ca7b9df51b3c"
+  },
+  {
+    "path": "diagnostics-session/121-morale-check.log",
+    "bytes": 9684,
+    "sha256": "0cb0c0e4edcd4318d7f769fde8daa0e1aa20a33c53ee562ab4afe0c4d7ef692f"
+  },
+  {
+    "path": "diagnostics-session/122-movement-arrival-adoption-check.log",
+    "bytes": 3294,
+    "sha256": "f6c9ef47451880ee1ffad49899389afac034baaceed172f805e365b70dab41c4"
+  },
+  {
+    "path": "diagnostics-session/123-movement-recovery-check.log",
+    "bytes": 14218,
+    "sha256": "995bcacda033fcf2be0ff6510d79b23e906a72cf733a638a61e5138b6418ef0f"
+  },
+  {
+    "path": "diagnostics-session/124-movement-state-check.log",
+    "bytes": 5422,
+    "sha256": "460ee3276a0c8e8e1caf48f8a7f3065c26de50c522982d51032fbbc2b92ccfd7"
+  },
+  {
+    "path": "diagnostics-session/125-muzzle-fx-origin-check.log",
+    "bytes": 95,
+    "sha256": "669e639720e33eba4954a1dec4d5cffcd6a8b7bc3955a34156463c28e564d61c"
+  },
+  {
+    "path": "diagnostics-session/126-objective-marker-check.log",
+    "bytes": 89,
+    "sha256": "05a12f844ad161c685af154695fdbb7c70f7cd799d31d4203db4ddf8df51e201"
+  },
+  {
+    "path": "diagnostics-session/127-objective-nav-check.log",
+    "bytes": 9773,
+    "sha256": "6a35a8075ee0e9859de94268b67184236f5a5a718ff46c9a7e1256594fd90333"
+  },
+  {
+    "path": "diagnostics-session/128-observer-diagnostic-trigger-check.log",
+    "bytes": 80,
+    "sha256": "50a2eed1500d89599b34c8a62be6d76aa8f983752cf63deff6541f85ca26319a"
+  },
+  {
+    "path": "diagnostics-session/129-observer-probe-recovery-check.log",
+    "bytes": 84,
+    "sha256": "3204ee9b4e3bb51d5fe6d226d43537e78d404a622924a7ee41b2300c49d9531e"
+  },
+  {
+    "path": "diagnostics-session/130-outcome-probe-check.log",
+    "bytes": 46,
+    "sha256": "7c698d8ffd8533de8432b12cc1c20d7b08b317df227bde73a3a540a7469cfedc"
+  },
+  {
+    "path": "diagnostics-session/131-perception-check.log",
+    "bytes": 706,
+    "sha256": "e83d44a705e2a606fdf36d234a3467eff7c8bd176b449eff1aae14a8955fe210"
+  },
+  {
+    "path": "diagnostics-session/132-personal-space-check.log",
+    "bytes": 3581,
+    "sha256": "29b6875595c129dc6f2a88f01bf7dfead2d74b74794bddf12d0a6d56f2a320a1"
+  },
+  {
+    "path": "diagnostics-session/133-plan-local-widening-check.log",
+    "bytes": 76,
+    "sha256": "9ee58634f1cb6faeeb538af0ba7e80189f9e37aafb35e608b09851b36c751e9c"
+  },
+  {
+    "path": "diagnostics-session/134-player-control-check.log",
+    "bytes": 586,
+    "sha256": "8165630610e01d4e54ef7672b75a4470444f36e06d4bbae28edd22fad701aced"
+  },
+  {
+    "path": "diagnostics-session/135-player-death-camera-check.log",
+    "bytes": 122,
+    "sha256": "66c3ba3bd46b51786131fd733833c2a1d52fcb2bb585d239f375f68d88f3ff62"
+  },
+  {
+    "path": "diagnostics-session/136-player-facing-bore-check.log",
+    "bytes": 505,
+    "sha256": "19488eb38cecfa4248209429ee3888f6ec4e3b8555f1d9a9d4381b1dfa0e8adc"
+  },
+  {
+    "path": "diagnostics-session/137-player-fire-mode-check.log",
+    "bytes": 1189,
+    "sha256": "6040e5619d979dbda8a1883e2fa7970859aa88d8e380dcda1f4238924b29574a"
+  },
+  {
+    "path": "diagnostics-session/138-player-grenade-check.log",
+    "bytes": 91,
+    "sha256": "4c782b062f5fb5315e0abe59b13f47455453fcb76da6427a71a04b4563a2b774"
+  },
+  {
+    "path": "diagnostics-session/139-player-menu-audio-check.log",
+    "bytes": 30,
+    "sha256": "fe05e64e9fcfa03ec357070298443c5805f643a83397139a549f5b1ba6536343"
+  },
+  {
+    "path": "diagnostics-session/140-player-possession-flight-check.log",
+    "bytes": 123,
+    "sha256": "1ea5e10672ac146d725403310e469d95ddc2a06a568e5396905d9c9b909a5952"
+  },
+  {
+    "path": "diagnostics-session/141-player-restart-possession-check.log",
+    "bytes": 64,
+    "sha256": "ebe6fec69da4e947c387882ab764858bfd9b3698a2c170c97384ba0bc5d11a1f"
+  },
+  {
+    "path": "diagnostics-session/142-preview-runtime-flags-check.log",
+    "bytes": 69,
+    "sha256": "ebaf711c872bd991edd4ecc76a2a7227e72ff0e5ff835fd8eabf6e055ec21bd2"
+  },
+  {
+    "path": "diagnostics-session/143-prone-terrain-check.log",
+    "bytes": 1193,
+    "sha256": "30ba7923b118656a28aeafa97a41b143f31fb1541731aaf1627031cf65b8a598"
+  },
+  {
+    "path": "diagnostics-session/144-rally-recovery-check.log",
+    "bytes": 1203,
+    "sha256": "49e9ed089ccf4178b47627d4443521cba9781382ce424658b3802c5d54b31233"
+  },
+  {
+    "path": "diagnostics-session/145-recon-budget-check.log",
+    "bytes": 3821,
+    "sha256": "a1d11eccbe0eba6cc73469851c74f44e941fb6f15a49178cb3e014ddfbff89d5"
+  },
+  {
+    "path": "diagnostics-session/146-recon-outcomes-check.log",
+    "bytes": 6529,
+    "sha256": "b2d5acf4c89ac8779f000d7d4f0cedf506358fa24d8c8b6ac242b2439c56f240"
+  },
+  {
+    "path": "diagnostics-session/147-reconstitution-check.log",
+    "bytes": 15415,
+    "sha256": "fae22e69e9724640c0eda5c2e74dcafa7a84e2d3aa780dd6194aaf4e4b36e55b"
+  },
+  {
+    "path": "diagnostics-session/148-reconstitution-ctx-check.log",
+    "bytes": 1592,
+    "sha256": "7d8846210294f78aab5cc22dbf100871ef68ed0fcd8abcab9f3f5242a03fbebd"
+  },
+  {
+    "path": "diagnostics-session/149-ref-preview-vehicle-staging-check.log",
+    "bytes": 96,
+    "sha256": "4f3af2a7d9fb21074a5e88d9c4ba05b71f938089430c39bc075ec8920051ea16"
+  },
+  {
+    "path": "diagnostics-session/150-regroup-axis-check.log",
+    "bytes": 5242,
+    "sha256": "807f4bb923f72844ec2820b6e94c8be3dfeb1fc9368232768b837003001021b9"
+  },
+  {
+    "path": "diagnostics-session/151-residual-small-debt-check.log",
+    "bytes": 562,
+    "sha256": "ec633d3257fd11beadc44d2d7cdad32f8c0ae45e33b4317766127748d6018614"
+  },
+  {
+    "path": "diagnostics-session/152-retreat-anchor-check.log",
+    "bytes": 5389,
+    "sha256": "1ef6d849e4bfa918ba395d78f562f3255074f445acadb45b6048eee1a83578cd"
+  },
+  {
+    "path": "diagnostics-session/153-retreat-defender-fireteam-check.log",
+    "bytes": 754,
+    "sha256": "d1f419f065ba59292f8e26ea9a7fe70d2a9e2e512c57963b03a7f1806611302d"
+  },
+  {
+    "path": "diagnostics-session/154-retreat-lost-contact-check.log",
+    "bytes": 1292,
+    "sha256": "3b1ecb199d89d1f35d42b502717ebc9f63c65b0b8f9f13790764b7ea5c7b586e"
+  },
+  {
+    "path": "diagnostics-session/155-retreat-men-export-check.log",
+    "bytes": 717,
+    "sha256": "80a8611e6aa4616716017d43c21403d14e31d41e0c7f586155cb250af260a8f1"
+  },
+  {
+    "path": "diagnostics-session/156-retreat-posture-check.log",
+    "bytes": 109,
+    "sha256": "a3d89d649d0b1c7aedb78a9e99d3a754bef8f3b6887d644eea4334da68fcec6b"
+  },
+  {
+    "path": "diagnostics-session/157-route-final-objective-check.log",
+    "bytes": 141,
+    "sha256": "801952afbf0e2d28aab4b53d474d66d7ab54b8832f46fca55d808c7c70b59013"
+  },
+  {
+    "path": "diagnostics-session/158-route-transition-check.log",
+    "bytes": 4611,
+    "sha256": "005bf53b229ceeabf311ca782dd18dc011377aaf0d75113ebdfd0b76114d6b22"
+  },
+  {
+    "path": "diagnostics-session/159-scouts-forward-check.log",
+    "bytes": 12196,
+    "sha256": "7a598083494f162cf4cf07cbf3eec10a0d4157274db1d69e6c1e4584be0ad53a"
+  },
+  {
+    "path": "diagnostics-session/160-screen-space-lod-check.log",
+    "bytes": 29,
+    "sha256": "52369f516396789d60ae2b516b34af971428c0d884e753baa8390aa1e1a5d8f1"
+  },
+  {
+    "path": "diagnostics-session/161-sidearm-check.log",
+    "bytes": 621,
+    "sha256": "3f2f607f51d36fbbb056ad02fdde3d7654a2726169fd939a7c8b059cdd02a4e9"
+  },
+  {
+    "path": "diagnostics-session/162-sidearm-rearm-check.log",
+    "bytes": 70,
+    "sha256": "cd0e47181c5864fc9783a5c02eacd31544f98950b03c2655cc81ee5f88d20914"
+  },
+  {
+    "path": "diagnostics-session/163-sight-query-check.log",
+    "bytes": 850,
+    "sha256": "cbc746aba8356bf972110d7f79319536b5ed22db42b8b209bb915b212dbf2662"
+  },
+  {
+    "path": "diagnostics-session/164-soldier-beliefs-check.log",
+    "bytes": 6391,
+    "sha256": "049102306425cf022fbead8eb3acb581cb80eb90aa77d35e8a750ded3cccb94a"
+  },
+  {
+    "path": "diagnostics-session/165-soldier-events-check.log",
+    "bytes": 716,
+    "sha256": "e7805f78e24a9aac0940cbbae099f352c0a639fde18dd84edccc6c37c6deeb92"
+  },
+  {
+    "path": "diagnostics-session/166-soldier-mind-behaviour-check.log",
+    "bytes": 1043,
+    "sha256": "05b400981bfa198c48e996493eadfdd62bad51c2ba6afec10d6bf8892b73aa58"
+  },
+  {
+    "path": "diagnostics-session/167-soldier-mind-check.log",
+    "bytes": 1587,
+    "sha256": "d64bbe7038eb2910ed576eaae83ba147d04f3bdf34cadeaa04e9ef4544c5a798"
+  },
+  {
+    "path": "diagnostics-session/168-soldier-mind-telemetry-check.log",
+    "bytes": 2170,
+    "sha256": "2260b4caaf56c5628d197e9304ed7b3ebe79b6cb3485a246cbc32faa57788d08"
+  },
+  {
+    "path": "diagnostics-session/169-soldier-stats-check.log",
+    "bytes": 6447,
+    "sha256": "2ca763844f9cfa440c06415020bfb2a7c7549755654eb30162631d28c63e8426"
+  },
+  {
+    "path": "diagnostics-session/170-spawn-slots-check.log",
+    "bytes": 232,
+    "sha256": "12d550d4f9f133b68cd90f4348cbd38075c04cdf640a6e36773ed58a7c50019b"
+  },
+  {
+    "path": "diagnostics-session/171-squad-broadcast-check.log",
+    "bytes": 6332,
+    "sha256": "77883c824f028dabe932b2a184ae938fd9894957ed781fd4b0149359624ccab0"
+  },
+  {
+    "path": "diagnostics-session/172-squad-command-stack-check.log",
+    "bytes": 642,
+    "sha256": "616c464b94012490542f0be1a3114a9cba5a10a6f81bc62c4bd0eb49a276563b"
+  },
+  {
+    "path": "diagnostics-session/173-squad-fit-check.log",
+    "bytes": 7976,
+    "sha256": "6b8a44a5c474980b47bdb411d2c1303d5d604eac9fb890b4325b0d4fe45a08a9"
+  },
+  {
+    "path": "diagnostics-session/174-squad-local-starvation-check.log",
+    "bytes": 94,
+    "sha256": "9fe47aed4cd54fb4a8a997bb483590fa6ab55cbc3d6ce16d2da57da951f2c803"
+  },
+  {
+    "path": "diagnostics-session/175-squad-performance-check.log",
+    "bytes": 122,
+    "sha256": "cd85861678339daac83246ef5ee56689ddc92fa8e3114dff994a82bb6059b0db"
+  },
+  {
+    "path": "diagnostics-session/176-squad-phase-check.log",
+    "bytes": 813,
+    "sha256": "560d3cd3445cc1b5302ed267f62552c29239bd3b45b5cb578b404518a3d5f7c5"
+  },
+  {
+    "path": "diagnostics-session/177-squad-relay-check.log",
+    "bytes": 406,
+    "sha256": "66992cddea3d7fcfa730a362641a7830078b923077f1a2c8cb4100758b28c420"
+  },
+  {
+    "path": "diagnostics-session/178-squad-status-overlay-check.log",
+    "bytes": 33,
+    "sha256": "ee497b1f69d196f648843486eee936743ba719a9e8992da1ee7ced873325c59f"
+  },
+  {
+    "path": "diagnostics-session/179-squad-stress-check.log",
+    "bytes": 683,
+    "sha256": "2119055385176d3a4508d7cd912538e4fd2c0b18df72dd102ae8dff376a4b99e"
+  },
+  {
+    "path": "diagnostics-session/180-stall-clock-check.log",
+    "bytes": 2022,
+    "sha256": "4fe4bc50fc3021fd85487b52c771b6e3394f1d4ecb9582207351988818e5cd8c"
+  },
+  {
+    "path": "diagnostics-session/181-stance-ownership-check.log",
+    "bytes": 15843,
+    "sha256": "f878033bd0c85dc78b3a4703d914434d38f97d5f4ddbd93ec8145526c84b444a"
+  },
+  {
+    "path": "diagnostics-session/182-start-wrapper-contract-check.log",
+    "bytes": 13798,
+    "sha256": "ca378a4a79ba4cd508aaf26be45123e7e852ed4e5d746a0114f73d7a5a954ebf"
+  },
+  {
+    "path": "diagnostics-session/183-state-ownership-check.log",
+    "bytes": 167,
+    "sha256": "a8a44329bc55d7eb12fed4294c908cc5684fd86b92b70a7334468f5f4fc3641c"
+  },
+  {
+    "path": "diagnostics-session/184-stats-levers-check.log",
+    "bytes": 1279,
+    "sha256": "a5aced8d7ab4e021e34b63d5dfdd93ff76b1f07dca916b8c827df45b622376b6"
+  },
+  {
+    "path": "diagnostics-session/185-status-writers-check.log",
+    "bytes": 364,
+    "sha256": "9c7ea0f40e2dc84c0d3403b226f5226d49b1708515b64377e87a7c13ef455e80"
+  },
+  {
+    "path": "diagnostics-session/186-steer-navigation-leg-check.log",
+    "bytes": 106,
+    "sha256": "6c21af5aa3c6921647eae8c850f7bb092e29e97b3fd343347e72b984a417bc5c"
+  },
+  {
+    "path": "diagnostics-session/187-strategic-aerial-recon-check.log",
+    "bytes": 89,
+    "sha256": "88a597f1727d1ad6aa2c3c58583a6fd5fcec85b957320d3221d3708d869a25f9"
+  },
+  {
+    "path": "diagnostics-session/188-strategic-chain-check.log",
+    "bytes": 92,
+    "sha256": "0164dd6567790200525722e9d3cd309775e39b2eb737e5367bc4392d6fb14d13"
+  },
+  {
+    "path": "diagnostics-session/189-strategic-evidence-reuse-check.log",
+    "bytes": 138,
+    "sha256": "6a294e2d4546cabe1a91ffd321b9150fd831d29f2f7b13f4845e0a44a4f43784"
+  },
+  {
+    "path": "diagnostics-session/190-strategic-interception-check.log",
+    "bytes": 155,
+    "sha256": "4db2a48d121f0d4e27698a59e513a688e7fcb5abad1669f037bc922284493146"
+  },
+  {
+    "path": "diagnostics-session/191-strategic-mission-trace-check.log",
+    "bytes": 144,
+    "sha256": "392f55c736f1a233375133ce81eadb43ac28c06d4e0564bc377866cea20d003e"
+  },
+  {
+    "path": "diagnostics-session/192-strategic-mobile-defense-check.log",
+    "bytes": 94,
+    "sha256": "136f891e8b3cc30f0322b47dbbaf0725f8fb023777a6f75d3a03689b05897470"
+  },
+  {
+    "path": "diagnostics-session/193-strategic-recovery-ctx-check.log",
+    "bytes": 2216,
+    "sha256": "913a3920464c5549a23398f55f4e5b6b591c80f816c3f9e0b26842bcbd2f7a98"
+  },
+  {
+    "path": "diagnostics-session/194-strategic-recovery-review-check.log",
+    "bytes": 5368,
+    "sha256": "52a47915f881a84bde515a6ce67c1289ee0655af661d827eddc880fd91005d6c"
+  },
+  {
+    "path": "diagnostics-session/195-strategic-route-stall-check.log",
+    "bytes": 151,
+    "sha256": "347f8cfa3c30f068e61cc412e00a4dce86b5d223fdb4d5eed032815f108671d7"
+  },
+  {
+    "path": "diagnostics-session/196-strategic-transport-check.log",
+    "bytes": 1766,
+    "sha256": "cc4641347defd5334530fad3234786ffab099c8db7e02ce59a7b6797c5c6e008"
+  },
+  {
+    "path": "diagnostics-session/197-stress-memory-check.log",
+    "bytes": 1569,
+    "sha256": "623c190d95336c52c451d2875236972bbe1f07aac79ee94f0e564406a8db7890"
+  },
+  {
+    "path": "diagnostics-session/198-stress-reaction-animation-check.log",
+    "bytes": 179,
+    "sha256": "91747843dbc3dd03068d9506410184ac0ebca11cae2d9813518dc2585b45cbb1"
+  },
+  {
+    "path": "diagnostics-session/199-stress-reactions-check.log",
+    "bytes": 2822,
+    "sha256": "7c61d40492f8ac504a593eda8c34ca521bf77f67ac8e202c6f57eb44cb2a2874"
+  },
+  {
+    "path": "diagnostics-session/200-stress-reactions-ctx-check.log",
+    "bytes": 1367,
+    "sha256": "543944b3034cea2e28c5d1f74d8195c9e283a4f5f4c317ecb223cd26d60a9cdb"
+  },
+  {
+    "path": "diagnostics-session/201-succession-check.log",
+    "bytes": 2574,
+    "sha256": "d9dc7895d5580fbcab3bdcde51f1f57dbadd79822920fe5dd48c6a9fd08adeb1"
+  },
+  {
+    "path": "diagnostics-session/202-suppression-integrity-check.log",
+    "bytes": 1744,
+    "sha256": "eac1a849dc1fd307190f4f73a2762178bb2644040d0efb629f9b8ec779444445"
+  },
+  {
+    "path": "diagnostics-session/203-tactical-default-flags-check.log",
+    "bytes": 2813,
+    "sha256": "56e58b76c3e25feb36337bc7ff3b79b1840d2afe3669c816fe4e56282bcfae4d"
+  },
+  {
+    "path": "diagnostics-session/204-tactical-diagnostics-check.log",
+    "bytes": 389,
+    "sha256": "9a6398d89b97972de59a413c7727089806709855420a7c551db9384c3e9e90f9"
+  },
+  {
+    "path": "diagnostics-session/205-tactical-map-check.log",
+    "bytes": 25,
+    "sha256": "559d89e305e550acf8bb8428c370b3b98696ea713aabdbd0497d17f7a55ff1c8"
+  },
+  {
+    "path": "diagnostics-session/206-tactical-positions-check.log",
+    "bytes": 19800,
+    "sha256": "8ded8c277820fa4417ca37f977097acaffbcbc864b019042691d0ec70d46708f"
+  },
+  {
+    "path": "diagnostics-session/207-tactical-postures-check.log",
+    "bytes": 28721,
+    "sha256": "f5f9af49280663ead21542d645ea2e0c9f17755f1266e5ec4400f7cd38131b39"
+  },
+  {
+    "path": "diagnostics-session/208-tactical-situation-check.log",
+    "bytes": 235,
+    "sha256": "f06376c0c1611368109b14fbbab5230ce877e4835185612b612c79926207966d"
+  },
+  {
+    "path": "diagnostics-session/209-tactical-symbol-registry-check.log",
+    "bytes": 37,
+    "sha256": "410734b00a9469eb8f153ca18cc7ecfaa1275a37d7a52b27048db96e47ad41d6"
+  },
+  {
+    "path": "diagnostics-session/210-targeted-fire-probe-check.log",
+    "bytes": 99,
+    "sha256": "252c831619e8a517a929e10043054cccfa08a46dd15088d93561edf9f9a4568d"
+  },
+  {
+    "path": "diagnostics-session/211-threat-disposition-check.log",
+    "bytes": 1949,
+    "sha256": "8003340b48657f40e37468ff83dc70a5616347ae9b525be3bcefcfda2d1fde8f"
+  },
+  {
+    "path": "diagnostics-session/212-transport-resume-check.log",
+    "bytes": 1981,
+    "sha256": "b8fd06712df099762e1eb3467f3027e1b755ceac1f055c20bafaa2bbf8a013ea"
+  },
+  {
+    "path": "diagnostics-session/213-unreachable-anchor-check.log",
+    "bytes": 514,
+    "sha256": "785619af347c88bea55bcd19078d5d98159b3c0e6b11a36d29986b79667e1928"
+  },
+  {
+    "path": "diagnostics-session/214-urban-operating-picture-check.log",
+    "bytes": 243,
+    "sha256": "afcc4f72efa4c9bfce272b443c0d98328d39ce5387e29adc787f84abe94a8fee"
+  },
+  {
+    "path": "diagnostics-session/215-voice-determinism-check.log",
+    "bytes": 1198,
+    "sha256": "733a19d276c9174b0dc1c36fad5b5a272ea2a9cd7d404f7f1a88f45187b3322c"
+  },
+  {
+    "path": "diagnostics-session/216-voice-observations-check.log",
+    "bytes": 450,
+    "sha256": "73e31794003c64e8ea7a220b2b0683b1d76e581b11c435b0ef2b06432249e3bc"
+  },
+  {
+    "path": "diagnostics-session/217-voice-playback-check.log",
+    "bytes": 27,
+    "sha256": "90daa26ac18641120c5d273fee99e41c787e9961f8da44bca14add8e360a914e"
+  },
+  {
+    "path": "diagnostics-session/218-voice-retry-deadline-check.log",
+    "bytes": 50,
+    "sha256": "c8abe2f707d08257b1345c29d23d2c1382498d7477247c32736c98f598c34cd7"
+  },
+  {
+    "path": "diagnostics-session/219-weapon-foley-audio-check.log",
+    "bytes": 845,
+    "sha256": "6d669f32593cbad863dfa573b2be8dd8e7ed962d22e16cba0b05c677c9223e19"
+  },
+  {
+    "path": "diagnostics-session/220-weapon-shot-buffer-check.log",
+    "bytes": 61,
+    "sha256": "a6c51ebc374c24313e6cc17d1d49e398909236c0ab3fcc1497794cf596c9206d"
+  },
+  {
+    "path": "diagnostics-session/221-weapon-wound-check.log",
+    "bytes": 825,
+    "sha256": "d5e18a2f365d86d4e746407f95bd64f22291efebb0affa8f49571af546152872"
+  },
+  {
+    "path": "diagnostics-session/222-window-port-check.log",
+    "bytes": 20380,
+    "sha256": "a19069643b1f0e1de44cc61486ad42a47bf85de98e3908a1b37af657e2f4531f"
+  },
+  {
+    "path": "diagnostics-session/223-wire-map-check.log",
+    "bytes": 1063,
+    "sha256": "c83c0df9fffcf641d5050c317ec4e3d1e646b5d8acf11d1ea900a0d43561727d"
+  },
+  {
+    "path": "diagnostics-session/224-world-debug-check.log",
+    "bytes": 191,
+    "sha256": "25a1d0fa60d22d344690dc2ff53b2c805537fd981fbd2b4458c840f96b8b9640"
+  },
+  {
+    "path": "diagnostics-session/225-world-placement-check.log",
+    "bytes": 511,
+    "sha256": "13767fd809c58f5b133563bef2c64083bd0fb0c3293bc69b743d7abe44e14081"
+  },
+  {
+    "path": "diagnostics-session/226-wound-restart-isolation-check.log",
+    "bytes": 60,
+    "sha256": "0b5724deb43c30c2ec96a8b2864031ecb8ab368538815750bec3d7a95d4baf34"
+  },
+  {
+    "path": "diagnostics-session/227-run.log",
+    "bytes": 12733,
+    "sha256": "6454818e36dd910af73a52392a494466ada0748595442afce04ade5f57f815e0"
+  },
+  {
+    "path": "diagnostics-session/228-run.log",
+    "bytes": 12729,
+    "sha256": "e31ca0d022b70142a6b6663f23231d2fb763e961f69d3033898758dc1299220c"
+  },
+  {
+    "path": "diagnostics-session/229-run.log",
+    "bytes": 12729,
+    "sha256": "97d1ae7bc5f38cccb02a611aff8cebafe1458aa5c92e8fd7f636d859b0230796"
+  },
+  {
+    "path": "diagnostics-session/230-run.log",
+    "bytes": 12729,
+    "sha256": "970f848aaebf21f424380ddf4e30fc376e5f705d6f37764da6fd0440ea4050f0"
+  },
+  {
+    "path": "diagnostics-session/231-run.log",
+    "bytes": 12729,
+    "sha256": "6fffb825e444afbf0aa1d447ab18640573d175858b5a5511e78d4ade863b5ab8"
+  },
+  {
+    "path": "diagnostics-session/232-run.log",
+    "bytes": 12729,
+    "sha256": "d2b41b8d5c390b557fe58eb2b6937e69e802ad041261c528eb327373bfadd017"
+  },
+  {
+    "path": "diagnostics-session/233-run.log",
+    "bytes": 12730,
+    "sha256": "7ef7c90bf12cd7f113111d38d392a25a2bd48f3530fdb41490bfa6bfa236dfa9"
+  },
+  {
+    "path": "diagnostics-session/234-run.log",
+    "bytes": 12730,
+    "sha256": "1a25a8120ed5f641729b392dc4b77335e15bb11ce884b5adb1a5dae818228b86"
+  },
+  {
+    "path": "diagnostics-session/235-run_command_lifecycle_audit.log",
+    "bytes": 32262,
+    "sha256": "16d25d58d5e14cd03d9d8d24491b6433858a38f3ac0728a593b96ff7946e54f4"
+  },
+  {
+    "path": "diagnostics-session/236-check-meso-formation-frame-stability.log",
+    "bytes": 324,
+    "sha256": "4d2070a915c73a6036d668dc920c7f8fbce4701e342522e21151b0e4c98ade4e"
+  },
+  {
+    "path": "diagnostics-session/237-check-macro-mission-command.log",
+    "bytes": 3286,
+    "sha256": "ca48d584c9fb94a06e94fd62aad2f40b6f804bd0c118e7de33ccf0a973953176"
+  },
+  {
+    "path": "diagnostics-session/238-check-movement-order-ownership.log",
+    "bytes": 502,
+    "sha256": "0c5c54daada87c582c2858a2b3afc76aea358af4b19c8fff213fb70402a9aaaf"
+  },
+  {
+    "path": "diagnostics-session/239-check-meso-micro-movement-ownership.log",
+    "bytes": 2757,
+    "sha256": "f0c20b8c044a606d255a41d5f43f3f58f5ab8603cbc06a3ec6fab90502c81828"
+  },
+  {
+    "path": "diagnostics-session/240-check-physical-waypoint-refill.log",
+    "bytes": 81,
+    "sha256": "87be51bd791730c85d3b7fdf16410024b0cfd63fc67aacb8d10c1e542594b06b"
+  },
+  {
+    "path": "diagnostics-session/241-check-purposeful-contact-gait.log",
+    "bytes": 79,
+    "sha256": "4ef9ac56244a3971312e342b522cce09cc127dac5c62320ff1ddd20c1d3dfb81"
+  },
+  {
+    "path": "diagnostics-session/242-check-autonomous-contact-mobility.log",
+    "bytes": 89,
+    "sha256": "5f029a9bc07f716ab86790e4692be5984c6b58728650c916fe1b8a8ffbc460b7"
+  },
+  {
+    "path": "diagnostics-session/243-check-building-interior-ingress.log",
+    "bytes": 92,
+    "sha256": "767625dddf15348a6ebf7492349c88e4773fc9ab14459a37a5648fe6f75867a1"
+  },
+  {
+    "path": "diagnostics-session/244-check-strategic-5km.log",
+    "bytes": 205,
+    "sha256": "f58158171f239feb7891793c98fb4a6b929efd878c01d9c2bc35381cc6957143"
+  },
+  {
+    "path": "diagnostics-session/245-check-strategic-front-lines.log",
+    "bytes": 166,
+    "sha256": "ae4d278dea209f9afca8e0ea26a34a915184dc032662856ebd45ecda54d66b76"
+  },
+  {
+    "path": "diagnostics-session/246-check-strategic-reinforcements.log",
+    "bytes": 29,
+    "sha256": "b9a0de7a47ebeaa63ffc9fe8e1afd398ceda918a333e924b29b8aa88bfe60717"
+  },
+  {
+    "path": "diagnostics-session/247-check_vehicle_lab.log",
+    "bytes": 183,
+    "sha256": "4b78d19e0d6a155e5201d9184394dad34cdb501d5971684666facbcceef68497"
+  },
+  {
+    "path": "diagnostics-session/248-check-strategic-truck-visual.log",
+    "bytes": 170,
+    "sha256": "c77ba0e5316efe17502f1eba5681c7e510c94b7319f7310ef5250bdd6b79ed32"
+  },
+  {
+    "path": "diagnostics-session/249-check-strategic-truck-lite.log",
+    "bytes": 78,
+    "sha256": "984e13fcd333d3bcb7b12f23cde78ba25fb1b3f6c544aa85e8a8a033c2f23959"
+  },
+  {
+    "path": "diagnostics-session/250-check-strategic-restart-end.log",
+    "bytes": 96,
+    "sha256": "c617d51e014438797c22460322668399721a4bfc170149e73b52166fc78d8721"
+  },
+  {
+    "path": "diagnostics-session/baseline-run.json",
+    "bytes": 187,
+    "sha256": "623e88afdd1a17fb372f1cdb862ba81addd20f853b45e1127a0b8cd0f940456e"
+  },
+  {
+    "path": "diagnostics-session/baseline.log",
+    "bytes": 1697,
+    "sha256": "dc801d3c8d5130f647365909a0a590d9bca78cb797f99934f870900142e30f28"
+  },
+  {
+    "path": "diagnostics-session/benchmark-baseline/seeds-1047-shard-1/off/battle-benchmark.json.gz",
+    "bytes": 121043,
+    "sha256": "38ac270591bed6d98bec52c1440cd30426a0e4b1b622c0100a95ae5e2735220f"
+  },
+  {
+    "path": "diagnostics-session/benchmark-baseline/seeds-1047-shard-1/on/battle-benchmark.json.gz",
+    "bytes": 121041,
+    "sha256": "07458809f92cf704861c10fa46a7509f596d05fb47231671f98143dc72d8877e"
+  },
+  {
+    "path": "diagnostics-session/benchmark-baseline/seeds-1047-shard-2/off/battle-benchmark.json.gz",
+    "bytes": 124118,
+    "sha256": "7e493be1de68b112821e1c5f21b12847f50c548b003a3d6cbaa043eb04471118"
+  },
+  {
+    "path": "diagnostics-session/benchmark-baseline/seeds-1047-shard-2/on/battle-benchmark.json.gz",
+    "bytes": 124114,
+    "sha256": "a36bc6493ed6778f445fe6d4ab30c55dd6981bb04cb6bea349ac88c580b6db89"
+  },
+  {
+    "path": "diagnostics-session/benchmark-baseline/seeds-1047-shard-3/off/battle-benchmark.json.gz",
+    "bytes": 104089,
+    "sha256": "1704044cc88d21bf13056261c143bcba7b92c86dda8904c6a77f8c9ef759b816"
+  },
+  {
+    "path": "diagnostics-session/benchmark-baseline/seeds-1047-shard-3/on/battle-benchmark.json.gz",
+    "bytes": 104091,
+    "sha256": "1c9918d102fc144d28cc2cb9978f06a7ef5f37c511a3c2b7a6ebbf4191774325"
+  },
+  {
+    "path": "diagnostics-session/benchmark-candidate/seeds-1048-shard-1/off/battle-benchmark.json.gz",
+    "bytes": 121038,
+    "sha256": "e1eeabebdac518732cd6bfbc5208ba9295e5903fbb711a613f7fc9902bfe678f"
+  },
+  {
+    "path": "diagnostics-session/benchmark-candidate/seeds-1048-shard-1/on/battle-benchmark.json.gz",
+    "bytes": 121042,
+    "sha256": "c4aaf04422f475e968b4aaaf75ae6c070b9e70e9ffab33bce1c68a7e9f017cb0"
+  },
+  {
+    "path": "diagnostics-session/benchmark-candidate/seeds-1048-shard-2/off/battle-benchmark.json.gz",
+    "bytes": 124116,
+    "sha256": "22d3c8ff36e18e309dfb341bc51252d3af80f7c83ec7767bbe74f98cfc29c35b"
+  },
+  {
+    "path": "diagnostics-session/benchmark-candidate/seeds-1048-shard-2/on/battle-benchmark.json.gz",
+    "bytes": 124122,
+    "sha256": "4f6b9bb9757771c21f8508722245349133461f7e95685e8666e99a0ea0e7b762"
+  },
+  {
+    "path": "diagnostics-session/benchmark-candidate/seeds-1048-shard-3/off/battle-benchmark.json.gz",
+    "bytes": 104087,
+    "sha256": "9c5887476d5d6a98c50a09daad69ac8ccb04b8d7b5f6f6ace152f7d264e5492d"
+  },
+  {
+    "path": "diagnostics-session/benchmark-candidate/seeds-1048-shard-3/on/battle-benchmark.json.gz",
+    "bytes": 104092,
+    "sha256": "6583e74fdbf0f1ee7e3c9449343e5c4feb541bc85af44e4ebf19ef63d3e14a91"
+  },
+  {
+    "path": "diagnostics-session/browser/ambush-report.json",
+    "bytes": 16486,
+    "sha256": "14a35a554cbe985c144c6ad0420721f32b36224dfab307650e15682225cc6393"
+  },
+  {
+    "path": "diagnostics-session/browser/c3-effective-fire.json",
+    "bytes": 452,
+    "sha256": "99375143335ba8cd9e49fd223f5fb79151a6296479dab414f932932674d71ffc"
+  },
+  {
+    "path": "diagnostics-session/browser/covered-bound-report.json",
+    "bytes": 10961,
+    "sha256": "41ae0bb9b8b6ace5ac224e27bda91c6b10e3cd822e98afc351ccec08c9593f7e"
+  },
+  {
+    "path": "diagnostics-session/browser/report.json",
+    "bytes": 5752,
+    "sha256": "38ed303f07fdd328bf39db57034a3109666d7b541435dc1b243f7c30bf3a0aec"
+  },
+  {
+    "path": "diagnostics-session/browser/structure-report.json",
+    "bytes": 39575,
+    "sha256": "95ca1f739627ec39474df019f7e1113f210036257609d5a1a294cd3decf2e095"
+  },
+  {
+    "path": "diagnostics-session/candidate-run.json",
+    "bytes": 187,
+    "sha256": "fd7fa06ad7e0de923a932c9150fbea12a468ed21be43927855cf2fb1c66e06af"
+  },
+  {
+    "path": "diagnostics-session/checks.json",
+    "bytes": 53421,
+    "sha256": "2adc9719f4a654ef44084cae9ef04f1ec6e91c0cca44731e96fb7bf8fb091850"
+  },
+  {
+    "path": "diagnostics-session/cross-off.json",
+    "bytes": 1368,
+    "sha256": "322a07de9ddddebd67a2711bbebe5beb6392525ca96ff8bc064cd64bb5d3e520"
+  },
+  {
+    "path": "diagnostics-session/cross-on.json",
+    "bytes": 1368,
+    "sha256": "e58a803e9bf7ea62cb5406131cf98d88167f04dafbc2f484c8f3c91cc6b431f3"
+  },
+  {
+    "path": "diagnostics-session/final-head-ci.json",
+    "bytes": 3120,
+    "sha256": "5f4a13d0a656b99f5d28087d7f5c7f8c52d1193e53688b90e7e01ac6900ed92e"
+  },
+  {
+    "path": "diagnostics-session/owner.log",
+    "bytes": 139,
+    "sha256": "8886bd47488d11842c01ac77e6536c0d9182fe64f3bf76ed79cfc3c5064b7014"
+  },
+  {
+    "path": "diagnostics-session/strategic/strategic-report.json",
+    "bytes": 7052,
+    "sha256": "dab4f572a2f15ed5f04ef766b8868ac843fb41baff14624c557f260ead62c6b6"
+  },
+  {
+    "path": "diagnostics-session/strategic/truck-visual-report.json",
+    "bytes": 31558,
+    "sha256": "a2390bf9974a698ab05d7c538eb5ee44733fea4f815a328c786cbcd0132d5138"
+  },
+  {
+    "path": "diagnostics-session/validation.json",
+    "bytes": 1128,
+    "sha256": "d2888cf46fc50dafc09a5377c67646c1311c52aee34b9e4a0234b9d081a2d200"
+  },
+  {
+    "path": "diagnostics-session/wrapper-rerun.log",
+    "bytes": 79,
+    "sha256": "f43cac6f4a4be37062e891f78fd0d1e6f72c2f0c1e9ab9d3d6e101972e52d379"
   },
   {
     "path": "effective-fire-support-check.log",

@@ -1,0 +1,59 @@
+node:internal/assert/utils:146
+  throw error;
+  ^
+
+AssertionError [ERR_ASSERTION]: starting an unpublished simulation must not replace the published diagnostics session
++ actual - expected
+... Skipped lines
+
+  {
+    _objectives: [],
+    _roster: {
+      ge: [],
+      us: []
+...
+        battleScenario: {
++         seed: 'unused'
+-         seed: 'live'
+        }
+      }
+    },
++   time: 20,
+-   time: 10,
+    timeLimit: 600,
+    timeScale: 1
+  }
+
+    at Object.<anonymous> (/Users/ivanpopov/Desktop/grasstex-session-lifecycle-20261020/tools/ai-sim-harness/diagnostics-session-owner-check.js:22:8)
+    at Module._compile (node:internal/modules/cjs/loader:1934:14)
+    at Object..js (node:internal/modules/cjs/loader:2074:10)
+    at Module.load (node:internal/modules/cjs/loader:1656:32)
+    at Module._load (node:internal/modules/cjs/loader:1448:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:261:19)
+    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)
+    at node:internal/main/run_main_module:33:47 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: {
+    time: 20,
+    timeLimit: 600,
+    timeScale: 1,
+    scene: { metadata: { battleScenario: { seed: 'unused' } } },
+    factions: { us: { alive: 1, squads: [] }, ge: { alive: 1, squads: [] } },
+    _roster: { us: [], ge: [] },
+    _objectives: []
+  },
+  expected: {
+    time: 10,
+    timeLimit: 600,
+    timeScale: 1,
+    scene: { metadata: { battleScenario: { seed: 'live' } } },
+    factions: { us: { alive: 1, squads: [] }, ge: { alive: 1, squads: [] } },
+    _roster: { us: [], ge: [] },
+    _objectives: []
+  },
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v26.7.0

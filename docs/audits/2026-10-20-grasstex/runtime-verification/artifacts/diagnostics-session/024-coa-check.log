@@ -1,0 +1,12 @@
+PASS COA is on by default; only explicit 0/off/false disables it
+     460 input points match the closed form
+PASS the declared scores: assault while 2.5 x casualties + 1.5 x stress + 2 x leaderDown <= 1, a tie is assault
+PASS the inputs are read off the squad: casualties over its establishment, the roll-up mean, the leader
+PASS the COA follows the squad inside a contact, in both directions, and the bounds follow it
+PASS a blink is not a decision: the COA is a function of the inputs, so the same inputs give the same COA across it
+PASS the COA gates bounds only in the bounding phases; outside them assault and defend are the same squad
+PASS assault bounds a fireteam after BOUND_CYCLE; defend never does, and never rotates a team
+PASS explicitly off: sq.coa is never set and a squad with the leader down bounds like any other
+PASS a contact that blinks faster than BOUND_CYCLE never bounds, under either COA (each start renews the wait)
+PASS _assaultAuthorized has one writer file (the Squad Leader)
+PASS 10 COA checks

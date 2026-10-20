@@ -1,0 +1,7 @@
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+PASS fireCooldown has one direct runtime writer and the owner API preserves clock semantics
+PASS combat posture visual passes a static presentation aim point without touching soldier.target
+PASS presentation aim survives the gait wrapper and reaches both animation backends explicitly
+PASS wire-map target debt shrank: posture visual is no longer a soldier.target writer
+4 residual small-debt cleanup checks passed

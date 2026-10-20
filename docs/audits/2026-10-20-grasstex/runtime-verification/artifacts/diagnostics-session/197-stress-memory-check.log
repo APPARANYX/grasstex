@@ -1,0 +1,18 @@
+PASS the flag parses: all memory systems by default, 0 for none, or an exact named list
+PASS lasting: stress does not drain while the squad is in contact, and drains CALM_AFTER after it stops
+PASS lasting: a man under fire holds his stress even when his squad is out of contact
+PASS lasting does not change what a man gains: the same events give the same stress in the same instant
+PASS floor: the worked example from AGENTS.md (50% health, 60% stress is 30%; 40% and 80% is 48%)
+PASS floor: a man who was never hurt has none, and all of his stress can go
+PASS floor: bleeding raises it as health is lost; healing lowers it by the share of lost health that came back
+PASS squadFloor reads each living soldier live mind.floor value
+PASS floor off: nothing holds him, whatever his health
+PASS relief: with it off nothing is queued, with it on each kind is queued and takes RELIEF x nerve off
+PASS relief never takes a man below his floor, or below nothing
+PASS relief: the wound model tells the shooter of a kill, never of a friend, and a wound is not a kill
+PASS relief: Engagement reports a spell of fire survived, and not one that wounded him
+PASS relief: reaching cover under fire is reported once, not reaching it, and not when nobody is shooting
+PASS relief: the capture zone tells the men of the side that took it who stood in it, on capture and on neutralising
+PASS the module writes only `mind` and draws nothing from the combat RNG, flags on
+PASS telemetry carries the memory block: flags, seconds held, floors and relief by kind
+17 stress-memory checks passed

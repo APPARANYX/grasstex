@@ -1,0 +1,8 @@
+PASS on by default; only 0/off/false disables it
+PASS a quiet first-hand picture becomes a clearing order after CLEAR_AFTER; heard word never does
+PASS a hold-fire order on a contact nobody can see is opened when clearing begins
+PASS a sighting, fire, a holding phase or retreat ends it and restarts the clock
+PASS it ends cleared on arrival or on the clock, and the same picture is not ordered again
+PASS the anchor advances on the cleared point as men arrive; off, it is held in contact
+PASS an alerted man past his sector hold follows the clearing order, crouched; without it he holds
+7 clear-contact checks passed

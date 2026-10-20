@@ -1,0 +1,1 @@
+PASS command hierarchy refresh does not observe its own mutations

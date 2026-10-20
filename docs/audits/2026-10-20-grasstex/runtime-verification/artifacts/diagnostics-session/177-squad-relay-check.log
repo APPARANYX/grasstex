@@ -1,0 +1,7 @@
+PASS a stranded man hears the order from a squadmate the sender reached
+PASS ?squadRelay=0 restores the unreachable record
+PASS a squadmate the sender did not reach relays nothing
+PASS an order that may not be relayed stays unreachable
+PASS a man the sender reaches directly is unchanged
+PASS the squad relay skips a squadmate the sender could not reach and uses the one it did
+6 squad-relay checks passed

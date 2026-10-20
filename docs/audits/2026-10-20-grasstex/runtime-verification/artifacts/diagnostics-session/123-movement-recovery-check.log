@@ -1,0 +1,202 @@
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[ENGAGE] combat urgency drills: suppressed cover bound + shared-contact reaction
+[MOVE] lean movement execution: committed micro-route + conservative recovery
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS regroup movement reports a confirmed stuck man instead of suppressing progress
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[ENGAGE] combat urgency drills: suppressed cover bound + shared-contact reaction
+[MOVE] lean movement execution: committed micro-route + conservative recovery
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS authorized regroup recovery walks on terrain and restores collision at legal placement
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[ENGAGE] combat urgency drills: suppressed cover bound + shared-contact reaction
+[MOVE] lean movement execution: committed micro-route + conservative recovery
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS regroup recovery keeps body collisions off until the man clears another body
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[ENGAGE] combat urgency drills: suppressed cover bound + shared-contact reaction
+[MOVE] lean movement execution: committed micro-route + conservative recovery
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS regroup recovery clears on retreat
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[ENGAGE] combat urgency drills: suppressed cover bound + shared-contact reaction
+[MOVE] lean movement execution: committed micro-route + conservative recovery
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS regroup recovery clears on contact
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[ENGAGE] combat urgency drills: suppressed cover bound + shared-contact reaction
+[MOVE] lean movement execution: committed micro-route + conservative recovery
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS regroup recovery clears on ended
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[ENGAGE] combat urgency drills: suppressed cover bound + shared-contact reaction
+[MOVE] lean movement execution: committed micro-route + conservative recovery
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS regroup recovery clears on dead
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[ENGAGE] combat urgency drills: suppressed cover bound + shared-contact reaction
+[MOVE] lean movement execution: committed micro-route + conservative recovery
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS regroup recovery clears on reload
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[ENGAGE] combat urgency drills: suppressed cover bound + shared-contact reaction
+[MOVE] lean movement execution: committed micro-route + conservative recovery
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS goal change resets old stuck evidence
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[ENGAGE] combat urgency drills: suppressed cover bound + shared-contact reaction
+[MOVE] lean movement execution: committed micro-route + conservative recovery
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS owner/kind change resets the episode even when the point barely moves
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[ENGAGE] combat urgency drills: suppressed cover bound + shared-contact reaction
+[MOVE] lean movement execution: committed micro-route + conservative recovery
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS curved-route odometer progress does not trigger false stuck
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[ENGAGE] combat urgency drills: suppressed cover bound + shared-contact reaction
+[MOVE] lean movement execution: committed micro-route + conservative recovery
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS waypoint advancement excuses low Euclidean net progress
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[ENGAGE] combat urgency drills: suppressed cover bound + shared-contact reaction
+[MOVE] lean movement execution: committed micro-route + conservative recovery
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS legitimate combat hold and suppression never trigger recovery
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[ENGAGE] combat urgency drills: suppressed cover bound + shared-contact reaction
+[MOVE] lean movement execution: committed micro-route + conservative recovery
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS contact-reaction at the current position never counts as stuck
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[ENGAGE] combat urgency drills: suppressed cover bound + shared-contact reaction
+[MOVE] lean movement execution: committed micro-route + conservative recovery
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS local avoidance gets grace, then normal detection resumes
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[ENGAGE] combat urgency drills: suppressed cover bound + shared-contact reaction
+[MOVE] lean movement execution: committed micro-route + conservative recovery
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS one poor window never escalates; full episode stages fire exactly once
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[ENGAGE] combat urgency drills: suppressed cover bound + shared-contact reaction
+[MOVE] lean movement execution: committed micro-route + conservative recovery
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS formation stalls rebuild without recording suppressible candidates
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[ENGAGE] combat urgency drills: suppressed cover bound + shared-contact reaction
+[MOVE] lean movement execution: committed micro-route + conservative recovery
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS gated stalls record one failure and the candidate stays suppressed until expiry
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[ENGAGE] combat urgency drills: suppressed cover bound + shared-contact reaction
+[MOVE] lean movement execution: committed micro-route + conservative recovery
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS gated re-proposals of a suppressed goal retain the incumbent
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[ENGAGE] combat urgency drills: suppressed cover bound + shared-contact reaction
+[MOVE] lean movement execution: committed micro-route + conservative recovery
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS movement-progress never writes destinations itself
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[ENGAGE] combat urgency drills: suppressed cover bound + shared-contact reaction
+[MOVE] lean movement execution: committed micro-route + conservative recovery
+PASS brief target loss preserves a committed assault rush
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[ENGAGE] combat urgency drills: suppressed cover bound + shared-contact reaction
+[MOVE] lean movement execution: committed micro-route + conservative recovery
+PASS sustained disengagement eventually returns authority to formation
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[ENGAGE] combat urgency drills: suppressed cover bound + shared-contact reaction
+[MOVE] lean movement execution: committed micro-route + conservative recovery
+PASS authorized cover bound survives target-loss and reacquisition noise
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[ENGAGE] combat urgency drills: suppressed cover bound + shared-contact reaction
+[MOVE] lean movement execution: committed micro-route + conservative recovery
+PASS retreat still overrides a committed bound immediately
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+PASS cover hysteresis retains the incumbent, then switches on meaningful gain
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture on; movement off; relay off
+[COMMAND] execution outcome reader (derived, no state)
+[MOVE] resolver: sole combat-request coalescer and destination writer
+PASS identical fireteam slots are proposed once, not every squad tick
+All 26 movement-recovery checks passed.

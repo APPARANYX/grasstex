@@ -1,0 +1,43 @@
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[FIRE] trigger-time stance-aware LOS gate active (cached, 0.1s TTL)
+[BALLISTICS] direct fire uses combat-calibrated dispersed raycasts
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS no module replaces the owner fire or update functions
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[FIRE] trigger-time stance-aware LOS gate active (cached, 0.1s TTL)
+[BALLISTICS] direct fire uses combat-calibrated dispersed raycasts
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS the declared fire order is ammunition, ballistics range, trigger-time LOS, then grenade windup
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[FIRE] trigger-time stance-aware LOS gate active (cached, 0.1s TTL)
+[BALLISTICS] direct fire uses combat-calibrated dispersed raycasts
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS an empty weapon cannot fire even with ballistics loaded
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[FIRE] trigger-time stance-aware LOS gate active (cached, 0.1s TTL)
+[BALLISTICS] direct fire uses combat-calibrated dispersed raycasts
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS a loaded weapon in range with a clear line fires through the ballistic shot model
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[FIRE] trigger-time stance-aware LOS gate active (cached, 0.1s TTL)
+[BALLISTICS] direct fire uses combat-calibrated dispersed raycasts
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS the Squad Leader is the declared squad command owner
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[FIRE] trigger-time stance-aware LOS gate active (cached, 0.1s TTL)
+[BALLISTICS] direct fire uses combat-calibrated dispersed raycasts
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS an undeclared extension is refused instead of silently changing the pipeline
+6 extension-order checks passed

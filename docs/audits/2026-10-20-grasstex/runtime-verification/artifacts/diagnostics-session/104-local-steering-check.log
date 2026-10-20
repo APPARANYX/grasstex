@@ -1,0 +1,7 @@
+PASS a man bounding to a wall slot between two circles reaches it
+PASS the circles his destination hugs never push him, whatever waypoint he is on
+PASS walking past an obstacle to somewhere else, it still steers him round (control)
+PASS a wall slot 2.3 m from the third circle: he arrives without turning round; the old look-ahead orbits it
+PASS a circle whose ring holds the waypoint he is walking to does not push him; one that does not still does
+PASS the look-ahead never passes the end of his leg
+6 local steering checks passed

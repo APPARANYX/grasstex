@@ -1,0 +1,87 @@
+{
+  "headRefOid": "ffcd5c6fa7d7d1d70fdc9684bf2b1c2bde386a94",
+  "isDraft": true,
+  "state": "OPEN",
+  "statusCheckRollup": [
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-20T22:49:33Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/APPARANYX/grasstex/actions/runs/39510717084/job/118931072726",
+      "name": "Detect audio and deploy-plan changes",
+      "startedAt": "2026-10-20T22:49:11Z",
+      "status": "COMPLETED",
+      "workflowName": "\u2b50 CI"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-20T22:52:58Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/APPARANYX/grasstex/actions/runs/39510717043/job/118931168560",
+      "name": "Strategic 5km / Chromium",
+      "startedAt": "2026-10-20T22:49:27Z",
+      "status": "COMPLETED",
+      "workflowName": "\u2b50 Strategic 5km browser QA"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-20T22:52:32Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/APPARANYX/grasstex/actions/runs/39510717073/job/118930757529",
+      "name": "observer",
+      "startedAt": "2026-10-20T22:48:21Z",
+      "status": "COMPLETED",
+      "workflowName": "\u2b50 Tactical Observation Browser QA"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-20T22:49:59Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/APPARANYX/grasstex/actions/runs/39510717084/job/118931072657",
+      "name": "Syntax",
+      "startedAt": "2026-10-20T22:49:11Z",
+      "status": "COMPLETED",
+      "workflowName": "\u2b50 CI"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-20T22:49:47Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/APPARANYX/grasstex/actions/runs/39510717073/job/118930757836",
+      "name": "covered-bound",
+      "startedAt": "2026-10-20T22:48:21Z",
+      "status": "COMPLETED",
+      "workflowName": "\u2b50 Tactical Observation Browser QA"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-20T22:50:52Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/APPARANYX/grasstex/actions/runs/39510717084/job/118931072321",
+      "name": "Sim regressions",
+      "startedAt": "2026-10-20T22:49:11Z",
+      "status": "COMPLETED",
+      "workflowName": "\u2b50 CI"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-20T22:49:33Z",
+      "conclusion": "SKIPPED",
+      "detailsUrl": "https://github.com/APPARANYX/grasstex/actions/runs/39510717084/job/118931226064",
+      "name": "Audio library",
+      "startedAt": "2026-10-20T22:49:33Z",
+      "status": "COMPLETED",
+      "workflowName": "\u2b50 CI"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-20T22:49:33Z",
+      "conclusion": "SKIPPED",
+      "detailsUrl": "https://github.com/APPARANYX/grasstex/actions/runs/39510717084/job/118931225612",
+      "name": "Deploy plan",
+      "startedAt": "2026-10-20T22:49:33Z",
+      "status": "COMPLETED",
+      "workflowName": "\u2b50 CI"
+    }
+  ]
+}

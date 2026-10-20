@@ -1,0 +1,11 @@
+PASS a stashed genome is the defaults, whatever the server, the memory or a match says
+PASS nothing can change or write a stashed genome, and the network is never touched
+PASS the consumers read the defaults: Force Command doctrine and the Squad Leader tuning numbers
+PASS the trainer does not load while the genome is stashed
+PASS the genome has one door: only ai-policy.js reads the raw policy, the memory or the per-match genomes
+PASS the two copies of the defaults agree (the genome, and the doctrine module fallback)
+PASS baseline: Force Command action doctrine is OFF for every context, with or without the Genome module
+PASS baseline isolation: even a manually revived Genome cannot silently re-enable doctrine actions
+PASS Force Command asks the doctrine module for a rule, never the genome module around it
+PASS control: with the switch flipped the same hostile inputs take effect
+10 genome-gate checks passed

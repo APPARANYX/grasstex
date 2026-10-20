@@ -1,0 +1,6 @@
+[ANIM] prepared clips miss 1 clip(s) (pistolIdle); they load from FBX. Rebuild with scripts/build_clip_pack.cjs.
+[ANIM] FBX soldiers failed to load Error: FBX loader failed
+    at deps.ensureLoader (/Users/ivanpopov/Desktop/grasstex-session-lifecycle-20261020/tools/ai-sim-harness/fbx-library-lifecycle-check.js:71:17)
+    at Object.loadLibrary (52-fbx-library-lifecycle.js:66:22)
+    at /Users/ivanpopov/Desktop/grasstex-session-lifecycle-20261020/tools/ai-sim-harness/fbx-library-lifecycle-check.js:174:29
+PASS #456 R3 one-scene Promise reuse, pack/fallback arbitration, sidecar+model+weapon ordering, retarget/grip/render readiness, fatal FBX failure and no implicit retry

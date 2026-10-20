@@ -1,0 +1,39 @@
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+PASS genome absent and action doctrine off: fixed baseline issues a normal assault without any rule
+PASS accepted objective survives local doctrine/contact noise without strategic reevaluation
+PASS Squad Leader follows initial route while Macro sleeps, including Macro OFF
+PASS owned defense is an ongoing mission, not completion every commander tick
+PASS capture completes exactly once and selects a remaining objective
+PASS removed objective invalidates the mission without resurrecting its route
+PASS one stall episode escalates once at 120/180/240/300 seconds and never loops every sample
+PASS the strategic-stall wake reads the stall seconds, never the replanDue flag
+PASS 120 s reconcile leaves a recently progressing capture brief alone
+PASS 120 s reconcile does not replan a capture brief whose squad is still physically executing it
+PASS 120 s reconcile repairs missing Macro projections without replacing a young valid brief
+PASS 180 s release can recover an inherited stale hold and support assignment without action doctrine
+PASS 240 s main effort masses a majority of available offensive squads on one reachable objective
+PASS 300 s reset leaves an owned defender and a recently progressing squad alone, and resets the stalled squad once
+PASS objective progress starts a fresh recovery episode
+PASS reserve commitment is one strategic event and does not revive reserve status
+PASS a persistent request is accepted once and its removal is explicit reassessment
+PASS vacant-objective extension never rewrites another squad on a global wake
+PASS a fixed-policy brief goes straight to its objective and never runs an action doctrine rule
+PASS Squad Leader regroup is Meso-owned: no General wake, no restore writes, mission resumes
+PASS the disabled doctrine cannot inject a HOLD or request doctrine-review from an unchanged assault
+PASS contact freezes Squad Leader leg and phase under the same mission
+PASS the 120 s reconcile does not retask a young mission, but later escalation may
+PASS the first stall stage moves an old failed effort, and the stall cost is still only a score
+PASS a stall closes the stalled efforts, so the frontage limit does not hold the side on them
+PASS pressure flicker on an objective already being defended is not a new brief
+PASS Macro OFF from the start: no brief, the Squad Leader walks the assigned approach route
+PASS stall stages leave a live forward-screen brief alone through 120/180/240/300 s
+PASS ?screenStallHold=0 restores the old stall re-brief of a targetless screen
+PASS an arrival dismount hands the screen its post leg and stamps it on post
+PASS ?transportHandoff=0 restores the old route index after a dismount
+PASS front lines: a capture brief on a line that is no longer attackable is replaced once
+PASS front lines: without the rules module the old brief is kept
+PASS front lines: a lone garrison squad at an ambush post is recalled once its line may be attacked
+PASS General considers nearby transport on an unchanged accepted foot mission
+PASS a threatened front-line garrison survives the short capture-security timer, then releases
+macro-mission-command: 36 passed, 0 failed

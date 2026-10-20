@@ -1,0 +1,5 @@
+PASS a stable-roster out-and-back still raises low-forward-progress
+PASS required physical detour is classified separately from pathological low progress
+PASS movement inside an already-held friendly objective is not low-forward-progress
+PASS a living-roster change resets the centroid odometer instead of manufacturing travel
+4 forward-progress checks passed.

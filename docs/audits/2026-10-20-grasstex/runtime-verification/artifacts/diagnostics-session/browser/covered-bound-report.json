@@ -1,0 +1,477 @@
+{
+  "fixture": "real preview map; actual cover slots and Navigation/Perception route sampling",
+  "fixtureScan": {
+    "source": "/grasstex/preview/ref-ffcd5c6fa7d7/battle_sim.php",
+    "navigationVersion": 1,
+    "time": 0,
+    "squadId": "us-0",
+    "moverId": 1,
+    "scan": {
+      "tested": 8841,
+      "found": 1,
+      "candidateCount": 25417,
+      "slots": 17919,
+      "byType": {
+        "tree": 1030,
+        "rock": 1066,
+        "wall": 1375,
+        "log": 776,
+        "hedge": 13672
+      }
+    },
+    "failures": {
+      "no-standing-fire-line": 8834,
+      "exposed-endpoint": 6
+    },
+    "picked": {
+      "start": {
+        "x": 905.8967920467418,
+        "z": 131.1460737474964
+      },
+      "threat": {
+        "x": 833.9829296703069,
+        "z": 143.69184586814316,
+        "at": 0,
+        "confidence": 0.9
+      },
+      "slot": {
+        "id": "cover:265:0",
+        "x": 902.941427839491,
+        "z": 131.66165342368734,
+        "normalX": 0.9851214024169148,
+        "normalZ": -0.17185989206365454,
+        "type": "rock",
+        "status": "free",
+        "soldierId": null,
+        "faction": null
+      },
+      "candidate": {
+        "x": 902.941427839491,
+        "z": 131.66165342368734,
+        "slotId": "cover:265:0",
+        "slot": {
+          "id": "cover:265:0",
+          "x": 902.941427839491,
+          "z": 131.66165342368734,
+          "normalX": 0.9851214024169148,
+          "normalZ": -0.17185989206365454,
+          "obstacle": {
+            "x": 900.931933093816,
+            "z": 132.0122209265828,
+            "y": -1.523109458635015,
+            "radius": 1.2317723369854503,
+            "cover": 0.55,
+            "height": 1.1197930336231365,
+            "type": "rock",
+            "physicalId": "rock-4418"
+          },
+          "shape": {
+            "id": "rock-4418",
+            "type": "rock",
+            "shape": "obb",
+            "x": 900.931933093816,
+            "z": 132.0122209265828,
+            "hx": 1.007813730260823,
+            "hz": 0.8398447752173523,
+            "ux": -0.17185989206365454,
+            "uz": -0.9851214024169148,
+            "vx": 0.9851214024169148,
+            "vz": -0.17185989206365454
+          },
+          "type": "rock"
+        },
+        "quality": 0.55,
+        "distance": 3.0000000000000484,
+        "obstacle": {
+          "x": 900.931933093816,
+          "z": 132.0122209265828,
+          "y": -1.523109458635015,
+          "radius": 1.2317723369854503,
+          "cover": 0.55,
+          "height": 1.1197930336231365,
+          "type": "rock",
+          "physicalId": "rock-4418"
+        },
+        "type": "rock"
+      },
+      "route": {
+        "eligible": true,
+        "reason": "covered-segment",
+        "distance": 3.0000000000000484,
+        "samples": 6,
+        "maxExposure": 0
+      },
+      "index": 1030,
+      "rear": 3,
+      "range": 70
+    }
+  },
+  "stageSetup": {
+    "at": 3.8999999999999986,
+    "squad": "us-0",
+    "mover": 7,
+    "support": [
+      1,
+      3,
+      2
+    ],
+    "supportPositions": [
+      {
+        "x": 941.1309727839256,
+        "z": 94.5461761003791
+      },
+      {
+        "x": 931.0281148755591,
+        "z": 106.45970882931209
+      },
+      {
+        "x": 936.9388432900606,
+        "z": 105.42854947693016
+      },
+      {
+        "x": 932.4029940120685,
+        "z": 114.34068004864741
+      },
+      {
+        "x": 936.5276314215961,
+        "z": 137.98359370665338
+      },
+      {
+        "x": 937.9025105581054,
+        "z": 145.8645649259887
+      },
+      {
+        "x": 939.6211094787419,
+        "z": 155.71577895015784
+      }
+    ],
+    "nativeSupport": [
+      7,
+      1,
+      3,
+      2
+    ],
+    "shotsBeforeMove": 11,
+    "boundOrder": true,
+    "boundLease": true,
+    "nativeCover": {
+      "x": 902.941427839491,
+      "z": 131.66165342368734,
+      "slotId": "cover:265:0"
+    },
+    "nativeCoverDecision": {
+      "attempts": 1,
+      "accepted": 1,
+      "rejected": 0,
+      "candidates": 1,
+      "samples": 6,
+      "at": 3.8999999999999986,
+      "reason": "covered-segment"
+    },
+    "perceivedThreats": [
+      {
+        "x": 833.9829296703069,
+        "z": 143.69184586814316,
+        "at": 3.8999999999999986,
+        "confidence": 0.92,
+        "source": "told"
+      }
+    ],
+    "previewCover": [
+      {
+        "x": 902.941427839491,
+        "z": 131.66165342368734,
+        "slotId": "cover:265:0"
+      }
+    ],
+    "fixture": {
+      "start": {
+        "x": 905.8967920467418,
+        "z": 131.1460737474964
+      },
+      "threat": {
+        "x": 833.9829296703069,
+        "z": 143.69184586814316,
+        "at": 0,
+        "confidence": 0.9
+      },
+      "slotId": "cover:265:0"
+    },
+    "prequalifiedPolicySeam": true,
+    "nonlethalTargetFixture": true
+  },
+  "latest": {
+    "time": 5.100000000000001,
+    "winner": null,
+    "timeLimit": 600,
+    "alive": {
+      "us": 4,
+      "ge": 1
+    },
+    "hostile": {
+      "id": 54,
+      "dead": false,
+      "hp": 99801.15485621798,
+      "isPlayer": true
+    },
+    "moverDead": false,
+    "moverTarget": null,
+    "boundLease": true,
+    "boundOrder": false,
+    "displacement": 2.9564999999998727,
+    "distanceToCover": 0.043500000000175496,
+    "cover": {
+      "x": 902.941427839491,
+      "z": 131.66165342368734,
+      "slotId": "cover:265:0"
+    },
+    "liveCover": {
+      "x": 902.941427839491,
+      "z": 131.66165342368734
+    },
+    "nativeBoundProof": {
+      "attempts": 1,
+      "accepted": 1,
+      "rejected": 0,
+      "candidates": 1,
+      "samples": 6,
+      "at": 3.8999999999999986,
+      "reason": "covered-segment"
+    },
+    "movementStop": null,
+    "moverState": "alert",
+    "moverId": 7,
+    "shots": 15,
+    "duringMove": 4,
+    "baseOfFire": [
+      {
+        "id": 1,
+        "x": 941.1309727839256,
+        "z": 94.5461761003791,
+        "state": "engage",
+        "moving": false
+      },
+      {
+        "id": 3,
+        "x": 931.0281148755591,
+        "z": 106.45970882931209,
+        "state": "engage",
+        "moving": false
+      },
+      {
+        "id": 2,
+        "x": 936.9388432900606,
+        "z": 105.42854947693016,
+        "state": "engage",
+        "moving": false
+      }
+    ]
+  },
+  "stages": [
+    {
+      "name": "support-base",
+      "time": 4.049999999999999,
+      "winner": null,
+      "timeLimit": 600,
+      "alive": {
+        "us": 4,
+        "ge": 1
+      },
+      "hostile": {
+        "id": 54,
+        "dead": false,
+        "hp": 99849.00444553937,
+        "isPlayer": true
+      },
+      "moverDead": false,
+      "moverTarget": null,
+      "boundLease": true,
+      "boundOrder": false,
+      "displacement": 0.09450000000003667,
+      "distanceToCover": 2.9055000000000115,
+      "cover": {
+        "x": 902.941427839491,
+        "z": 131.66165342368734,
+        "slotId": "cover:265:0"
+      },
+      "liveCover": {
+        "x": 902.941427839491,
+        "z": 131.66165342368734
+      },
+      "nativeBoundProof": {
+        "attempts": 1,
+        "accepted": 1,
+        "rejected": 0,
+        "candidates": 1,
+        "samples": 6,
+        "at": 3.8999999999999986,
+        "reason": "covered-segment"
+      },
+      "movementStop": null,
+      "moverState": "bound",
+      "moverId": 7,
+      "shots": 11,
+      "duringMove": 0,
+      "baseOfFire": [
+        {
+          "id": 1,
+          "x": 941.1309727839256,
+          "z": 94.5461761003791,
+          "state": "engage",
+          "moving": false
+        },
+        {
+          "id": 3,
+          "x": 931.0281148755591,
+          "z": 106.45970882931209,
+          "state": "engage",
+          "moving": false
+        },
+        {
+          "id": 2,
+          "x": 936.9388432900606,
+          "z": 105.42854947693016,
+          "state": "engage",
+          "moving": false
+        }
+      ]
+    },
+    {
+      "name": "bound-moving",
+      "time": 4.35,
+      "winner": null,
+      "timeLimit": 600,
+      "alive": {
+        "us": 4,
+        "ge": 1
+      },
+      "hostile": {
+        "id": 54,
+        "dead": false,
+        "hp": 99848.19543339373,
+        "isPlayer": true
+      },
+      "moverDead": false,
+      "moverTarget": null,
+      "boundLease": true,
+      "boundOrder": false,
+      "displacement": 0.566999999999996,
+      "distanceToCover": 2.4330000000000522,
+      "cover": {
+        "x": 902.941427839491,
+        "z": 131.66165342368734,
+        "slotId": "cover:265:0"
+      },
+      "liveCover": {
+        "x": 902.941427839491,
+        "z": 131.66165342368734
+      },
+      "nativeBoundProof": {
+        "attempts": 1,
+        "accepted": 1,
+        "rejected": 0,
+        "candidates": 1,
+        "samples": 6,
+        "at": 3.8999999999999986,
+        "reason": "covered-segment"
+      },
+      "movementStop": null,
+      "moverState": "bound",
+      "moverId": 7,
+      "shots": 11,
+      "duringMove": 0,
+      "baseOfFire": [
+        {
+          "id": 1,
+          "x": 941.1309727839256,
+          "z": 94.5461761003791,
+          "state": "engage",
+          "moving": false
+        },
+        {
+          "id": 3,
+          "x": 931.0281148755591,
+          "z": 106.45970882931209,
+          "state": "engage",
+          "moving": false
+        },
+        {
+          "id": 2,
+          "x": 936.9388432900606,
+          "z": 105.42854947693016,
+          "state": "engage",
+          "moving": false
+        }
+      ]
+    },
+    {
+      "name": "covered-arrival",
+      "time": 5.100000000000001,
+      "winner": null,
+      "timeLimit": 600,
+      "alive": {
+        "us": 4,
+        "ge": 1
+      },
+      "hostile": {
+        "id": 54,
+        "dead": false,
+        "hp": 99801.15485621798,
+        "isPlayer": true
+      },
+      "moverDead": false,
+      "moverTarget": null,
+      "boundLease": true,
+      "boundOrder": false,
+      "displacement": 2.9564999999998727,
+      "distanceToCover": 0.043500000000175496,
+      "cover": {
+        "x": 902.941427839491,
+        "z": 131.66165342368734,
+        "slotId": "cover:265:0"
+      },
+      "liveCover": {
+        "x": 902.941427839491,
+        "z": 131.66165342368734
+      },
+      "nativeBoundProof": {
+        "attempts": 1,
+        "accepted": 1,
+        "rejected": 0,
+        "candidates": 1,
+        "samples": 6,
+        "at": 3.8999999999999986,
+        "reason": "covered-segment"
+      },
+      "movementStop": null,
+      "moverState": "alert",
+      "moverId": 7,
+      "shots": 15,
+      "duringMove": 4,
+      "baseOfFire": [
+        {
+          "id": 1,
+          "x": 941.1309727839256,
+          "z": 94.5461761003791,
+          "state": "engage",
+          "moving": false
+        },
+        {
+          "id": 3,
+          "x": 931.0281148755591,
+          "z": 106.45970882931209,
+          "state": "engage",
+          "moving": false
+        },
+        {
+          "id": 2,
+          "x": 936.9388432900606,
+          "z": 105.42854947693016,
+          "state": "engage",
+          "moving": false
+        }
+      ]
+    }
+  ],
+  "errors": []
+}

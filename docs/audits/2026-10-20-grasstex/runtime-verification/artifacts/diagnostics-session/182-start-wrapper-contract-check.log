@@ -1,0 +1,306 @@
+node:internal/assert/utils:146
+  throw error;
+  ^
+
+AssertionError [ERR_ASSERTION]: battle/modules/99-session-diagnostics-export.js captures previous start
+    at Object.<anonymous> (/Users/ivanpopov/Desktop/grasstex-session-lifecycle-20261020/tools/ai-sim-harness/start-wrapper-contract-check.js:30:10)
+    at Module._compile (node:internal/modules/cjs/loader:1934:14)
+    at Object..js (node:internal/modules/cjs/loader:2074:10)
+    at Module.load (node:internal/modules/cjs/loader:1656:32)
+    at Module._load (node:internal/modules/cjs/loader:1448:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:261:19)
+    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)
+    at node:internal/main/run_main_module:33:47 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: '/* The one Battle diagnostics exporter.\n' +
+    '   Builds every diagnostics JSON on demand - the full session dump (win/end banner button), and the\n' +
+    '   Loop Watch / Order Trace / combined exports behind the AI Graph buttons (38-ai-diagnostics-export.js\n' +
+    '   is only those buttons) - without changing battle behavior. Each squad record carries its derived\n' +
+    '   analysis (spread vs cohesion limit, route progress, fireteam order progress, movement wins); the full\n' +
+    '   dump adds loop alerts enriched with order provenance, provenance events and conflicts, writer-conflict\n' +
+    '   metrics, coordination health, resolver summary and live leases. Nothing runs until an export. */\n' +
+    '(function (root) {\n' +
+    "  'use strict';\n" +
+    '  if (root.BattleDiagnosticsExport) return;\n' +
+    '\n' +
+    '  // The page publishes the live session. Creating a simulation is not publication.\n' +
+    '  function currentSimulation() {\n' +
+    '    return root.__battle__ || null;\n' +
+    '  }\n' +
+    '  function resolveSimulation(sim) {\n' +
+    '    var selected = sim || currentSimulation();\n' +
+    "    if (!selected) throw new Error('No active battle simulation');\n" +
+    '    return selected;\n' +
+    '  }\n' +
+    '\n' +
+    '  function finite(v) {\n' +
+    "    return typeof v === 'number' && isFinite(v) ? v : null;\n" +
+    '  }\n' +
+    '  function point(v) {\n' +
+    '    return v && isFinite(+v.x) && isFinite(+v.z) ? { x: +v.x, z: +v.z } : null;\n' +
+    '  }\n' +
+    '  function safePlain(value, depth, seen) {\n' +
+    '    depth = depth == null ? 7 : depth;\n' +
+    '    seen = seen || [];\n' +
+    "    if (value == null || typeof value === 'string' || typeof value === 'boolean') return value;\n" +
+    "    if (typeof value === 'number') return isFinite(value) ? value : null;\n" +
+    "    if (typeof value === 'function' || depth <= 0) return undefined;\n" +
+    "    if (seen.indexOf(value) >= 0) return '[circular]';\n" +
+    '    if (Array.isArray(value)) {\n' +
+    '      seen.push(value);\n' +
+    '      var a = [];\n' +
+    '      for (var i = 0; i < value.length; i++) {\n' +
+    '        var av = safePlain(value[i], depth - 1, seen);\n' +
+    '        if (av !== undefined) a.push(av);\n' +
+    '      }\n' +
+    '      seen.pop();\n' +
+    '      return a;\n' +
+    '    }\n' +
+    "    if (typeof value === 'object') {\n" +
+    '      /* Rendering objects are enormous and circular. Diagnostics records their gameplay-facing state\n' +
+    '       elsewhere, so do not serialize Babylon scene/mesh/material internals by accident. */\n' +
+    "      if (value.getClassName || value.getScene || value._scene || value._engine) return '[render-object]';\n" +
+    '      seen.push(value);\n' +
+    '      var out = {};\n' +
+    '      Object.keys(value).forEach(function (k) {\n' +
+    '        if (\n' +
+    "          k === 'scene' ||\n" +
+    "          k === 'root' ||\n" +
+    "          k === 'mesh' ||\n" +
+    "          k === 'socket' ||\n" +
+    "          k === 'rig' ||\n" +
+    "          k === 'animationBinding' ||\n" +
+    "          k === 'poseRoot' ||\n" +
+    "          k === 'weaponSocket'\n" +
+    '        )\n' +
+    '          return;\n' +
+    '        var v = safePlain(value[k], depth - 1, seen);\n' +
+    '        if (v !== undefined) out[k] = v;\n' +
+    '      });\n' +
+    '      seen.pop();\n' +
+    '      return out;\n' +
+    '    }\n' +
+    '    return String(value);\n' +
+    '  }\n' +
+    '  /* ---- squad analysis and AI sections (formerly 38-ai-diagnostics-export.js) ---- */\n' +
+    '  function clone(v) {\n' +
+    '    if (v == null) return v;\n' +
+    '    try {\n' +
+    '      return JSON.parse(JSON.stringify(v));\n' +
+    '    } catch (_) {\n' +
+    '      return null;\n' +
+    '    }\n' +
+    '  }\n' +
+    '  function distance(a, b) {\n' +
+    '    return a && b ? Math.hypot((+a.x || 0) - (+b.x || 0), (+a.z || 0) - (+b.z || 0)) : null;\n' +
+    '  }\n' +
+    '  function rounded(v) {\n' +
+    '    return v == null || !isFinite(+v) ? null : +(+v).toFixed(2);\n' +
+    '  }\n' +
+    '  function defenseRequest(sq) {\n' +
+    '    var r = sq && sq._captureZoneDefenseRequest;\n' +
+    '    return r && r.objectiveId\n' +
+    '      ? {\n' +
+    '          objectiveId: String(r.objectiveId),\n' +
+    '          point: point(r.point),\n' +
+    '          requestedAt: isFinite(+r.requestedAt) ? +r.requestedAt : null,\n' +
+    '          reason: r.reason || null\n' +
+    '        }\n' +
+    '      : null;\n' +
+    '  }\n' +
+    '  function preparedDefenseRequest(sq) {\n' +
+    '    var r = sq && sq._preparedDefenseRequest;\n' +
+    '    return r && r.objectiveId\n' +
+    '      ? {\n' +
+    '          objectiveId: String(r.objectiveId),\n' +
+    '          point: point(r.point),\n' +
+    '          requestedAt: isFinite(+r.requestedAt) ? +r.requestedAt : null,\n' +
+    '          reason: r.reason || null\n' +
+    '        }\n' +
+    '      : null;\n' +
+    '  }\n' +
+    '  function objectiveRecovery(sq) {\n' +
+    '    var r = sq && sq._objectiveRecovery;\n' +
+    '    return r && r.objectiveId\n' +
+    '      ? { objectiveId: String(r.objectiveId), reason: r.reason || null, at: isFinite(+r.at) ? +r.at : null }\n' +
+    '      : null;\n' +
+    '  }\n' +
+    '  function simNow(sim) {\n' +
+    '    return sim && isFinite(+sim.time) ? +sim.time : 0;\n' +
+    '  }\n' +
+    '  function aliveMembers(sq) {\n' +
+    '    return ((sq && sq.members) || []).filter(function (s) {\n' +
+    '      return s && !s.dead && s.root;\n' +
+    '    });\n' +
+    '  }\n' +
+    '  function squadPosition(sq) {\n' +
+    '    var m = aliveMembers(sq),\n' +
+    '      x = 0,\n' +
+    '      z = 0;\n' +
+    '    if (!m.length) return null;\n' +
+    '    for (var i = 0; i < m.length; i++) {\n' +
+    '      x += +m[i].root.position.x || 0;\n' +
+    '      z += +m[i].root.position.z || 0;\n' +
+    '    }\n' +
+    '    return { x: x / m.length, z: z / m.length };\n' +
+    '  }\n' +
+    '  function squadSpread(sq, p) {\n' +
+    '    p = p || squadPosition(sq);\n' +
+    '    if (!p) return null;\n' +
+    '    var m = aliveMembers(sq),\n' +
+    '      best = 0;\n' +
+    '    for (var i = 0; i < m.length; i++)\n' +
+    '      best = Math.max(\n' +
+    '        best,\n' +
+    '        Math.hypot((+m[i].root.position.x || 0) - p.x, (+m[i].root.position.z || 0) - p.z)\n' +
+    '      );\n' +
+    '    return best;\n' +
+    '  }\n' +
+    '  function leaderAlive(sq) {\n' +
+    '    return !!(root.SquadAI && root.SquadAI.leaderOf(sq));\n' +
+    '  }\n' +
+    '  function cohesionLimit(sim, sq) {\n' +
+    '    try {\n' +
+    '      var cfg =\n' +
+    '        root.BattleCommanderAI && root.BattleCommanderAI.policyFor\n' +
+    '          ? root.BattleCommanderAI.policyFor(sim, sq.faction)\n' +
+    '          : null;\n' +
+    '      if (!cfg) return null;\n' +
+    '      return leaderAlive(sq) ? +cfg.cohesionRadius : +cfg.captainlessCohesion;\n' +
+    '    } catch (_) {\n' +
+    '      return null;\n' +
+    '    }\n' +
+    '  }\n' +
+    '  function routeState(sq, pos) {\n' +
+    '    var route = (sq && sq.route) || [],\n' +
+    '      raw = sq && isFinite(+sq.routeIndex) ? +sq.routeIndex : 0,\n' +
+    '      index = Math.max(0, Math.min(route.length - 1, raw)),\n' +
+    '      waypoint = route.length ? point(route[index]) : null,\n' +
+    '      finalWaypoint = route.length ? point(route[route.length - 1]) : null;\n' +
+    '    return {\n' +
+    '      index: route.length ? index : null,\n' +
+    '      length: route.length,\n' +
+    '      atRouteEnd: !!(route.length && index >= route.length - 1),\n' +
+    '      waypoint: waypoint,\n' +
+    '      finalWaypoint: finalWaypoint,\n' +
+    '      distanceToWaypoint: rounded(distance(pos, waypoint)),\n' +
+    '      distanceToFinal: rounded(distance(pos, finalWaypoint))\n' +
+    '    };\n' +
+    '  }\n' +
+    '  function objectiveInstance(sim, id) {\n' +
+    '    if (id == null) return null;\n' +
+    '    try {\n' +
+    '      if (root.BattleObjectiveSystem && root.BattleObjectiveSystem.get) {\n' +
+    '        var o = root.BattleObjectiveSystem.get(sim, id);\n' +
+    '        if (o) return o;\n' +
+    '      }\n' +
+    '    } catch (_) {}\n' +
+    '    var list = (sim && sim._objectives) || [];\n' +
+    '    for (var i = 0; i < list.length; i++) if (String(list[i].id) === String(id)) return list[i];\n' +
+    '    return null;\n' +
+    '  }\n' +
+    '  function objectiveTargetState(sim, sq, pos) {\n' +
+    '    if (!sq || sq.targetObjective == null) return null;\n' +
+    '    var obj = objectiveInstance(sim, sq.targetObjective);\n' +
+    '    if (!obj) return { id: String(sq.targetObjective), missing: true };\n' +
+    '    var def = obj.def || {},\n' +
+    '      p = point(def),\n' +
+    '      radius = isFinite(+def.radius) ? +def.radius : null,\n' +
+    '      st = null;\n' +
+    '    try {\n' +
+    '      st =\n' +
+    '        root.BattleObjectiveSystem && root.BattleObjectiveSystem.status\n' +
+    '          ? root.BattleObjectiveSystem.status(sim, obj.id)\n' +
+    '          : obj.state || null;\n' +
+    '    } catch (_) {\n' +
+    '      st = obj.state || null;\n' +
+    '    }\n' +
+    '    var d = distance(pos, p);\n' +
+    '    return {\n' +
+    '      id: String(obj.id),\n' +
+    '      point: p,\n' +
+    '      radius: radius,\n' +
+    '      distance: rounded(d),\n' +
+    '      insideRadius: d != null && radius != null ? d <= radius : null,\n' +
+    '      owner: (st && st.owner) || null,\n' +
+    '      active: (st && st.active) || null,\n' +
+    '      phase: (st && st.phase) || null,\n' +
+    '      progress: st && isFinite(+st.progress) ? +st.progress : null\n' +
+    '    };\n' +
+    '  }\n' +
+    '  function planUntil(sq) {\n' +
+    '    var L = root.BattleLeases,\n' +
+    "      u = L ? L.until(sq, 'tactical-plan') : 0;\n" +
+    '    return isFinite(u) && u > 0 ? u : null;\n' +
+    '  }\n' +
+    '  function stablePlanState(sq, sim) {\n' +
+    '    var p = sq && sq._stablePlan;\n' +
+    '    if (!p) return null;\n' +
+    '    var t = simNow(sim);\n' +
+    '    return {\n' +
+    '      phase: p.phase || null,\n' +
+    '      targetObjective: p.targetObjective != null ? String(p.targetObjective) : null,\n' +
+    '      objective: point(p.objective),\n' +
+    '      signature: p.signature || null,\n' +
+    '      serial: isFinite(+p.serial) ? +p.serial : null,\n' +
+    '      until: planUntil(sq),\n' +
+    '      remaining: planUntil(sq) != null ? rounded(Math.max(0, planUntil(sq) - t)) : null\n' +
+    '    };\n' +
+    '  }\n' +
+    '  function regroupRecoveryState(sq, sim) {\n' +
+    '    var r = sq && sq._regroupRecovery;\n' +
+    '    if (!r) return null;\n' +
+    '    var t = simNow(sim);\n' +
+    '    return {\n' +
+    '      serial: isFinite(+r.serial) ? +r.serial : null,\n' +
+    '      startedAt: isFinite(+r.startedAt) ? +r.startedAt : null,\n' +
+    '      elapsed: isFinite(+r.startedAt) ? rounded(Math.max(0, t - r.startedAt)) : null,\n' +
+    '      anchor: point(r.anchor),\n' +
+    '      objective: point(r.objective)\n' +
+    '    };\n' +
+    '  }\n' +
+    '  function retreatAnchorState(sq, sim) {\n' +
+    '    var L = root.BattleLeases,\n' +
+    "      l = L && L.get(sq, 'retreat-anchor');\n" +
+    '    if (!l) return null;\n' +
+    '    var d = l.data || {},\n' +
+    '      t = simNow(sim);\n' +
+    '    return {\n' +
+    '      since: isFinite(+l.since) ? +l.since : null,\n' +
+    '      until: isFinite(+l.until) ? +l.until : null,\n' +
+    '      remaining: isFinite(+l.until) ? rounded(Math.max(0, +l.until - t)) : null,\n' +
+    '      reason: d.reason || l.reason || null,\n' +
+    '      anchor: point(d.anchor),\n' +
+    '      goal: point(d.goal),\n' +
+    '      distance: rounded(d.distance),\n' +
+    '      bestDistance: rounded(d.bestDistance),\n' +
+    '      lastProgressAt: isFinite(+d.lastProgressAt) ? +d.lastProgressAt : null,\n' +
+    '      noProgressSeconds: isFinite(+d.lastProgressAt) ? rounded(Math.max(0, t - d.lastProgressAt)) : null\n' +
+    '    };\n' +
+    '  }\n' +
+    '  function teamKeyFor(s) {\n' +
+    '    try {\n' +
+    '      if (root.BattleSquadStability && root.BattleSquadStability.teamKeyFor)\n' +
+    '        return root.BattleSquadStability.teamKeyFor(s);\n' +
+    '    } catch (_) {}\n' +
+    '    return (s && s._fireteamKey) || null;\n' +
+    '  }\n' +
+    '  function teamPosition(sq, key) {\n' +
+    '    var m = aliveMembers(sq),\n' +
+    '      x = 0,\n' +
+    '      z = 0,\n' +
+    '      n = 0;\n' +
+    '    for (var i = 0; i < m.length; i++)\n' +
+    '      if (teamKeyFor(m[i]) === key) {\n' +
+    '        x += +m[i].root.position.x || 0;\n' +
+    '        z += +m[i].root.position.z || 0;\n' +
+    '        n++;\n' +
+    '      }\n' +
+    '    return n ? { x: x / n, z: z / n } : null'... 45441 more characters,
+  expected: /oldStart\s*=\s*root\.BattleSim\.start/,
+  operator: 'match',
+  diff: 'simple'
+}
+
+Node.js v26.7.0

@@ -1,0 +1,7 @@
+PASS simple, direction, point and object references have distinct deterministic orient/locate costs
+PASS the same reference and soldier produces the same timing without combat RNG
+PASS referenced orders expose an orienting phase only between processing and adoption
+PASS legacy spatial metadata still means a point reference for compatibility
+PASS shipping Meso publishers classify posture as simple and movement as a point reference
+PASS Command Reception still owns timing only, not physical orientation or command execution
+6 command-orientation checks passed
