@@ -179,7 +179,13 @@ test('a persistent request is accepted once and its removal is explicit reassess
 });
 test('vacant-objective extension never rewrites another squad on a global wake',()=>{
   const f=fixture();f.sim._objectives[0].state={owner:'ge',vacantOwner:true};f.tick();
-  assert.deepEqual(Object.keys(f.systems).filter(id=>id!=='squad-command'),[],'a module besides the Squad Leader still registers a squad-state hook');
+  // Commander may register required post-roster initialization, never a squad-state tick.
+  const lifecycle=f.systems['commander-lifecycle'];
+  assert(lifecycle,'Commander lifecycle owner missing');
+  assert.deepEqual(Object.keys(lifecycle).sort(),['afterBattleRosterReset','requiredHooks']);
+  assert.deepEqual(Array.from(lifecycle.requiredHooks),['afterBattleRosterReset']);
+  assert.equal(typeof lifecycle.afterBattleRosterReset,'function');
+  assert.deepEqual(Object.keys(f.systems).filter(id=>id!=='squad-command'&&id!=='commander-lifecycle'),[],'a module besides the Squad Leader still registers a squad-state hook');
   f.sq.objective={x:71,z:0};f.sq.commandPhase='regroup';f.tick();
   assert.equal(f.sq.objective.x,100,'Squad Leader did not restore the vacant objective mission');assert.equal(f.sq._macroMission.action,'assault');
 });

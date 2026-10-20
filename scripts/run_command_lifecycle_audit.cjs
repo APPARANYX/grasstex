@@ -198,10 +198,12 @@ function world(variant) {
     commanderSource.indexOf('  function declare('),
     commanderSource.indexOf('  function macroEnabled(')
   );
-  const victory = commanderSource.slice(
-    commanderSource.indexOf('  function installVictory('),
-    commanderSource.indexOf('  root.BattleSim.start = function')
-  );
+  // Only evaluate the victory declaration. Neighbouring bootstrap/registry work is
+  // already loaded above and must never execute a second time in this fixture.
+  const startVictory = commanderSource.indexOf('  function installVictory(');
+  const endVictory = commanderSource.indexOf('\n  }', startVictory);
+  assert.ok(startVictory >= 0 && endVictory > startVictory, 'shipping victory declaration exists');
+  const victory = commanderSource.slice(startVictory, endVictory + '\n  }'.length);
   new Function('D', 'root', 'telemetry', declaration + victory + 'return installVictory;')(
     r.BattleCommanderDoctrine,
     r,
