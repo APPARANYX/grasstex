@@ -108,10 +108,16 @@ function main() {
   for (const run of runs) {
     try {
       execFileSync('git', ['merge-base', '--is-ancestor', run.head_sha, head]);
-      const changed = git(['diff', '--name-only', run.head_sha, head]).split('\n').filter(Boolean);
+      if (run.event === 'pull_request') {
+        const base = run.pull_requests?.[0]?.base?.sha;
+        if (!base) continue;
+        execFileSync('git', ['merge-base', '--is-ancestor', base, run.head_sha]);
+      }
+      const checkout = git(['rev-parse', 'HEAD']);
+      const changed = git(['diff', '--name-only', run.head_sha, checkout]).split('\n').filter(Boolean);
       if (!safeDiff(changed)) continue;
       const sourceWorkflow = git(['show', run.head_sha + ':.github/workflows/strategic-diagnostics.yml']);
-      const currentWorkflow = git(['show', head + ':.github/workflows/strategic-diagnostics.yml']);
+      const currentWorkflow = git(['show', checkout + ':.github/workflows/strategic-diagnostics.yml']);
       if (!sameCollectionWorkflow(sourceWorkflow, currentWorkflow)) continue;
       const artifacts = JSON.parse(gh(['api', `repos/${repo}/actions/runs/${run.id}/artifacts`])).artifacts;
       const names = TYPES.map(
