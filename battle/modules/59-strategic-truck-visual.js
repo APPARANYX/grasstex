@@ -747,7 +747,7 @@
       entry.boardedCount = task ? task.boardedCount || 0 : 0;
       entry.seatedIds =
         task && task.access
-          ? task.boardingOrder.slice(0, task.boardedCount).filter(function (id) {
+          ? (task.boardedIds || task.boardingOrder.slice(0, task.boardedCount)).filter(function (id) {
               return (task.exitedIds || []).indexOf(id) < 0;
             })
           : null;

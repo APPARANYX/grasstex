@@ -734,7 +734,7 @@ for (const endReason of ['arrival', 'crew-sighting']) {
     a.run(0.15);
     assert.ok(t.boardedCount - prevCount <= 1, 'one seat per fixed tick, never whole-squad placement');
     for (const s of a.members) {
-      if (t.boardingOrder.indexOf(s.id) < t.boardedCount) continue;
+      if (t.boardedIds.indexOf(s.id) >= 0) continue;
       const p = local(s.root.position);
       assert.ok(
         Math.abs(p.x) >= 1.59 || Math.abs(p.z) >= 3.24,
@@ -746,8 +746,8 @@ for (const endReason of ['arrival', 'crew-sighting']) {
   assert.equal(t.phase, 'embarked', 'door and tailgate queue converges');
   const seated = a.events.filter(e => e.type === 'strategic-transport-seat-occupied');
   assert.deepEqual(
-    seated.map(e => e.item.detail.entry),
-    ['driver-door', 'passenger-door', ...Array(8).fill('tailgate')]
+    seated.map(e => e.item.detail.entry).sort(),
+    ['driver-door', 'passenger-door', ...Array(8).fill('tailgate')].sort()
   );
   // Stop exactly where the truck stands; all seats remain occupied until their own exit.
   a.api.finish(a.sim, a.squad, endReason);
@@ -782,3 +782,33 @@ for (const endReason of ['arrival', 'crew-sighting']) {
   );
 }
 console.log('PASS truck access: door/tailgate queue, serial seats, outside-body exits and rear staging');
+{
+  const a = make('strategic', '?motorTransport=1&truckAccess=1');
+  const m = a.brief();
+  a.api.considerMission(a.sim, a.squad, m);
+  m.status = 'executing';
+  const t = a.squad._transport,
+    passenger = a.members[9];
+  a.members.forEach(s => {
+    s.root.position.x = t.position.x - t.heading.x * 50;
+    s.root.position.z = t.position.z - t.heading.z * 50;
+  });
+  passenger.root.position.x = t.position.x + t.heading.z * 1.85 + t.heading.x * 0.7;
+  passenger.root.position.z = t.position.z - t.heading.x * 1.85 + t.heading.z * 0.7;
+  a.run(0.15);
+  assert.deepEqual(
+    t.boardedIds,
+    [passenger.id],
+    'touching passenger door boards immediately while driver is still approaching'
+  );
+  a.api.finish(a.sim, a.squad, 'crew-sighting');
+  a.run(0.15);
+  assert.equal(
+    a.events.filter(e => e.type === 'strategic-transport-seat-vacated').at(-1).item.detail.exit,
+    'passenger-door',
+    'partial boarding preserves the actual occupied exit'
+  );
+  a.run(20);
+  assert.equal(t.phase, 'aborted');
+}
+console.log('PASS arrival at either door admits immediately; partial pickup exits the occupied door');

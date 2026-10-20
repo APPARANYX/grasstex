@@ -221,6 +221,11 @@ const out = path.resolve(process.env.STRATEGIC_TRUCK_QA_OUT || 'closeups/strateg
         t.boardingOrder = [ids[0], ids[9], ...ids.slice(1, 9)];
         t.exitedIds = [];
         t.phase = 'boarding';
+        t.boardedIds = [ids[9]];
+        t.boardedCount = 1;
+        qa.system.onSimulationStep(b, { dt: 0 });
+        const early = sq.members.filter(s => api.seatForSoldier(s)).map(s => s.id);
+        t.boardedIds = [ids[0], ids[9]];
         t.boardedCount = 2;
         qa.system.onSimulationStep(b, { dt: 0 });
         const seated = sq.members.filter(s => api.seatForSoldier(s)).map(s => s.id);
@@ -228,7 +233,7 @@ const out = path.resolve(process.env.STRATEGIC_TRUCK_QA_OUT || 'closeups/strateg
         t.exitedIds = [ids[0]];
         qa.system.onSimulationStep(b, { dt: 0 });
         const remaining = sq.members.filter(s => api.seatForSoldier(s)).map(s => s.id);
-        rows.push({ side, seated, remaining, expected: [ids[0], ids[9]], passenger: ids[9] });
+        rows.push({ side, early, seated, remaining, expected: [ids[0], ids[9]], passenger: ids[9] });
         t.access = false;
         t.phase = 'embarked';
         t.boardedCount = 10;
@@ -237,6 +242,7 @@ const out = path.resolve(process.env.STRATEGIC_TRUCK_QA_OUT || 'closeups/strateg
       return rows;
     });
     for (const row of accessIdentity) {
+      assert.deepEqual(row.early, [row.passenger], row.side + ' passenger can board before driver arrival');
       assert.deepEqual(
         row.seated,
         row.expected,

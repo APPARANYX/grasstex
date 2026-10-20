@@ -495,7 +495,9 @@
       t.phase = 'disembarking';
       t.endReason = why;
       t.disembarkStartedAt = +sim.time || 0;
-      t.exitOrder = t.boardingOrder.slice(0, t.boardedCount);
+      t.exitOrder = t.boardingOrder.filter(function (id) {
+        return t.boardedIds.indexOf(id) >= 0;
+      });
       t.exitCursor = 0;
       t.exitedIds = [];
       var truck = vehicleFor(sim, t.vehicleId);
@@ -642,6 +644,7 @@
         return member.id;
       }),
       boardedCount: 0,
+      boardedIds: [],
       nextBoardAt: +sim.time || 0,
       // A 200m pickup takes longer than the old base-only 35s boarding cap.
       // Preserve that 35s cap for unaccepted orders; give accepted teams
@@ -709,8 +712,11 @@
   function boardAccess(sim, sq, dt) {
     var t = sq._transport,
       members = alive(sq),
-      ids = t.boardingOrder;
-    for (var i = t.boardedCount; i < ids.length; i++) {
+      ids = t.boardingOrder,
+      ready = [],
+      tailWaiting = 0;
+    for (var i = 0; i < ids.length; i++) {
+      if (t.boardedIds.indexOf(ids[i]) >= 0) continue;
       var s = members.find(function (s) {
         return s.id === ids[i];
       });
@@ -719,21 +725,21 @@
         return;
       }
       var local = accessDoor(i);
-      if (i >= 2) local.z -= Math.max(0, i - Math.max(2, t.boardedCount)) * 1.15;
+      if (i >= 2) local.z -= tailWaiting++ * 1.15;
       var target = accessPoint(t, local),
         next = accessWaypoint(sim, t, position(s.root.position), target);
       if (!next || !advancePassenger(sim, s, next, dt)) {
         finish(sim, sq, 'boarding-blocked');
         return;
       }
+      if ((i < 2 || tailWaiting === 1) && dist(position(s.root.position), target) <= SEAT_TOLERANCE)
+        ready.push({ s: s, rank: i });
     }
-    var passenger = members.find(function (s) {
-      return s.id === ids[t.boardedCount];
-    });
-    if (
-      passenger &&
-      dist(position(passenger.root.position), accessPoint(t, accessDoor(t.boardedCount))) <= SEAT_TOLERANCE
-    ) {
+    // Ready occupants never wait for someone still approaching another entrance.
+    // One admission per physical tick; the rear queue alone is FIFO.
+    if (ready.length) {
+      var passenger = ready[0].s,
+        rank = ready[0].rank;
       var index = t.seatIds.indexOf(passenger.id),
         seat = memberSeat(index, t.seatIds.length, t.position, t.heading);
       if (!safe(sim, seat, seat)) {
@@ -741,12 +747,13 @@
         return;
       }
       root.BattleSim.moveTransportPassenger(sim, passenger, seat, 'embarked-passenger');
+      t.boardedIds.push(passenger.id);
       t.boardedCount++;
       log(sim, sq, 'seat-occupied', {
         vehicleId: t.vehicleId,
         soldierId: passenger.id,
         seatIndex: index,
-        entry: t.boardedCount <= 2 ? (t.boardedCount === 1 ? 'driver-door' : 'passenger-door') : 'tailgate'
+        entry: rank < 2 ? (rank === 0 ? 'driver-door' : 'passenger-door') : 'tailgate'
       });
     }
     if (t.boardedCount >= ids.length) {
@@ -763,6 +770,7 @@
       return;
     }
     var id = t.exitOrder[t.exitCursor],
+      rank = t.boardingOrder.indexOf(id),
       s = members.find(function (s) {
         return s.id === id;
       });
@@ -771,7 +779,7 @@
       return;
     }
     if (t.exitedIds.indexOf(id) < 0) {
-      var door = accessPoint(t, accessDoor(t.exitCursor));
+      var door = accessPoint(t, accessDoor(rank));
       if (!safe(sim, door, door)) {
         if (!t.exitBlockedAt) {
           t.exitBlockedAt = sim.time;
@@ -784,7 +792,7 @@
       log(sim, sq, 'seat-vacated', {
         soldierId: id,
         vehicleId: t.vehicleId,
-        exit: t.exitCursor < 2 ? (t.exitCursor === 0 ? 'driver-door' : 'passenger-door') : 'tailgate'
+        exit: rank < 2 ? (rank === 0 ? 'driver-door' : 'passenger-door') : 'tailgate'
       });
       return;
     }
