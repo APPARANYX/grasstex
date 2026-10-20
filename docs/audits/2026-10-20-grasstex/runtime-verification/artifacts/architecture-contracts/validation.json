@@ -1,0 +1,111 @@
+{
+  "recordedAtUTC": "2026-10-20T16:46:32.149140+00:00",
+  "sourceMain": "b3beec121bc8eede2648268d225a85e68f197e43",
+  "implementationHead": "7525afb22e73fc7ff0ee0c433bbc6b6c8ab6b6d9",
+  "implementationBranch": "work/architecture-contracts-20261020",
+  "pullRequest": "https://github.com/APPARANYX/grasstex/pull/596",
+  "status": "draft; all applicable own-head CI passed; no merge or deployment",
+  "simulationJsChanges": [],
+  "existingHarnessInvocations": 230,
+  "initialHarnessFailures": [
+    [
+      "node",
+      "tools/ai-sim-harness/module-load-profile-check.js"
+    ]
+  ],
+  "resolvedHarnessFailure": "stale loader-local declaration assertion updated to enforce one shared contract owner; real default/editor/bench/range/dev HTML outputs preserved and targeted rerun passed",
+  "additionalComposedActivationCases": 64,
+  "strategicForwardingCases": 1024,
+  "moduleSelectionCases": 16,
+  "native5kmResult": "passed; real shipping browser runtime with media-only silent-audio fixture",
+  "localDeploySafety": "blocked by 2931 missing private audio clips; retained unchanged check output",
+  "browserSmokeInfrastructure": "preloader resolved /Users/ivanpopov/node_modules/playwright while runner resolved /private/tmp/grasstex-runtime-tools/node_modules/playwright; monkey patch applied to a different library instance. Retained failed smoke; existing self-contained native QA passed.",
+  "mergedBaselineVerification": {
+    "pr595": "merged at b3beec121",
+    "deployment": {
+      "url": "https://github.com/APPARANYX/grasstex/actions/runs/39456129985",
+      "conclusion": "success",
+      "build": "build-v554"
+    },
+    "housekeeping": {
+      "url": "https://github.com/APPARANYX/grasstex/actions/runs/39456129819",
+      "conclusion": "success",
+      "branch": "work/truck-riders-contact-fix-20261020 deleted"
+    }
+  },
+  "coverageLimit": "Server module-selection/preview boundary only; gameplay flag defaults/dependencies, lifecycle owner and read-model allocation consolidation are not implemented by this PR.",
+  "formattingCorrection": "Initial PR Syntax check caught Prettier formatting in two changed tests; corrected using pinned Prettier 3.3.3 and both targeted checks reran successfully.",
+  "headCI": [
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-20T16:44:53Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/APPARANYX/grasstex/actions/runs/39460037499/job/118756812050",
+      "name": "Detect audio and deploy-plan changes",
+      "startedAt": "2026-10-20T16:44:10Z",
+      "status": "COMPLETED",
+      "workflowName": "\u2b50 CI"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-20T16:45:44Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/APPARANYX/grasstex/actions/runs/39460037481/job/118756803630",
+      "name": "Damage range / Chromium",
+      "startedAt": "2026-10-20T16:44:10Z",
+      "status": "COMPLETED",
+      "workflowName": "\u2b50 Damage range browser QA"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-20T16:44:17Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/APPARANYX/grasstex/actions/runs/39460037521/job/118756803186",
+      "name": "php-contract",
+      "startedAt": "2026-10-20T16:44:10Z",
+      "status": "COMPLETED",
+      "workflowName": "\u2b50\ufe0f Commander Ideation Site QA"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-20T16:45:27Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/APPARANYX/grasstex/actions/runs/39460037499/job/118756812094",
+      "name": "Syntax",
+      "startedAt": "2026-10-20T16:44:11Z",
+      "status": "COMPLETED",
+      "workflowName": "\u2b50 CI"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-20T16:45:41Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/APPARANYX/grasstex/actions/runs/39460037499/job/118756811353",
+      "name": "Sim regressions",
+      "startedAt": "2026-10-20T16:44:11Z",
+      "status": "COMPLETED",
+      "workflowName": "\u2b50 CI"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-20T16:44:53Z",
+      "conclusion": "SKIPPED",
+      "detailsUrl": "https://github.com/APPARANYX/grasstex/actions/runs/39460037499/job/118757199889",
+      "name": "Audio library",
+      "startedAt": "2026-10-20T16:44:54Z",
+      "status": "COMPLETED",
+      "workflowName": "\u2b50 CI"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-20T16:45:59Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/APPARANYX/grasstex/actions/runs/39460037499/job/118757196743",
+      "name": "Deploy plan",
+      "startedAt": "2026-10-20T16:44:57Z",
+      "status": "COMPLETED",
+      "workflowName": "\u2b50 CI"
+    }
+  ],
+  "privateOverlayDeployPlan": "passed on final own-head CI"
+}

@@ -1,0 +1,6 @@
+DEPLOY SAFETY FAIL
+  planner failed on a normal state: 2931 audio clip(s) missing (first: ambience/artillery-distant-01.caf); run scripts/fetch_private_audio.sh to overlay APPARANYX/grasstex-audio first
+
+  a retired battle module was not deleted
+  mass deletion of 12 modules was not refused
+  DEPLOY_MAX_DELETES override did not allow an intended bulk retirement

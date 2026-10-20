@@ -40,6 +40,51 @@
     "sha256": "7184d666747456abb9939fa21bd6dde448299bd9e726b126da00ad00596a713c"
   },
   {
+    "path": "architecture-contracts/browser-smoke-fixture-failure.log",
+    "bytes": 38821,
+    "sha256": "358f340919e68a75888fa8c71e2f47196c95d86c29e9aaa64c905e379e3abd07"
+  },
+  {
+    "path": "architecture-contracts/deploy-safety-blocked.log",
+    "bytes": 364,
+    "sha256": "ef8425a2d2a44ffed88b36fbea5b1835bc73824959e13760fa8c304687cb9869"
+  },
+  {
+    "path": "architecture-contracts/harness-checks.json",
+    "bytes": 70488,
+    "sha256": "b3f1d2f8fb74466072c3c47bac9c0ac45c4cf14400468667b2ea8b178f877157"
+  },
+  {
+    "path": "architecture-contracts/head-ci.json",
+    "bytes": 2171,
+    "sha256": "c1c988bee0482506d1307cd6e7a34514140443388cae12c74d6697c58fbd2b16"
+  },
+  {
+    "path": "architecture-contracts/module-load-profile-check.initial.log",
+    "bytes": 864,
+    "sha256": "27b375ffe1abf8d0db0311c8f625aa2ada85b8cbea5ef9d1b49b9273f036ec2e"
+  },
+  {
+    "path": "architecture-contracts/module-load-profile-check.rerun.log",
+    "bytes": 97,
+    "sha256": "aca7571ab0216d1acee487b7709fc200c9da6dad8f3c39373e88c219b9a18a39"
+  },
+  {
+    "path": "architecture-contracts/native-5km.json",
+    "bytes": 7047,
+    "sha256": "2a3727077fe013440d1e25be22fead128d2dd5700bbb6be2ed76eceb9f4d201c"
+  },
+  {
+    "path": "architecture-contracts/preview-contract.log",
+    "bytes": 7885,
+    "sha256": "cff2b93ee00743bc9b6edb1e33ffc42edfabada29afff9f631bfd971ebdef11b"
+  },
+  {
+    "path": "architecture-contracts/validation.json",
+    "bytes": 4899,
+    "sha256": "5098dfc9b397ecb7ace181acc7d4b47014acb268df4285034b970af0c6bf98f9"
+  },
+  {
     "path": "audio-format-check.log",
     "bytes": 758,
     "sha256": "7bfe0776dee7c15d2fc558dfc85db9f76bac784e61c14e2b8438f7ec0cb064c5"

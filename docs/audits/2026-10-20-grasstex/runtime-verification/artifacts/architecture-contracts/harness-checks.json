@@ -1,0 +1,2548 @@
+[
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/advance-stance-reason-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.18016691599041224,
+    "log": "advance-stance-reason-check.log",
+    "logSha256": "47d990db2f17d408de22b78230245911f8d4f1f853f06d46cd73af91b3523556"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/anchor-publisher-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.09448691597208381,
+    "log": "anchor-publisher-check.log",
+    "logSha256": "7184d666747456abb9939fa21bd6dde448299bd9e726b126da00ad00596a713c"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/audio-format-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.05211383302230388,
+    "log": "audio-format-check.log",
+    "logSha256": "7bfe0776dee7c15d2fc558dfc85db9f76bac784e61c14e2b8438f7ec0cb064c5"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/audio-mix-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.048060875036753714,
+    "log": "audio-mix-check.log",
+    "logSha256": "0a6a06cdb3c76412dd7d57550c7c96e1523a494c70974aa1e4c4560d7f864224"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/autonomous-movement-handoff-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.0868232500506565,
+    "log": "autonomous-movement-handoff-check.log",
+    "logSha256": "72d277ef5db83423490acdab2b81359fa64dd8e9a5eca9d045bbd582f408e6d2"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/ballistics-geometry-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.05215820902958512,
+    "log": "ballistics-geometry-check.log",
+    "logSha256": "71d5eb7ef4645c24da8ab3f56325667087c7d0c31a9956f7816e80ac8519d553"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/battle-loader-player-camera-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.038804042036645114,
+    "log": "battle-loader-player-camera-check.log",
+    "logSha256": "1bbb2f362d5ca87af7fa4d000aa03bfef3e233f83ce6bd4f8e7ec5e609412a98"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/battle-observer-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.04586095898412168,
+    "log": "battle-observer-check.log",
+    "logSha256": "f67d756a7c4ce564dec679105a248b3f9c4cd146f9b81f05cc12bd9a1d4eedd0"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/battle-page-inline-script-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.04296229197643697,
+    "log": "battle-page-inline-script-check.log",
+    "logSha256": "c3b70042b0240f565b00a0019e67aba91207b8a85236bb57bfa21bbeaba846bd"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/benchmark-compare-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.5479077079799026,
+    "log": "benchmark-compare-check.log",
+    "logSha256": "34fa98e6828e0b5b80c8ae95e2ca7a39960ea11498cc14d823899fc45162523d"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/benchmark-evidence-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.04355095804203302,
+    "log": "benchmark-evidence-check.log",
+    "logSha256": "87302c5c12e99e7f2eb5a363ae3fe8158deb147a8ff4f636ad21b787d0a84ae6"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/benchmark-restart-isolation-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.04215716593898833,
+    "log": "benchmark-restart-isolation-check.log",
+    "logSha256": "ab5b0e29638f1825a3b8881d91fc4df03e9c19fe0dcb85f36e762965ac5217d4"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/benchmark-window-diagnostics-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.04007141699548811,
+    "log": "benchmark-window-diagnostics-check.log",
+    "logSha256": "43f722d3d162fa24f1d4546278d78f8f811bf01298255c96db17554623126172"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/buddy-pairs-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.062024167040362954,
+    "log": "buddy-pairs-check.log",
+    "logSha256": "b68b1171e3ac97022f78c4384531c5e11c8b593698c2c36d4eb3023c3c6b107c"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/callouts-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.10588041599839926,
+    "log": "callouts-check.log",
+    "logSha256": "9b3d3051ba2f9f38dbb95d9cf27cce2467be7bdd894f05fdc4d0becc22be764a"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/camera-input-frame-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.041790666058659554,
+    "log": "camera-input-frame-check.log",
+    "logSha256": "c24a5265e864a8662f1c4fe696b6df90b7d20cba9af0fb9e172e7cd0905a3cdd"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/camera-lifecycle-stop-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.038662750041112304,
+    "log": "camera-lifecycle-stop-check.log",
+    "logSha256": "a83e21bae134e3aba64b47960b5fa49af8be25493e8151f06df934fd4b06b7bc"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/camera-player-menu-template-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.03897516697179526,
+    "log": "camera-player-menu-template-check.log",
+    "logSha256": "a4b4cd9efc6ed6fe2e2ff027f5d00e0a88bf86574666e8b03adcbda16b8e2fd0"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/camera-possession-lease-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.04375379206612706,
+    "log": "camera-possession-lease-check.log",
+    "logSha256": "72cd0823ecbfe4026cf17328bd97d65d94ee38f9135f9b7c2be4982dc81c0f0e"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/camera-presentation-reset-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.0400978340767324,
+    "log": "camera-presentation-reset-check.log",
+    "logSha256": "855ea974591e957c228159b1a10d138303158c0ba0bb1502db35b2800d369783"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/camera-strategic-fast-flight-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.03804229199886322,
+    "log": "camera-strategic-fast-flight-check.log",
+    "logSha256": "e0cd124ab51287625989e829b90f33b2430110e72fe806c101a0fd5114a911fb"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/camera-touch-handoff-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.03917158301919699,
+    "log": "camera-touch-handoff-check.log",
+    "logSha256": "bae38aa91235f079d260fc9f160a4cdc4fe27bc5bce6f82838e34c772bd698e3"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/causal-inaction-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.047086042002774775,
+    "log": "causal-inaction-check.log",
+    "logSha256": "db0b3d4b2b8751b4ab09e98606708a59515aa918fac3bc8ec3e4a1bb2e04df15"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/clear-contact-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.09107349999248981,
+    "log": "clear-contact-check.log",
+    "logSha256": "e36cc6c1c8be2b734316ebe83e7b84f88236aef114bc223fbbd784dec85c727a"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/coa-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.17234154196921736,
+    "log": "coa-check.log",
+    "logSha256": "6d94b00090a593cd48a765fd52cff9128bd5ac48ccda589afdc9ea66a58b2021"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/cohesion-regroup-ctx-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.09243354189675301,
+    "log": "cohesion-regroup-ctx-check.log",
+    "logSha256": "eb7e708d463d6b9f67af7d996cc18e45a98279c08a99d8631bb1b77fe4c224b7"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/combat-audio-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.05633583292365074,
+    "log": "combat-audio-check.log",
+    "logSha256": "8133821db4f0c6754afa43a4c179c95610bac73b180db48d96748cf09a3dd543"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/combat-handoff-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.055772208026610315,
+    "log": "combat-handoff-check.log",
+    "logSha256": "d90592f3c8808a2ec643d53761531dad3690e7fbc2599128e7faa27bac4ba9cf"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/command-adoption-ratchet-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.052559625008143485,
+    "log": "command-adoption-ratchet-check.log",
+    "logSha256": "7d0b101f4628e9f03c05bb3f5c93ef3b2744b362f794d5520ce593142b4f82c7"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/command-hierarchy-observer-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.03992745792493224,
+    "log": "command-hierarchy-observer-check.log",
+    "logSha256": "6ce08acc31ac07431baaaca7e2c5d75ad0453a33f3b89cf50385df81b73ec21f"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/command-movement-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.09419670794159174,
+    "log": "command-movement-check.log",
+    "logSha256": "476a3850b414d904dd0a462b41337b7ebb073d92b469bd044eda98ab5dce8a20"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/command-orientation-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.07581620803102851,
+    "log": "command-orientation-check.log",
+    "logSha256": "e8fd09c84ed249d935ee3a03276d6c607c6eb1e423f8adf179fc268b57fccd6e"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/command-posture-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.10738920804578811,
+    "log": "command-posture-check.log",
+    "logSha256": "fc70dde5eb39bfdc59a77dc4d76e47d1b4ce1148ccc0d7b3e792549ca2b700ca"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/command-reception-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.21529654203914106,
+    "log": "command-reception-check.log",
+    "logSha256": "140c8160e54756342ede61ce3d2e9b81e560b7c9d8e07f7667bfd342efb25e2c"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/command-relay-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.16748204198665917,
+    "log": "command-relay-check.log",
+    "logSha256": "03fa8646e6dbd7bee88348a8fe673adc80575390a410e48a1f70978e24862a94"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/control-scenario-rejection-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.06305354100186378,
+    "log": "control-scenario-rejection-check.log",
+    "logSha256": "ce77570515922131c9ed71d394a41e6e87bf90141c9abbc17dd09d1af1196e1c"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/cover-positions-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.1745118749095127,
+    "log": "cover-positions-check.log",
+    "logSha256": "26815bfbd25541cf6e25b6e3bc5c19d3b67661c9219d860265edba50fab5fb38"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/cover-positions-ctx-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.09825683303643018,
+    "log": "cover-positions-ctx-check.log",
+    "logSha256": "6557ddfa8b4fbb5e9e5cd62b15c4765637ae5e8d2193002360d152dd4fa7aa1b"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/covered-bounds-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.12498429196421057,
+    "log": "covered-bounds-check.log",
+    "logSha256": "af68ae29b26e1adcfaf1677a6bbe762de1291a9a1829f638575fcbcb722c2284"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/covered-fire-maneuver-causal-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.24767845799215138,
+    "log": "covered-fire-maneuver-causal-check.log",
+    "logSha256": "96f2ae21f5ee503711881a9b7736ae5262944b91c54e06c477c0ae58b607ed88"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/covered-pressure-bound-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.10894408298190683,
+    "log": "covered-pressure-bound-check.log",
+    "logSha256": "a5215a4772460b88a26937e06d4ddb48d80b054de1361d2b4a81fbd13224fc09"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/crest-fire-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.16699749999679625,
+    "log": "crest-fire-check.log",
+    "logSha256": "4bb387d5a6886da82d68a83a339af8ac91cf478e332a29d8f4215d04f54737e6"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/damage-range-geometry-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.06563904194626957,
+    "log": "damage-range-geometry-check.log",
+    "logSha256": "18a674ef1be7a16741d2c98fb4337447be3642b2a2020b7d75bac8e225e34f52"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/damage-range-input-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.04097129194997251,
+    "log": "damage-range-input-check.log",
+    "logSha256": "f25bd8f5f30b3d872ed0a8663672f98e8bba9e6aaaf3d0d71bd9ee416c471efb"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/damage-range-lifecycle-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.08621704101096839,
+    "log": "damage-range-lifecycle-check.log",
+    "logSha256": "c94b1586c0f30ec9cf92bb7e848819ed6229897d3580c309f07d7ec6a8db68e5"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/damage-range-panel-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.05602862499654293,
+    "log": "damage-range-panel-check.log",
+    "logSha256": "77555b58f37e543385a2d299f3c2d4583ce521b8c8fbce2ff986242634ba77d6"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/effective-fire-support-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.2369487090036273,
+    "log": "effective-fire-support-check.log",
+    "logSha256": "73bdb5a8aceeb861633379f88a306f5c608b53c9c00b7945599d7151e0831361"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/engagement-state-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.10151195898652077,
+    "log": "engagement-state-check.log",
+    "logSha256": "63db393b3aeffef385aab609e24c95df6f08f26dff6df3a99dfebdcdaa76698f"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/execution-contract-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 2.63373333401978,
+    "log": "execution-contract-check.log",
+    "logSha256": "921bbebb3ec2a07bacd3d66bc8e16ca4c7c7eb446806dbd47d60034ea954efcf"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/extension-order-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.06099670799449086,
+    "log": "extension-order-check.log",
+    "logSha256": "3439c209fe337dbbcec14a7cf1a03f457f3e4c487c46108a3915739613edc32b"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/faction-progress-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.040886125061661005,
+    "log": "faction-progress-check.log",
+    "logSha256": "185aa4929ae05661df27dedc29a525e5daeea6a09697bcb31dc20ae4d7fa2c85"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/fbx-animation-state-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.044104999979026616,
+    "log": "fbx-animation-state-check.log",
+    "logSha256": "a9ae7e1f396712b515fc50173dfbf3ee89de76373023df9c4324d1dd09d79266"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/fbx-asset-import-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.04449779191054404,
+    "log": "fbx-asset-import-check.log",
+    "logSha256": "f303bb338909cc7e616b0d3d33bdffe509305cd2472f2ad7eac9ea699bf49e70"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/fbx-clip-converter-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.040498875081539154,
+    "log": "fbx-clip-converter-check.log",
+    "logSha256": "1837e51ad21735bdbad50a002c09b86dbac2dcd024880b74058bef6c7103cff6"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/fbx-clip-mixer-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.04629779199603945,
+    "log": "fbx-clip-mixer-check.log",
+    "logSha256": "478972ceb6fe1f879624a3e0b7dc8ab1b57f9c87a633099df7ac29443e5f1435"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/fbx-clip-pack-integrity-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.15552641602698714,
+    "log": "fbx-clip-pack-integrity-check.log",
+    "logSha256": "ca6fde328e8b92c622b60d5ab8a1900cc64f6b9083a265cb655e7b8c19af23ab"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/fbx-library-lifecycle-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.049292457988485694,
+    "log": "fbx-library-lifecycle-check.log",
+    "logSha256": "0f0d674aed685299819f35ea4f4f873dec153800a924097d92f46441cee75a84"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/fbx-model-retarget-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.05083287495654076,
+    "log": "fbx-model-retarget-check.log",
+    "logSha256": "31a31ed9d9315b8fd047ef8ad1b9c2d3740e2a124f191170a4ad5c03eaaa260b"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/fbx-prepared-pack-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.050612582941539586,
+    "log": "fbx-prepared-pack-check.log",
+    "logSha256": "91ba2edc86ff4df80568cd9083c7f3ea6841312f044d028185a47ea0d9a1ecc9"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/fbx-presentation-lod-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.057307457900606096,
+    "log": "fbx-presentation-lod-check.log",
+    "logSha256": "4c75ee012e0ce8f28c8bf9d2dca22fdcf0908a6a719f5e39c71785f6e4026281"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/fbx-render-pose-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.05079745803959668,
+    "log": "fbx-render-pose-check.log",
+    "logSha256": "7ab2f1ab47f6fe5f3a74af932a1248711279f50078175da1b464031e92f80559"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/fbx-restart-cleanup-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.043473458965308964,
+    "log": "fbx-restart-cleanup-check.log",
+    "logSha256": "45595340769d05715ca8d9c995c8352510c8c03676463b823c11d1040d4eb1e7"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/fbx-retarget-quat-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.2342704589245841,
+    "log": "fbx-retarget-quat-check.log",
+    "logSha256": "0310e8b09d8fbc811bb29dcc99dea622bebb89fee03b8e621eb846507783b6b2"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/fbx-retarget-rest-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.04551304108463228,
+    "log": "fbx-retarget-rest-check.log",
+    "logSha256": "431902411c3372bca679c3421a2b155855c80a8e931fe23f02f02a7f4faace6c"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/fbx-rig-canon-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.044522791053168476,
+    "log": "fbx-rig-canon-check.log",
+    "logSha256": "d1a8d5266a958a67d65fee7179c9c5bec45ae8c6c515336eea1426770dcb16c2"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/fbx-surface-damage-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.04242820793297142,
+    "log": "fbx-surface-damage-check.log",
+    "logSha256": "5b5ca18a6d82432c7dd13c115c976af5b359be7f114de80a5661fde365bd070b"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/fbx-weapon-calibration-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.04339541704393923,
+    "log": "fbx-weapon-calibration-check.log",
+    "logSha256": "1b51b5c7fd7f07dfbd509556fa36f462e7c95b10624b41322bec1550c7d0f817"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/fire-control-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.08301491697784513,
+    "log": "fire-control-check.log",
+    "logSha256": "df2de0d53799b656c9281e7ef66ea1e89b2790b26255a1dc0b61fa5af0eb926a"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/fire-stance-ctx-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.05241837492212653,
+    "log": "fire-stance-ctx-check.log",
+    "logSha256": "bd58b34fbdf1a5d7f6d378784319cf3d127918bccbe2babf2aef99094c84ec74"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/fireteam-frontage-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.3093521660193801,
+    "log": "fireteam-frontage-check.log",
+    "logSha256": "72b186770ae3159b685bcb286f859e59c757b89a1a45659870f937b58c6ef3b5"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/fixed-step-clock-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.04134033294394612,
+    "log": "fixed-step-clock-check.log",
+    "logSha256": "35ff38bc0add68b9b3b9f0d0d18194750bbad328c202ab9f01bd59e9e6977134"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/flank-side-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.053735833964310586,
+    "log": "flank-side-check.log",
+    "logSha256": "609c63efc9f129503981a324e959c6e46eb679040eb6b8f4a253ab4f0475c34a"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/fled-man-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 1.8956854999996722,
+    "log": "fled-man-check.log",
+    "logSha256": "4a977a044ac0c67f67a0dedc8e731fb63d199e2d3c5ae9dec861970d038bc8d5"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/formation-backward-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.09777724999003112,
+    "log": "formation-backward-check.log",
+    "logSha256": "b13d8e5f93eaaed6372c9aeecd589aec990bd7fd7ffc0d51c262f5cbacec9870"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/forward-line-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.10825658403337002,
+    "log": "forward-line-check.log",
+    "logSha256": "bebeff6a18c231957162dfcb873faf3406e4afea5f532f4cae19351e84077fb7"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/forward-progress-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.051540917018428445,
+    "log": "forward-progress-check.log",
+    "logSha256": "d09765dce5385ffebc8f0a9be6ec017d289a08c4f2a66c7e066511525c448fef"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/general-isolation-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.06421016703825444,
+    "log": "general-isolation-check.log",
+    "logSha256": "87d3733a42983d2cfb74c849e0d59b3e97a3835ae95216755763dab3634040e4"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/genome-gate-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.06878462503664196,
+    "log": "genome-gate-check.log",
+    "logSha256": "8a7f5ab76c2ee847325ecdc594e925a50dc183e83f51e4478b783c29e8e7b295"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/grenade-audio-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.048540125018917024,
+    "log": "grenade-audio-check.log",
+    "logSha256": "ccd26edd6120f420381d89b2f8bbee00f04c687e05785b5edf722ea532d6bb70"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/grenade-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.17444000008981675,
+    "log": "grenade-check.log",
+    "logSha256": "467fc7b75c237ec8e734d2f2c4f3b8a6e9536092aa70ef2521c4ca3112117504"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/grenade-fog-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.05360070907045156,
+    "log": "grenade-fog-check.log",
+    "logSha256": "6a021f11909a2df54b3570c3c54cd9c7cb6c66b3cc3843fe52ac1e84ce3b6e61"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/ground-stop-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.10007099993526936,
+    "log": "ground-stop-check.log",
+    "logSha256": "015649bbf116df483da2e8d6fc6026eb3f09d1d4e30fa59d11e6c94c294e7ce5"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/gunner-trace-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.06695637491066009,
+    "log": "gunner-trace-check.log",
+    "logSha256": "32e8850a0ac26cfeb8180853f7d1ef0b7b8b86d9257615cda99a47956d48d437"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/hill-stalemate-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.7169848330086097,
+    "log": "hill-stalemate-check.log",
+    "logSha256": "c84e427587ae1417a030cbc74005a5c3d765c49ce161529ab0be5585b114741e"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/impact-fx-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.18048970808740705,
+    "log": "impact-fx-check.log",
+    "logSha256": "ae5a9a41c487f3e21f0f6eea9773edb35f521af632f7e6cee4a754bfe656a679"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/impact-fx-restart-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.04285791690926999,
+    "log": "impact-fx-restart-check.log",
+    "logSha256": "2b6b2dd0bd2308d6dfa16381478f5b32eaebbf398e6b2ca0811c694fc2adaa40"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/initial-seed-url-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.04142679099459201,
+    "log": "initial-seed-url-check.log",
+    "logSha256": "5181435fccc840c4c15d84320a0d0c19d9dc2a0b5d80205acdf446adec1992ef"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/intent-evidence-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.052772375056520104,
+    "log": "intent-evidence-check.log",
+    "logSha256": "9685d99eefed5c85165d5c27c317e748ac4e1072b6844f98183769c2cd111319"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/leaderless-intent-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.12140466703567654,
+    "log": "leaderless-intent-check.log",
+    "logSha256": "07d86b9076d968e8dd4536bbeb2dafbb15316f42a85c0bed93d5ad6effd0471d"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/leaderless-retreat-reception-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.08412379201035947,
+    "log": "leaderless-retreat-reception-check.log",
+    "logSha256": "33e594676c63c107e6c80653f31ac9033b6da39117661e221eb0534f0510b1f6"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/lean-runtime-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.08811141701880842,
+    "log": "lean-runtime-check.log",
+    "logSha256": "1699c78c1d5d12536c736978c9a034597ecba7473c125592c25873a853bc1c67"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/lease-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.0733227499295026,
+    "log": "lease-check.log",
+    "logSha256": "3187c42eae6e9854726b96baf87a74fb7c147bd09fe232851d696fb612e118f4"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/lease-conflict-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.0809835420222953,
+    "log": "lease-conflict-check.log",
+    "logSha256": "770e85d31fef3113e133c6a6243d34267bc7a2d1cc420826229ee6045cf579bf"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/lifecycle-checkpoints-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.04838558298069984,
+    "log": "lifecycle-checkpoints-check.log",
+    "logSha256": "83d65e7cf1ed1796c27a35dbfb5804dc0bb7074645cd020078422cdb60feef51"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/listener-acoustics-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.05842183297500014,
+    "log": "listener-acoustics-check.log",
+    "logSha256": "bb1a81233bb8fcd24e93733e8f4ddd444075468ada9162906ce278fcb2525475"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/loadout-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.07043479196727276,
+    "log": "loadout-check.log",
+    "logSha256": "1b415f9357673576db7fee12d6aab64dd8683703957f3806ed631967073be07a"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/local-degradation-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.09474445797968656,
+    "log": "local-degradation-check.log",
+    "logSha256": "ba1a6806a3a0ff0cd1bbc60b715372d25afca04082a357058f53d5eec82e368c"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/local-mission-tasks-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.3846201249398291,
+    "log": "local-mission-tasks-check.log",
+    "logSha256": "80781b16417ac2605851f0a49b7ef05b1bebeb4c2292f02be55423a95d761316"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/local-plan-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.08569241699296981,
+    "log": "local-plan-check.log",
+    "logSha256": "11d82e43668278624102a0b747627abe4999a1d10e8860fc763243f24a671d46"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/local-resources-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.12123691698070616,
+    "log": "local-resources-check.log",
+    "logSha256": "af41a97219640e9acd4b5f31f34ee4f8dc3c6774ed29bed65eb1d595637ed33d"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/local-steering-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.04571070906240493,
+    "log": "local-steering-check.log",
+    "logSha256": "2ea9f35cb2eaea8c4682f7515faded1d29f3b87e2eb304db0d7f5f86497b83d0"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/local-withdraw-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.06807283300440758,
+    "log": "local-withdraw-check.log",
+    "logSha256": "6b3a54697d7462afd30270a670a2528f8c0b422a35f7c748b2eb72fd66c16a9a"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/loop-evidence-window-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.04516550002153963,
+    "log": "loop-evidence-window-check.log",
+    "logSha256": "19a7b924aa32e9b92322621aede94c516e099d287b4fb6cfff9a68b2fd3d7ef1"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/loop-period-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.06091741693671793,
+    "log": "loop-period-check.log",
+    "logSha256": "d681804d2f4c974dc13b2937af37794c9daca448f574ef08b6bb267f885ee0d2"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/macro-command-toggle-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.04223512497264892,
+    "log": "macro-command-toggle-check.log",
+    "logSha256": "41eff5a50222aaebbac9b1df5e44d9130341183c2e082d8a01a8dfde18635e71"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/macro-relief-height-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.04030574997887015,
+    "log": "macro-relief-height-check.log",
+    "logSha256": "76a8a5b492585ad27fbbd84bf394d76cc104a30c895b26fff39aaf2f1a5a3b6c"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/macro-state-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.05474112497176975,
+    "log": "macro-state-check.log",
+    "logSha256": "a659d62d6beca8741199931a5b6829d94675a2c2f017bbc5e5d4a5a494c9a871"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/map-pipeline-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 7.6037189160706475,
+    "log": "map-pipeline-check.log",
+    "logSha256": "be4f9d2379e6c4e4e12180d2598b428c2c442bdfb381fd6350d54ae9c41054b8"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/matrix-diagnostics-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.05169316602405161,
+    "log": "matrix-diagnostics-check.log",
+    "logSha256": "fb09d9b33e95a3a7e0c991c5eba7fce293474853b683a6a9b9ebe54b41389b81"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/matrix-diagnostics-merge-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.21982150000985712,
+    "log": "matrix-diagnostics-merge-check.log",
+    "logSha256": "ccd5b62d4d0c2cd18e06cd673a0e6e9ddfcf94041116e319f5984699d88ecaea"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/medic-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.07270637492183596,
+    "log": "medic-check.log",
+    "logSha256": "9fb3bac3f9ea6c4ed5b3adef6ea9dc480c05b88fe8829de0a4bcc31ad80c6897"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/mg-station-setup-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.07587254093959928,
+    "log": "mg-station-setup-check.log",
+    "logSha256": "178359eccd2555a96ebf2b7755776a232e83339fb71e5f7d8ad399c0b87e1bc2"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/mg-suppression-setup-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.05863491608761251,
+    "log": "mg-suppression-setup-check.log",
+    "logSha256": "a5f513d0fc42a956f69fbe5b700b468c5bb101737e5dc3cd76f090397ae97275"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/mind-read-map-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.3156370419310406,
+    "log": "mind-read-map-check.log",
+    "logSha256": "536bdfa31d7d1a76426edfbcee9aa95b39ccb1d2038ac628f5708a72c47ff94b"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/module-load-profile-check.js"
+    ],
+    "environment": {},
+    "exitCode": 1,
+    "seconds": 0.08569645800162107,
+    "log": "module-load-profile-check.log",
+    "logSha256": "27b375ffe1abf8d0db0311c8f625aa2ada85b8cbea5ef9d1b49b9273f036ec2e"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/module-loader-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.09646649996284395,
+    "log": "module-loader-check.log",
+    "logSha256": "baca001c762ea47ee36e9fdc31516dc62511b2890a23fae1cff3cac0a3d28fd1"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/module-unit-set-restart-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.052170041017234325,
+    "log": "module-unit-set-restart-check.log",
+    "logSha256": "d1740eecd206abbee09b8ca9ed5d373fb860ecf59685046e8345ca7b9df51b3c"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/morale-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.7993425839813426,
+    "log": "morale-check.log",
+    "logSha256": "0cb0c0e4edcd4318d7f769fde8daa0e1aa20a33c53ee562ab4afe0c4d7ef692f"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/movement-arrival-adoption-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.2750795000465587,
+    "log": "movement-arrival-adoption-check.log",
+    "logSha256": "f6c9ef47451880ee1ffad49899389afac034baaceed172f805e365b70dab41c4"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/movement-recovery-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.11223154095932841,
+    "log": "movement-recovery-check.log",
+    "logSha256": "995bcacda033fcf2be0ff6510d79b23e906a72cf733a638a61e5138b6418ef0f"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/movement-state-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.0595932089490816,
+    "log": "movement-state-check.log",
+    "logSha256": "460ee3276a0c8e8e1caf48f8a7f3065c26de50c522982d51032fbbc2b92ccfd7"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/muzzle-fx-origin-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.04215087497141212,
+    "log": "muzzle-fx-origin-check.log",
+    "logSha256": "669e639720e33eba4954a1dec4d5cffcd6a8b7bc3955a34156463c28e564d61c"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/objective-marker-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.04403287498280406,
+    "log": "objective-marker-check.log",
+    "logSha256": "05a12f844ad161c685af154695fdbb7c70f7cd799d31d4203db4ddf8df51e201"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/objective-nav-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.5402770839864388,
+    "log": "objective-nav-check.log",
+    "logSha256": "6a35a8075ee0e9859de94268b67184236f5a5a718ff46c9a7e1256594fd90333"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/observer-diagnostic-trigger-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.04356270807329565,
+    "log": "observer-diagnostic-trigger-check.log",
+    "logSha256": "50a2eed1500d89599b34c8a62be6d76aa8f983752cf63deff6541f85ca26319a"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/observer-probe-recovery-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.04269399994518608,
+    "log": "observer-probe-recovery-check.log",
+    "logSha256": "3204ee9b4e3bb51d5fe6d226d43537e78d404a622924a7ee41b2300c49d9531e"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/outcome-probe-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.041938207927159965,
+    "log": "outcome-probe-check.log",
+    "logSha256": "7c698d8ffd8533de8432b12cc1c20d7b08b317df227bde73a3a540a7469cfedc"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/perception-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.07402004196774215,
+    "log": "perception-check.log",
+    "logSha256": "e83d44a705e2a606fdf36d234a3467eff7c8bd176b449eff1aae14a8955fe210"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/personal-space-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.08282199990935624,
+    "log": "personal-space-check.log",
+    "logSha256": "29b6875595c129dc6f2a88f01bf7dfead2d74b74794bddf12d0a6d56f2a320a1"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/plan-local-widening-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.048936375067569315,
+    "log": "plan-local-widening-check.log",
+    "logSha256": "9ee58634f1cb6faeeb538af0ba7e80189f9e37aafb35e608b09851b36c751e9c"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/player-control-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.0586996249621734,
+    "log": "player-control-check.log",
+    "logSha256": "8165630610e01d4e54ef7672b75a4470444f36e06d4bbae28edd22fad701aced"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/player-death-camera-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.040253333980217576,
+    "log": "player-death-camera-check.log",
+    "logSha256": "66c3ba3bd46b51786131fd733833c2a1d52fcb2bb585d239f375f68d88f3ff62"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/player-facing-bore-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.046936833998188376,
+    "log": "player-facing-bore-check.log",
+    "logSha256": "19488eb38cecfa4248209429ee3888f6ec4e3b8555f1d9a9d4381b1dfa0e8adc"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/player-fire-mode-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.05338724993634969,
+    "log": "player-fire-mode-check.log",
+    "logSha256": "6040e5619d979dbda8a1883e2fa7970859aa88d8e380dcda1f4238924b29574a"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/player-grenade-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.05134041595738381,
+    "log": "player-grenade-check.log",
+    "logSha256": "4c782b062f5fb5315e0abe59b13f47455453fcb76da6427a71a04b4563a2b774"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/player-menu-audio-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.03920066694263369,
+    "log": "player-menu-audio-check.log",
+    "logSha256": "fe05e64e9fcfa03ec357070298443c5805f643a83397139a549f5b1ba6536343"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/player-possession-flight-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.03928279201500118,
+    "log": "player-possession-flight-check.log",
+    "logSha256": "1ea5e10672ac146d725403310e469d95ddc2a06a568e5396905d9c9b909a5952"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/player-restart-possession-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.0377055830322206,
+    "log": "player-restart-possession-check.log",
+    "logSha256": "ebe6fec69da4e947c387882ab764858bfd9b3698a2c170c97384ba0bc5d11a1f"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/prone-terrain-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.04880733403842896,
+    "log": "prone-terrain-check.log",
+    "logSha256": "30ba7923b118656a28aeafa97a41b143f31fb1541731aaf1627031cf65b8a598"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/rally-recovery-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.06538212497252971,
+    "log": "rally-recovery-check.log",
+    "logSha256": "49e9ed089ccf4178b47627d4443521cba9781382ce424658b3802c5d54b31233"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/recon-budget-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.151025207946077,
+    "log": "recon-budget-check.log",
+    "logSha256": "a1d11eccbe0eba6cc73469851c74f44e941fb6f15a49178cb3e014ddfbff89d5"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/recon-outcomes-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.2451345840236172,
+    "log": "recon-outcomes-check.log",
+    "logSha256": "b2d5acf4c89ac8779f000d7d4f0cedf506358fa24d8c8b6ac242b2439c56f240"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/reconstitution-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 2.6354416250251234,
+    "log": "reconstitution-check.log",
+    "logSha256": "fae22e69e9724640c0eda5c2e74dcafa7a84e2d3aa780dd6194aaf4e4b36e55b"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/reconstitution-ctx-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.054398540989495814,
+    "log": "reconstitution-ctx-check.log",
+    "logSha256": "7d8846210294f78aab5cc22dbf100871ef68ed0fcd8abcab9f3f5242a03fbebd"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/ref-preview-vehicle-staging-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.039953499916009605,
+    "log": "ref-preview-vehicle-staging-check.log",
+    "logSha256": "4f3af2a7d9fb21074a5e88d9c4ba05b71f938089430c39bc075ec8920051ea16"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/regroup-axis-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.1047090410720557,
+    "log": "regroup-axis-check.log",
+    "logSha256": "807f4bb923f72844ec2820b6e94c8be3dfeb1fc9368232768b837003001021b9"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/residual-small-debt-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.28557774994987994,
+    "log": "residual-small-debt-check.log",
+    "logSha256": "ec633d3257fd11beadc44d2d7cdad32f8c0ae45e33b4317766127748d6018614"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/retreat-anchor-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.08360699994955212,
+    "log": "retreat-anchor-check.log",
+    "logSha256": "1ef6d849e4bfa918ba395d78f562f3255074f445acadb45b6048eee1a83578cd"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/retreat-defender-fireteam-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.052237374940887094,
+    "log": "retreat-defender-fireteam-check.log",
+    "logSha256": "d1f419f065ba59292f8e26ea9a7fe70d2a9e2e512c57963b03a7f1806611302d"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/retreat-lost-contact-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.07502137497067451,
+    "log": "retreat-lost-contact-check.log",
+    "logSha256": "3b1ecb199d89d1f35d42b502717ebc9f63c65b0b8f9f13790764b7ea5c7b586e"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/retreat-men-export-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.05778849998023361,
+    "log": "retreat-men-export-check.log",
+    "logSha256": "80a8611e6aa4616716017d43c21403d14e31d41e0c7f586155cb250af260a8f1"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/retreat-posture-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.06406154204159975,
+    "log": "retreat-posture-check.log",
+    "logSha256": "a3d89d649d0b1c7aedb78a9e99d3a754bef8f3b6887d644eea4334da68fcec6b"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/route-final-objective-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.04212795803323388,
+    "log": "route-final-objective-check.log",
+    "logSha256": "801952afbf0e2d28aab4b53d474d66d7ab54b8832f46fca55d808c7c70b59013"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/route-transition-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.187632416957058,
+    "log": "route-transition-check.log",
+    "logSha256": "005bf53b229ceeabf311ca782dd18dc011377aaf0d75113ebdfd0b76114d6b22"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/scouts-forward-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.12828095792792737,
+    "log": "scouts-forward-check.log",
+    "logSha256": "7a598083494f162cf4cf07cbf3eec10a0d4157274db1d69e6c1e4584be0ad53a"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/screen-space-lod-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.04018429096322507,
+    "log": "screen-space-lod-check.log",
+    "logSha256": "52369f516396789d60ae2b516b34af971428c0d884e753baa8390aa1e1a5d8f1"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/sidearm-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.0865746249910444,
+    "log": "sidearm-check.log",
+    "logSha256": "3f2f607f51d36fbbb056ad02fdde3d7654a2726169fd939a7c8b059cdd02a4e9"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/sidearm-rearm-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.05553374998271465,
+    "log": "sidearm-rearm-check.log",
+    "logSha256": "cd0e47181c5864fc9783a5c02eacd31544f98950b03c2655cc81ee5f88d20914"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/sight-query-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 1.7587680839933455,
+    "log": "sight-query-check.log",
+    "logSha256": "cbc746aba8356bf972110d7f79319536b5ed22db42b8b209bb915b212dbf2662"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/soldier-beliefs-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.07915929099544883,
+    "log": "soldier-beliefs-check.log",
+    "logSha256": "049102306425cf022fbead8eb3acb581cb80eb90aa77d35e8a750ded3cccb94a"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/soldier-events-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.07302483299281448,
+    "log": "soldier-events-check.log",
+    "logSha256": "e7805f78e24a9aac0940cbbae099f352c0a639fde18dd84edccc6c37c6deeb92"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/soldier-mind-behaviour-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.4487197919515893,
+    "log": "soldier-mind-behaviour-check.log",
+    "logSha256": "05b400981bfa198c48e996493eadfdd62bad51c2ba6afec10d6bf8892b73aa58"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/soldier-mind-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.482203375082463,
+    "log": "soldier-mind-check.log",
+    "logSha256": "d64bbe7038eb2910ed576eaae83ba147d04f3bdf34cadeaa04e9ef4544c5a798"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/soldier-mind-telemetry-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.6786675420589745,
+    "log": "soldier-mind-telemetry-check.log",
+    "logSha256": "2260b4caaf56c5628d197e9304ed7b3ebe79b6cb3485a246cbc32faa57788d08"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/soldier-stats-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 1.0380653750617057,
+    "log": "soldier-stats-check.log",
+    "logSha256": "2ca763844f9cfa440c06415020bfb2a7c7549755654eb30162631d28c63e8426"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/spawn-slots-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.06829279207158834,
+    "log": "spawn-slots-check.log",
+    "logSha256": "12d550d4f9f133b68cd90f4348cbd38075c04cdf640a6e36773ed58a7c50019b"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/squad-broadcast-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.09078337496612221,
+    "log": "squad-broadcast-check.log",
+    "logSha256": "77883c824f028dabe932b2a184ae938fd9894957ed781fd4b0149359624ccab0"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/squad-command-stack-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.07021337503101677,
+    "log": "squad-command-stack-check.log",
+    "logSha256": "616c464b94012490542f0be1a3114a9cba5a10a6f81bc62c4bd0eb49a276563b"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/squad-fit-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.1357305001001805,
+    "log": "squad-fit-check.log",
+    "logSha256": "6b8a44a5c474980b47bdb411d2c1303d5d604eac9fb890b4325b0d4fe45a08a9"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/squad-local-starvation-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.0513515000930056,
+    "log": "squad-local-starvation-check.log",
+    "logSha256": "9fe47aed4cd54fb4a8a997bb483590fa6ab55cbc3d6ce16d2da57da951f2c803"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/squad-performance-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.04803195898421109,
+    "log": "squad-performance-check.log",
+    "logSha256": "cd85861678339daac83246ef5ee56689ddc92fa8e3114dff994a82bb6059b0db"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/squad-phase-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.09963754191994667,
+    "log": "squad-phase-check.log",
+    "logSha256": "560d3cd3445cc1b5302ed267f62552c29239bd3b45b5cb578b404518a3d5f7c5"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/squad-relay-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.07452949997968972,
+    "log": "squad-relay-check.log",
+    "logSha256": "66992cddea3d7fcfa730a362641a7830078b923077f1a2c8cb4100758b28c420"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/squad-status-overlay-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.04471000004559755,
+    "log": "squad-status-overlay-check.log",
+    "logSha256": "ee497b1f69d196f648843486eee936743ba719a9e8992da1ee7ced873325c59f"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/squad-stress-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.1027110000140965,
+    "log": "squad-stress-check.log",
+    "logSha256": "2119055385176d3a4508d7cd912538e4fd2c0b18df72dd102ae8dff376a4b99e"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/stall-clock-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.06064116698689759,
+    "log": "stall-clock-check.log",
+    "logSha256": "4fe4bc50fc3021fd85487b52c771b6e3394f1d4ecb9582207351988818e5cd8c"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/stance-ownership-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.1556150830583647,
+    "log": "stance-ownership-check.log",
+    "logSha256": "047954dcacdc39327c01a693c917d6b24dd671ad138dc50c244087710697028e"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/start-wrapper-contract-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.04882133298087865,
+    "log": "start-wrapper-contract-check.log",
+    "logSha256": "f43cac6f4a4be37062e891f78fd0d1e6f72c2f0c1e9ab9d3d6e101972e52d379"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/state-ownership-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.6441113339969888,
+    "log": "state-ownership-check.log",
+    "logSha256": "a8a44329bc55d7eb12fed4294c908cc5684fd86b92b70a7334468f5f4fc3641c"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/stats-levers-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.16891545802354813,
+    "log": "stats-levers-check.log",
+    "logSha256": "a5aced8d7ab4e021e34b63d5dfdd93ff76b1f07dca916b8c827df45b622376b6"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/status-writers-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.07889354205690324,
+    "log": "status-writers-check.log",
+    "logSha256": "9c7ea0f40e2dc84c0d3403b226f5226d49b1708515b64377e87a7c13ef455e80"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/steer-navigation-leg-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.05217949999496341,
+    "log": "steer-navigation-leg-check.log",
+    "logSha256": "6c21af5aa3c6921647eae8c850f7bb092e29e97b3fd343347e72b984a417bc5c"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/strategic-aerial-recon-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.05807308398652822,
+    "log": "strategic-aerial-recon-check.log",
+    "logSha256": "88a597f1727d1ad6aa2c3c58583a6fd5fcec85b957320d3221d3708d869a25f9"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/strategic-chain-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.044621999957598746,
+    "log": "strategic-chain-check.log",
+    "logSha256": "0164dd6567790200525722e9d3cd309775e39b2eb737e5367bc4392d6fb14d13"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/strategic-evidence-reuse-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.04208333301357925,
+    "log": "strategic-evidence-reuse-check.log",
+    "logSha256": "6a294e2d4546cabe1a91ffd321b9150fd831d29f2f7b13f4845e0a44a4f43784"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/strategic-interception-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.06413674994837493,
+    "log": "strategic-interception-check.log",
+    "logSha256": "4db2a48d121f0d4e27698a59e513a688e7fcb5abad1669f037bc922284493146"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/strategic-mission-trace-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.04093870904762298,
+    "log": "strategic-mission-trace-check.log",
+    "logSha256": "392f55c736f1a233375133ce81eadb43ac28c06d4e0564bc377866cea20d003e"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/strategic-mobile-defense-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.04317475005518645,
+    "log": "strategic-mobile-defense-check.log",
+    "logSha256": "136f891e8b3cc30f0322b47dbbaf0725f8fb023777a6f75d3a03689b05897470"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/strategic-recovery-ctx-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.1643382920883596,
+    "log": "strategic-recovery-ctx-check.log",
+    "logSha256": "913a3920464c5549a23398f55f4e5b6b591c80f816c3f9e0b26842bcbd2f7a98"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/strategic-recovery-review-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.29330404207576066,
+    "log": "strategic-recovery-review-check.log",
+    "logSha256": "52a47915f881a84bde515a6ce67c1289ee0655af661d827eddc880fd91005d6c"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/strategic-route-stall-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.06527575000654906,
+    "log": "strategic-route-stall-check.log",
+    "logSha256": "347f8cfa3c30f068e61cc412e00a4dce86b5d223fdb4d5eed032815f108671d7"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/strategic-transport-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.2558847500476986,
+    "log": "strategic-transport-check.log",
+    "logSha256": "cc4641347defd5334530fad3234786ffab099c8db7e02ce59a7b6797c5c6e008"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/stress-memory-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.15215525007806718,
+    "log": "stress-memory-check.log",
+    "logSha256": "623c190d95336c52c451d2875236972bbe1f07aac79ee94f0e564406a8db7890"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/stress-reaction-animation-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.04011716600507498,
+    "log": "stress-reaction-animation-check.log",
+    "logSha256": "91747843dbc3dd03068d9506410184ac0ebca11cae2d9813518dc2585b45cbb1"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/stress-reactions-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.20058466703630984,
+    "log": "stress-reactions-check.log",
+    "logSha256": "7c61d40492f8ac504a593eda8c34ca521bf77f67ac8e202c6f57eb44cb2a2874"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/stress-reactions-ctx-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.06508641701657325,
+    "log": "stress-reactions-ctx-check.log",
+    "logSha256": "543944b3034cea2e28c5d1f74d8195c9e283a4f5f4c317ecb223cd26d60a9cdb"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/succession-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.10929191706236452,
+    "log": "succession-check.log",
+    "logSha256": "d9dc7895d5580fbcab3bdcde51f1f57dbadd79822920fe5dd48c6a9fd08adeb1"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/suppression-integrity-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.08191883401013911,
+    "log": "suppression-integrity-check.log",
+    "logSha256": "eac1a849dc1fd307190f4f73a2762178bb2644040d0efb629f9b8ec779444445"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/tactical-default-flags-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.07465349999256432,
+    "log": "tactical-default-flags-check.log",
+    "logSha256": "56e58b76c3e25feb36337bc7ff3b79b1840d2afe3669c816fe4e56282bcfae4d"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/tactical-diagnostics-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.11996133392676711,
+    "log": "tactical-diagnostics-check.log",
+    "logSha256": "9a6398d89b97972de59a413c7727089806709855420a7c551db9384c3e9e90f9"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/tactical-map-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.053542417008429766,
+    "log": "tactical-map-check.log",
+    "logSha256": "559d89e305e550acf8bb8428c370b3b98696ea713aabdbd0497d17f7a55ff1c8"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/tactical-positions-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.15046854107640684,
+    "log": "tactical-positions-check.log",
+    "logSha256": "8ded8c277820fa4417ca37f977097acaffbcbc864b019042691d0ec70d46708f"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/tactical-postures-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.3035136660328135,
+    "log": "tactical-postures-check.log",
+    "logSha256": "f5f9af49280663ead21542d645ea2e0c9f17755f1266e5ec4400f7cd38131b39"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/tactical-situation-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.05000120808836073,
+    "log": "tactical-situation-check.log",
+    "logSha256": "f06376c0c1611368109b14fbbab5230ce877e4835185612b612c79926207966d"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/tactical-symbol-registry-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.04362745792604983,
+    "log": "tactical-symbol-registry-check.log",
+    "logSha256": "410734b00a9469eb8f153ca18cc7ecfaa1275a37d7a52b27048db96e47ad41d6"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/targeted-fire-probe-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.04361391707789153,
+    "log": "targeted-fire-probe-check.log",
+    "logSha256": "252c831619e8a517a929e10043054cccfa08a46dd15088d93561edf9f9a4568d"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/threat-disposition-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.054966208059340715,
+    "log": "threat-disposition-check.log",
+    "logSha256": "8003340b48657f40e37468ff83dc70a5616347ae9b525be3bcefcfda2d1fde8f"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/transport-resume-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.11826054204721004,
+    "log": "transport-resume-check.log",
+    "logSha256": "b8fd06712df099762e1eb3467f3027e1b755ceac1f055c20bafaa2bbf8a013ea"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/unreachable-anchor-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.08244287502020597,
+    "log": "unreachable-anchor-check.log",
+    "logSha256": "785619af347c88bea55bcd19078d5d98159b3c0e6b11a36d29986b79667e1928"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/urban-operating-picture-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.050043584080412984,
+    "log": "urban-operating-picture-check.log",
+    "logSha256": "afcc4f72efa4c9bfce272b443c0d98328d39ce5387e29adc787f84abe94a8fee"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/voice-determinism-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.23766683298163116,
+    "log": "voice-determinism-check.log",
+    "logSha256": "733a19d276c9174b0dc1c36fad5b5a272ea2a9cd7d404f7f1a88f45187b3322c"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/voice-observations-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.7036050419555977,
+    "log": "voice-observations-check.log",
+    "logSha256": "73e31794003c64e8ea7a220b2b0683b1d76e581b11c435b0ef2b06432249e3bc"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/voice-playback-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.04729695804417133,
+    "log": "voice-playback-check.log",
+    "logSha256": "90daa26ac18641120c5d273fee99e41c787e9961f8da44bca14add8e360a914e"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/voice-retry-deadline-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.039417166961357,
+    "log": "voice-retry-deadline-check.log",
+    "logSha256": "c8abe2f707d08257b1345c29d23d2c1382498d7477247c32736c98f598c34cd7"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/weapon-foley-audio-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.04749254207126796,
+    "log": "weapon-foley-audio-check.log",
+    "logSha256": "6d669f32593cbad863dfa573b2be8dd8e7ed962d22e16cba0b05c677c9223e19"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/weapon-shot-buffer-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.04026787495240569,
+    "log": "weapon-shot-buffer-check.log",
+    "logSha256": "a6c51ebc374c24313e6cc17d1d49e398909236c0ab3fcc1497794cf596c9206d"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/weapon-wound-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 9.567626417032443,
+    "log": "weapon-wound-check.log",
+    "logSha256": "d5e18a2f365d86d4e746407f95bd64f22291efebb0affa8f49571af546152872"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/window-port-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.12885495903901756,
+    "log": "window-port-check.log",
+    "logSha256": "a19069643b1f0e1de44cc61486ad42a47bf85de98e3908a1b37af657e2f4531f"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/wire-map-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.32696537498850375,
+    "log": "wire-map-check.log",
+    "logSha256": "c83c0df9fffcf641d5050c317ec4e3d1e646b5d8acf11d1ea900a0d43561727d"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/world-debug-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.047413624939508736,
+    "log": "world-debug-check.log",
+    "logSha256": "25a1d0fa60d22d344690dc2ff53b2c805537fd981fbd2b4458c840f96b8b9640"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/world-placement-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 4.116735583054833,
+    "log": "world-placement-check.log",
+    "logSha256": "13767fd809c58f5b133563bef2c64083bd0fb0c3293bc69b743d7abe44e14081"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/wound-restart-isolation-check.js"
+    ],
+    "environment": {},
+    "exitCode": 0,
+    "seconds": 0.04121120797935873,
+    "log": "wound-restart-isolation-check.log",
+    "logSha256": "0b5724deb43c30c2ec96a8b2864031ecb8ab368538815750bec3d7a95d4baf34"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/run.js"
+    ],
+    "environment": {
+      "HARNESS_SEED": "12345"
+    },
+    "exitCode": 0,
+    "seconds": 0.6921785830054432,
+    "log": "run-12345.log",
+    "logSha256": "6454818e36dd910af73a52392a494466ada0748595442afce04ade5f57f815e0"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/run.js"
+    ],
+    "environment": {
+      "HARNESS_SEED": "1"
+    },
+    "exitCode": 0,
+    "seconds": 0.7033058339729905,
+    "log": "run-1.log",
+    "logSha256": "e31ca0d022b70142a6b6663f23231d2fb763e961f69d3033898758dc1299220c"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/run.js"
+    ],
+    "environment": {
+      "HARNESS_SEED": "2"
+    },
+    "exitCode": 0,
+    "seconds": 0.6540816250490025,
+    "log": "run-2.log",
+    "logSha256": "97d1ae7bc5f38cccb02a611aff8cebafe1458aa5c92e8fd7f636d859b0230796"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/run.js"
+    ],
+    "environment": {
+      "HARNESS_SEED": "3"
+    },
+    "exitCode": 0,
+    "seconds": 0.634970249957405,
+    "log": "run-3.log",
+    "logSha256": "970f848aaebf21f424380ddf4e30fc376e5f705d6f37764da6fd0440ea4050f0"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/run.js"
+    ],
+    "environment": {
+      "HARNESS_SEED": "5"
+    },
+    "exitCode": 0,
+    "seconds": 0.6302019159775227,
+    "log": "run-5.log",
+    "logSha256": "6fffb825e444afbf0aa1d447ab18640573d175858b5a5511e78d4ade863b5ab8"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/run.js"
+    ],
+    "environment": {
+      "HARNESS_SEED": "8"
+    },
+    "exitCode": 0,
+    "seconds": 0.6526165830437094,
+    "log": "run-8.log",
+    "logSha256": "d2b41b8d5c390b557fe58eb2b6937e69e802ad041261c528eb327373bfadd017"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/run.js"
+    ],
+    "environment": {
+      "HARNESS_SEED": "13"
+    },
+    "exitCode": 0,
+    "seconds": 0.677759459009394,
+    "log": "run-13.log",
+    "logSha256": "7ef7c90bf12cd7f113111d38d392a25a2bd48f3530fdb41490bfa6bfa236dfa9"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/run.js"
+    ],
+    "environment": {
+      "HARNESS_SEED": "21"
+    },
+    "exitCode": 0,
+    "seconds": 0.6556272089947015,
+    "log": "run-21.log",
+    "logSha256": "1a25a8120ed5f641729b392dc4b77335e15bb11ce884b5adb1a5dae818228b86"
+  }
+]
