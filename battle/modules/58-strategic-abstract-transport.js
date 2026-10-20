@@ -87,7 +87,7 @@
     };
   }
   function accessOn() {
-    return /(?:^|[?&])truckAccess=1(?:&|$)/.test((root.location && root.location.search) || '');
+    return !/(?:^|[?&])truckAccess=0(?:&|$)/.test((root.location && root.location.search) || '');
   }
   function accessPoint(t, p) {
     return {
@@ -251,7 +251,7 @@
     return !!(
       scenario &&
       scenario.profile === 'strategic' &&
-      /(?:^|[?&])motorTransport=1(?:&|$)/.test(params || '')
+      !/(?:^|[?&])motorTransport=0(?:&|$)/.test(params || '')
     );
   }
   /* Vehicles belong to bases and exist at battle initialization, not at
@@ -307,7 +307,7 @@
     // Keep the tiny dynamic set separate from the terrain's static spatial index.
     if (
       sim.obstacles &&
-      /(?:^|[?&])truckCollision=1(?:&|$)/.test((root.location && root.location.search) || '')
+      !/(?:^|[?&])truckCollision=0(?:&|$)/.test((root.location && root.location.search) || '')
     ) {
       sim.obstacles.__dynamicFootprints = fleet.vehicles.map(function (v) {
         var fp = {
