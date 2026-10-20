@@ -356,6 +356,19 @@
         }
       });
     });
+    /* Widely separated 5 km hamlets cannot rely on a 300 m local corner
+       graph to connect their approaches. Add public road junction anchors,
+       then link only actual, building-clear road segments after the local graph.
+       This is navigation geometry, not General intelligence or a movement writer. */
+    var strategicRoadNodes = null;
+    if (s.profile === 'strategic') {
+      strategicRoadNodes = Object.create(null);
+      (s.objectives || []).forEach(function (o) {
+        strategicRoadNodes[o.id] = addNode({ x: o.x, z: o.z }, 'road-junction', {
+          objectiveId: o.id
+        });
+      });
+    }
     for (var i = 0; i < nodes.length; i++)
       for (var j = i + 1; j < nodes.length; j++) {
         var a = nodes[i],
@@ -364,6 +377,12 @@
         if (d > MAX_EDGE) continue;
         if (movementClear(a, b)) link(a, b);
       }
+    if (strategicRoadNodes)
+      (s.roads || []).forEach(function (road) {
+        var a = strategicRoadNodes[road.fromObjectiveId],
+          b = strategicRoadNodes[road.toObjectiveId];
+        if (a && b && movementClear(a, b)) link(a, b);
+      });
     root.GTLog(
       '[NAV] graph built; walls=' +
         walls.length +

@@ -194,6 +194,10 @@
   function defenseRequest(sim, sq) {
     var r = sq._preparedDefenseRequest,
       source = 'prepared-defense';
+    if (!r && root.BattleFrontLines && root.BattleFrontLines.garrisonFor) {
+      r = root.BattleFrontLines.garrisonFor(sim, sq);
+      source = 'front-line-defense';
+    }
     if (!r) {
       r = sq._captureZoneDefenseRequest;
       source = 'objective-security';
@@ -332,7 +336,10 @@
       spec.role,
       spec.route,
       spec.requestKey,
-      spec.plannedObjectiveId
+      spec.plannedObjectiveId,
+      spec.interceptReserve || false,
+      spec.screen || null,
+      spec.intercept || null
     ]);
   }
   /* B1: frozen issue-time evidence, never a new decision input. The report reader
@@ -399,6 +406,10 @@
         role: spec.role,
         requestKey: spec.requestKey || null,
         plannedObjectiveId: spec.plannedObjectiveId || null,
+        interceptReserve: !!spec.interceptReserve,
+        screen: spec.screen || null,
+        intercept: spec.intercept || null,
+        approachRoadId: spec.approachRoadId || null,
         reason: reason,
         confidence: evidence.confidence,
         observations: evidence.observations,
@@ -421,6 +432,11 @@
       confidence: m.confidence,
       observations: JSON.parse(JSON.stringify(m.observations))
     });
+    /* Force Command can grant a vehicle when briefing or reconsider an accepted foot mission.
+       The transport owner subsequently waits for Squad Leader acceptance,
+       boards actual men, drives the public road, and returns them to foot AI. */
+    if (root.BattleSquadTransport && root.BattleSquadTransport.considerMission)
+      root.BattleSquadTransport.considerMission(sim, sq, m);
     return m;
   }
   function recordMacroWake(sim, sq, reason) {
@@ -593,10 +609,21 @@
     for (var i = 0; i < squads.length; i++) {
       var sq = squads[i],
         reason = wakeReason(sim, sq);
-      if (!reason) continue;
-      woke = true;
-      reasons[sq.id] = reason;
-      reconsiderMission(sim, sq, town, reason, null);
+      if (reason) {
+        woke = true;
+        reasons[sq.id] = reason;
+        reconsiderMission(sim, sq, town, reason, null);
+      }
+      // Transport is a Macro allocation decision even when the objective is
+      // unchanged: a marching squad can come across a truck after briefing.
+      var mission = sq._macroMission;
+      if (
+        mission &&
+        mission.status === 'executing' &&
+        root.BattleSquadTransport &&
+        root.BattleSquadTransport.considerMission
+      )
+        root.BattleSquadTransport.considerMission(sim, sq, mission);
     }
     general.lastTickAt = +sim.time || 0;
     return { wake: woke, reasons: reasons };
@@ -623,6 +650,23 @@
         macroCommandEnabled: macro,
         macroCommandWake: macroWake,
         macroWakeReasons: wakeReasons
+      });
+    /* After the independent one-shot aerial event, only Macro may publish
+       its derived corridor brief. The planner may quote but never issue,
+       move a soldier, or read hostile actor truth. */
+    if (macro && root.BattleStrategicInterception)
+      ['us', 'ge'].forEach(function (faction) {
+        var interception = root.BattleStrategicInterception;
+        var publish = function (sq, spec, reason) {
+          if (sq.faction !== faction) throw new Error('Cross-faction interception brief');
+          return issueMission(sim, sq, spec, reason);
+        };
+        /* Purpose-first: secure an objective, send the second available
+           truck squad beyond it as a physical screen, collect real reports,
+           THEN assess an intercept. Aerial intelligence remains supplementary. */
+        if (interception.maybeScreen) interception.maybeScreen(sim, faction, publish);
+        if (interception.maybeScreenReport) interception.maybeScreenReport(sim, faction, publish);
+        if (interception.maybeIssue) interception.maybeIssue(sim, faction, publish);
       });
     var snapshotSeconds = policy(sim, 'us').decisionSnapshotSeconds || 5;
     if (!sim._nextDecisionSnapshot || sim.time >= sim._nextDecisionSnapshot) {

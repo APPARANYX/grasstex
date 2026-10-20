@@ -110,4 +110,92 @@ function tick(f) {
   assert.equal(f.s.eng.stanceTrail.length, 0, 'no crouch/stand intermediate commits or aim-reset churn');
 }
 
-console.log('PASS native autonomous movement handoff: warning, final cover approach, stable contact gait');
+{
+  const f = fixture();
+  f.q.state = 'retreat';
+  f.q.inContact = true;
+  f.s.mind = { lastIncomingAt: f.b.time };
+  for (let i = 0; i < 12; i++) {
+    tick(f);
+    assert.equal(f.s.eng.stance, 'crouch', 'recent incoming fire keeps withdrawal low');
+    f.b.time += 0.15;
+  }
+  assert.equal(
+    f.s.eng.stanceTrail.length,
+    1,
+    'withdrawal must not commit crouch and stand between resolver decisions'
+  );
+  f.b.time += 6;
+  tick(f);
+  assert.equal(f.s.eng.stance, 'stand', 'withdrawal stands after the incoming-fire grace expires');
+  assert.equal(f.s.eng.stanceTrail.length, 2, 'a quiet withdrawal changes posture only once');
+}
+
+{
+  const f = fixture();
+  f.q.inContact = true;
+  f.q.fireControl = { state: 'hold' };
+  for (let i = 0; i < 12; i++) {
+    f.r.BattleEngagement.updateSoldier(f.s, f.b);
+    f.q._engagementPlan = { serial: i + 1 };
+    f.r.BattleMovementResolver.proposeOrder(f.s, f.goal, f.b, false);
+    f.r.BattleMovementResolver.resolve(f.s, f.b);
+    assert.equal(f.s.eng.stance, 'prone', 'HOLD preparation cannot be stood up by a movement refresh');
+    assert.equal(f.s._bodyAutonomyIntent, null, 'HOLD preparation forbids upright transit gait');
+    f.b.time += 0.15;
+  }
+  assert.equal(f.s.eng.stanceTrail.length, 1, 'HOLD fire cannot cause prone/stand thrash');
+  f.q.fireControl = { state: 'open' };
+  const plan = { stance: 'stand', gait: 'run', reason: 'open-contact-transit' };
+  assert.equal(f.r.BattleEngagement.settleTransitStance(f.s, f.b, plan), plan);
+  assert.equal(f.s.eng.stance, 'stand', 'OPEN fire restores normal transit arbitration');
+}
+
+{
+  const f = fixture(),
+    r = f.r,
+    b = f.b;
+  r.location = { search: '?motorTransport=1' };
+  b.scene = {
+    metadata: {
+      battleScenario: {
+        profile: 'strategic',
+        objectives: [
+          { id: 'a', x: 0, z: 0 },
+          { id: 'b', x: 0, z: 1400 }
+        ],
+        roads: [{ fromObjectiveId: 'a', toObjectiveId: 'b', ax: 0, az: 0, bx: 0, bz: 1400, width: 14 }],
+        spawnZones: { us: { bases: [{ id: 'us-base-0', objectiveId: 'a', x: 0, z: 0 }] }, ge: { bases: [] } }
+      }
+    }
+  };
+  r.BattleSim = { moveTransportPassenger: () => true };
+  r.BattleNavigation = { movementClear: () => true, invalidateNavPath() {} };
+  const hooks = {};
+  r.BattleModules.registerSystem = (name, api) => {
+    hooks[name] = api;
+  };
+  loadModule(r, 'battle/modules/58-strategic-abstract-transport.js');
+  hooks['strategic-abstract-transport'].onBattleStart(b);
+  r.BattleEngagement.commitStance(f.s, b, 'crawl', 5, 'fixture-prone');
+  const mission = {
+    owner: 'force-command',
+    intent: 'capture',
+    status: 'issued',
+    version: 1,
+    objectiveId: 'b',
+    point: { x: 0, z: 1400 },
+    route: []
+  };
+  f.q._macroMission = mission;
+  assert.ok(r.BattleSquadTransport.considerMission(b, f.q, mission));
+  mission.status = 'executing';
+  r.BattleSquadTransport.step(b, 0.15);
+  assert.equal(f.s.eng.stance, 'stand', 'boarding releases crawl through real Engagement');
+  assert.equal(f.s.prone, false);
+  assert.equal(f.s.crawling, false);
+}
+
+console.log(
+  'PASS native autonomous movement handoff: warning, final cover approach, stable contact gait and withdrawal'
+);

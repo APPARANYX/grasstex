@@ -224,8 +224,10 @@
       cached.version === version &&
       cached.count === obstacles.length &&
       cached.footprints === footprints
-    )
+    ) {
+      cached.list.__dynamicFootprints = obstacles.__dynamicFootprints;
       return cached.list;
+    }
     var byId = Object.create(null),
       seen = Object.create(null),
       out = [],
@@ -257,6 +259,7 @@
       out.push(exact);
     }
     out.__physicalVersion = version;
+    out.__dynamicFootprints = obstacles.__dynamicFootprints;
     obstacles.__ballisticObstacles = {
       version: version,
       count: obstacles.length,

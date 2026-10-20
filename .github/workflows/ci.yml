@@ -86,12 +86,6 @@ jobs:
           done < <(git ls-files '*.php')
           echo "Linted $count PHP files."
 
-      - name: Vehicle animation lab contract
-        run: node scripts/check_vehicle_lab.cjs
-
-      - name: Preview asset overlay contract
-        run: python3 scripts/check_preview_asset_overlay.py
-
       - name: Preview launcher
         run: python3 scripts/check-preview-launcher.py
 
@@ -277,6 +271,13 @@ jobs:
           node scripts/check-purposeful-contact-gait.cjs
           node scripts/check-autonomous-contact-mobility.cjs
           node scripts/check-building-interior-ingress.cjs
+          node scripts/check-strategic-5km.cjs
+          node scripts/check-strategic-front-lines.cjs
+          node scripts/check-strategic-reinforcements.cjs
+          node scripts/check_vehicle_lab.cjs
+          node scripts/check-strategic-truck-visual.cjs
+          node scripts/check-strategic-truck-lite.cjs
+          node scripts/check-strategic-restart-end.cjs
 
       - name: Engagement harness seeds
         run: |

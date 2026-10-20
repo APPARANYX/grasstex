@@ -94,6 +94,22 @@
         (+sim.time || 0) - (+m.issuedAt || 0) >= STRATEGIC_STALL_REPLAN - COMMAND_TICK / 2
       );
     }
+    /* A live forward-screen or intercept brief (opt-in ?interception=1) is an explicit physical
+     mission without an objectiveId: the squad is driving a real truck to its post or holding it.
+     Its own lifecycle ends it (wakeReason: screen window, intercept expiry, contact). A faction-wide
+     objective stall is not new information about that post, so the stall stages leave it alone
+     instead of re-briefing it as targetless and aborting the truck mid-road. ?screenStallHold=0
+     restores the old re-brief. */
+    function heldPostMission(sq) {
+      var m = sq && sq._macroMission;
+      if (/(?:^|[?&])screenStallHold=0(?:&|$)/.test((root.location && root.location.search) || ''))
+        return false;
+      return !!(
+        m &&
+        (m.intent === 'screen' || m.intent === 'intercept') &&
+        (m.status === 'issued' || m.status === 'executing')
+      );
+    }
     function activeSquads(squads) {
       return (squads || []).filter(function (sq) {
         return sq && sq.state !== 'retreat' && D.aliveMembers(sq).length > 0;
@@ -157,6 +173,25 @@
           if ((+rec.travelSinceExecution || 0) >= STRATEGIC_STALL_RECOVERY.progressDistance) {
             rec.travelSinceExecution = 0;
             rec.lastExecutionAt = now;
+          }
+        }
+        /* A valid motorized road leg may initially increase straight-line
+           distance to an objective while following an actual corridor.
+           The General must count measured carrier arc-length as execution
+           evidence, not mistake it for a frozen capture brief. The vehicle
+           itself owns its physical path and aborts on invalid road travel. */
+        var transport = sq._transport;
+        if (
+          transport &&
+          transport.phase === 'embarked' &&
+          transport.missionVersion === m.version &&
+          isFinite(+transport.travelled)
+        ) {
+          var metres = Math.max(0, +transport.travelled);
+          if (rec.transportMetres == null) rec.transportMetres = metres;
+          if (metres - rec.transportMetres >= STRATEGIC_STALL_RECOVERY.progressDistance) {
+            rec.transportMetres = metres;
+            rec.lastProgressAt = now;
           }
         }
         if (d < rec.bestDistance) rec.bestDistance = d;
@@ -265,6 +300,7 @@
           st = D.objectiveStatus(sim, obj) || {},
           owner = st.owner || 'neutral';
         if (owner === sq.faction) continue;
+        if (root.BattleFrontLines && !root.BattleFrontLines.attackable(sim, sq.faction, obj.id)) continue;
         if (preferContested && owner !== 'neutral' && !st.active) continue;
         if (objectiveReachable(sim, sq, obj)) map[String(obj.id)] = true;
       }
@@ -273,7 +309,12 @@
     function chooseMainEffort(sim, squads, stalled) {
       var active = activeSquads(squads).filter(function (sq) {
           var m = sq._macroMission;
-          return !usefulDefender(sim, sq) && !(m && m.intent === 'reserve') && sq.commandRole !== 'reserve';
+          return (
+            !usefulDefender(sim, sq) &&
+            !heldPostMission(sq) &&
+            !(m && m.intent === 'reserve') &&
+            sq.commandRole !== 'reserve'
+          );
         }),
         votes = {},
         choices = {},
@@ -358,9 +399,48 @@
           finishMission(sim, sq, 'failed', sq.state === 'retreat' ? 'squad-retreat' : 'squad-destroyed');
         return null;
       }
-      if (!m) return 'initial-mission';
+      if (!m) {
+        // A fresh reinforcement squad waits for the sortie its arrival earned (21c).
+        var R = root.BattleStrategicReinforcements;
+        return R && R.awaitingReport && R.awaitingReport(sim, sq) ? null : 'initial-mission';
+      }
       if (m.status === 'failed' || m.status === 'invalid' || m.status === 'completed')
         return 'mission-resume';
+      if (m.intent === 'screen') {
+        /* A real second-truck observation post is an explicit ongoing
+           mission, not an objective-less idle brief. Hold and report until
+           superseded or combat requires local action. */
+        return m.screen && sim.time > m.screen.orderedAt + 720 && !sq.inContact
+          ? 'screen-window-expired'
+          : null;
+      }
+      if (m.intent === 'intercept') {
+        // A genuine contact or ongoing intercept survives incidental objective
+        // ownership changes; no second air snapshot is inferred at expiry.
+        if (m.intercept && sim.time >= m.intercept.expiresAt && !sq.inContact) return 'intercept-expired';
+        /* Front lines: a lone garrison squad out at an ambush post goes back once the enemy may
+           attack the line it left; its prepared-defense request re-briefs it to that line. */
+        if (
+          m.intercept &&
+          m.intercept.loneGarrison &&
+          m.intercept.garrisonObjectiveId &&
+          root.BattleFrontLines &&
+          root.BattleFrontLines.attackable(
+            sim,
+            sq.faction === 'us' ? 'ge' : 'us',
+            m.intercept.garrisonObjectiveId
+          )
+        )
+          return 'garrison-line-threatened';
+        return null;
+      }
+      /* An intentionally held second-truck team cannot be swallowed by
+         ordinary request-changed/catalog churn before it screens or supports
+         the lead. Emergency combat stays under Squad Leader/Engagement. */
+      if (m.intent === 'reserve' && m.interceptReserve) {
+        var interception = root.BattleStrategicInterception;
+        return interception && interception.reservePending(sim, sq.faction) ? null : 'reserve-commit';
+      }
       /* A defense request is new information only when it changes the task: a squad already defending that
        objective keeps its brief while pressure comes and goes; releasing a request-bound brief is reassessed. */
       var request = defenseRequest(sim, sq);
@@ -381,6 +461,13 @@
       var st = D.objectiveStatus(sim, obj) || {},
         obs = sq._macroMissionObservation || {};
       if (m.intent === 'capture' && st.owner === sq.faction) return 'mission-complete';
+      // Front lines: the line this squad was sent against is no longer the one its side may attack.
+      if (
+        m.intent === 'capture' &&
+        root.BattleFrontLines &&
+        !root.BattleFrontLines.attackable(sim, sq.faction, m.objectiveId)
+      )
+        return 'front-line-moved';
       if (m.intent === 'defend' && st.owner !== obs.owner) return 'objective-control-changed';
       if (m.intent === 'capture' && !!st.vacantOwner !== obs.vacant && st.vacantOwner)
         return 'objective-vacated';
@@ -390,6 +477,38 @@
       var request = defenseRequest(sim, sq),
         old = sq._macroMission,
         role = sq.commandRole || 'center';
+      /* Without a held maneuver reserve, every home-base transport may already
+         be committed when the General receives its one aerial report at 120s.
+         Interception's opt-in command layer explicitly reserves one OWN squad
+         at a real base until the sortie is evaluated. This is a normal Macro
+         hold brief, not an artificial road spawn or a secret enemy reading. */
+      var reservePlanner = root.BattleStrategicInterception;
+      if (
+        reservePlanner &&
+        reservePlanner.reserveSquad(sim, sq) &&
+        !sq._transportUsed &&
+        !sq.inContact &&
+        reason !== 'reserve-commit' &&
+        (!old || old.interceptReserve)
+      ) {
+        if (old && old.interceptReserve && (old.status === 'issued' || old.status === 'executing'))
+          return old;
+
+        return issueMission(
+          sim,
+          sq,
+          {
+            intent: 'reserve',
+            action: 'hold',
+            role: 'reserve',
+            objectiveId: null,
+            point: sq.baseHome || sq.home || D.avgPos(sq),
+            route: [],
+            interceptReserve: true
+          },
+          'purpose-first-forward-screen'
+        );
+      }
       if (request)
         return issueMission(
           sim,
@@ -436,7 +555,10 @@
         chosen = forcedObjective ? forcedCandidate(sim, sq, forcedObjective) : null;
       if (assigned && !forcedObjective && !stalled && reason !== 'mission-complete') {
         var status = D.objectiveStatus(sim, assigned) || {};
-        if (status.owner !== sq.faction)
+        if (
+          status.owner !== sq.faction &&
+          !(root.BattleFrontLines && !root.BattleFrontLines.attackable(sim, sq.faction, assigned.id))
+        )
           chosen = { instance: assigned, point: D.objectivePoint(assigned, sim, sq), status: status };
       }
       /* Pass an `allowed` reachability map to chooseObjective for capture briefs, the same gate
@@ -468,9 +590,9 @@
        issueMission dedup returns the old brief unchanged, and the squad never moves. */
       if ((reason === 'strategic-stall-release' || reason === 'strategic-reset') && intent === 'defend')
         intent = 'capture';
-      /* Doctrine is decided once per brief, when it is issued - never re-evaluated per tick. The brief goes
-       straight for the objective: walking the old approach route first cost captures (12-seed replay
-       3.2 vs 3.8/battle) and on main a shadow writer had already abandoned it within the first minute. */
+      /* Doctrine is decided once per brief, never per tick. Legacy tactical briefs go
+         straight to the objective (previously measured to improve capture rate).
+         The opt-in 5 km scenario uses mission-owned road legs below instead. */
       var p = D.avgPos(sq),
         enemy = D.nearestEnemyToSquad(sim, sq),
         context = D.buildContext(sim, sq, chosen, enemy, p),
@@ -540,6 +662,28 @@
         if (flank && isFinite(+flank.x) && isFinite(+flank.z))
           spec.route = [{ x: +flank.x || 0, z: +flank.z || 0 }];
       }
+      /* Phase 1 strategic profile: public road-network waypoints are part of
+         THIS Macro mission. The Squad Leader adopts them with the brief,
+         rather than losing the spawn route on its first mission. Keep any
+         doctrine flank/reset final approach after the road corridor.
+         Local combat, navigation and individual movement remain unchanged. */
+      if (
+        town &&
+        town.profile === 'strategic' &&
+        root.BattleCommanderRoutes &&
+        root.BattleCommanderRoutes.missionRouteFor
+      ) {
+        // Front lines: the rules owner splits a side's capture briefs over the roads into a line.
+        var via =
+            spec.intent === 'capture' && root.BattleFrontLines && root.BattleFrontLines.approachFor
+              ? root.BattleFrontLines.approachFor(sim, sq, chosen.instance.id, D.avgPos(sq))
+              : null,
+          roadLegs = via
+            ? via.route
+            : root.BattleCommanderRoutes.missionRouteFor(sq, town, chosen.instance.id, D.avgPos(sq));
+        if (via) spec.approachRoadId = via.roadId;
+        if (roadLegs.length) spec.route = roadLegs.concat(spec.route);
+      }
       return issueMission(sim, sq, spec, reason);
     }
     function reconsiderMission(sim, sq, town, reason, stalled, forcedObjective) {
@@ -567,7 +711,7 @@
         var sq = squads[i],
           living = D.aliveMembers(sq).length,
           m = sq._macroMission;
-        if (!living || sq.state === 'retreat') continue;
+        if (!living || sq.state === 'retreat' || heldPostMission(sq)) continue;
         /* Objective-control stall is faction-wide. A squad that is still making
          measurable progress on its existing capture brief is not itself stalled;
          leave that valid brief alone instead of turning slower command adoption
@@ -615,7 +759,13 @@
       for (var i = 0; i < squads.length; i++) {
         var sq = squads[i],
           m = sq._macroMission;
-        if (!D.aliveMembers(sq).length || sq.state === 'retreat' || usefulDefender(sim, sq)) continue;
+        if (
+          !D.aliveMembers(sq).length ||
+          sq.state === 'retreat' ||
+          usefulDefender(sim, sq) ||
+          heldPostMission(sq)
+        )
+          continue;
         var targetless =
             sq.commandRole !== 'reserve' && !(m && m.intent === 'reserve') && !sq.targetObjective,
           stale = staleHoldOrSupport(sim, sq);
@@ -631,6 +781,22 @@
       if (!plan || !plan.instance) return { affected: 0, mainEffort: null };
       var objective = plan.instance,
         reachable = plan.active.filter(function (sq) {
+          var m = sq._macroMission,
+            carrier = sq._transport;
+          /* Faction-wide concentration is not permission to abandon a healthy
+             physical road mission. Stalled carriers remain eligible, as do
+             ordinary foot squads; local contact, retreat and mission validity
+             still take precedence in the regular General/Squad Leader path. */
+          if (
+            m &&
+            m.intent === 'capture' &&
+            m.status === 'executing' &&
+            carrier &&
+            carrier.phase === 'embarked' &&
+            carrier.missionVersion === m.version &&
+            makingMissionProgress(sim, faction, sq)
+          )
+            return false;
           return objectiveReachable(sim, sq, objective);
         });
       reachable.sort(function (a, b) {
@@ -669,6 +835,7 @@
         if (!D.aliveMembers(sq).length || sq.state === 'retreat') continue;
         if (usefulDefender(sim, sq) || makingMissionProgress(sim, faction, sq)) continue;
         if (m && (m.intent === 'reserve' || m.intent === 'reconstitute')) continue;
+        if (heldPostMission(sq)) continue;
         candidates.push(sq);
         if (m && m.objectiveId) resetStalled[m.objectiveId] = true;
       }

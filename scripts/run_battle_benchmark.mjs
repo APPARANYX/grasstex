@@ -594,6 +594,12 @@ try {
           return out;
         };
         const record = {
+          battleType,
+          deployment: {
+            mode: !sim._sides ? 'unknown' : sim._sides.meeting ? 'meeting' : 'prepared-defender',
+            defender: sim._sides?.defender || null,
+            attacker: sim._sides?.attacker || null
+          },
           index: index + 1, seed, scenarioId: scenario?.id || null, fingerprint: scenario?.fingerprint || null,
           winner: sim.winner || 'none', winReason: sim.winReason || null, simulatedSeconds: +(+sim.time || 0).toFixed(2), wallSeconds: +((performance.now() - wallStart) / 1000).toFixed(3), steps,
           timeoutReached: (+sim.time || 0) >= timeLimit - fixedDt,
@@ -612,6 +618,11 @@ try {
           orderedMoveSamples: diag.orderedMoveSamples, idleOrderedSamples: diag.idleOrderedSamples, phaseSamples: diag.phaseSamples, engagementStateSamples: diag.engagementStateSamples,
           writerConflicts: conflicts.length, strategicWriterConflicts: strategicConflicts, writerConflictDetails: conflicts, loopAlerts: loops, loopKinds,
           diagnosticEvidence,
+          /* Real physical vehicle journeys, not inferred from move speed or objective wins. */
+          motorTransport: {
+            enabled: !!(root.location && /[?&]motorTransport=1(?:&|$)/.test(root.location.search || '')),
+            journeys: (root.BattleSquadTransport && root.BattleSquadTransport.summary(sim)) || []
+          },
           movementResolver: movementResolverSummary(), movementGoals: sim._movementGoalStats || null, losBlockedFireAttempts: losBlockedAttempts(), crestBlockedFireAttempts: crestBlockedAttempts(), fire: activeCombat,
           acquisitions: acquisitionSummary(activeAcquisition), squadPerformanceRaw,
           reconstitution: reconstitutionSummary(), regroups: regroupSummary(), stallOutcomes: stallSummary(), coordinationHealth: coordinationHealth(), combatUrgency: root.BattleCombatUrgency?.summary?.(sim) || null, objectiveRecovery: { us: +(recovery.us?.count || 0), ge: +(recovery.ge?.count || 0) }, finalObjectives: objectiveStates,

@@ -96,10 +96,15 @@
     return pending && pending.at === battle.time && pending.state === e.state ? pending : null;
   }
   function settleTransitStance(s, battle, plan) {
-    var pending = transitStanceOf(s, battle);
+    var pending = transitStanceOf(s, battle),
+      fire = s && s.squad && s.squad.fireControl;
+    // A movement-plan change cannot turn an active HOLD/PRECISION firing line
+    // into upright transit. Keep Engagement's native preparation posture.
+    if (fire && (fire.state === 'hold' || fire.state === 'precision')) plan = null;
     if (s.eng) s.eng.transitStance = null;
     if (plan) commitStance(s, battle, plan.stance, 0.45, 'body-autonomy:' + plan.reason);
     else if (pending) commitStance(s, battle, pending.stance, pending.seconds, pending.reason);
+    return plan;
   }
   function combatThreat(unit) {
     var api = SA(),

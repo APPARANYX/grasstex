@@ -25,8 +25,8 @@ STATIC_FILES = [
 # per-model sidecar calibrations (Assets/soldiers/<model>.json) the game reads at load. These
 # exact paths are the only lab files the deploy owns; it uploads them and never deletes them.
 # The sidecars it writes stay server-owned (protected below), so a deploy never clobbers a tuning.
-MANAGED_LAB = ["labs/fbx-animation-lab.html", "labs/fbx-animation-root-lock.js", "labs/fbx-animation-compat.js",
-               "labs/asset-list.php", "labs/save-calibration.php", "labs/vehicle-animation-lab.html"]
+MANAGED_LAB = ["labs/fbx-animation-lab.html", "labs/vehicle-animation-lab.html", "labs/fbx-animation-root-lock.js", "labs/fbx-animation-compat.js",
+               "labs/asset-list.php", "labs/save-calibration.php"]
 STATIC_FILES += [(path, path) for path in MANAGED_LAB]
 # Every runtime the page loads. A file missing from this list is simply never uploaded, so the
 # deployed loader ends up requesting a 404 - keep it in step with the script tags in

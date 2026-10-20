@@ -402,6 +402,50 @@ assert.ok(
     'switching it off removes every mark'
   );
 }
+// A carrier suspends the infantry route. Cached geometry must never draw a
+// line back to a base or leave order crosses behind the moving passengers.
+{
+  const e = boot();
+  const m = {
+    faction: 'us',
+    root: { position: { x: 0, z: 900 } },
+    destination: { x: 0, z: 100 },
+    orderDestination: { x: 0, z: 100 },
+    _fireteamDestination: { x: 0, z: 100 },
+    _physicalPath: { points: [{ x: 0, z: 80 }], index: 0, finalGoalX: 0, finalGoalZ: 100 },
+    squad: { _transport: { phase: 'embarked' } }
+  };
+  e.context.BattleSquadTransport = {
+    isPassenger: s => ['boarding', 'embarked'].includes(s.squad._transport.phase)
+  };
+  const b = { scene: {}, time: 30, heightAt: () => 0, obstacles: [], _roster: { us: [m], ge: [] } };
+  const before = JSON.stringify(m);
+  e.hooks['world-debug-overlay'].onBattleStart(b);
+  for (const setting of ['paths', 'waypoints', 'destinations', 'detours'])
+    e.context.BattleWorldDebug.set(setting, true);
+  const live = () => e.meshes.filter(mesh => !mesh.disposed);
+  assert.equal(live().length, 0, 'passengers cannot display suspended foot routes or formation slots');
+  assert.equal(JSON.stringify(m), before, 'rendering never clears gameplay state');
+  m.squad._transport.phase = 'dismounted';
+  e.context.BattleWorldDebug.refresh();
+  assert.ok(
+    live().some(mesh => mesh.name === 'wd-dyn-path-us'),
+    'valid infantry route returns on foot'
+  );
+  m.destination = { x: 0, z: 1400 };
+  e.context.BattleWorldDebug.refresh();
+  assert.ok(
+    !live().some(mesh => mesh.name === 'wd-dyn-path-us'),
+    'superseded cached route is not current movement'
+  );
+  m._physicalPath.points = [];
+  m._navCache = { path: [{ x: 0, z: 50 }], index: 0, destX: 0, destZ: 100 };
+  e.context.BattleWorldDebug.refresh();
+  assert.ok(
+    !live().some(mesh => mesh.name === 'wd-dyn-path-us'),
+    'empty physical queue cannot revive an older nav cache'
+  );
+}
 console.log(
   'PASS world debug bulk controls, batching, mesh cleanup, window sync, persistence, individual changes and restart; authoritative cover slot geometry, claims, faction filter and lazy snapshots'
 );

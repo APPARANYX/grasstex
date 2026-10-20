@@ -41,10 +41,20 @@ const freefly = normalized(
 const orchestration = normalized(
   region('    function stepDesktopFrame() {\n', '      stepFreeFly(pad, dt);')
 );
+/* Exclude only the new terminal-session P-key guard. Keep the accepted
+   fingerprint for every pre-existing event and listener in the controller. */
+const pGuard =
+  /\/\/ Do not request pointer lock or possession for a finished battle:[\s\S]*?if \(currentBattle && \(currentBattle\.manualEnded \|\| currentBattle\.winner\)\) \{\n.*?\n.*?\n\}\n/;
+assert.match(events, pGuard, 'terminal P-key guard must be present before possession');
+assert.ok(
+  events.indexOf('if (currentBattle && (currentBattle.manualEnded || currentBattle.winner))') <
+    events.indexOf('possessRandom();'),
+  'terminal guard must precede possession'
+);
 assert.equal(
-  fingerprint(events),
+  fingerprint(events.replace(pGuard, '')),
   '73ac680a',
-  'event/handler bodies or listener ordering changed since the death-tour input baseline'
+  'pre-existing event/handler bodies or listener ordering changed since death-tour input baseline'
 );
 assert.equal(fingerprint(freefly), '5cb26236', 'the original free-fly movement, speed or geometry changed');
 /* Preserve the prior byte-level frame-order oracle after isolating the single
@@ -61,10 +71,33 @@ assert.ok(
   orchestration.indexOf("leavePlayer('battle roster replaced');") < orchestration.indexOf('menuHoldGesture('),
   'restart guard must execute before the menu/death/controller input branch'
 );
+/* Preserve the accepted frame order by removing only the new full-screen
+   map input gate before fingerprinting. The pre-existing P-key and restart
+   guards still get their separate exact regression checks. */
+const mapDeclaration = ['pad = activeGamepad(),', 'tacticalMap = global.BattleTacticalMap;'].join(
+  String.fromCharCode(10)
+);
+assert.ok(orchestration.includes(mapDeclaration), 'desktop frame must access loaded tactical map');
+const mapStart = orchestration.indexOf('/* Xbox D-pad Right toggles the full tactical map');
+const mapEnd = orchestration.indexOf('/* Restarts reuse', mapStart);
+assert.ok(mapStart > 0 && mapEnd > mapStart, 'map interaction is isolated ahead of roster guard');
+const mapGuard = orchestration.slice(mapStart, mapEnd);
+assert.ok(mapGuard.includes('padPressedOnce(pad, 15)'), 'D-pad Right must open the map');
+assert.ok(
+  mapGuard.includes('tacticalMap.setOpen(!tacticalMap.isOpen())'),
+  'controller uses real fullscreen map toggle'
+);
+assert.ok(
+  mapGuard.includes('keys.clear();') && mapGuard.includes('mouseFire = false;'),
+  'map must block gameplay input while open'
+);
+const originalOrchestration = orchestration
+  .replace(mapDeclaration, 'pad = activeGamepad();')
+  .replace(mapGuard, '');
 assert.equal(
-  fingerprint(orchestration.replace(restartGuard, '')),
+  fingerprint(originalOrchestration.replace(restartGuard, '')),
   'a5a33693',
-  'previous menu/player frame/gesture ordering changed after excluding only the new restart guard'
+  'menu/player frame order changed beyond the narrowly audited fullscreen map gate'
 );
 assert.match(src, /menuHoldState\.long = false;/, 'disconnect clears the held Menu gesture');
 assert.match(src, /menuHoldState\.since = 0;/, 'disconnect resets Menu hold duration');

@@ -156,6 +156,51 @@ assert.equal(
   undefined,
   'nonempty diagnostic ledger clears on same-object restart'
 );
+for (const reason of ['arrival', 'crew-sighting', 'road-blocked', 'contact']) {
+  const w = world();
+  w.q.members.forEach(s => (s.root.position.z = 280));
+  w.q._transport = {
+    phase: reason === 'arrival' ? 'dismounted' : 'aborted',
+    endReason: reason,
+    missionVersion: 1,
+    travelled: 280,
+    initialPosition: { x: 0, z: 0 }
+  };
+  w.S.executeMission(w.b, w.q, null);
+  assert.equal(w.q.routeIndex, 2, reason + ': consumed road leg must not send men back after dismount');
+  assert.equal(w.q.objective.z, 400);
+}
+// On a winding road the next corner can be farther from the final objective
+// than the current position. It still belongs to the untravelled route.
+{
+  const w = world();
+  w.q._macroMission = {
+    ...w.q._macroMission,
+    version: 2,
+    point: { x: 0, z: 100 },
+    observations: { squad: { position: { x: 0, z: 0 } } },
+    route: [
+      { x: 200, z: 0 },
+      { x: 200, z: 200 },
+      { x: 0, z: 200 }
+    ]
+  };
+  w.q.members.forEach(s => {
+    s.root.position.x = 200;
+    s.root.position.z = 150;
+  });
+  w.q._transport = {
+    phase: 'dismounted',
+    endReason: 'arrival',
+    missionVersion: 2,
+    travelled: 350,
+    initialPosition: { x: 0, z: 0 }
+  };
+  w.S.executeMission(w.b, w.q, null);
+  assert.equal(w.q.routeIndex, 1, 'dismount keeps the next bend instead of cutting toward the goal');
+  assert.equal(w.q.objective.x, 200);
+  assert.equal(w.q.objective.z, 200);
+}
 console.log(
   'PASS route transition activation, distance/time progress, read-only execution, aborts, bounded independent history and restart'
 );

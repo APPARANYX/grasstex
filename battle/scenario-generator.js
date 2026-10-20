@@ -263,9 +263,425 @@
     return clamp(1 - Math.sqrt(sum / Math.max(0.0001, weight)), 0, 1);
   }
 
+  /* Separate deterministic 5 km profile. The legacy generator and RNG draw sequence stay intact. */
+  function pointSegmentDistance(x, z, road) {
+    var dx = road.bx - road.ax,
+      dz = road.bz - road.az,
+      d2 = dx * dx + dz * dz || 1,
+      t = clamp(((x - road.ax) * dx + (z - road.az) * dz) / d2, 0, 1);
+    return Math.hypot(x - road.ax - t * dx, z - road.az - t * dz);
+  }
+  function createStrategic(seed, opts) {
+    var r = rngFor(seed, 'strategic-5km-v1'),
+      jitter = function (n) {
+        return round(rr(r, -n, n), 1);
+      },
+      points = [
+        [-1710, -2060],
+        [1600, -1950],
+        [-100, -1530],
+        [-1640, 2040],
+        [1690, 1980],
+        [190, 1540],
+        [-1650, -620],
+        [1510, -570],
+        [-130, -410],
+        [-1590, 650],
+        [1560, 720],
+        [210, 510]
+      ],
+      names = [
+        'US western base',
+        'US eastern base',
+        'US inland base',
+        'German western base',
+        'German eastern base',
+        'German inland base',
+        'Western approach',
+        'Eastern approach',
+        'Southern crossroads',
+        'Northern ford',
+        'Eastern junction',
+        'Northern crossroads'
+      ],
+      objectives = points.map(function (p, i) {
+        return {
+          id: 'strategic-obj-' + i,
+          type: 'capture-zone',
+          x: p[0] + jitter(42),
+          z: p[1] + jitter(42),
+          radius: i < 6 ? 66 : 55,
+          label: names[i],
+          value: i < 6 ? 1.1 : round(rr(r, 1.1, 1.5), 2),
+          baseFaction: i < 3 ? 'us' : i < 6 ? 'ge' : null
+        };
+      });
+    var links = [
+      [0, 6],
+      [1, 7],
+      [2, 8],
+      [3, 9],
+      [4, 10],
+      [5, 11],
+      [6, 8],
+      [8, 7],
+      [9, 11],
+      [11, 10],
+      [6, 9],
+      [8, 11],
+      [7, 10],
+      [6, 11],
+      [7, 11],
+      [8, 9],
+      [8, 10],
+      [0, 8],
+      [1, 8],
+      [3, 11],
+      [4, 11]
+    ];
+    var roads = links.map(function (pair, i) {
+      var a = objectives[pair[0]],
+        b = objectives[pair[1]];
+      return {
+        id: 'strategic-road-' + i,
+        fromObjectiveId: a.id,
+        toObjectiveId: b.id,
+        ax: a.x,
+        az: a.z,
+        bx: b.x,
+        bz: b.z,
+        width: i < 13 ? 11 : 8
+      };
+    });
+    var buildings = [],
+      settlements = [];
+    /* Small hamlets flank approach junctions; neither roads nor spawn/capture hubs are blocked. */
+    for (var c = 6; c < 12; c++) {
+      var hub = objectives[c],
+        placed = 0,
+        tries = 0;
+      settlements.push({ id: 'hamlet-' + c, x: hub.x, z: hub.z, objectiveId: hub.id });
+      while (placed < 4 && tries++ < 140) {
+        var angle = rr(r, 0, Math.PI * 2),
+          distance = rr(r, 100, 175),
+          x = round(hub.x + Math.cos(angle) * distance, 2),
+          z = round(hub.z + Math.sin(angle) * distance, 2),
+          w = rr(r, 11, 21),
+          d = rr(r, 9, 18),
+          candidate = { x: x, z: z, w: w, d: d },
+          radius = Math.hypot(w, d) / 2 + 6;
+        if (Math.abs(x) > 2400 || Math.abs(z) > 2400) continue;
+        if (
+          objectives.some(function (o) {
+            return Math.hypot(o.x - x, o.z - z) < o.radius + radius;
+          })
+        )
+          continue;
+        if (
+          roads.some(function (road) {
+            return pointSegmentDistance(x, z, road) < road.width / 2 + radius;
+          })
+        )
+          continue;
+        if (
+          buildings.some(function (b) {
+            return overlaps(candidate, b, 12);
+          })
+        )
+          continue;
+        buildings.push(makeBuilding('SB' + (buildings.length + 1), x, z, w, d, r));
+        placed++;
+      }
+    }
+    var bases = { us: [], ge: [] };
+    ['us', 'ge'].forEach(function (faction, fi) {
+      for (var b = 0; b < 3; b++) {
+        var o = objectives[fi * 3 + b];
+        bases[faction].push({ id: faction + '-base-' + b, objectiveId: o.id, x: o.x, z: o.z });
+      }
+    });
+    var scenario = {
+      version: 21,
+      profile: 'strategic',
+      seed: seed,
+      id: 'strategic-' + hashSeed(seed).toString(16),
+      map: { width: 5000, depth: 5000, unitM: 20, source: 'strategic-5km' },
+      terrain: { roughness: round(rr(r, 0.22, 0.52), 3) },
+      settlement: { cx: 0, cz: 0, spanX: 4500, spanZ: 4500 },
+      settlements: settlements,
+      spawnZones: {
+        us: {
+          z: bases.us[2].z,
+          lanes: bases.us.map(function (b) {
+            return b.x;
+          }),
+          bases: bases.us
+        },
+        ge: {
+          z: bases.ge[2].z,
+          lanes: bases.ge.map(function (b) {
+            return b.x;
+          }),
+          bases: bases.ge
+        }
+      },
+      roads: roads,
+      buildings: buildings,
+      objectives: objectives,
+      center: { x: 0, z: 0 },
+      radius: 2400,
+      timeLimitSeconds: 1800,
+      metadata: {
+        trainingSeed: opts.trainingSeed || null,
+        scenarioIndex: opts.scenarioIndex == null ? null : opts.scenarioIndex,
+        strategicProfile: true
+      }
+    };
+    scenario.sectors = scenario.objectives;
+    scenario.fingerprint = fingerprint(scenario);
+    return scenario;
+  }
+
+  /* Front-lines variant of the 5 km profile (?frontLines=1): Hell Let Loose style lines from base
+     to base. Line 0 is the US base line, line 4 the German one; lines 1-3 hold one capture point
+     each, sited on one of three seeded spots and flavoured town, forest or open. Every point is
+     reached by a main road from the line behind it and a side road, so the ground between a
+     held line and the contested one has two approaches. Same objective/road/spawnZones shape as
+     createStrategic, plus `frontLines` (lines in order, start owners, fallbacks); its own RNG
+     salt, so the default layout's draws are untouched. */
+  var FRONT_LINE_Z = [-900, 0, 900],
+    FRONT_LINE_SITES = [-1500, 0, 1500],
+    FRONT_LINE_NAMES = ['US forward line', 'Centre line', 'German forward line'];
+  function createFrontLines(seed, opts) {
+    var r = rngFor(seed, 'strategic-front-lines-v1'),
+      jitter = function (n) {
+        return round(rr(r, -n, n), 1);
+      },
+      basePoints = [
+        [-1710, -2060],
+        [1600, -1950],
+        [-100, -1530],
+        [-1640, 2040],
+        [1690, 1980],
+        [190, 1540]
+      ],
+      baseNames = [
+        'US western base',
+        'US eastern base',
+        'US inland base',
+        'German western base',
+        'German eastern base',
+        'German inland base'
+      ],
+      objectives = basePoints.map(function (p, i) {
+        return {
+          id: 'strategic-obj-' + i,
+          type: 'capture-zone',
+          x: p[0] + jitter(42),
+          z: p[1] + jitter(42),
+          radius: 66,
+          label: baseNames[i],
+          value: 1.1,
+          baseFaction: i < 3 ? 'us' : 'ge',
+          frontLine: i < 3 ? 0 : 4
+        };
+      }),
+      previousFlavor = null,
+      lines = [];
+    FRONT_LINE_Z.forEach(function (z, li) {
+      var site = Math.floor(r() * FRONT_LINE_SITES.length),
+        weights = { town: 0.45, forest: 0.3, open: 0.25 },
+        keys = Object.keys(weights),
+        total = 0;
+      keys.forEach(function (k) {
+        if (k === previousFlavor) weights[k] *= 0.3;
+        total += weights[k];
+      });
+      var pick = r() * total,
+        flavor = keys[keys.length - 1];
+      for (var k = 0; k < keys.length; k++) {
+        if (pick < weights[keys[k]]) {
+          flavor = keys[k];
+          break;
+        }
+        pick -= weights[keys[k]];
+      }
+      previousFlavor = flavor;
+      var o = {
+        id: 'strategic-obj-' + (6 + li),
+        type: 'capture-zone',
+        x: FRONT_LINE_SITES[site] + jitter(120),
+        z: z + jitter(60),
+        radius: 55,
+        label: FRONT_LINE_NAMES[li] + ' (' + flavor + ')',
+        value: round(rr(r, 1.1, 1.5), 2),
+        baseFaction: null,
+        frontLine: li + 1,
+        flavor: flavor,
+        siteIndex: site
+      };
+      objectives.push(o);
+      lines.push(o);
+    });
+    var links = [
+      // Main roads: each base to its forward line, then line to line.
+      [0, 6, 'main'],
+      [1, 6, 'main'],
+      [2, 6, 'main'],
+      [3, 8, 'main'],
+      [4, 8, 'main'],
+      [5, 8, 'main'],
+      [6, 7, 'main'],
+      [7, 8, 'main'],
+      // Side roads: a second approach into every capture point.
+      [2, 7, 'side'],
+      [5, 7, 'side'],
+      [6, 8, 'side']
+    ];
+    var roads = links.map(function (pair, i) {
+      var a = objectives[pair[0]],
+        b = objectives[pair[1]];
+      return {
+        id: 'strategic-road-' + i,
+        fromObjectiveId: a.id,
+        toObjectiveId: b.id,
+        ax: a.x,
+        az: a.z,
+        bx: b.x,
+        bz: b.z,
+        width: pair[2] === 'main' ? 11 : 8,
+        frontLineRoad: pair[2]
+      };
+    });
+    var buildings = [],
+      settlements = [];
+    lines.forEach(function (hub) {
+      if (hub.flavor !== 'town') return;
+      var placed = 0,
+        tries = 0;
+      settlements.push({ id: 'town-' + hub.id, x: hub.x, z: hub.z, objectiveId: hub.id });
+      while (placed < 8 && tries++ < 240) {
+        var angle = rr(r, 0, Math.PI * 2),
+          distance = rr(r, 85, 190),
+          x = round(hub.x + Math.cos(angle) * distance, 2),
+          z = round(hub.z + Math.sin(angle) * distance, 2),
+          w = rr(r, 11, 21),
+          d = rr(r, 9, 18),
+          candidate = { x: x, z: z, w: w, d: d },
+          radius = Math.hypot(w, d) / 2 + 6;
+        if (Math.abs(x) > 2400 || Math.abs(z) > 2400) continue;
+        if (
+          objectives.some(function (o) {
+            return Math.hypot(o.x - x, o.z - z) < o.radius + radius;
+          })
+        )
+          continue;
+        if (
+          roads.some(function (road) {
+            return pointSegmentDistance(x, z, road) < road.width / 2 + radius;
+          })
+        )
+          continue;
+        if (
+          buildings.some(function (b) {
+            return overlaps(candidate, b, 12);
+          })
+        )
+          continue;
+        buildings.push(makeBuilding('SB' + (buildings.length + 1), x, z, w, d, r));
+        placed++;
+      }
+    });
+    var bases = { us: [], ge: [] };
+    ['us', 'ge'].forEach(function (faction, fi) {
+      for (var b = 0; b < 3; b++) {
+        var o = objectives[fi * 3 + b];
+        bases[faction].push({ id: faction + '-base-' + b, objectiveId: o.id, x: o.x, z: o.z });
+      }
+    });
+    function ids(index) {
+      return objectives
+        .filter(function (o) {
+          return o.frontLine === index;
+        })
+        .map(function (o) {
+          return o.id;
+        });
+    }
+    var scenario = {
+      version: 21,
+      profile: 'strategic',
+      seed: seed,
+      id: 'strategic-lines-' + hashSeed(seed).toString(16),
+      map: { width: 5000, depth: 5000, unitM: 20, source: 'strategic-5km-front-lines' },
+      terrain: { roughness: round(rr(r, 0.22, 0.52), 3) },
+      settlement: { cx: 0, cz: 0, spanX: 4500, spanZ: 4500 },
+      settlements: settlements,
+      spawnZones: {
+        us: {
+          z: bases.us[2].z,
+          lanes: bases.us.map(function (b) {
+            return b.x;
+          }),
+          bases: bases.us
+        },
+        ge: {
+          z: bases.ge[2].z,
+          lanes: bases.ge.map(function (b) {
+            return b.x;
+          }),
+          bases: bases.ge
+        }
+      },
+      roads: roads,
+      buildings: buildings,
+      objectives: objectives,
+      center: { x: 0, z: 0 },
+      radius: 2400,
+      timeLimitSeconds: 1800,
+      /* Lines in order from the US rear (0) to the German rear (4). Start owners per battle type:
+         a meeting engagement leaves the centre neutral; a prepared defender also holds it. */
+      frontLines: {
+        version: 1,
+        lines: [0, 1, 2, 3, 4].map(function (i) {
+          return { index: i, objectiveIds: ids(i) };
+        }),
+        startOwners: {
+          meeting: ['us', 'us', null, 'ge', 'ge'],
+          us: ['us', 'us', 'us', 'ge', 'ge'],
+          ge: ['us', 'us', 'ge', 'ge', 'ge']
+        }
+      },
+      metadata: {
+        trainingSeed: opts.trainingSeed || null,
+        scenarioIndex: opts.scenarioIndex == null ? null : opts.scenarioIndex,
+        strategicProfile: true,
+        frontLines: true
+      }
+    };
+    scenario.sectors = scenario.objectives;
+    scenario.fingerprint = fingerprint(scenario);
+    return scenario;
+  }
+
+  /* Query is read here before battle-sim.js loads; Combat Lab always wins isolation. */
+  root.STRATEGIC_INTERCEPTION_ENABLED =
+    !root.PHASE_C_COMBAT_LAB &&
+    ((typeof location !== 'undefined' && /[?&]strategicInterception=1(?:&|$)/.test(location.search || '')) ||
+      root.STRATEGIC_INTERCEPTION_ENABLED === true);
+  /* ?frontLines=1 swaps the 5 km layout for the front-lines variant (strategic profile only). */
+  root.STRATEGIC_FRONT_LINES =
+    !root.PHASE_C_COMBAT_LAB &&
+    ((typeof location !== 'undefined' && /[?&]frontLines=1(?:&|$)/.test(location.search || '')) ||
+      root.STRATEGIC_FRONT_LINES === true);
+
   function create(seed, opts) {
     opts = opts || {};
     seed = String(seed == null ? 'default' : seed);
+    if (!root.PHASE_C_COMBAT_LAB && (opts.profile === 'strategic' || root.STRATEGIC_INTERCEPTION_ENABLED))
+      return opts.frontLines || root.STRATEGIC_FRONT_LINES
+        ? createFrontLines(seed, opts)
+        : createStrategic(seed, opts);
     var r = rngFor(seed, 'scenario');
     var lab = !!root.PHASE_C_COMBAT_LAB,
       spanX = lab ? 205 : rr(r, 430, 720),
@@ -361,6 +777,8 @@
     hashSeed: hashSeed,
     rngFor: rngFor,
     create: create,
+    createStrategic: createStrategic,
+    createFrontLines: createFrontLines,
     activate: activate,
     setActive: setActive,
     current: current,

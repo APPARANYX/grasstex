@@ -125,6 +125,7 @@ window.BattleLoading=(function(){
 
   var firstLoad=BattleScenarioGenerator.initialLoadSeed(location.search,window.BATTLE_SCENARIO_SEED),
       liveSeed=firstLoad.seed,scenario=BattleScenarioGenerator.activate(liveSeed,{mode:'live'});
+  if(scenario.profile==='strategic')document.getElementById('hudTitle').querySelector('span').textContent='WW2FPS STRATEGIC 5 KM';
   document.getElementById('seedShort').textContent=liveSeed;document.getElementById('seedShort').title=liveSeed;
   /* Older builds wrote generated live-* seeds to the URL. Remove those stale pins
      on arrival, so refreshing the cleaned URL makes a new battlefield.
@@ -136,8 +137,8 @@ window.BattleLoading=(function(){
   console.log('[SCENARIO] live seed='+liveSeed+' id='+scenario.id+' fingerprint='+JSON.stringify(scenario.fingerprint.vector));
 
   var canvas=document.getElementById('renderCanvas'),engine=new BABYLON.Engine(canvas,true,{stencil:false,preserveDrawingBuffer:true,audioEngine:true});engine.renderEvenInBackground=true;console.log('legacyAudioEngine='+(BABYLON.Engine.audioEngine?'present':'missing')+' · background rendering enabled');
-  var scene=new BABYLON.Scene(engine);scene.skipPointerMovePicking=true;scene.clearColor=new BABYLON.Color4(.55,.62,.68,1);scene.fogMode=BABYLON.Scene.FOGMODE_LINEAR;scene.fogColor=new BABYLON.Color3(.72,.62,.52);scene.fogStart=850;scene.fogEnd=2250;
-  var target=new BABYLON.Vector3(scenario.center.x,4,scenario.center.z),camera=new BABYLON.ArcRotateCamera('cam',-Math.PI/2,1.02,720,target,scene);camera.lowerRadiusLimit=90;camera.upperRadiusLimit=1850;camera.lowerBetaLimit=.28;camera.upperBetaLimit=1.5;camera.wheelPrecision=3;camera.panningSensibility=120;camera.attachControl(canvas,true);
+  var scene=new BABYLON.Scene(engine);scene.skipPointerMovePicking=true;scene.clearColor=new BABYLON.Color4(.55,.62,.68,1);scene.fogMode=BABYLON.Scene.FOGMODE_LINEAR;scene.fogColor=new BABYLON.Color3(.72,.62,.52);scene.fogStart=scenario.profile==='strategic'?2100:850;scene.fogEnd=scenario.profile==='strategic'?8000:2250;
+  var target=new BABYLON.Vector3(scenario.center.x,4,scenario.center.z),camera=new BABYLON.ArcRotateCamera('cam',-Math.PI/2,1.02,720,target,scene);camera.lowerRadiusLimit=90;camera.upperRadiusLimit=scenario.profile==='strategic'?5400:1850;camera.radius=scenario.profile==='strategic'?3200:720;camera.maxZ=scenario.profile==='strategic'?9500:2600;camera.lowerBetaLimit=.28;camera.upperBetaLimit=1.5;camera.wheelPrecision=3;camera.panningSensibility=120;camera.attachControl(canvas,true);
 
   /* Smooth RTS-style keyboard pan. W/S follow the camera's ground-facing direction; A/D strafe. */
   var cameraKeys=Object.create(null);function cameraKey(code){return code==='KeyW'||code==='KeyA'||code==='KeyS'||code==='KeyD'||code==='ShiftLeft'||code==='ShiftRight';}
@@ -154,12 +155,17 @@ window.BattleLoading=(function(){
   var features=BattleTerrainFeatures.scatter(scene,BattleSim.heightAt,{fieldW:BattleSim.FIELD_W,fieldD:BattleSim.FIELD_D,scenarioSeed:liveSeed});
   loading.done('cover',features.obstacles.length+' obstacles');loading.start('battle');await loading.frame();
   var audioBase=window.BATTLE_AUDIO_BASE||'audio/',battle=BattleSim.start(scene,{timeScale:4,obstacles:features.obstacles,audioBase:audioBase});battle.pause();
+  /* Strategic overview moved to the full-screen reported-contact tactical map.
+     The old always-on spectator radar is removed: no privileged enemy roster. */
 
   var usNums=document.getElementById('usNums'),geNums=document.getElementById('geNums'),squadsLeft=document.getElementById('squadsLeft'),objectiveStatus=document.getElementById('objectiveStatus'),clock=document.getElementById('clock'),seedShort=document.getElementById('seedShort'),banner=document.getElementById('banner'),bannerText=document.getElementById('bannerText'),bannerSub=document.getElementById('bannerSub');function fmtClock(t){var m=Math.floor(t/60),s=Math.floor(t%60);return m+':'+(s<10?'0':'')+s;}function aliveSquads(faction){return faction.squads.filter(function(sq){return sq.aliveCount>0;}).length;}
   battle.onUpdate=function(sim){var us=sim.factions.us,ge=sim.factions.ge;usNums.textContent=us.alive+' alive · '+us.kills+' kills';geNums.textContent=ge.alive+' alive · '+ge.kills+' kills';squadsLeft.textContent=aliveSquads(us)+' / '+aliveSquads(ge)+' (US/GER)';clock.textContent=fmtClock(sim.time);var sc=sim.scene.metadata&&sim.scene.metadata.battleScenario;if(sc){seedShort.textContent=sc.seed;seedShort.title=sc.seed;}if(sim.objectiveControl){var c=sim.objectiveControl.counts||{},u=c.us||0,g=c.ge||0,total=sim.objectiveControl.total||Object.keys(sim.objectiveControl.objectives||{}).length;objectiveStatus.textContent=total&&u===total?'US held':total&&g===total?'GER held':u>g?'US '+u+' / '+g:u<g?'GER '+g+' / '+u:'contested '+u+' / '+g;}};
   battle.onWinner=function(winner,sim){var label=winner==='draw'?'Draw':winner==='us'?'US forces win the field':'German forces win the field';showPostBattle(label,sim);console.log('winner='+winner,'time='+sim.time.toFixed(1));};
   function showPostBattle(label,sim){bannerText.textContent=label;bannerSub.textContent='US '+sim.factions.us.alive+' alive ('+sim.factions.us.kills+' kills) · GER '+sim.factions.ge.alive+' alive ('+sim.factions.ge.kills+' kills) · '+fmtClock(sim.time);banner.style.display='flex';}
-  function endBattle(){if(battle.manualEnded||battle.winner)return;battle.manualEnded=true;battle.winReason='manual';battle.pause();showPostBattle('Battle ended',battle);if(window.BattleTelemetry&&BattleTelemetry.end)BattleTelemetry.end(battle,'manual');console.log('battle ended manually','time='+battle.time.toFixed(1));}
+  /* Both End battle controls use the same BattleControl route, including the
+     post-battle banner and its compact/full diagnostic export buttons. */
+  battle._showPostBattle=showPostBattle;
+  function endBattle(){if(typeof battle.endBattle==='function')battle.endBattle('manual');}
   function restart(){banner.style.display='none';battle.restart();console.log('battle restarted');}document.getElementById('restartBtn').addEventListener('click',endBattle);document.getElementById('bannerRestart').addEventListener('click',restart);
   var speedButtons=document.querySelectorAll('#controls button');speedButtons.forEach(function(btn){btn.addEventListener('click',function(){battle.setTimeScale(+btn.dataset.speed);speedButtons.forEach(function(b){b.classList.toggle('active',b===btn);});console.log('speed='+btn.dataset.speed+'x');});});window.__battleRenderLoop__=function(){scene.render();};engine.runRenderLoop(window.__battleRenderLoop__);/* iOS fires resize (and orientationchange) before it reports the rotated size, so the canvas kept its old width; resize again once the rotation settles, and whenever the canvas's own box changes. */var fitCanvas=function(){engine.resize();},settleCanvas=function(){fitCanvas();requestAnimationFrame(function(){fitCanvas();requestAnimationFrame(fitCanvas);});setTimeout(fitCanvas,300);};window.addEventListener('resize',settleCanvas);window.addEventListener('orientationchange',settleCanvas);if(window.visualViewport)window.visualViewport.addEventListener('resize',settleCanvas);if(window.ResizeObserver)new ResizeObserver(fitCanvas).observe(canvas);
 

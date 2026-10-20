@@ -35,6 +35,27 @@ Objective count 0-1/2/3/4/5+ -> faction hardpoint cap 6/8/10/12/15. SLs place fr
 - R3: SL-built forward hardpoints, terrain validation, cooldown, faction objective-scaled cap, destroy/retire/overrun and threat-aware spawn selection; no simultaneous-battle order ownership conflicts.
 - R4: player-test integration and UI selection, explicit shared clock queue semantics. Verify controls stay with human input.
 - R5 (future): general-ordered airhead; actual aircraft route/model and parachuting paratroopers, landing dispersion, assembly, temporary anchor semantics. Avoid abstract teleporting.
+- R6 (future, separate garage/logistics slice): physical transport garages, vehicle return/recovery, and explicitly sourced replacement vehicles. **No changes to the existing truck implementation or soldier respawn behavior in this document-only reservation.**
+
+## Future R6 — garages and physical vehicle replenishment (parked)
+
+This is **future work**, not part of current R1–R5 reinforcement/spawn features and not an authorization to add vehicle respawns now. The strategic baseline on [#545](https://github.com/APPARANYX/grasstex/pull/545), via integrated [#558](https://github.com/APPARANYX/grasstex/pull/558), already starts with **two persistent, visible transport trucks at each of six 5 km bases (12 total)**. Leave that system exactly as it is until this phase is deliberately implemented.
+
+**Player-facing rule: no trucks appearing out of thin air.** A reinforcement wave or a new General mission must not create a transport mesh, an invisible instant vehicle, or a replacement truck at the destination. Soldier reinforcements and vehicle provisioning are **separate lifecycles with explicit inventory and authority**.
+
+### Garage / vehicle lifecycle for later design
+
+1. **Real, identifiable garages:** add a physical motor-pool/garage building or yard at each eligible base, associated with the existing stable `baseId`, `slot`, and `vehicleId`. Preserve the starting two-truck inventory per strategic base unless a separately designed resource system authorizes more.
+2. **Visible departure:** squads walk to an actual available parked truck. A garage vehicle must visibly drive through its entrance/exit and along a valid road route before collecting or carrying anyone; no spawn animation used to disguise teleportation. Building geometry, doors and vehicle traffic clearance must be checked.
+3. **Persistent aftermath:** after dismount, interruption or cancellation, the original physical truck stays where it stopped. If re-use is possible, schedule a real recovery driver/crew and a **road-following return-to-garage journey**, with availability blocked until it has genuinely returned and been serviced. No silent snap-back.
+4. **Repair, fuel and replacement:** destroyed, stranded or exhausted vehicles consume persistent inventory, and any repair/replacement must have an explicit garage/depot source, build/service delay, resource cost or scripted supply-convoy delivery with **observable entrance into the battlefield**. No automatic vehicle respawn simply because a timer or soldier wave fired.
+5. **Ownership and concurrency:** the logistics/vehicle manager owns physical garage slots, availability and maintenance; the General may request an available asset; the Squad Leader coordinates loading/unloading; soldier control remains with the existing physical movement/combat owners. One vehicle cannot serve two squads simultaneously; no protected actor-field or direct movement writes in a garage presentation module.
+6. **Forward spawns are not vehicle spawn points:** spawning/rejoining soldiers at an HQ, hardpoint or airhead confers **no truck** by default. Only a real garage/depot or physically arriving logistics convoy can introduce a new transport under explicit future rules. Do not conflate casualty replacements with motor-pool replenishment.
+
+**Future acceptance/diagnostics:** deterministic initial inventory (two trucks per strategic base); scene-visible empty trucks at load; zero mission-time creation; vehicle reservation exclusivity; persisted IDs and real-world positions through boarding, dismount and return; collision-safe garage doorway and road routing; repair/replacement provenance and supply accounting; destroyed/contested garage blocks availability; repeated-battle/restart cleanup; feature OFF and nonstrategic scenarios unchanged. Track `vehicleId`, `baseId`, `garageId`, stock state, assignment, return/repair timestamps, source, and reason codes. Verify zero teleport/popping events in browser replays.
+
+**Dependency / scope boundary:** this slice follows reinforcement architecture stabilization and strategic transport acceptance. It may get its own scoped PR when pursued. **Do not retrofit it into the current #545 transport or #549 reconnaissance branches.**
+
 
 ## Causal benchmark and diagnostics requirements
 

@@ -115,6 +115,9 @@
      `baseHome` is the squad's immutable rear/base point from creation and is the destination
      for permanent fled/extraction lifecycles. */
   function extractionHome(squad) {
+    /* Front-lines layout: the frontmost line the side fully holds is the rear base
+       (published by 21b-strategic-front-lines.js); otherwise the spawn base. */
+    if (squad && squad._frontLineRear) return squad._frontLineRear;
     return squad && (squad.baseHome || squad.home) ? squad.baseHome || squad.home : null;
   }
 
@@ -1800,9 +1803,16 @@
       m = squad._macroMission;
     if (isExtractionToHome(squad)) return extractionHome(squad);
     if (squad._moraleRallyPoint) return squad._moraleRallyPoint;
+    /* The opt-in 5 km profile assigns a real rear base (homeBaseId/baseHome).
+       Prepared defense can later rewrite home to a forward sector fallback;
+       the assembly/reconstitution lifecycle still requires the rear base.
+       Retire the ordinary retreat there as well, not just 1-4 man remnants.
+       Existing tactical scenarios have no homeBaseId and keep their fallback. */
     return a && a.phase === 'to-rally' && m && m.version === a.missionVersion && m.point
       ? m.point
-      : squad.home;
+      : squad.homeBaseId
+        ? extractionHome(squad)
+        : squad.home;
   }
   function formationDirection(squad) {
     var anchor = squad.orderAnchor || squad.rally,
@@ -2076,6 +2086,10 @@
     if (battle && root.BattleEngagement) root.BattleEngagement.updateSquad(squad, battle);
   }
   function updateSquad(squad, battle) {
+    /* The Squad Leader has accepted the road-transport brief. While embarked
+       the vehicle owns travel; the normal formation solver must not issue
+       competing infantry posts. Boarding still allows the Meso mission handoff. */
+    if (squad && squad._transport && squad._transport.phase === 'embarked') return;
     return EXT.first('squadCommand', squadStatus)(squad, battle);
   }
 
@@ -2162,7 +2176,18 @@
     return role;
   }
 
+  var CREW_EYES = !/(?:^|[?&])crewEyes=0(?:&|$)/.test((root.location && root.location.search) || '');
   function updateSoldier(soldier, battle) {
+    /* Passengers cannot acquire/shoot targets or select foot destinations until
+       Meso atomically hands them back at dismount. The physical carrier moves
+       their actual actors, not cloned vehicles or a fake faster infantry gait. */
+    if (root.BattleSquadTransport && root.BattleSquadTransport.isPassenger(soldier)) {
+      /* The men on the truck still look out. What they see is their own contact, so the squad's
+         contact stops the truck and the transport hands them back (58 step: 'contact'); they never
+         shoot or move from here. `?crewEyes=0` keeps passengers blind (the previous behaviour). */
+      if (CREW_EYES && !soldier.dead && !soldier.isPlayer) perceive(soldier, battle);
+      return;
+    }
     var resolver = root.BattleMovementResolver;
     /* isPlayer gates the entire soldier Micro branch. Do not run soldier-mind/sidearm before hooks,
        Perception, Engagement, or after hooks while possessed; only resolve the player's physical move. */

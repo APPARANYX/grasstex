@@ -6,8 +6,8 @@ let failed=0,passed=0;
 function test(name,fn){try{fn();passed++;console.log('PASS '+name);}catch(e){failed++;console.error('FAIL '+name+': '+e.message);}}
 // The real lease primitive from squad-ai.js; the rest of SquadAI is stubbed.
 const REAL=require(path.join(repo,'tools/ai-sim-harness/harness')).bootstrap({modules:false}),LEASES=REAL.BattleLeases;
-function fixture(){
-  const events=[],systems={},r={console:{log(){},warn(){}},Math,JSON,isFinite,location:{search:'?scoutsForward=0'}};r.window=r;
+function fixture(search){
+  const events=[],systems={},r={console:{log(){},warn(){}},Math,JSON,isFinite,location:{search:search||'?scoutsForward=0'}};r.window=r;
   r.BattleLeases=LEASES;r.BattleSim={start(){}};r.SquadAI={updateSquad(){},extend(stage,id,fn){if(stage==='squadCommand')this.updateSquad=fn;},formationSlot(){return null;},formationFor(){return'wedge';},leaderOf:REAL.SquadAI.leaderOf,isLeader:REAL.SquadAI.isLeader,establishment:REAL.SquadAI.establishment,retreatGoal:REAL.SquadAI.retreatGoal,isMachineGun:REAL.SquadAI.isMachineGun,engageRange:REAL.SquadAI.engageRange};
   r.BattleTelemetry={record(type,data){events.push({type,data});}};
   r.BattleModules={registerSystem(id,h){systems[id]=h;},unitsFor(sim){return sim._roster.us.concat(sim._roster.ge);},runHook(name,sim,payload){for(const h of Object.values(systems))if(h[name])h[name](sim,payload);}};
@@ -257,5 +257,77 @@ test('Macro OFF from the start: no brief, the Squad Leader walks the assigned ap
   f.tick();assert.equal(f.sq._macroMission,undefined);assert.equal(f.sq.objective.x,20);
   f.sq.members[0].root.position={x:20,z:30};for(let i=0;i<4;i++)f.tick();
   assert.equal(f.sq.objective.x,50);assert.equal(f.decisions,0);assert.equal(f.r.BattleCommanderAI.missionState(f.sim).wakeCount,0);
+});
+// A live forward screen has no objectiveId by design; a faction-wide stall must not re-brief it as
+// targetless and abort its truck mid-road (?screenStallHold=0 restores the old re-brief).
+function screenBrief(f){const v=(f.sq._macroMission&&f.sq._macroMission.version||0)+1;f.sq._macroMission={version:v,owner:'force-command',intent:'screen',action:'screen',status:'executing',objectiveId:null,point:{x:300,z:0},route:[{x:100,z:0}],role:'recon',issuedAt:f.sim.time,acceptedAt:f.sim.time,screen:{orderedAt:f.sim.time,securedObjectiveId:'a',standoffMetres:25}};f.sq.targetObjective=null;f.sq.commandRole='recon';return f.sq._macroMission;}
+test('stall stages leave a live forward-screen brief alone through 120/180/240/300 s',()=>{
+  const f=fixture();f.tick();const m=screenBrief(f);
+  for(const at of [121,181,241,301]){f.sim._coordinationHealth={lastObjectiveProgressAt:0,sides:{us:{objectiveStallSeconds:at}}};f.sim.time=at;f.tick();}
+  assert.strictEqual(f.sq._macroMission,m,'stall recovery replaced the live screen brief');assert.equal(m.status,'executing');
+  assert.equal(f.events.filter(e=>e.type==='decision-macro-replan'&&e.data.squad===f.sq.id&&/^strategic-/.test(e.data.reason)).length,0);
+});
+test('?screenStallHold=0 restores the old stall re-brief of a targetless screen',()=>{
+  const f=fixture('?scoutsForward=0&screenStallHold=0');f.tick();const m=screenBrief(f);
+  f.sim._coordinationHealth={lastObjectiveProgressAt:0,sides:{us:{objectiveStallSeconds:121}}};f.sim.time=121;f.tick();
+  assert.notStrictEqual(f.sq._macroMission,m,'flag-off control kept the screen brief');
+});
+// While embarked the carrier moves the squad, so the Squad Leader never advanced past the legs the truck
+// drove; after the arrival dismount the screen walked back toward the secured objective.
+function dismountedScreen(search){
+  const f=fixture(search);f.tick();const m=screenBrief(f);f.sq.route=null;f.sq._missionExecution=null;
+  for(const s of f.sq.members)s.root.position={x:280,z:0};
+  f.sq._transport={phase:'dismounted',endReason:'arrival',missionVersion:m.version,vehicleId:'us-base-0-truck-1',travelled:900};
+  f.tick();return{f,m};
+}
+test('an arrival dismount hands the screen its post leg and stamps it on post',()=>{
+  const {f}=dismountedScreen();
+  assert.equal(f.sq.routeIndex,1,'Squad Leader kept the leg behind the dismount point');
+  assert.equal(f.sq.objective.x,300);assert.ok(f.sq._missionExecution.screenOnPostAt,'screen never stamped on post');
+  assert.equal(f.events.filter(e=>e.type==='decision-route-transport-handoff').length,1);
+  f.tick();f.tick();assert.equal(f.events.filter(e=>e.type==='decision-route-transport-handoff').length,1,'handoff repeated');
+});
+test('?transportHandoff=0 restores the old route index after a dismount',()=>{
+  const {f}=dismountedScreen('?scoutsForward=0&transportHandoff=0');
+  assert.equal(f.sq.routeIndex,0);assert.equal(f.sq.objective.x,100,'flag-off control did not walk back to the secured objective');
+  assert.ok(!f.sq._missionExecution.screenOnPostAt);
+});
+test('front lines: a capture brief on a line that is no longer attackable is replaced once',()=>{
+  const f=fixture();let open=['a','b'];f.r.BattleFrontLines={attackable:(sim,faction,id)=>open.includes(id)};
+  f.tick();const old=f.sq._macroMission;assert.equal(old.objectiveId,'a');
+  open=['b'];f.tick();
+  assert.equal(f.sq._macroMission.objectiveId,'b','the General re-tasks onto the attackable line');
+  assert.ok(f.events.some(e=>e.type==='decision-macro-wake'?e.data&&e.data.reason==='front-line-moved':JSON.stringify(e.data||{}).includes('front-line-moved')),'wake recorded with its reason');
+  const next=f.sq._macroMission;for(let i=0;i<10;i++)f.tick();assert.strictEqual(f.sq._macroMission,next,'no churn once the brief is legal');
+});
+test('front lines: without the rules module the old brief is kept',()=>{
+  const f=fixture();f.tick();const old=f.sq._macroMission;for(let i=0;i<5;i++)f.tick();assert.strictEqual(f.sq._macroMission,old);
+});
+test('front lines: a lone garrison squad at an ambush post is recalled once its line may be attacked',()=>{
+  const f=fixture();let open=false;f.r.BattleFrontLines={attackable:(sim,faction,id)=>id==='a'?open:true};
+  f.sim._objectives[0].state.owner='us';f.sq._preparedDefenseRequest={objectiveId:'a',point:{x:100,z:0}};f.tick();
+  assert.equal(f.sq._macroMission.intent,'defend');
+  const v=f.sq._macroMission.version;
+  f.sq._macroMission={...f.sq._macroMission,version:v+1,intent:'intercept',action:'intercept',objectiveId:null,status:'executing',key:'ambush',intercept:{garrisonObjectiveId:'a',loneGarrison:true,expiresAt:9999}};
+  const out=f.sq._macroMission;for(let i=0;i<5;i++)f.tick();
+  assert.strictEqual(f.sq._macroMission,out,'the post is held while the line is safe');
+  open=true;f.tick();
+  assert.equal(f.sq._macroMission.intent,'defend','back to its garrison');assert.equal(f.sq._macroMission.objectiveId,'a');
+  const kept=fixture();kept.r.BattleFrontLines={attackable:()=>true};kept.sim._objectives[0].state.owner='us';kept.sq._preparedDefenseRequest={objectiveId:'a',point:{x:100,z:0}};kept.tick();
+  kept.sq._macroMission={...kept.sq._macroMission,intent:'intercept',action:'intercept',objectiveId:null,status:'executing',key:'ambush',intercept:{garrisonObjectiveId:'a',loneGarrison:false,expiresAt:9999}};
+  const held=kept.sq._macroMission;kept.tick();assert.strictEqual(kept.sq._macroMission,held,'a squad whose line kept a garrison holds its post');
+});
+test('General considers nearby transport on an unchanged accepted foot mission',()=>{
+  const f=fixture();f.tick();const m=f.sq._macroMission;let calls=0;
+  f.r.BattleSquadTransport={considerMission(sim,sq,mission){assert.strictEqual(mission,m);assert.equal(mission.status,'executing');calls++;return false;}};
+  f.tick();f.tick();assert.equal(calls,2,'a walking mission never reconsidered the trucks it passed');
+  assert.strictEqual(f.sq._macroMission,m,'transport availability must not churn the mission');
+});
+test('a threatened front-line garrison survives the short capture-security timer, then releases',()=>{
+  const f=fixture();f.sim._objectives[0].state.owner='us';
+  let exposed=true;f.r.BattleFrontLines={attackable:()=>true,garrisonFor:()=>exposed?{objectiveId:'a',point:{x:100,z:0}}:null};
+  f.tick();assert.equal(f.sq._macroMission.intent,'defend');assert.match(f.sq._macroMission.requestKey,/front-line-defense/);
+  const m=f.sq._macroMission;f.sim.time=45;f.tick();assert.strictEqual(f.sq._macroMission,m,'the exposed guard was sent away on a timer');
+  exposed=false;f.tick();assert.notStrictEqual(f.sq._macroMission,m,'guard was not released when the front advanced');
 });
 console.log(`macro-mission-command: ${passed} passed, ${failed} failed`);if(failed)process.exitCode=1;

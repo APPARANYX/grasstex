@@ -57,7 +57,9 @@
     });
     return out;
   }
-  /* The first fire condition that fails for a man holding a target, in fire-gates order. */
+  /* The first observable fire condition that fails for a man holding a target.
+     Do not call BattleDirectFireLOSGate.blocked/blockReason here: they update the
+     live LOS cache and hit/miss counters. This probe must not change its own control. */
   function holder(sim, s) {
     var t = s.target,
       p = s.root.position,
@@ -73,7 +75,7 @@
     else if (s.crawling) why = 'crawling';
     else if (d > range) why = 'engageRange';
     else if (w.stats && d > w.stats.range) why = 'weaponRange';
-    else if (G && G.blocked(s, sim)) why = (G.blockReason && G.blockReason(s, sim)) || 'los';
+    else if (G) why = 'line-of-fire-unverified';
     return {
       role: s.role,
       d: +d.toFixed(0),

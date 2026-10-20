@@ -272,8 +272,20 @@
             return m !== s;
           });
           if (wasLeader) leaderDown(sq);
+          // The same soldier can flee again after absorption/reconstitution. Even an
+          // empty disbanded detachment remains in the roster and timeline: never reuse its ID.
+          var baseId = sq.id + '-fled-' + s.id,
+            loneId = baseId,
+            suffix = 2;
+          while (
+            list.some(function (other) {
+              return other.id === loneId;
+            })
+          ) {
+            loneId = baseId + '-' + suffix++;
+          }
           var lone = root.SquadAI.createSquad(
-            sq.id + '-fled-' + s.id,
+            loneId,
             sq.faction,
             copy(root.SquadAI.extractionHome ? root.SquadAI.extractionHome(sq) : sq.home),
             sq.objective

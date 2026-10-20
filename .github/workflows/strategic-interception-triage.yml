@@ -1,0 +1,54 @@
+name: ⭐ Strategic Interception Decision Triage
+
+on:
+  pull_request:
+    paths:
+      - 'battle/modules/59b-strategic-interception.js'
+      - 'scripts/probe_strategic_interception.cjs'
+      - '.github/workflows/strategic-interception-triage.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: strategic-interception-triage-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  one-seed:
+    name: One native aerial event, rejection audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Playwright
+        run: |
+          npm install --global playwright@1.56.1
+          playwright install --with-deps chromium
+      - name: Start own PHP checkout
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/intercept-triage-site"
+          ln -s "$GITHUB_WORKSPACE" "$RUNNER_TEMP/intercept-triage-site/grasstex"
+          php -S 127.0.0.1:8765 -t "$RUNNER_TEMP/intercept-triage-site" > "$RUNNER_TEMP/intercept-triage-php.log" 2>&1 &
+          for attempt in {1..30}; do
+            if curl -fsS 'http://127.0.0.1:8765/grasstex/battle_sim_local.php?seed=healthcheck' -o /dev/null; then exit 0; fi
+            sleep 1
+          done
+          exit 1
+      - name: Check full mission choices around one unforced recon event
+        env:
+          STRATEGIC_INTERCEPT_QA_URL: http://127.0.0.1:8765/grasstex/battle_sim_local.php
+          STRATEGIC_INTERCEPT_QA_OUT: closeups/strategic-interception-triage
+          STRATEGIC_INTERCEPT_QA_SECONDS: 180
+          STRATEGIC_INTERCEPT_QA_CASES: 1
+        run: node scripts/probe_strategic_interception.cjs
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: strategic-interception-triage
+          if-no-files-found: warn
+          path: |
+            closeups/strategic-interception-triage/
+            ${{ runner.temp }}/intercept-triage-php.log

@@ -197,7 +197,17 @@
   }
   function gatherStatic(sim, a, b, pad) {
     var idx = physicalIndex(sim);
-    if (!idx || idx.empty) return [];
+    var dynamic = ((sim.obstacles && sim.obstacles.__dynamicFootprints) || []).filter(function (fp) {
+      var e = footprintExtents(fp),
+        p = pad || 0;
+      return (
+        fp.x + e.x + p >= Math.min(a.x, b.x) &&
+        fp.x - e.x - p <= Math.max(a.x, b.x) &&
+        fp.z + e.z + p >= Math.min(a.z, b.z) &&
+        fp.z - e.z - p <= Math.max(a.z, b.z)
+      );
+    });
+    if (!idx || idx.empty) return dynamic;
     idx.epoch++;
     if (idx.epoch >= 2147483000) {
       idx.stamp.fill(0);
@@ -230,7 +240,7 @@
           out.push(idx.list[id]);
         }
       }
-    return out;
+    return dynamic.length ? out.concat(dynamic) : out;
   }
   function refreshOccupied(sim, force) {
     if (!sim) return (occupied = []);
@@ -858,12 +868,16 @@
     return exact ? (dist(cursor, end) <= GOAL_ARRIVAL ? raw : []) : densify(start, raw);
   }
 
-  N.movementClear = function (a, b) {
+  N.movementClear = function (a, b, options) {
     if (!baseMovementClear(a, b)) return false;
     var sim = currentSim();
     if (!sim) return true;
     var shapes = gatherStatic(sim, a, b, COLLISION_MARGIN + 0.8);
-    for (var i = 0; i < shapes.length; i++) if (shapeHit(a, b, shapes[i], COLLISION_MARGIN)) return false;
+    for (var i = 0; i < shapes.length; i++) {
+      // Only the carrier owner may exempt its own dynamic volume for seat/drive checks.
+      if (options && options.ignoreDynamicId === shapes[i].id && shapes[i].type === 'truck') continue;
+      if (shapeHit(a, b, shapes[i], COLLISION_MARGIN)) return false;
+    }
     return true;
   };
   /* The base wall slider only knows building walls. Validate its answer against the complete

@@ -208,6 +208,9 @@
   };
   var SURVIVAL_STATES = {
     pinned: 1,
+    // Withdrawal owns its incoming-fire posture and quiet-gap hold. Replacing
+    // it after arbitration makes crouch/stand commit twice on every tick.
+    withdraw: 1,
     cower: 1,
     freeze: 1,
     flee: 1,
@@ -334,7 +337,7 @@
        resets and stance history; the gait owner reads the same decision.
        This replaces drill-specified locomotion posture only for genuine
        authorized transit, never for a hold or preparation. */
-    if (E.settleTransitStance) E.settleTransitStance(s, sim, plan);
+    if (E.settleTransitStance) plan = E.settleTransitStance(s, sim, plan);
     else if (plan) E.commitStance(s, sim, plan.stance, 0.45, 'body-autonomy:' + plan.reason);
     if (!plan) return null;
     s._bodyAutonomyIntent = {

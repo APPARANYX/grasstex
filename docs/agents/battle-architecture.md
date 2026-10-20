@@ -10,6 +10,20 @@ file needs an entry there, which a reviewer sees; a fix that removes a writer mu
 `General (Macro) → Squad Leader (Meso) → Engagement → Movement Resolver → Movement Execution → Navigation`.
 Intent flows down and status flows up. No layer rewrites another's state.
 
+In the opt-in front-lines scenario, `BattleFrontLines.garrisonFor` is a read-only
+request for one present squad to secure the exposed held line; Force Command
+issues and releases the ordinary defense brief. Macro also considers nearby
+free transport for an existing accepted foot mission. Transport invalidates the
+suspended infantry navigation cache through Navigation, and the Squad Leader
+resumes its own route segment after either arrival or an interrupted ride.
+Capture zones count deployed infantry only: boarding/embarked passengers cannot
+capture, neutralize, or contest a flag while a truck crosses it. Screen transport
+keeps the secured objective as an explicit road junction before the forward post.
+Boarding requests an upright stance through Engagement before physically walking;
+Engagement retains HOLD/PRECISION preparation posture when another movement plan
+supersedes its hold proposal. Repeated fled detachments have distinct identities,
+including against retained empty squads in command history and diagnostics.
+
 **Fixed-policy baseline (October 2026; #360):** Genome v2 is stashed (`battle/ai-policy.js`), and
 commander *action doctrine* is independently disabled (`commander-doctrine.js`,
 `ACTION_DOCTRINE_ON = false`). The four legacy conditional action overrides do **not** decide
@@ -462,6 +476,8 @@ stance proposal until the Movement Resolver selects the actual intent. Individua
 a valid stance/gait replacement; otherwise Engagement commits its native fallback, including a
 recent-warning crouch, final cover approach or viable suppression crawl. Only the chosen stance
 is committed, so arbitration cannot create an intermediate stance change or restart aim twice.
+Withdrawal retains Engagement's incoming-fire posture and quiet-gap hold; Individuality does not
+replace that survival stance after the drill has committed it.
 `stepMovement` only shows the committed stance; another layer (the
 reload hook, module 44's drills) asks through `BattleEngagement.requestStance`, which only takes a man
 lower, or, as a drill running on Engagement's `afterDrill` slot, commits through `commitStance`

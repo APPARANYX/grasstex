@@ -718,7 +718,9 @@
         commanded: commanded,
         average: average,
         averageMembers: averageMembers,
+        movementExecutionCurrent: movementExecutionCurrent,
         ORDER_STRIDE: ORDER_STRIDE,
+        ORDER_ARRIVAL_RADIUS: ORDER_ARRIVAL_RADIUS,
         RETREAT_ANCHOR_LEASE: RETREAT_ANCHOR_LEASE,
         RETREAT_ANCHOR_ARRIVE: RETREAT_ANCHOR_ARRIVE,
         RETREAT_PROGRESS_EPS: RETREAT_PROGRESS_EPS,
@@ -1866,6 +1868,13 @@
      endRecon) so every dependency is in scope. The returned functions are attached as
      closure variables so the commander tick and the public API export see the same
      functions as before. */
+  function resumeTransportFormation(sq, pos) {
+    // Carrier travel invalidates the old formation frame. Meso owns the new
+    // anchor and personal orders; Reception must deliver those orders normally.
+    publishAnchor(sq, pos);
+    sq._fireteamOrders = {};
+    sq._orderGoal = null;
+  }
   var _me = root._squadLeaderMissionExecution
     ? root._squadLeaderMissionExecution({
         root: root,
@@ -1880,6 +1889,7 @@
         missionVersion: missionVersion,
         setPhase: setPhase,
         closePlan: closePlan,
+        resumeTransportFormation: resumeTransportFormation,
         reconCandidate: reconCandidate,
         startRecon: startRecon,
         endRecon: endRecon,
@@ -2215,6 +2225,10 @@
       var a = (sim.factions && sim.factions[f] && sim.factions[f].squads) || [];
       for (var i = 0; i < a.length; i++) {
         var q = a[i];
+        /* A completed embark grants the carrier sole movement/post ownership;
+           do not rewrite fireteam and soldier destinations during road travel.
+           Boarding still runs this Meso loop to accept the Macro brief. */
+        if (q._transport && q._transport.phase === 'embarked') continue;
         if (_lp && _lp.on) _lp.update(sim, q);
         if (_postures && _postures.on) _postures.update(sim, q);
         updateCohesion(sim, q);

@@ -57,8 +57,13 @@ code{color:var(--accent)}
   <div class="stat"><span>RearWheels nodes</span><strong id="rearCount">—</strong></div>
   <div class="stat"><span>Vehicle materials</span><strong id="materialCount">—</strong></div>
   <label class="row"><span>Double-sided truck materials</span><input id="doubleSided" type="checkbox" checked></label>
-  <p class="help">Shows both sides of imported surfaces (including interior panels) and lights their backs. If an area remains black, inspect its material/texture or missing mesh faces.</p>
-  <p class="help">Wheel groups are preserved. Optional rotation below is a pivot diagnostic: if the collections do not have axle-centered pivots, the wheels can orbit instead of spin.</p>
+  <p class="help">Displays both sides of panels. Use the surface diagnostic below to distinguish unlit polygons from gaps and texture issues.</p>
+  <h2>Surface diagnostics</h2>
+  <label class="row"><span>Unlit truck preview</span><input id="unlitVehicle" type="checkbox"></label>
+  <label class="row"><span>Contrast background for holes</span><input id="contrastGaps" type="checkbox"></label>
+  <button id="inspectSurface">Inspect dark surface</button>
+  <pre id="surfaceReport" class="help" style="white-space:pre-wrap;word-break:break-word">Click Inspect and then a dark area of the truck to identify its mesh, material, UV and texture data.</pre>
+  <p class="help">Calibrate the front and rear axle centers below to spin both wheel groups around their own axle lines.</p>
   <h2>2 — Soldiers & truck clips</h2>
   <label>Soldier model<select id="soldierSelect"><option value="">Loading soldiers…</option></select></label>
   <label>Or open local soldier FBX<input id="soldierFile" type="file" accept=".fbx"></label>
@@ -68,11 +73,20 @@ code{color:var(--accent)}
   <button id="showCrew" class="primary">Show full crew (driver + 3 passengers)</button>
   <button id="refreshOccupants">Refresh occupied soldiers</button>
   <p class="help">One click selects the German paratrooper model (if available), occupies the starter seats, and assigns Driving / Sitting 1–3. Use Seat authoring to adjust each person. Other soldier models can be selected above.</p>
-  <h2>3 — Wheel/pivot diagnostic</h2>
-  <label class="row"><span>Test group rotation</span><input id="spinWheels" type="checkbox"></label>
-  <label>Rotation axis<select id="wheelAxis"><option value="x">X axle</option><option value="z">Z axle</option></select></label>
+  <h2>3 — Axle pivot calibration</h2>
+  <p class="help">Auto-estimated from each wheel group's geometry. Adjust the hub location in truck-local metres while keeping the visible wheels stationary.</p>
+  <label>Axle<select id="axleSelect"><option value="front">Front axle</option><option value="rear">Rear axle</option></select></label>
+  <div class="cols3">
+    <label>X metres<input id="axleX" type="number" step=".025"></label>
+    <label>Y metres<input id="axleY" type="number" step=".025"></label>
+    <label>Z metres<input id="axleZ" type="number" step=".025"></label>
+  </div>
+  <label>Rotation axis<select id="axleAxis"><option value="x">X (left-right axle)</option><option value="z">Z (front-back axle)</option></select></label>
+  <div class="row"><button id="pickAxle">Pick on wheel</button><button id="resetAxle">Auto-center</button></div>
+  <label class="row"><span>Show axle markers</span><input id="showAxleMarkers" type="checkbox" checked></label>
+  <label class="row"><span>Test wheel rotation</span><input id="spinWheels" type="checkbox"></label>
   <label>Spin (°/s): <span id="wheelRateLabel">180</span><input id="wheelRate" type="range" min="0" max="900" step="30" value="180"></label>
-  <p class="help warn">Diagnostic only. Turn off if the assemblies orbit instead of spin: each wheel assembly then needs corrected pivots in Blender.</p>
+  <p class="help">Clicking a wheel gives a surface point; fine-tune Y/Z (and X if needed) to put the center at the true axle. Export JSON to preserve both calibrated axles.</p>
   <h2>4 — Movement diagnostic</h2>
   <label class="row"><span>Move truck</span><input id="moving" type="checkbox"></label>
   <label>Speed (m/s): <span id="speedLabel">3.0</span><input id="speed" type="range" min="0" max="20" step=".5" value="3"></label>
@@ -149,7 +163,9 @@ const state={
   meshes:[],soldierName:'',soldierFile:null,
   clips:new Map(),seats:[],selected:0,actorEpoch:0,loadEpoch:0,
   markers:new Map(),picking:false,wheelGroups:{front:[],rear:[]},
-  wheelBase:new Map(),wheelAngle:0,
+  axleRig:{front:null,rear:null}, axles:{front:null,rear:null},
+  axleMarkers:new Map(),wheelAngle:0,
+  pickingAxle:false,inspectSurface:false,
   vehicleMaterials:new Map()
 };
 function status(message,error=false){$('status').textContent=message;$('status').className=error?'error':'';if(error)console.warn('[Vehicle Lab]',message);}
@@ -188,6 +204,61 @@ function setVehicleDoubleSided(enabled){
   }
 }
 $('doubleSided').onchange=()=>setVehicleDoubleSided($('doubleSided').checked);
+function setVehicleUnlit(enabled){
+  // Diagnostic only: preserve each imported material's original lighting mode.
+  for(const [material,original] of state.vehicleMaterials){
+    if(material.isDisposed&&material.isDisposed())continue;
+    if('disableLighting' in material)material.disableLighting=enabled?true:original.disableLighting;
+    if('unlit' in material)material.unlit=enabled?true:original.unlit;
+    if(typeof material.markAsDirty==='function')material.markAsDirty(BABYLON.Material.AllDirtyFlag);
+  }
+}
+$('unlitVehicle').onchange=()=>setVehicleUnlit($('unlitVehicle').checked);
+$('contrastGaps').onchange=()=>{
+  if($('contrastGaps').checked){
+    scene.clearColor=new BABYLON.Color4(.32,.09,.26,1);
+    groundMat.diffuseColor=new BABYLON.Color3(.3,.075,.23);
+  }else{
+    scene.clearColor=new BABYLON.Color4(.032,.06,.085,1);
+    groundMat.diffuseColor=new BABYLON.Color3(.045,.08,.09);
+  }
+};
+function inspectTruckPick(pick){
+  const target=$('surfaceReport');
+  if(!pick.hit||!pick.pickedMesh){
+    target.textContent='No truck triangle hit at this location. This is likely an open gap, a culled/transparent surface, or the visible background.';
+    status('No truck surface at selected pixel. Try Contrast background for holes.');
+    return;
+  }
+  const mesh=pick.pickedMesh,source=mesh.material;
+  const submesh=mesh.subMeshes?.[pick.subMeshId];
+  const material=Array.isArray(source?.subMaterials)?
+    source.subMaterials[submesh?.materialIndex??0]||source:source;
+  const color=material?.diffuseColor||material?.albedoColor;
+  const names=(material?.getActiveTextures?.()||[]).map(t=>t.name||t.url||'unnamed').filter(Boolean);
+  const hasUv=mesh.isVerticesDataPresent?.(BABYLON.VertexBuffer.UVKind);
+  const hasNormals=mesh.isVerticesDataPresent?.(BABYLON.VertexBuffer.NormalKind);
+  target.textContent=[
+    'Mesh: '+mesh.name,
+    'Material: '+(material?.name||'(none)')+' / '+(material?.getClassName?.()||'unknown'),
+    'Diffuse/albedo: '+(color?.toHexString?.()||'not set'),
+    'Albedo texture: '+(material?.albedoTexture?.name||material?.diffuseTexture?.name||'none'),
+    'All textures: '+(names.join(', ')||'none'),
+    'UV coordinates: '+(hasUv?'yes':'NO'),
+    'Vertex normals: '+(hasNormals?'yes':'NO'),
+    'Transparency: '+(material?.alpha??'none'),
+    'Backface culling: '+(material?.backFaceCulling??'unknown'),
+    'Unlit diagnostic: '+($('unlitVehicle').checked?'ON':'off')
+  ].join('\n');
+  status('Surface inspected: '+mesh.name+'. Review material and UV details.');
+}
+$('inspectSurface').onclick=()=>{
+  if(!state.vehicleRoot){status('Load the truck before inspecting surfaces.',true);return;}
+  state.inspectSurface=!state.inspectSurface;state.picking=false;state.pickingAxle=false;
+  $('pickSeat').textContent='Click truck to position seat';
+  $('pickAxle').textContent='Pick on wheel';
+  $('inspectSurface').textContent=state.inspectSurface?'Click dark truck surface…':'Inspect dark surface';
+};
 function disposeResult(result){
   if(!result)return;
   (result.animationGroups||[]).forEach(g=>{try{g.stop();g.dispose();}catch(e){}});
@@ -229,12 +300,23 @@ function disposeActor(seat){
 }
 function clearVehicle(){
   state.actorEpoch++;state.seats.forEach(disposeActor);
+  resetWheelRotation();
+  for(const rig of Object.values(state.axleRig)){
+    if(rig?.pivot&&!rig.pivot.isDisposed())rig.pivot.dispose(false,false);
+  }
+  for(const marker of state.axleMarkers.values()){
+    if(marker.isDisposed())continue;
+    const material=marker.material;
+    marker.dispose(false,false); // includes the attached axle guide line
+    if(material&&!material.isDisposed())material.dispose();
+  }
+  state.axleMarkers.clear();state.axleRig={front:null,rear:null};state.axles={front:null,rear:null};
   [...state.markers.values()].forEach(m=>m.dispose(false,true));
   state.markers.clear();
   disposeResult(state.vehicleResult);
   if(state.vehicleRoot)state.vehicleRoot.dispose(false,false);
   state.vehicleResult=null;state.vehicleRoot=null;state.vehicleVisual=null;
-  state.meshes=[];state.wheelGroups={front:[],rear:[]};state.wheelBase.clear();state.wheelAngle=0;
+  state.meshes=[];state.wheelGroups={front:[],rear:[]};state.wheelAngle=0;
   state.vehicleMaterials.clear();$('materialCount').textContent='—';
   $('spinWheels').checked=false;
   state.seats=[];state.selected=0;
@@ -250,19 +332,118 @@ function ensureSeats(){
   ];
   state.selected=0;
 }
+function autoWheelCenter(nodes){
+  if(!nodes.length||!state.vehicleRoot)return null;
+  // The roots may themselves be empty transform nodes. Include every descendant mesh;
+  // measured world bounds include the vehicle's normalized 6.2-metre visual scale.
+  const meshes=state.meshes.filter(mesh=>
+    nodes.some(node=>mesh===node||mesh.isDescendantOf(node)));
+  const groupBounds=bounds(meshes);
+  if(!groupBounds)return null;
+  state.vehicleRoot.computeWorldMatrix(true);
+  const inverse=state.vehicleRoot.getWorldMatrix().clone().invert();
+  const local=BABYLON.Vector3.TransformCoordinates(groupBounds.center,inverse);
+  return [local.x,local.y,local.z].map(v=>+v.toFixed(4));
+}
+function axleMarker(side){
+  if(state.axleMarkers.has(side))return state.axleMarkers.get(side);
+  const marker=BABYLON.MeshBuilder.CreateSphere('axle-center-'+side,{diameter:.18},scene);
+  const material=new BABYLON.StandardMaterial('axle-center-material-'+side,scene);
+  material.disableLighting=true;
+  material.emissiveColor=side==='front'?
+    new BABYLON.Color3(1,.65,.12):new BABYLON.Color3(.34,.7,1);
+  marker.material=material;
+  marker.isPickable=false;
+  marker.parent=state.vehicleRoot;
+  const line=BABYLON.MeshBuilder.CreateLines('axle-line-'+side,{
+    points:[new BABYLON.Vector3(-1.7,0,0),new BABYLON.Vector3(1.7,0,0)]
+  },scene);
+  line.color=material.emissiveColor;
+  line.parent=marker;
+  line.isPickable=false;
+  state.axleMarkers.set(side,marker);
+  return marker;
+}
+function updateAxleMarkers(){
+  for(const side of ['front','rear']){
+    const cfg=state.axles[side], marker=state.axleMarkers.get(side);
+    if(!cfg||!marker)continue;
+    marker.position.copyFrom(vec(cfg.center));
+    marker.setEnabled($('showAxleMarkers').checked);
+    marker.getChildren().forEach(n=>{if(n.name.startsWith('axle-line-'))n.rotation.y=cfg.axis==='z'?Math.PI/2:0;});
+  }
+}
+function showAxleEditor(){
+  const cfg=state.axles[$('axleSelect').value],present=!!cfg;
+  for(const id of ['axleX','axleY','axleZ','axleAxis','pickAxle','resetAxle'])$(id).disabled=!present;
+  if(present){
+    ['axleX','axleY','axleZ'].forEach((id,i)=>{$(id).value=cfg.center[i].toFixed(4);});
+    $('axleAxis').value=cfg.axis;
+  }else{
+    ['axleX','axleY','axleZ'].forEach(id=>{$(id).value='';});
+  }
+  updateAxleMarkers();
+}
 function findWheelGroups(result){
   const nodes=[...(result.meshes||[]),...(result.transformNodes||[])];
-  const group=(name)=>nodes.filter(n=>n.name===name||n.name.startsWith(name+'_')||n.name.startsWith(name+'.'));
-  state.wheelGroups={front:group('FrontWheels'),rear:group('RearWheels')};
-  state.wheelBase.clear();
-  for(const node of [...state.wheelGroups.front,...state.wheelGroups.rear]){
-    const base=node.rotationQuaternion?
-      node.rotationQuaternion.clone():
-      BABYLON.Quaternion.RotationYawPitchRoll(node.rotation.y,node.rotation.x,node.rotation.z);
-    state.wheelBase.set(node,base);
+  const candidates=(name)=>nodes.filter(n=>
+    n.name===name||n.name.startsWith(name+'_')||n.name.startsWith(name+'.'));
+  const roots=(name)=>{
+    const matched=candidates(name),set=new Set(matched);
+    // Never pivot both a matched group and its child: that rotates a child twice.
+    return matched.filter(node=>{
+      for(let parent=node.parent;parent;parent=parent.parent)if(set.has(parent))return false;
+      return true;
+    });
+  };
+  state.wheelGroups={front:roots('FrontWheels'),rear:roots('RearWheels')};
+  for(const side of ['front','rear']){
+    const groupRoots=state.wheelGroups[side];
+    if(!groupRoots.length)continue;
+    const autoCenter=autoWheelCenter(groupRoots);
+    if(!autoCenter){
+      console.warn('[Vehicle Lab] Could not measure '+side+' wheel geometry.');
+      continue;
+    }
+    const pivot=new BABYLON.TransformNode(side+'AxlePivot',scene);
+    pivot.parent=state.vehicleRoot;
+    pivot.position.copyFrom(vec(autoCenter));
+    pivot.rotationQuaternion=BABYLON.Quaternion.Identity();
+    pivot.computeWorldMatrix(true);
+    for(const node of groupRoots){
+      // Babylon setParent preserves each root's world transform. Rotating the new
+      // parent therefore spins the entire axle about the authored pivot without
+      // altering import transforms or any non-wheel truck meshes.
+      node.setParent(pivot);
+    }
+    state.axleRig[side]={pivot,roots:groupRoots};
+    state.axles[side]={center:autoCenter.slice(),autoCenter:autoCenter.slice(),axis:'x'};
+    axleMarker(side);
   }
   $('frontCount').textContent=state.wheelGroups.front.length;
   $('rearCount').textContent=state.wheelGroups.rear.length;
+  showAxleEditor();
+}
+function resetWheelRotation(){
+  state.wheelAngle=0;
+  for(const rig of Object.values(state.axleRig)){
+    if(rig?.pivot&&!rig.pivot.isDisposed())rig.pivot.rotationQuaternion=BABYLON.Quaternion.Identity();
+  }
+}
+function setAxleCenter(side,center){
+  const cfg=state.axles[side],rig=state.axleRig[side];
+  if(!cfg||!rig)return false;
+  if(!Array.isArray(center)||center.length!==3||
+    center.some(v=>typeof v!=='number'||!Number.isFinite(v)||Math.abs(v)>1000))return false;
+  resetWheelRotation();
+  const next=vec(center),delta=next.subtract(vec(cfg.center));
+  // The pivot's orientation is identity after reset, so shifting its child
+  // positions by the inverse delta preserves every visible wheel position.
+  for(const node of rig.roots)node.position.subtractInPlace(delta);
+  rig.pivot.position.copyFrom(next);
+  cfg.center=center.slice();
+  updateAxleMarkers();
+  return true;
 }
 async function importBinary(file,label,ext){
   return BABYLON.SceneLoader.ImportMeshAsync('','file:',file,scene,undefined,ext);
@@ -307,10 +488,14 @@ async function loadVehicle(){
     enumerateVehicleMaterials(state.meshes).forEach(material=>{
       state.vehicleMaterials.set(material,{
         backFaceCulling:material.backFaceCulling,
-        twoSidedLighting:material.twoSidedLighting
+        twoSidedLighting:material.twoSidedLighting,
+        disableLighting:material.disableLighting,
+        unlit:material.unlit
       });
     });
     setVehicleDoubleSided($('doubleSided').checked);
+    setVehicleUnlit($('unlitVehicle').checked);
+    $('surfaceReport').textContent='Click Inspect and then a dark surface. No hit indicates open space or a non-pickable polygon.';
     $('materialCount').textContent=state.vehicleMaterials.size;
     findWheelGroups(result);
     $('meshCount').textContent=state.meshes.length;
@@ -399,24 +584,91 @@ $('removeSeat').onclick=()=>{
   disposeActor(seat);state.seats.splice(state.selected,1);
   state.selected=Math.max(0,Math.min(state.selected,state.seats.length-1));drawSeats();
 };
-$('pickSeat').onclick=()=>{state.picking=!state.picking;$('pickSeat').textContent=state.picking?'Click a truck surface…':'Click truck to position seat';};
+function cancelPickTools(){
+  state.picking=false;state.pickingAxle=false;state.inspectSurface=false;
+  $('pickSeat').textContent='Click truck to position seat';
+  $('pickAxle').textContent='Pick on wheel';
+  $('inspectSurface').textContent='Inspect dark surface';
+}
+$('pickSeat').onclick=()=>{
+  const enable=!state.picking;
+  cancelPickTools();
+  state.picking=enable;
+  $('pickSeat').textContent=enable?'Click truck surface…':'Click truck to position seat';
+};
+$('pickAxle').onclick=()=>{
+  if(!state.axles[$('axleSelect').value]){
+    status('Selected wheel group has no imported meshes or named nodes.',true);return;
+  }
+  const enable=!state.pickingAxle;
+  cancelPickTools();
+  state.pickingAxle=enable;
+  $('pickAxle').textContent=enable?'Click an axle hub…':'Pick on wheel';
+};
+$('axleSelect').onchange=showAxleEditor;
+$('showAxleMarkers').onchange=updateAxleMarkers;
+$('axleAxis').onchange=()=>{
+  const cfg=state.axles[$('axleSelect').value];if(!cfg)return;
+  resetWheelRotation();
+  cfg.axis=$('axleAxis').value;
+  updateAxleMarkers();
+  status('Updated '+$('axleSelect').value+' axle axis to '+cfg.axis.toUpperCase()+'.');
+};
+for(const id of ['axleX','axleY','axleZ']){
+  $(id).onchange=()=>{
+    const side=$('axleSelect').value;
+    const center=['axleX','axleY','axleZ'].map(key=>Number($(key).value));
+    if(!center.every(Number.isFinite)||!setAxleCenter(side,center)){
+      status('Invalid axle center. Enter three finite metre coordinates.',true);return;
+    }
+    showAxleEditor();
+    status('Calibrated '+side+' axle center; wheel geometry remains in place.');
+  };
+}
+$('resetAxle').onclick=()=>{
+  const side=$('axleSelect').value,cfg=state.axles[side];
+  if(!cfg)return;
+  setAxleCenter(side,cfg.autoCenter);
+  showAxleEditor();
+  status('Restored '+side+' axle to its measured geometry center.');
+};
 let down=null;
 canvas.addEventListener('pointerdown',e=>{down=[e.clientX,e.clientY];});
 canvas.addEventListener('pointerup',e=>{
-  if(!state.picking||!state.vehicleRoot||!down)return;
+  if(!(state.picking||state.pickingAxle||state.inspectSurface)||!state.vehicleRoot||!down)return;
   const dx=e.clientX-down[0],dy=e.clientY-down[1];down=null;
-  if(dx*dx+dy*dy>25)return;
+  if(dx*dx+dy*dy>25)return; // camera orbit, not a selection
   const rect=canvas.getBoundingClientRect();
   const pick=scene.pick(e.clientX-rect.left,e.clientY-rect.top,m=>state.meshes.includes(m));
-  if(!pick.hit||!pick.pickedPoint){status('Click a visible truck surface.',true);return;}
-  const seat=state.seats[state.selected];if(!seat)return;
+  if(state.inspectSurface){
+    inspectTruckPick(pick);
+    cancelPickTools();
+    return;
+  }
+  if(!pick.hit||!pick.pickedPoint){status('No visible truck triangle at this click.',true);return;}
   state.vehicleRoot.computeWorldMatrix(true);
   const inverse=state.vehicleRoot.getWorldMatrix().clone().invert();
-  const p=BABYLON.Vector3.TransformCoordinates(pick.pickedPoint,inverse);
-  seat.position=[p.x,p.y,p.z].map(v=>Math.round(v*1000)/1000);
-  syncActorTransform(seat);state.picking=false;
-  $('pickSeat').textContent='Click truck to position seat';
-  drawSeats();status('Seat placed from truck-surface hit. Adjust Y and facing for the animation.');
+  const point=BABYLON.Vector3.TransformCoordinates(pick.pickedPoint,inverse);
+  const local=[point.x,point.y,point.z].map(v=>Math.round(v*1000)/1000);
+  if(state.pickingAxle){
+    const side=$('axleSelect').value,rig=state.axleRig[side];
+    if(!rig)return;
+    const selectedWheel=rig.roots.some(root=>pick.pickedMesh===root||pick.pickedMesh.isDescendantOf(root));
+    if(!selectedWheel){
+      status('That surface is not in '+side+' wheel group. Click a wheel hub to calibrate this axle.',true);
+      return;
+    }
+    setAxleCenter(side,local);
+    cancelPickTools();showAxleEditor();
+    status('Picked '+side+' wheel surface; adjust X/Y/Z to the exact axle center.');
+    return;
+  }
+  const seat=state.seats[state.selected];if(!seat)return;
+  seat.position=local;
+  syncActorTransform(seat);
+  cancelPickTools();
+  drawSeats();
+  status('Seat placed on truck surface; adjust Y/yaw for the animation.');
 });
 async function selectedSoldierFile(){
   if(state.soldierFile)return state.soldierFile;
@@ -573,21 +825,15 @@ $('showCrew').onclick=async()=>{
   finally{$('showCrew').disabled=false;}
 };
 $('wheelRate').oninput=()=>{$('wheelRateLabel').textContent=$('wheelRate').value;};
-function resetWheelRotation(){
-  state.wheelAngle=0;
-  for(const [node,base] of state.wheelBase){
-    if(node.isDisposed())continue;
-    node.rotationQuaternion=base.clone();
-  }
-}
 $('spinWheels').onchange=()=>{
-  if(!$('spinWheels').checked)resetWheelRotation();
-  else if(!state.wheelBase.size){
+  if(!$('spinWheels').checked){
+    resetWheelRotation();return;
+  }
+  if(!Object.values(state.axleRig).some(Boolean)){
     $('spinWheels').checked=false;
-    status('No named FrontWheels or RearWheels transform nodes were imported. Verify the export hierarchy.',true);
+    status('No axle pivot available. Confirm the truck contains FrontWheels or RearWheels.',true);
   }
 };
-$('wheelAxis').onchange=resetWheelRotation;
 $('speed').oninput=()=>{$('speedLabel').textContent=(+$('speed').value).toFixed(1);};
 $('steer').oninput=()=>{$('steerLabel').textContent=$('steer').value;};
 $('stopVehicle').onclick=()=>{
@@ -596,13 +842,35 @@ $('stopVehicle').onclick=()=>{
 };
 const STORAGE_KEY='grasstex.vehicle-seats.v1';
 function serialize(){
-  return {version:1,vehicle:state.vehicleName,units:'vehicle-local-metres',seats:state.seats.map(s=>({
-    name:s.name,role:s.role,position:s.position.map(n=>+n.toFixed(4)),
-    yaw:+s.yaw.toFixed(3),occupied:s.occupied,clip:s.clip
-  }))};
+  const axles={};
+  for(const side of ['front','rear']){
+    const cfg=state.axles[side];
+    if(cfg)axles[side]={center:cfg.center.map(v=>+v.toFixed(4)),axis:cfg.axis};
+  }
+  return {version:2,vehicle:state.vehicleName,units:'vehicle-local-metres',axles,
+    seats:state.seats.map(s=>({
+      name:s.name,role:s.role,position:s.position.map(n=>+n.toFixed(4)),
+      yaw:+s.yaw.toFixed(3),occupied:s.occupied,clip:s.clip
+    }))
+  };
 }
 function validConfig(value){
-  if(!value||value.version!==1||!Array.isArray(value.seats)||value.seats.length>40)throw new Error('Invalid seat schema or >40 seats.');
+  if(!value||![1,2].includes(value.version)||!Array.isArray(value.seats)||value.seats.length>40)
+    throw new Error('Invalid seat configuration schema or >40 seats.');
+  if(value.units&&value.units!=='vehicle-local-metres')throw new Error('Unexpected coordinate units.');
+  const axles={};
+  if(value.version===2&&value.axles!=null){
+    if(typeof value.axles!=='object'||Array.isArray(value.axles))throw new Error('Invalid axles object.');
+    for(const side of ['front','rear']){
+      const cfg=value.axles[side];
+      if(cfg==null)continue;
+      if(!Array.isArray(cfg.center)||cfg.center.length!==3||
+        cfg.center.some(v=>typeof v!=='number'||!Number.isFinite(v)||Math.abs(v)>1000))
+        throw new Error('Invalid '+side+' axle coordinates.');
+      if(cfg.axis!=='x'&&cfg.axis!=='z')throw new Error('Invalid '+side+' axle axis.');
+      axles[side]={center:cfg.center.slice(),axis:cfg.axis};
+    }
+  }
   const seats=value.seats.map((s,i)=>{
     if(!Array.isArray(s.position)||s.position.length!==3||s.position.some(n=>typeof n!=='number'||!Number.isFinite(n)||Math.abs(n)>1000))
       throw new Error('Seat '+(i+1)+' has invalid coordinates.');
@@ -611,14 +879,24 @@ function validConfig(value){
     if(typeof s.clip!=='string'||s.clip.length>200||/[\/\\]/.test(s.clip))throw new Error('Seat '+(i+1)+' has invalid clip filename.');
     return localSeat(String(s.name||'Seat').slice(0,80),s.role,...s.position,s.yaw,!!s.occupied,s.clip);
   });
-  return seats;
+  return {seats,axles};
 }
 function applyConfig(value){
-  const seats=validConfig(value);
-  if(value.vehicle&&state.vehicleName&&value.vehicle!==state.vehicleName)throw new Error('Calibration is for '+value.vehicle+', not '+state.vehicleName+'.');
+  const config=validConfig(value);
+  if(value.vehicle&&state.vehicleName&&value.vehicle!==state.vehicleName)
+    throw new Error('Calibration is for '+value.vehicle+', not '+state.vehicleName+'.');
+  if(Object.keys(config.axles).length&&!state.vehicleRoot)
+    throw new Error('Load the matching vehicle before importing axle calibration.');
   state.actorEpoch++;state.seats.forEach(disposeActor);
-  state.seats=seats;state.selected=0;drawSeats();
-  status('Imported '+seats.length+' seat anchors. Use Refresh occupied soldiers to preview animation poses.');
+  state.seats=config.seats;state.selected=0;
+  for(const [side,entry] of Object.entries(config.axles)){
+    if(state.axleRig[side]){
+      setAxleCenter(side,entry.center);
+      state.axles[side].axis=entry.axis;
+    }
+  }
+  showAxleEditor();drawSeats();
+  status('Imported '+config.seats.length+' seats and '+Object.keys(config.axles).length+' axle calibration(s). Refresh occupants to preview poses.');
 }
 $('saveLocal').onclick=()=>{
   try{localStorage.setItem(STORAGE_KEY,JSON.stringify(serialize()));status('Seat positions saved in this browser.');}
@@ -633,7 +911,7 @@ $('exportJson').onclick=()=>{
   const url=URL.createObjectURL(new Blob([json],{type:'application/json'}));
   const a=document.createElement('a');a.href=url;a.download=(state.vehicleName||'vehicle').replace(/\.(fbx|glb)$/i,'')+'-seats.json';
   a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
-  status('Seat JSON downloaded. This file is not automatically deployed.');
+  status('Vehicle calibration JSON downloaded (seats and axle pivots). This file is not automatically deployed.');
 };
 $('importButton').onclick=()=>$('importJson').click();
 $('importJson').onchange=async()=>{
@@ -643,12 +921,13 @@ $('importJson').onchange=async()=>{
 };
 scene.onBeforeRenderObservable.add(()=>{
   const dt=Math.min(engine.getDeltaTime()/1000,.05);
-  if($('spinWheels').checked&&state.wheelBase.size){
-    state.wheelAngle+=finite($('wheelRate').value)*Math.PI/180*dt;
-    const axis=$('wheelAxis').value==='z'?BABYLON.Axis.Z:BABYLON.Axis.X;
-    const turn=BABYLON.Quaternion.RotationAxis(axis,state.wheelAngle);
-    for(const [node,base] of state.wheelBase){
-      if(!node.isDisposed())node.rotationQuaternion=base.multiply(turn);
+  if($('spinWheels').checked){
+    state.wheelAngle=(state.wheelAngle+finite($('wheelRate').value)*Math.PI/180*dt)%(Math.PI*2);
+    for(const side of ['front','rear']){
+      const rig=state.axleRig[side],cfg=state.axles[side];
+      if(!rig||!cfg||rig.pivot.isDisposed())continue;
+      const axis=cfg.axis==='z'?BABYLON.Axis.Z:BABYLON.Axis.X;
+      rig.pivot.rotationQuaternion=BABYLON.Quaternion.RotationAxis(axis,state.wheelAngle);
     }
   }
   if(!$('moving').checked||!state.vehicleRoot)return;

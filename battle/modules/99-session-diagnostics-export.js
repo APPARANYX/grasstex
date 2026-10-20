@@ -709,6 +709,32 @@
       };
     });
   }
+  /* Transport telemetry belongs in BOTH downloads so an apparent half-route
+     dismount can be distinguished from the planned 180 m final foot approach,
+     a contact abort or a blocked road. Read-only: never invokes planning. */
+  function strategicTransportSnapshot(sim) {
+    var transport = root.BattleSquadTransport;
+    if (!transport || typeof transport.summary !== 'function') return null;
+    try {
+      return {
+        tuning: transport.tuning || null,
+        squads: safePlain(transport.summary(sim), 5),
+        fleet: transport.fleetSummary ? safePlain(transport.fleetSummary(sim), 5) : null
+      };
+    } catch (_) {
+      return null;
+    }
+  }
+  function strategicPlanningSnapshot(sim) {
+    var I = root.BattleStrategicInterception;
+    if (!I && !sim._strategicInterception && !sim._strategicAerialRecon) return null;
+    // Read existing owner records: an export cannot request recon or issue missions.
+    return {
+      interceptionEnabled: !!(I && I.enabled(sim)),
+      aerialRecon: safePlain(sim._strategicAerialRecon, 8) || null,
+      interception: safePlain(sim._strategicInterception, 8) || null
+    };
+  }
   function diagnosticFields(sim) {
     var out = {},
       deny = {
@@ -807,6 +833,8 @@
       },
       modules: systems,
       objectives: objectives(sim),
+      strategicTransport: strategicTransportSnapshot(sim),
+      strategicPlanning: strategicPlanningSnapshot(sim),
       objectiveControl: safePlain(sim.objectiveControl, 6),
       objectiveHold: safePlain(sim.objectiveHold, 4),
       ammunition: ammo,
@@ -1025,6 +1053,26 @@
       }
     };
   }
+  /* Read runtime side doctrine: identical seeds may be played in meeting
+     and prepared-defense modes. Do not infer mode from a UI checkbox. */
+  function deploymentOf(sim) {
+    var sides = sim && sim._sides;
+    return {
+      mode: !sides ? 'unknown' : sides.meeting ? 'meeting' : 'prepared-defender',
+      defender: (sides && sides.defender) || null,
+      attacker: (sides && sides.attacker) || null
+    };
+  }
+  function deploymentLabel(deployment) {
+    if (!deployment || deployment.mode === 'unknown') return 'Unknown';
+    if (deployment.mode === 'meeting') return 'Meeting engagement (both sides attack)';
+    return (
+      String(deployment.defender || '?').toUpperCase() +
+      ' prepared defender; ' +
+      String(deployment.attacker || '?').toUpperCase() +
+      ' attacker'
+    );
+  }
   function compactSnapshot(sim) {
     sim = sim || activeSim || root.__battle__;
     if (!sim) throw new Error('No active battle simulation');
@@ -1049,6 +1097,7 @@
       build: root.BATTLE_BUILD || root.BATTLE_BUILD_DEPLOYED || 'dev',
       ref: root.BATTLE_REF || null,
       seed: scenario.seed || sim.seed || null,
+      deployment: deploymentOf(sim),
       battle: {
         time: finite(+sim.time),
         timeLimit: finite(+sim.timeLimit),
@@ -1067,6 +1116,8 @@
         }
       },
       objectives: objectives(sim),
+      strategicTransport: strategicTransportSnapshot(sim),
+      strategicPlanning: strategicPlanningSnapshot(sim),
       reconstitution: safePlain(sim._macroMissionState && sim._macroMissionState.reconstitution, 5),
       commandReception:
         root.BattleCommandReception && root.BattleCommandReception.telemetry
@@ -1122,6 +1173,7 @@
       '- Build: ' + mdValue(payload.build),
       '- Ref: ' + mdValue(payload.ref),
       '- Seed: ' + mdValue(payload.seed),
+      '- Deployment: ' + deploymentLabel(payload.deployment),
       '- Battle time: ' + mdValue(payload.battle.time) + ' s',
       '- Winner: ' + mdValue(payload.battle.winner),
       '- Win reason: ' + mdValue(payload.battle.winReason),
@@ -1186,6 +1238,12 @@
       '## Reconstitution',
       '',
       markdownJson(payload.reconstitution),
+      '## Strategic transport',
+      '',
+      markdownJson(payload.strategicTransport),
+      '## Strategic planning',
+      '',
+      markdownJson(payload.strategicPlanning),
       '## Command Reception',
       '',
       markdownJson(payload.commandReception),
@@ -1246,6 +1304,7 @@
         build: payload.build,
         ref: payload.ref,
         seed: payload.seed,
+        deployment: payload.deployment || null,
         battle: payload.battle,
         sampleSeconds: timeline.sampleSeconds
       })
@@ -1256,6 +1315,18 @@
     (timeline.markers || []).forEach(function (marker) {
       rows.push(JSON.stringify({ type: 'marker', data: marker }));
     });
+    if (payload.strategicTransport || payload.strategicPlanning)
+      rows.push(
+        JSON.stringify({
+          type: 'strategic-snapshot',
+          data: {
+            format: 'grasstex-strategic-snapshot-v1',
+            time: payload.battle.time,
+            transport: payload.strategicTransport,
+            planning: payload.strategicPlanning
+          }
+        })
+      );
     if (payload.observations)
       rows.push(JSON.stringify({ type: 'tactical-snapshot', data: payload.observations }));
     if (timeline.observations) {

@@ -78,9 +78,9 @@ $apiBase='/grasstex/';
    exception. Same-origin is also correct for the deployed copy, where /grasstex/Assets/ is the
    same directory this loader lives beside. */
 $assetBase=$apiBase.'Assets/';$audioBase=$assetBase.'audio/';
-/* A preview Assets/ tree is a thin overlay: changed soldier/clip files live
-   beside the branch runtime while all other assets are resolved to production
-   through the preview-only .htaccess. Old full-asset previews keep working. */
+/* A branch preview Assets/ tree is a thin overlay: changed FBX/GLB/clip
+   files are local to the branch, all other files resolve to production via
+   this preview's .htaccess. Legacy previews with copied assets still work. */
 $thinAssetOverlay=$preview && is_file($root.'/asset-overlay.json') && is_file($root.'/Assets/.htaccess');
 $soldierAssetBase=($thinAssetOverlay || is_dir($root.'/Assets/soldiers'))?$runtimeBase.'Assets/':$assetBase;
 $manifest=null;$manifestPath=$stateRoot.'/Assets/audio/manifest.json';if(is_file($manifestPath)&&is_readable($manifestPath)){$d=json_decode(@file_get_contents($manifestPath),true);if(is_array($d))$manifest=$d;}

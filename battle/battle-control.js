@@ -45,13 +45,17 @@
     if (!isFinite(n)) n = DEFAULT_DURATION_MINUTES;
     return Math.max(MIN_DURATION_MINUTES, Math.min(MAX_DURATION_MINUTES, Math.round(n)));
   }
+  function durationStorageKey(sim) {
+    var sc = scenario(sim);
+    return sc && sc.profile === 'strategic' ? 'battleStrategicDurationMinutes' : 'battleDurationMinutes';
+  }
   function storedDurationMinutes(sim) {
     var fallback =
       isFinite(+sim.timeLimit) && sim.timeLimit > 0
         ? Math.round(sim.timeLimit / 60)
         : DEFAULT_DURATION_MINUTES;
     try {
-      var saved = localStorage.getItem('battleDurationMinutes');
+      var saved = localStorage.getItem(durationStorageKey(sim));
       if (saved != null) return clampDurationMinutes(saved);
     } catch (_) {}
     return clampDurationMinutes(fallback);
@@ -62,7 +66,7 @@
     sim._operatorTimeLimitSeconds = minutes * 60;
     sim.timeLimit = sim._operatorTimeLimitSeconds;
     try {
-      localStorage.setItem('battleDurationMinutes', String(minutes));
+      localStorage.setItem(durationStorageKey(sim), String(minutes));
     } catch (_) {}
     return minutes;
   }
@@ -190,9 +194,36 @@
     return parts.join(' · ');
   }
   function endBattle(sim, reason) {
-    if (sim._trainingRunning) return;
+    if (!sim || sim._trainingRunning || sim.manualEnded || sim.winner) return false;
     sim.pause();
     sim.manualEnded = true;
+    sim.winReason = reason || 'manual';
+    // A single end-battle route for BOTH the left-hand End battle control
+    // and the HUD button. The old operations button stopped telemetry but
+    // never opened the banner, hiding the diagnostic export actions.
+    if (typeof sim._showPostBattle === 'function') {
+      sim._showPostBattle('Battle ended', sim);
+    } else {
+      var banner = document.getElementById('banner'),
+        text = document.getElementById('bannerText'),
+        sub = document.getElementById('bannerSub');
+      if (text) text.textContent = 'Battle ended';
+      if (sub)
+        sub.textContent =
+          'US ' +
+          sim.factions.us.alive +
+          ' alive (' +
+          sim.factions.us.kills +
+          ' kills) · GER ' +
+          sim.factions.ge.alive +
+          ' alive (' +
+          sim.factions.ge.kills +
+          ' kills) · ' +
+          Math.floor(sim.time / 60) +
+          ':' +
+          String(Math.floor(sim.time % 60)).padStart(2, '0');
+      if (banner) banner.style.display = 'flex';
+    }
     if (root.BattleTelemetry)
       root.BattleTelemetry.end(sim, reason || 'manual', {
         usAlive: sim.factions.us.alive,
@@ -203,6 +234,7 @@
     var s = document.getElementById('aiTestStatus');
     if (s) s.textContent = 'Battle ended · decision logging stopped';
     root.GTLog('[CONTROL] battle ended; telemetry flushed');
+    return true;
   }
   function formatStats(j) {
     if (!j || !j.ok) return 'Log stats unavailable';
@@ -506,6 +538,10 @@
       sim.timeLimit = sim._operatorTimeLimitSeconds;
       sim.manualEnded = false;
       sim.paused = !resumeAfter;
+      // Programmatic restarts must clear the old banner, not only the
+      // inline HUD's Run it again click handler.
+      var banner = document.getElementById('banner');
+      if (banner) banner.style.display = 'none';
       var sc = scenario(sim);
       if (root.BattleTelemetry)
         root.BattleTelemetry.start(sim, 'live', {

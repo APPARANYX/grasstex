@@ -22,7 +22,9 @@
       commanded = ctx.commanded,
       average = ctx.average,
       averageMembers = ctx.averageMembers,
+      movementExecutionCurrent = ctx.movementExecutionCurrent,
       ORDER_STRIDE = ctx.ORDER_STRIDE,
+      ORDER_ARRIVAL_RADIUS = ctx.ORDER_ARRIVAL_RADIUS,
       RETREAT_ANCHOR_LEASE = ctx.RETREAT_ANCHOR_LEASE,
       RETREAT_ANCHOR_ARRIVE = ctx.RETREAT_ANCHOR_ARRIVE,
       RETREAT_PROGRESS_EPS = ctx.RETREAT_PROGRESS_EPS,
@@ -68,6 +70,31 @@
         if (String(men[i]._movementStopReason || '') !== 'arrived') return false;
       return true;
     }
+    /* The next stride is laid out once the first man is as near his slot as an advancing squad's men are
+     when their next stride comes (ORDER_ARRIVAL_RADIUS), while the squad centre is still within a stride
+     of the anchor. The anchor used to move on only when the whole squad had closed on it, so the leading
+     men ran 13 m, stood waiting for the last, and ran again ("run, stop, run, stop"). A centre more than a
+     stride behind still waits, so the squad stretches no further than one stride.
+     ?retreatStride=0 is the old whole-squad test. */
+    var RETREAT_STRIDE_ON = !/[?&]retreatStride=(?:0|off|false)(?:&|#|$)/i.test(
+      typeof location !== 'undefined' ? location.search || '' : ''
+    );
+    function retreatLeadArrived(sq, battle, distance, data) {
+      if (!RETREAT_STRIDE_ON || !(distance <= ORDER_STRIDE)) return false;
+      /* Only a squad that is on its way: a man who happened to start near his slot is not a lead. */
+      if (!(+data.bestDistance < +data.startDistance - RETREAT_PROGRESS_EPS)) return false;
+      var men = commanded(sq);
+      for (var i = 0; i < men.length; i++) {
+        var s = men[i];
+        if (
+          s.orderDestination &&
+          dist(s.root.position, s.orderDestination) <= ORDER_ARRIVAL_RADIUS &&
+          (!movementExecutionCurrent || movementExecutionCurrent(s, battle))
+        )
+          return true;
+      }
+      return false;
+    }
     function retreatPoint(base, goal, scale) {
       base = copy(base);
       goal = copy(goal);
@@ -99,6 +126,7 @@
           anchor: copy(next),
           goal: copy(goal),
           bestDistance: d,
+          startDistance: d,
           distance: d,
           lastProgressAt: t,
           grantedAt: t,
@@ -150,7 +178,11 @@
           RETREAT_RECOVERY_STRIDE
         );
       }
-      if (distance <= RETREAT_ANCHOR_ARRIVE || retreatSettled(sq, distance)) {
+      if (
+        distance <= RETREAT_ANCHOR_ARRIVE ||
+        retreatSettled(sq, distance) ||
+        retreatLeadArrived(sq, battle, distance, d)
+      ) {
         /* At the final retreat point there is nowhere else to publish. Keep the same stable endpoint. */
         if (anchor && goal && dist(anchor, goal) <= 2) {
           d.bestDistance = Math.min(isFinite(+d.bestDistance) ? +d.bestDistance : distance, distance);

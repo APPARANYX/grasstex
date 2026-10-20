@@ -90,17 +90,32 @@ loader with the soldier lab, and can load any matching `Assets/animations/*Truck
 as per-seat passenger or driver poses. The vehicle lab defaults to two-sided rendering of vehicle materials
 (`backFaceCulling=false`, `twoSidedLighting=true`; toggleable at runtime).
 That reveals inward-facing polygons but cannot repair absent faces or missing
-texture data. The **Show full crew** button selects a German paratrooper model
+texture data. The lab also has read-only **surface diagnostics**: unlit-material
+preview, contrasting background to identify missing polygons/holes, and truck
+mesh clicking that reports material name, texture channels, UVs and normals.
+The **Show full crew** button selects a German paratrooper model
 when available, fills all four starter seats, and previews the available
 Driving/Sitting clips. The author places editable seat anchors
 (position in vehicle-local metres, yaw, role, occupied flag and animation filename)
 on the vehicle's normalized 6.2 m preview; `FrontWheels` and `RearWheels` hierarchy
 names are inspected but not blindly spun (a group containing both wheels may not
-have independent wheel pivots). JSON seat configs can be downloaded/imported or
-saved locally; no calibration is written to production, and no gameplay transport
-logic is changed. The preview's normalized length is a **calibration aid**, not a
+have independent wheel pivots). Axle **FrontWheels/RearWheels** group roots are reparented under separate
+calibration pivots at the measured bounds centers; Babylon `setParent`
+preserves their import-world transforms. The front/rear center position and
+X/Z rotation axis are editable independently in vehicle-root-local metres,
+with clickable hub selection and visible center/axis markers. Adjusting a
+pivot compensates wheel-root local positions to keep the wheels visually fixed
+at the zero spin angle; actual axle pivots belong in the gameplay renderer
+only after verified. JSON **version 2** includes optional
+`axles.front/rear: {center:[x,y,z], axis:'x'|'z'}` alongside seats, while
+old version-1 seat-only JSON still imports; neither is uploaded automatically.
+JSON seat and axle configs can be downloaded/imported or saved locally;
+no calibration is written to production, and no gameplay transport logic is
+changed. The preview's normalized length is a **calibration aid**, not a
 historically verified vehicle dimension; the transport renderer must adopt a
 confirmed transform and seat contract before consuming any sidecar.
+
+**Strategic battlefield integration (#545).** The opt-in transport renderer applies the same independent FrontWheels/RearWheels auto-centered-pivot approach at truck instantiation and advances visual rotation by actual carrier distance, not frame time. No gameplay movement authority or passenger state is changed by wheel visuals. The lab's editable JSON v2 axle calibration remains an authoring/diagnostic aid; it is not silently loaded into live battles.
 
 **Asset pipeline.** Use the Blender app bundle `/Applications/Blender.app/Contents/MacOS/Blender`, not the
 broken `blender` on PATH. Use lowercase filenames, since the host is case-sensitive (`git mv` to rename).
