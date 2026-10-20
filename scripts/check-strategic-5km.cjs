@@ -151,15 +151,20 @@ function check(seed, g, routes) {
     }
   }
 }
-const normal = runtime('', false);
-const legacy = normal.BattleScenarioGenerator.create('strategic-compat-0001');
+const defaults = runtime('', false);
+const defaultMap = defaults.BattleScenarioGenerator.create('default-front-lines-0001');
+assert.equal(defaultMap.profile, 'strategic', '5 km strategic mode is default');
+assert.ok(defaultMap.frontLines, 'front-line objective layout is default');
+const normal = runtime('?frontLines=0', false);
+const legacyRuntime = runtime('?strategicInterception=0&frontLines=0', false);
+const legacy = legacyRuntime.BattleScenarioGenerator.create('strategic-compat-0001');
 assert.equal(legacy.map.width, 2000);
 assert.equal(legacy.map.depth, 1200);
 assert.equal(legacy.objectives[0].id, 'obj-center');
-assert.equal(JSON.stringify(legacy), JSON.stringify(normal.BattleScenarioGenerator.create('strategic-compat-0001')));
+assert.equal(JSON.stringify(legacy), JSON.stringify(legacyRuntime.BattleScenarioGenerator.create('strategic-compat-0001')));
 const query = runtime('?strategicInterception=1', false);
 assert.equal(query.BattleScenarioGenerator.create('url-opt-in').profile, 'strategic');
 const lab = runtime('?strategicInterception=1', true);
 assert.equal(lab.BattleScenarioGenerator.create('combat-lab', { profile: 'strategic' }).map.width, 280);
 for (let i = 0; i < 40; i++) check('strategic-seed-' + i, normal.BattleScenarioGenerator, normal.BattleCommanderRoutes);
-console.log('PASS strategic 5km: 40 deterministic seeds, 480 objectives, 240 bases, live/re-tasked road routes, route topology, clear roads, URL opt-in, legacy and Combat Lab isolation');
+console.log('PASS strategic 5km: 40 deterministic seeds, 480 objectives, 240 bases, live/re-tasked road routes, route topology, clear roads, default-on front lines, opt-out classic 5km, legacy and Combat Lab isolation');
