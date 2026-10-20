@@ -4,12 +4,13 @@
 (function (root) {
   'use strict';
   if (typeof BABYLON === 'undefined') return;
-  /* BattleSim loads before the extra scenario runtime on the hosted PHP page.
-     Read the opt-in directly; do not rely on load order or change legacy constants. */
+  /* BattleSim can load before scenario-generator on the hosted page. Resolve
+     the same default-on strategic gate directly so world geometry matches the
+     generated scenario; explicit ?strategicInterception=0 restores legacy. */
   var STRATEGIC_FIELD =
     !root.PHASE_C_COMBAT_LAB &&
-    (root.STRATEGIC_INTERCEPTION_ENABLED === true ||
-      (root.location && /[?&]strategicInterception=1(?:&|$)/.test(root.location.search || '')));
+    root.STRATEGIC_INTERCEPTION_ENABLED !== false &&
+    !/(?:^|[?&])strategicInterception=0(?:&|$)/.test((root.location && root.location.search) || '');
   var FIELD_W = root.PHASE_C_COMBAT_LAB ? 280 : STRATEGIC_FIELD ? 5000 : 2000,
     FIELD_D = root.PHASE_C_COMBAT_LAB ? 240 : STRATEGIC_FIELD ? 5000 : 1200,
     SPAWN_Z = 510,
