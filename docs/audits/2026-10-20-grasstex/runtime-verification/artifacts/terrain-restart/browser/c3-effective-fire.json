@@ -1,0 +1,24 @@
+{
+  "range": {
+    "mp40": 150,
+    "kar98k": 450,
+    "garand": 450
+  },
+  "ready": {
+    "mp40": false,
+    "kar98k": true
+  },
+  "held": false,
+  "shots": 1,
+  "voice": {
+    "accepted": true,
+    "started": false,
+    "ended": true,
+    "played": 0,
+    "dazedAllowed": true,
+    "contactAllowed": false
+  },
+  "restartAllows": true,
+  "fixture": "real Navigation/terrain firing lane; staged target/Engagement and sound readiness",
+  "errors": []
+}

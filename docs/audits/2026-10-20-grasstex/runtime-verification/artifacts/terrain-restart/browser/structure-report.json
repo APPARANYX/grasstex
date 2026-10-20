@@ -1,0 +1,1413 @@
+{
+  "fixture": "staged single ground-floor footprint on real terrain; autonomous own soldiers; stationary hostile scenario event; no multiroom clearance claim",
+  "stages": [
+    {
+      "name": "approach",
+      "time": 0.15,
+      "buildingId": "B1",
+      "doorwayId": "B1-door-0",
+      "leaderId": 1,
+      "missionVersion": 1,
+      "navigationVersion": 1,
+      "routeIndex": 1,
+      "mode": "approach-door",
+      "inContact": false,
+      "ownShots": 0,
+      "hostileIntroduced": false,
+      "hostileDead": false,
+      "entry": {
+        "observerId": "1",
+        "observerEpoch": 0,
+        "observerPosition": {
+          "x": 119.94,
+          "z": -161.32
+        },
+        "observedAt": 0.15,
+        "missionVersion": 1,
+        "leg": 1,
+        "enteredAt": null,
+        "entryVerified": false,
+        "handoff": "awaiting-physical-entry"
+      },
+      "survey": {
+        "status": "awaiting-verified-entry",
+        "sectorMask": 0,
+        "observedSectors": 0,
+        "observersInside": 0,
+        "contributors": [],
+        "observerEpochs": {},
+        "sectorObservedAt": [],
+        "sectorObservers": [],
+        "contributorObservedAt": {},
+        "complete": false,
+        "observedAt": 0.15,
+        "scope": "four-facing-and-los-ground-footprint-samples",
+        "clearance": "not-assessed",
+        "control": "unknown"
+      },
+      "watch": {
+        "status": "interrupted",
+        "doorwayId": "B1-door-0",
+        "entryAt": null,
+        "doorGuardId": null,
+        "interiorGuardId": null,
+        "doorGuardPosition": null,
+        "interiorGuardPosition": null,
+        "since": 0.15,
+        "observedAt": 0.15,
+        "ready": false,
+        "clearance": "not-assessed",
+        "control": "unknown"
+      },
+      "members": [
+        {
+          "id": 1,
+          "x": 119.94,
+          "z": -161.32,
+          "yaw": 3.141592653589793,
+          "dead": false,
+          "state": "advance",
+          "order": null
+        },
+        {
+          "id": 3,
+          "x": 122.14,
+          "z": -161.32,
+          "yaw": 3.141592653589793,
+          "dead": false,
+          "state": "advance",
+          "order": null
+        },
+        {
+          "id": 7,
+          "x": 124.34,
+          "z": -161.32,
+          "yaw": 3.141592653589793,
+          "dead": false,
+          "state": "advance",
+          "order": null
+        },
+        {
+          "id": 2,
+          "x": 126.54,
+          "z": -161.32,
+          "yaw": 3.141592653589793,
+          "dead": false,
+          "state": "advance",
+          "order": null
+        },
+        {
+          "id": 0,
+          "x": 128.74,
+          "z": -161.32,
+          "yaw": 3.141592653589793,
+          "dead": false,
+          "state": "advance",
+          "order": null
+        },
+        {
+          "id": 4,
+          "x": 119.94,
+          "z": -159.12,
+          "yaw": 3.141592653589793,
+          "dead": false,
+          "state": "advance",
+          "order": null
+        },
+        {
+          "id": 5,
+          "x": 122.14,
+          "z": -159.12,
+          "yaw": 3.141592653589793,
+          "dead": false,
+          "state": "advance",
+          "order": null
+        },
+        {
+          "id": 6,
+          "x": 124.34,
+          "z": -159.12,
+          "yaw": 3.141592653589793,
+          "dead": false,
+          "state": "advance",
+          "order": null
+        },
+        {
+          "id": 8,
+          "x": 126.54,
+          "z": -159.12,
+          "yaw": 3.141592653589793,
+          "dead": false,
+          "state": "advance",
+          "order": null
+        },
+        {
+          "id": 9,
+          "x": 128.74,
+          "z": -159.12,
+          "yaw": 3.141592653589793,
+          "dead": false,
+          "state": "advance",
+          "order": null
+        }
+      ],
+      "screenshot": "structure-approach.png"
+    },
+    {
+      "name": "doorway-crossing",
+      "time": 15.900000000000027,
+      "buildingId": "B1",
+      "doorwayId": "B1-door-0",
+      "leaderId": 1,
+      "missionVersion": 1,
+      "navigationVersion": 1,
+      "routeIndex": 1,
+      "mode": "observe-footprint",
+      "inContact": false,
+      "engagementPlan": "staged",
+      "ownShots": 0,
+      "hostileIntroduced": false,
+      "hostileDead": false,
+      "entry": {
+        "observerId": "1",
+        "observerEpoch": 0,
+        "observerPosition": {
+          "x": 124.28847337989995,
+          "z": -173.0065579899339
+        },
+        "observedAt": 15.900000000000027,
+        "missionVersion": 1,
+        "leg": 1,
+        "enteredAt": 15.900000000000027,
+        "entryVerified": true,
+        "handoff": "interior-observation-required"
+      },
+      "survey": {
+        "status": "insufficient-interior-observers",
+        "sectorMask": 0,
+        "observedSectors": 0,
+        "observersInside": 1,
+        "contributors": [],
+        "observerEpochs": {},
+        "sectorObservedAt": [],
+        "sectorObservers": [],
+        "contributorObservedAt": {},
+        "complete": false,
+        "observedAt": 15.900000000000027,
+        "scope": "four-facing-and-los-ground-footprint-samples",
+        "clearance": "not-assessed",
+        "control": "unknown"
+      },
+      "watch": {
+        "status": "interrupted",
+        "doorwayId": "B1-door-0",
+        "entryAt": 15.900000000000027,
+        "doorGuardId": null,
+        "interiorGuardId": null,
+        "doorGuardPosition": null,
+        "interiorGuardPosition": null,
+        "since": 15.900000000000027,
+        "observedAt": 15.900000000000027,
+        "ready": false,
+        "clearance": "not-assessed",
+        "control": "unknown"
+      },
+      "members": [
+        {
+          "id": 1,
+          "x": 124.28847337989995,
+          "z": -173.0065579899339,
+          "yaw": 3.105154055256962,
+          "dead": false,
+          "state": "advance",
+          "order": "structure|1|1|1|B1|cross-door||door-guard"
+        },
+        {
+          "id": 3,
+          "x": 121.37833687114839,
+          "z": -171.02103665773484,
+          "yaw": 1.6713999527130035,
+          "dead": false,
+          "state": "advance",
+          "order": "structure|1|1|1|B1|cross-door||exterior-security"
+        },
+        {
+          "id": 7,
+          "x": 128.22433817186896,
+          "z": -171.03146949903427,
+          "yaw": 3.411958795516612,
+          "dead": false,
+          "state": "advance",
+          "order": "structure|1|1|1|B1|cross-door||interior-observer"
+        },
+        {
+          "id": 2,
+          "x": 119.44886592842242,
+          "z": -171.17035396517622,
+          "yaw": 1.6025946293075797,
+          "dead": false,
+          "state": "advance",
+          "order": "structure|1|1|1|B1|cross-door||exterior-security"
+        },
+        {
+          "id": 0,
+          "x": 130.2895313372291,
+          "z": -171.00457085768178,
+          "yaw": 4.659421094128822,
+          "dead": false,
+          "state": "advance",
+          "order": "structure|1|1|1|B1|approach-door||exterior-security"
+        },
+        {
+          "id": 4,
+          "x": 117.43035048882142,
+          "z": -170.8960477062994,
+          "yaw": 3.351566166451927,
+          "dead": false,
+          "state": "advance",
+          "order": "structure|1|1|1|B1|approach-door||exterior-security"
+        },
+        {
+          "id": 5,
+          "x": 129.86428340546055,
+          "z": -168.38782027555362,
+          "yaw": 2.4404016733304146,
+          "dead": false,
+          "state": "advance",
+          "order": "structure|1|1|1|B1|approach-door||exterior-security"
+        },
+        {
+          "id": 6,
+          "x": 117.59814986103652,
+          "z": -168.1145007855354,
+          "yaw": 3.6963726452051198,
+          "dead": false,
+          "state": "advance",
+          "order": "structure|1|1|1|B1|approach-door||exterior-security"
+        },
+        {
+          "id": 8,
+          "x": 133.40632071116232,
+          "z": -169.85962983027957,
+          "yaw": 2.5727447951684215,
+          "dead": false,
+          "state": "advance",
+          "order": "structure|1|1|1|B1|cross-door||exterior-security"
+        },
+        {
+          "id": 9,
+          "x": 118.25247383876521,
+          "z": -167.49655246069804,
+          "yaw": 4.07724299433517,
+          "dead": false,
+          "state": "advance",
+          "order": "structure|1|1|1|B1|approach-door||exterior-security"
+        }
+      ],
+      "screenshot": "structure-doorway-crossing.png"
+    },
+    {
+      "name": "interior-observation",
+      "time": 23.549999999999955,
+      "buildingId": "B1",
+      "doorwayId": "B1-door-0",
+      "leaderId": 1,
+      "missionVersion": 1,
+      "navigationVersion": 1,
+      "routeIndex": 1,
+      "mode": "watch-doorway",
+      "inContact": false,
+      "engagementPlan": "staged",
+      "ownShots": 0,
+      "hostileIntroduced": true,
+      "hostileDead": false,
+      "entry": {
+        "observerId": "1",
+        "observerEpoch": 0,
+        "observerPosition": {
+          "x": 124.14754531984424,
+          "z": -174.24580294941106
+        },
+        "observedAt": 23.549999999999955,
+        "missionVersion": 1,
+        "leg": 1,
+        "enteredAt": 15.900000000000027,
+        "entryVerified": true,
+        "handoff": "interior-observation-required"
+      },
+      "survey": {
+        "status": "ground-footprint-surveyed",
+        "sectorMask": 15,
+        "observedSectors": 4,
+        "observersInside": 2,
+        "contributors": [
+          "1",
+          "7"
+        ],
+        "observerEpochs": {
+          "1": 0,
+          "7": 0
+        },
+        "sectorObservedAt": [
+          22.79999999999996,
+          22.79999999999996,
+          22.79999999999996,
+          23.549999999999955
+        ],
+        "sectorObservers": [
+          "1",
+          "7",
+          "1",
+          "7"
+        ],
+        "contributorObservedAt": {
+          "1": 22.79999999999996,
+          "7": 23.549999999999955
+        },
+        "complete": true,
+        "observedAt": 23.549999999999955,
+        "scope": "four-facing-and-los-ground-footprint-samples",
+        "clearance": "not-assessed",
+        "control": "unknown"
+      },
+      "watch": {
+        "status": "awaiting-posts",
+        "doorwayId": "B1-door-0",
+        "entryAt": 15.900000000000027,
+        "doorGuardId": null,
+        "interiorGuardId": null,
+        "doorGuardPosition": null,
+        "interiorGuardPosition": null,
+        "since": 23.549999999999955,
+        "observedAt": 23.549999999999955,
+        "ready": false,
+        "clearance": "not-assessed",
+        "control": "unknown"
+      },
+      "members": [
+        {
+          "id": 1,
+          "x": 124.14754531984424,
+          "z": -174.24580294941106,
+          "yaw": 2.668447303375884,
+          "dead": false,
+          "state": "advance",
+          "order": "structure|1|1|1|B1|observe-footprint|7|door-guard"
+        },
+        {
+          "id": 3,
+          "x": 121.37833687114839,
+          "z": -171.02103665773484,
+          "yaw": 1.6713999527002537,
+          "dead": false,
+          "state": "advance",
+          "order": "structure|1|1|1|B1|observe-footprint|0|exterior-security"
+        },
+        {
+          "id": 7,
+          "x": 125.28543923075898,
+          "z": -174.7626473883692,
+          "yaw": 2.894175173153933,
+          "dead": false,
+          "state": "advance",
+          "order": "structure|1|1|1|B1|observe-footprint|0|interior-observer"
+        },
+        {
+          "id": 2,
+          "x": 119.44886592842242,
+          "z": -171.17035396517622,
+          "yaw": 1.601382151159687,
+          "dead": false,
+          "state": "advance",
+          "order": "structure|1|1|1|B1|observe-footprint|0|exterior-security"
+        },
+        {
+          "id": 0,
+          "x": 130.2895313372291,
+          "z": -171.00457085768178,
+          "yaw": 4.659421094302137,
+          "dead": false,
+          "state": "advance",
+          "order": "structure|1|1|1|B1|observe-footprint|0|exterior-security"
+        },
+        {
+          "id": 4,
+          "x": 117.39033116187103,
+          "z": -171.08383070198974,
+          "yaw": 1.6047660675879598,
+          "dead": false,
+          "state": "advance",
+          "order": "structure|1|1|1|B1|observe-footprint|0|exterior-security"
+        },
+        {
+          "id": 5,
+          "x": 132.16739087268212,
+          "z": -171.11556586384233,
+          "yaw": 4.6862771285119065,
+          "dead": false,
+          "state": "advance",
+          "order": "structure|1|1|1|B1|observe-footprint|0|exterior-security"
+        },
+        {
+          "id": 6,
+          "x": 115.5278499911544,
+          "z": -171.05905380210262,
+          "yaw": 1.6003997680952082,
+          "dead": false,
+          "state": "advance",
+          "order": "structure|1|1|1|B1|observe-footprint|0|exterior-security"
+        },
+        {
+          "id": 8,
+          "x": 134.22320118174193,
+          "z": -171.1373146688784,
+          "yaw": 4.693906656111023,
+          "dead": false,
+          "state": "advance",
+          "order": "structure|1|1|1|B1|observe-footprint|0|exterior-security"
+        },
+        {
+          "id": 9,
+          "x": 113.5429052171503,
+          "z": -171.16009379457168,
+          "yaw": 1.5856296966117944,
+          "dead": false,
+          "state": "advance",
+          "order": "structure|1|1|1|B1|observe-footprint|0|exterior-security"
+        }
+      ],
+      "screenshot": "structure-interior-observation.png"
+    },
+    {
+      "name": "hostile-response",
+      "time": 24.599999999999945,
+      "buildingId": "B1",
+      "doorwayId": "B1-door-0",
+      "leaderId": 1,
+      "missionVersion": 1,
+      "navigationVersion": 1,
+      "routeIndex": 1,
+      "mode": "contact-security",
+      "inContact": true,
+      "engagementPlan": "active",
+      "ownShots": 1,
+      "hostileIntroduced": true,
+      "hostileDead": false,
+      "members": [
+        {
+          "id": 1,
+          "x": 124.14754531984424,
+          "z": -174.24580294941106,
+          "yaw": 2.88552696885423,
+          "dead": false,
+          "state": "orient",
+          "target": 54,
+          "order": "structure|1|1|1|B1|observe-footprint|7|door-guard"
+        },
+        {
+          "id": 3,
+          "x": 121.37833687114839,
+          "z": -171.02103665773484,
+          "yaw": 1.6713999527002537,
+          "dead": false,
+          "state": "advance",
+          "order": "structure|1|1|1|B1|observe-footprint|0|exterior-security"
+        },
+        {
+          "id": 7,
+          "x": 125.79619555752893,
+          "z": -175.61154054473215,
+          "yaw": 3.165776298902798,
+          "dead": false,
+          "state": "engage",
+          "target": 54,
+          "order": "structure|1|1|1|B1|observe-footprint|0|interior-observer"
+        },
+        {
+          "id": 2,
+          "x": 119.44886592842242,
+          "z": -171.17035396517622,
+          "yaw": 1.601382151159687,
+          "dead": false,
+          "state": "advance",
+          "order": "structure|1|1|1|B1|observe-footprint|0|exterior-security"
+        },
+        {
+          "id": 0,
+          "x": 130.2895313372291,
+          "z": -171.00457085768178,
+          "yaw": 4.659421094302137,
+          "dead": false,
+          "state": "advance",
+          "order": "structure|1|1|1|B1|observe-footprint|0|exterior-security"
+        },
+        {
+          "id": 4,
+          "x": 117.39033116187103,
+          "z": -171.08383070198974,
+          "yaw": 1.6047660675879556,
+          "dead": false,
+          "state": "advance",
+          "order": "structure|1|1|1|B1|observe-footprint|0|exterior-security"
+        },
+        {
+          "id": 5,
+          "x": 132.16739087268212,
+          "z": -171.11556586384233,
+          "yaw": 4.6862771285119225,
+          "dead": false,
+          "state": "advance",
+          "order": "structure|1|1|1|B1|observe-footprint|0|exterior-security"
+        },
+        {
+          "id": 6,
+          "x": 115.5278499911544,
+          "z": -171.05905380210262,
+          "yaw": 1.6003997680950575,
+          "dead": false,
+          "state": "advance",
+          "order": "structure|1|1|1|B1|observe-footprint|0|exterior-security"
+        },
+        {
+          "id": 8,
+          "x": 134.22320118174193,
+          "z": -171.1373146688784,
+          "yaw": 3.9030951087184507,
+          "dead": false,
+          "state": "orient",
+          "target": 54,
+          "order": "structure|1|1|1|B1|observe-footprint|0|exterior-security"
+        },
+        {
+          "id": 9,
+          "x": 113.5429052171503,
+          "z": -171.16009379457168,
+          "yaw": 1.5856053636725116,
+          "dead": false,
+          "state": "advance",
+          "order": "structure|1|1|1|B1|observe-footprint|0|exterior-security"
+        }
+      ],
+      "screenshot": "structure-hostile-response.png"
+    },
+    {
+      "name": "post-contact-reassessment",
+      "time": 45.599999999999746,
+      "buildingId": "B1",
+      "doorwayId": "B1-door-0",
+      "leaderId": 1,
+      "missionVersion": 1,
+      "navigationVersion": 1,
+      "routeIndex": 1,
+      "mode": "observe-footprint",
+      "inContact": false,
+      "ownShots": 11,
+      "hostileIntroduced": true,
+      "hostileDead": true,
+      "entry": {
+        "observerId": "1",
+        "observerEpoch": 0,
+        "observerPosition": {
+          "x": 124.14754531984424,
+          "z": -174.24580294941106
+        },
+        "observedAt": 45.599999999999746,
+        "missionVersion": 1,
+        "leg": 1,
+        "enteredAt": null,
+        "entryVerified": false,
+        "handoff": "awaiting-physical-entry"
+      },
+      "presence": {
+        "provenance": "continuous-interior-presence",
+        "observerId": "1",
+        "observerEpoch": 0,
+        "missionVersion": 1,
+        "leg": 1,
+        "enteredAt": 45.14999999999975,
+        "physicalEntryAt": 15.900000000000027,
+        "observedAt": 45.599999999999746,
+        "witnessId": "7",
+        "observations": 8,
+        "presenceVerified": true
+      },
+      "survey": {
+        "status": "observing",
+        "sectorMask": 10,
+        "observedSectors": 2,
+        "observersInside": 2,
+        "contributors": [
+          "7"
+        ],
+        "observerEpochs": {
+          "7": 0
+        },
+        "sectorObservedAt": [
+          null,
+          45.599999999999746,
+          null,
+          45.599999999999746
+        ],
+        "sectorObservers": [
+          null,
+          "7",
+          null,
+          "7"
+        ],
+        "contributorObservedAt": {
+          "7": 45.599999999999746
+        },
+        "complete": false,
+        "observedAt": 45.599999999999746,
+        "scope": "four-facing-and-los-ground-footprint-samples",
+        "clearance": "not-assessed",
+        "control": "unknown"
+      },
+      "watch": {
+        "status": "interrupted",
+        "doorwayId": "B1-door-0",
+        "entryAt": 45.14999999999975,
+        "doorGuardId": null,
+        "interiorGuardId": null,
+        "doorGuardPosition": null,
+        "interiorGuardPosition": null,
+        "since": 45.599999999999746,
+        "observedAt": 45.599999999999746,
+        "ready": false,
+        "clearance": "not-assessed",
+        "control": "unknown"
+      },
+      "members": [
+        {
+          "id": 1,
+          "x": 124.14754531984424,
+          "z": -174.24580294941106,
+          "yaw": 0.06568384298140428,
+          "dead": false,
+          "state": "advance",
+          "order": "structure|1|1|1|B1|contact-security||door-guard"
+        },
+        {
+          "id": 3,
+          "x": 121.37833687114839,
+          "z": -171.02103665773484,
+          "yaw": 1.6713999527002537,
+          "dead": false,
+          "state": "advance",
+          "order": "structure|1|1|1|B1|contact-security||exterior-security"
+        },
+        {
+          "id": 7,
+          "x": 125.79619555752893,
+          "z": -175.61154054473215,
+          "yaw": 3.172632233505278,
+          "dead": false,
+          "state": "advance",
+          "order": "structure|1|1|1|B1|contact-security||interior-observer"
+        },
+        {
+          "id": 2,
+          "x": 119.44886592842242,
+          "z": -171.17035396517622,
+          "yaw": 1.601382151159687,
+          "dead": false,
+          "state": "advance",
+          "order": "structure|1|1|1|B1|contact-security||exterior-security"
+        },
+        {
+          "id": 0,
+          "x": 130.2895313372291,
+          "z": -171.00457085768178,
+          "yaw": 4.659421094302137,
+          "dead": false,
+          "state": "advance",
+          "order": "structure|1|1|1|B1|contact-security||exterior-security"
+        },
+        {
+          "id": 4,
+          "x": 117.39033116187103,
+          "z": -171.08383070198974,
+          "yaw": 1.6047660675879556,
+          "dead": false,
+          "state": "advance",
+          "order": "structure|1|1|1|B1|contact-security||exterior-security"
+        },
+        {
+          "id": 5,
+          "x": 132.16739087268212,
+          "z": -171.11556586384233,
+          "yaw": 4.6862771285119225,
+          "dead": false,
+          "state": "advance",
+          "order": "structure|1|1|1|B1|contact-security||exterior-security"
+        },
+        {
+          "id": 6,
+          "x": 115.5278499911544,
+          "z": -171.05905380210262,
+          "yaw": 1.6003997680950575,
+          "dead": false,
+          "state": "advance",
+          "order": "structure|1|1|1|B1|contact-security||exterior-security"
+        },
+        {
+          "id": 8,
+          "x": 134.22320118174193,
+          "z": -171.1373146688784,
+          "yaw": 4.69390665606324,
+          "dead": false,
+          "state": "advance",
+          "order": "structure|1|1|1|B1|contact-security||exterior-security"
+        },
+        {
+          "id": 9,
+          "x": 113.5429052171503,
+          "z": -171.16009379457168,
+          "yaw": 1.585605358199598,
+          "dead": false,
+          "state": "advance",
+          "order": "structure|1|1|1|B1|contact-security||exterior-security"
+        }
+      ],
+      "screenshot": "structure-post-contact-reassessment.png"
+    },
+    {
+      "name": "security-posts",
+      "time": 59.69999999999961,
+      "buildingId": "B1",
+      "doorwayId": "B1-door-0",
+      "leaderId": 1,
+      "missionVersion": 1,
+      "navigationVersion": 1,
+      "routeIndex": 1,
+      "mode": "watch-doorway",
+      "inContact": false,
+      "ownShots": 11,
+      "hostileIntroduced": true,
+      "hostileDead": true,
+      "entry": {
+        "observerId": "1",
+        "observerEpoch": 0,
+        "observerPosition": {
+          "x": 124.14754531984424,
+          "z": -174.24580294941106
+        },
+        "observedAt": 59.69999999999961,
+        "missionVersion": 1,
+        "leg": 1,
+        "enteredAt": null,
+        "entryVerified": false,
+        "handoff": "awaiting-physical-entry"
+      },
+      "presence": {
+        "provenance": "continuous-interior-presence",
+        "observerId": "1",
+        "observerEpoch": 0,
+        "missionVersion": 1,
+        "leg": 1,
+        "enteredAt": 45.14999999999975,
+        "physicalEntryAt": 15.900000000000027,
+        "observedAt": 59.69999999999961,
+        "witnessId": "7",
+        "observations": 8,
+        "presenceVerified": true
+      },
+      "survey": {
+        "status": "ground-footprint-surveyed",
+        "sectorMask": 15,
+        "observedSectors": 4,
+        "observersInside": 2,
+        "contributors": [
+          "1",
+          "7"
+        ],
+        "observerEpochs": {
+          "1": 0,
+          "7": 0
+        },
+        "sectorObservedAt": [
+          58.94999999999962,
+          58.349999999999625,
+          58.94999999999962,
+          56.99999999999964
+        ],
+        "sectorObservers": [
+          "7",
+          "7",
+          "7",
+          "1"
+        ],
+        "contributorObservedAt": {
+          "1": 56.99999999999964,
+          "7": 58.94999999999962
+        },
+        "complete": true,
+        "observedAt": 59.69999999999961,
+        "scope": "four-facing-and-los-ground-footprint-samples",
+        "clearance": "not-assessed",
+        "control": "unknown"
+      },
+      "watch": {
+        "status": "doorway-watch-confirmed",
+        "doorwayId": "B1-door-0",
+        "entryAt": 45.14999999999975,
+        "doorGuardId": "1",
+        "interiorGuardId": "7",
+        "doorGuardEpoch": 0,
+        "interiorGuardEpoch": 0,
+        "doorGuardPosition": {
+          "x": 124.14754531984424,
+          "z": -174.24580294941106
+        },
+        "interiorGuardPosition": {
+          "x": 129.80598354471823,
+          "z": -180.07086889077206
+        },
+        "doorGuardAnchorPosition": {
+          "x": 124.14754531984424,
+          "z": -174.24580294941106
+        },
+        "interiorGuardAnchorPosition": {
+          "x": 129.80598354471823,
+          "z": -180.07086889077206
+        },
+        "since": 58.94999999999962,
+        "observedAt": 59.69999999999961,
+        "ready": true,
+        "clearance": "not-assessed",
+        "control": "unknown"
+      },
+      "members": [
+        {
+          "id": 1,
+          "x": 124.14754531984424,
+          "z": -174.24580294941106,
+          "yaw": -12.500685487791975,
+          "dead": false,
+          "state": "advance",
+          "order": "structure|1|1|1|B1|watch-doorway||door-guard"
+        },
+        {
+          "id": 3,
+          "x": 121.37833687114839,
+          "z": -171.02103665773484,
+          "yaw": 1.6713999527002537,
+          "dead": false,
+          "state": "advance",
+          "order": "structure|1|1|1|B1|watch-doorway||exterior-security"
+        },
+        {
+          "id": 7,
+          "x": 129.80598354471823,
+          "z": -180.07086889077206,
+          "yaw": 4.651119207913183,
+          "dead": false,
+          "state": "advance",
+          "order": "structure|1|1|1|B1|watch-doorway||interior-observer"
+        },
+        {
+          "id": 2,
+          "x": 119.44886592842242,
+          "z": -171.17035396517622,
+          "yaw": 1.601382151159687,
+          "dead": false,
+          "state": "advance",
+          "order": "structure|1|1|1|B1|watch-doorway||exterior-security"
+        },
+        {
+          "id": 0,
+          "x": 130.2895313372291,
+          "z": -171.00457085768178,
+          "yaw": 4.659421094302137,
+          "dead": false,
+          "state": "advance",
+          "order": "structure|1|1|1|B1|contact-security||exterior-security"
+        },
+        {
+          "id": 4,
+          "x": 117.39033116187103,
+          "z": -171.08383070198974,
+          "yaw": 1.6047660675879556,
+          "dead": false,
+          "state": "advance",
+          "order": "structure|1|1|1|B1|contact-security||exterior-security"
+        },
+        {
+          "id": 5,
+          "x": 132.16739087268212,
+          "z": -171.11556586384233,
+          "yaw": 4.6862771285119225,
+          "dead": false,
+          "state": "advance",
+          "order": "structure|1|1|1|B1|contact-security||exterior-security"
+        },
+        {
+          "id": 6,
+          "x": 115.5278499911544,
+          "z": -171.05905380210262,
+          "yaw": 1.6003997680950575,
+          "dead": false,
+          "state": "advance",
+          "order": "structure|1|1|1|B1|contact-security||exterior-security"
+        },
+        {
+          "id": 8,
+          "x": 134.22320118174193,
+          "z": -171.1373146688784,
+          "yaw": 4.6939066561110225,
+          "dead": false,
+          "state": "advance",
+          "order": "structure|1|1|1|B1|watch-doorway||exterior-security"
+        },
+        {
+          "id": 9,
+          "x": 113.5429052171503,
+          "z": -171.16009379457168,
+          "yaw": 1.585605358199598,
+          "dead": false,
+          "state": "advance",
+          "order": "structure|1|1|1|B1|contact-security||exterior-security"
+        }
+      ],
+      "screenshot": "structure-security-posts.png"
+    },
+    {
+      "name": "mission-handback",
+      "time": 59.84999999999961,
+      "buildingId": "B1",
+      "doorwayId": "B1-door-0",
+      "leaderId": 1,
+      "missionVersion": 1,
+      "navigationVersion": 1,
+      "routeIndex": 2,
+      "mode": "watch-doorway",
+      "inContact": false,
+      "ownShots": 11,
+      "hostileIntroduced": true,
+      "hostileDead": true,
+      "entry": {
+        "observerId": "1",
+        "observerEpoch": 0,
+        "observerPosition": {
+          "x": 124.14754531984424,
+          "z": -174.24580294941106
+        },
+        "observedAt": 59.84999999999961,
+        "missionVersion": 1,
+        "leg": 1,
+        "enteredAt": null,
+        "entryVerified": false,
+        "handoff": "awaiting-physical-entry"
+      },
+      "presence": {
+        "provenance": "continuous-interior-presence",
+        "observerId": "1",
+        "observerEpoch": 0,
+        "missionVersion": 1,
+        "leg": 1,
+        "enteredAt": 45.14999999999975,
+        "physicalEntryAt": 15.900000000000027,
+        "observedAt": 59.84999999999961,
+        "witnessId": "7",
+        "observations": 8,
+        "presenceVerified": true
+      },
+      "survey": {
+        "status": "ground-footprint-surveyed",
+        "sectorMask": 15,
+        "observedSectors": 4,
+        "observersInside": 2,
+        "contributors": [
+          "1",
+          "7"
+        ],
+        "observerEpochs": {
+          "1": 0,
+          "7": 0
+        },
+        "sectorObservedAt": [
+          58.94999999999962,
+          58.349999999999625,
+          58.94999999999962,
+          56.99999999999964
+        ],
+        "sectorObservers": [
+          "7",
+          "7",
+          "7",
+          "1"
+        ],
+        "contributorObservedAt": {
+          "1": 56.99999999999964,
+          "7": 58.94999999999962
+        },
+        "complete": true,
+        "observedAt": 59.84999999999961,
+        "scope": "four-facing-and-los-ground-footprint-samples",
+        "clearance": "not-assessed",
+        "control": "unknown"
+      },
+      "watch": {
+        "status": "doorway-watch-confirmed",
+        "doorwayId": "B1-door-0",
+        "entryAt": 45.14999999999975,
+        "doorGuardId": "1",
+        "interiorGuardId": "7",
+        "doorGuardEpoch": 0,
+        "interiorGuardEpoch": 0,
+        "doorGuardPosition": {
+          "x": 124.14754531984424,
+          "z": -174.24580294941106
+        },
+        "interiorGuardPosition": {
+          "x": 129.80598354471823,
+          "z": -180.07086889077206
+        },
+        "doorGuardAnchorPosition": {
+          "x": 124.14754531984424,
+          "z": -174.24580294941106
+        },
+        "interiorGuardAnchorPosition": {
+          "x": 129.80598354471823,
+          "z": -180.07086889077206
+        },
+        "since": 58.94999999999962,
+        "observedAt": 59.84999999999961,
+        "ready": true,
+        "clearance": "not-assessed",
+        "control": "unknown"
+      },
+      "members": [
+        {
+          "id": 1,
+          "x": 124.14754531984424,
+          "z": -174.24580294941106,
+          "yaw": -12.50068642153944,
+          "dead": false,
+          "state": "advance",
+          "order": "structure|1|1|1|B1|watch-doorway||door-guard"
+        },
+        {
+          "id": 3,
+          "x": 121.37833687114839,
+          "z": -171.02103665773484,
+          "yaw": 1.6713999527002537,
+          "dead": false,
+          "state": "advance",
+          "order": "structure|1|1|1|B1|watch-doorway||exterior-security"
+        },
+        {
+          "id": 7,
+          "x": 129.80598354471823,
+          "z": -180.07086889077206,
+          "yaw": 4.65209492126163,
+          "dead": false,
+          "state": "advance",
+          "order": "structure|1|1|1|B1|watch-doorway||interior-observer"
+        },
+        {
+          "id": 2,
+          "x": 119.44886592842242,
+          "z": -171.17035396517622,
+          "yaw": 1.601382151159687,
+          "dead": false,
+          "state": "advance",
+          "order": "structure|1|1|1|B1|watch-doorway||exterior-security"
+        },
+        {
+          "id": 0,
+          "x": 130.2895313372291,
+          "z": -171.00457085768178,
+          "yaw": 4.659421094302137,
+          "dead": false,
+          "state": "advance",
+          "order": "structure|1|1|1|B1|contact-security||exterior-security"
+        },
+        {
+          "id": 4,
+          "x": 117.39033116187103,
+          "z": -171.08383070198974,
+          "yaw": 1.6047660675879556,
+          "dead": false,
+          "state": "advance",
+          "order": "structure|1|1|1|B1|contact-security||exterior-security"
+        },
+        {
+          "id": 5,
+          "x": 132.16739087268212,
+          "z": -171.11556586384233,
+          "yaw": 4.6862771285119225,
+          "dead": false,
+          "state": "advance",
+          "order": "structure|1|1|1|B1|contact-security||exterior-security"
+        },
+        {
+          "id": 6,
+          "x": 115.5278499911544,
+          "z": -171.05905380210262,
+          "yaw": 1.6003997680950575,
+          "dead": false,
+          "state": "advance",
+          "order": "structure|1|1|1|B1|contact-security||exterior-security"
+        },
+        {
+          "id": 8,
+          "x": 134.22320118174193,
+          "z": -171.1373146688784,
+          "yaw": 4.6939066561110225,
+          "dead": false,
+          "state": "advance",
+          "order": "structure|1|1|1|B1|watch-doorway||exterior-security"
+        },
+        {
+          "id": 9,
+          "x": 113.5429052171503,
+          "z": -171.16009379457168,
+          "yaw": 1.585605358199598,
+          "dead": false,
+          "state": "advance",
+          "order": "structure|1|1|1|B1|contact-security||exterior-security"
+        }
+      ],
+      "screenshot": "structure-mission-handback.png"
+    }
+  ],
+  "setup": {
+    "buildingId": "B1",
+    "doorwayId": "B1-door-0",
+    "missionVersion": 1,
+    "navigationVersion": 1,
+    "leaderId": 1,
+    "members": [
+      1,
+      3,
+      7,
+      2,
+      0,
+      4,
+      5,
+      6,
+      8,
+      9
+    ],
+    "time": 0,
+    "source": "preview-74c3da3"
+  },
+  "last": {
+    "time": 59.84999999999961,
+    "buildingId": "B1",
+    "doorwayId": "B1-door-0",
+    "leaderId": 1,
+    "missionVersion": 1,
+    "navigationVersion": 1,
+    "routeIndex": 2,
+    "mode": "watch-doorway",
+    "inContact": false,
+    "ownShots": 11,
+    "hostileIntroduced": true,
+    "hostileDead": true,
+    "entry": {
+      "observerId": "1",
+      "observerEpoch": 0,
+      "observerPosition": {
+        "x": 124.14754531984424,
+        "z": -174.24580294941106
+      },
+      "observedAt": 59.84999999999961,
+      "missionVersion": 1,
+      "leg": 1,
+      "enteredAt": null,
+      "entryVerified": false,
+      "handoff": "awaiting-physical-entry"
+    },
+    "presence": {
+      "provenance": "continuous-interior-presence",
+      "observerId": "1",
+      "observerEpoch": 0,
+      "missionVersion": 1,
+      "leg": 1,
+      "enteredAt": 45.14999999999975,
+      "physicalEntryAt": 15.900000000000027,
+      "observedAt": 59.84999999999961,
+      "witnessId": "7",
+      "observations": 8,
+      "presenceVerified": true
+    },
+    "survey": {
+      "status": "ground-footprint-surveyed",
+      "sectorMask": 15,
+      "observedSectors": 4,
+      "observersInside": 2,
+      "contributors": [
+        "1",
+        "7"
+      ],
+      "observerEpochs": {
+        "1": 0,
+        "7": 0
+      },
+      "sectorObservedAt": [
+        58.94999999999962,
+        58.349999999999625,
+        58.94999999999962,
+        56.99999999999964
+      ],
+      "sectorObservers": [
+        "7",
+        "7",
+        "7",
+        "1"
+      ],
+      "contributorObservedAt": {
+        "1": 56.99999999999964,
+        "7": 58.94999999999962
+      },
+      "complete": true,
+      "observedAt": 59.84999999999961,
+      "scope": "four-facing-and-los-ground-footprint-samples",
+      "clearance": "not-assessed",
+      "control": "unknown"
+    },
+    "watch": {
+      "status": "doorway-watch-confirmed",
+      "doorwayId": "B1-door-0",
+      "entryAt": 45.14999999999975,
+      "doorGuardId": "1",
+      "interiorGuardId": "7",
+      "doorGuardEpoch": 0,
+      "interiorGuardEpoch": 0,
+      "doorGuardPosition": {
+        "x": 124.14754531984424,
+        "z": -174.24580294941106
+      },
+      "interiorGuardPosition": {
+        "x": 129.80598354471823,
+        "z": -180.07086889077206
+      },
+      "doorGuardAnchorPosition": {
+        "x": 124.14754531984424,
+        "z": -174.24580294941106
+      },
+      "interiorGuardAnchorPosition": {
+        "x": 129.80598354471823,
+        "z": -180.07086889077206
+      },
+      "since": 58.94999999999962,
+      "observedAt": 59.84999999999961,
+      "ready": true,
+      "clearance": "not-assessed",
+      "control": "unknown"
+    },
+    "members": [
+      {
+        "id": 1,
+        "x": 124.14754531984424,
+        "z": -174.24580294941106,
+        "yaw": -12.50068642153944,
+        "dead": false,
+        "state": "advance",
+        "order": "structure|1|1|1|B1|watch-doorway||door-guard"
+      },
+      {
+        "id": 3,
+        "x": 121.37833687114839,
+        "z": -171.02103665773484,
+        "yaw": 1.6713999527002537,
+        "dead": false,
+        "state": "advance",
+        "order": "structure|1|1|1|B1|watch-doorway||exterior-security"
+      },
+      {
+        "id": 7,
+        "x": 129.80598354471823,
+        "z": -180.07086889077206,
+        "yaw": 4.65209492126163,
+        "dead": false,
+        "state": "advance",
+        "order": "structure|1|1|1|B1|watch-doorway||interior-observer"
+      },
+      {
+        "id": 2,
+        "x": 119.44886592842242,
+        "z": -171.17035396517622,
+        "yaw": 1.601382151159687,
+        "dead": false,
+        "state": "advance",
+        "order": "structure|1|1|1|B1|watch-doorway||exterior-security"
+      },
+      {
+        "id": 0,
+        "x": 130.2895313372291,
+        "z": -171.00457085768178,
+        "yaw": 4.659421094302137,
+        "dead": false,
+        "state": "advance",
+        "order": "structure|1|1|1|B1|contact-security||exterior-security"
+      },
+      {
+        "id": 4,
+        "x": 117.39033116187103,
+        "z": -171.08383070198974,
+        "yaw": 1.6047660675879556,
+        "dead": false,
+        "state": "advance",
+        "order": "structure|1|1|1|B1|contact-security||exterior-security"
+      },
+      {
+        "id": 5,
+        "x": 132.16739087268212,
+        "z": -171.11556586384233,
+        "yaw": 4.6862771285119225,
+        "dead": false,
+        "state": "advance",
+        "order": "structure|1|1|1|B1|contact-security||exterior-security"
+      },
+      {
+        "id": 6,
+        "x": 115.5278499911544,
+        "z": -171.05905380210262,
+        "yaw": 1.6003997680950575,
+        "dead": false,
+        "state": "advance",
+        "order": "structure|1|1|1|B1|contact-security||exterior-security"
+      },
+      {
+        "id": 8,
+        "x": 134.22320118174193,
+        "z": -171.1373146688784,
+        "yaw": 4.6939066561110225,
+        "dead": false,
+        "state": "advance",
+        "order": "structure|1|1|1|B1|watch-doorway||exterior-security"
+      },
+      {
+        "id": 9,
+        "x": 113.5429052171503,
+        "z": -171.16009379457168,
+        "yaw": 1.585605358199598,
+        "dead": false,
+        "state": "advance",
+        "order": "structure|1|1|1|B1|contact-security||exterior-security"
+      }
+    ]
+  },
+  "runtime": {
+    "transitions": 9,
+    "choices": {
+      "structure-handoff": 2,
+      "structure-security": 1,
+      "approach": 3,
+      "regroup": 1,
+      "protect": 1,
+      "support": 1
+    },
+    "structures": {
+      "physicalEntries": 1,
+      "surveyCompletions": 6,
+      "stableWatches": 1,
+      "securityHolds": 1,
+      "routeHandbacks": 1
+    }
+  },
+  "errors": []
+}

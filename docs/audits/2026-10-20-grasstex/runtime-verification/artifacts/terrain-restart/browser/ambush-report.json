@@ -1,0 +1,722 @@
+{
+  "fixture": "staged reported approach on actual preview terrain; autonomous US soldiers; stationary hostile",
+  "stages": [
+    {
+      "name": "masked-hold",
+      "time": 1.4999999999999998,
+      "mode": "ambush",
+      "stage": "hold",
+      "heldSince": 1.4999999999999998,
+      "readyAt": null,
+      "ownShots": 0,
+      "lastShot": null,
+      "fireControl": "hold",
+      "missionVersion": 1,
+      "routeIndex": 1,
+      "leaderId": 1,
+      "men": [
+        {
+          "id": 1,
+          "position": {
+            "x": -607,
+            "y": 22.76341079711915,
+            "z": -318
+          },
+          "moving": false,
+          "crouching": false,
+          "prone": true,
+          "engagement": "advance",
+          "key": "tactical-posture|1|1"
+        },
+        {
+          "id": 3,
+          "position": {
+            "x": -607,
+            "y": 22.08499450683592,
+            "z": -321
+          },
+          "moving": false,
+          "crouching": false,
+          "prone": true,
+          "engagement": "orient",
+          "key": null
+        },
+        {
+          "id": 7,
+          "position": {
+            "x": -610,
+            "y": 21.91245376586912,
+            "z": -321
+          },
+          "moving": false,
+          "crouching": false,
+          "prone": true,
+          "engagement": "alert",
+          "key": "tactical-posture|1|7"
+        },
+        {
+          "id": 2,
+          "position": {
+            "x": -613,
+            "y": 21.733030395507793,
+            "z": -321
+          },
+          "moving": false,
+          "crouching": false,
+          "prone": true,
+          "engagement": "engage",
+          "key": null
+        },
+        {
+          "id": 0,
+          "position": {
+            "x": -616,
+            "y": 21.51919387817381,
+            "z": -321
+          },
+          "moving": false,
+          "crouching": false,
+          "prone": true,
+          "engagement": "orient",
+          "key": null
+        },
+        {
+          "id": 4,
+          "position": {
+            "x": -619,
+            "y": 21.31076316833494,
+            "z": -321
+          },
+          "moving": false,
+          "crouching": false,
+          "prone": false,
+          "targetId": 54,
+          "engagement": "orient",
+          "key": null
+        },
+        {
+          "id": 5,
+          "position": {
+            "x": -622,
+            "y": 21.103413619995095,
+            "z": -321
+          },
+          "moving": false,
+          "crouching": false,
+          "prone": false,
+          "targetId": 54,
+          "engagement": "orient",
+          "key": null
+        },
+        {
+          "id": 6,
+          "position": {
+            "x": -625,
+            "y": 20.896064071655253,
+            "z": -321
+          },
+          "moving": false,
+          "crouching": false,
+          "prone": true,
+          "engagement": "orient",
+          "key": null
+        },
+        {
+          "id": 8,
+          "position": {
+            "x": -628,
+            "y": 20.645924606323224,
+            "z": -321
+          },
+          "moving": false,
+          "crouching": false,
+          "prone": true,
+          "engagement": "alert",
+          "key": "tactical-posture|1|8"
+        },
+        {
+          "id": 9,
+          "position": {
+            "x": -631,
+            "y": 20.402754745483378,
+            "z": -321
+          },
+          "moving": false,
+          "crouching": false,
+          "prone": true,
+          "engagement": "orient",
+          "key": null
+        }
+      ],
+      "metrics": {
+        "ambushes": 1,
+        "pressureHolds": 0,
+        "coordinatedContacts": 0,
+        "coveredManeuvers": 0,
+        "rejectedUnsafeBounds": 0,
+        "active": 1,
+        "releaseReasons": {}
+      }
+    },
+    {
+      "name": "prepared-line",
+      "time": 5.5500000000000025,
+      "mode": "ambush",
+      "stage": "contact",
+      "heldSince": 1.4999999999999998,
+      "readyAt": 5.5500000000000025,
+      "ownShots": 0,
+      "lastShot": null,
+      "fireControl": "hold",
+      "missionVersion": 1,
+      "routeIndex": 1,
+      "leaderId": 1,
+      "men": [
+        {
+          "id": 1,
+          "position": {
+            "x": -607,
+            "y": 22.76341079711915,
+            "z": -318
+          },
+          "moving": false,
+          "crouching": true,
+          "prone": false,
+          "engagement": "advance",
+          "key": "tactical-posture|1|1"
+        },
+        {
+          "id": 3,
+          "position": {
+            "x": -607,
+            "y": 22.08499450683592,
+            "z": -321
+          },
+          "moving": false,
+          "crouching": false,
+          "prone": true,
+          "engagement": "advance",
+          "key": "tactical-posture|1|3"
+        },
+        {
+          "id": 7,
+          "position": {
+            "x": -610,
+            "y": 21.91245376586912,
+            "z": -321
+          },
+          "moving": false,
+          "crouching": false,
+          "prone": true,
+          "engagement": "advance",
+          "key": "tactical-posture|1|7"
+        },
+        {
+          "id": 2,
+          "position": {
+            "x": -613,
+            "y": 21.733030395507793,
+            "z": -321
+          },
+          "moving": false,
+          "crouching": false,
+          "prone": true,
+          "engagement": "advance",
+          "key": "tactical-posture|1|2"
+        },
+        {
+          "id": 0,
+          "position": {
+            "x": -616,
+            "y": 21.51919387817381,
+            "z": -321
+          },
+          "moving": false,
+          "crouching": false,
+          "prone": true,
+          "engagement": "advance",
+          "key": "tactical-posture|1|0"
+        },
+        {
+          "id": 4,
+          "position": {
+            "x": -619,
+            "y": 21.31076316833494,
+            "z": -321
+          },
+          "moving": false,
+          "crouching": true,
+          "prone": false,
+          "engagement": "advance",
+          "key": "tactical-posture|1|4"
+        },
+        {
+          "id": 5,
+          "position": {
+            "x": -622,
+            "y": 21.103413619995095,
+            "z": -321
+          },
+          "moving": false,
+          "crouching": true,
+          "prone": false,
+          "engagement": "advance",
+          "key": "tactical-posture|1|5"
+        },
+        {
+          "id": 6,
+          "position": {
+            "x": -625,
+            "y": 20.896064071655253,
+            "z": -321
+          },
+          "moving": false,
+          "crouching": false,
+          "prone": true,
+          "engagement": "advance",
+          "key": "tactical-posture|1|6"
+        },
+        {
+          "id": 8,
+          "position": {
+            "x": -628,
+            "y": 20.645924606323224,
+            "z": -321
+          },
+          "moving": false,
+          "crouching": false,
+          "prone": true,
+          "engagement": "advance",
+          "key": "tactical-posture|1|8"
+        },
+        {
+          "id": 9,
+          "position": {
+            "x": -631,
+            "y": 20.402754745483378,
+            "z": -321
+          },
+          "moving": false,
+          "crouching": false,
+          "prone": true,
+          "engagement": "advance",
+          "key": "tactical-posture|1|9"
+        }
+      ],
+      "metrics": {
+        "ambushes": 1,
+        "pressureHolds": 0,
+        "coordinatedContacts": 1,
+        "coveredManeuvers": 0,
+        "rejectedUnsafeBounds": 0,
+        "active": 1,
+        "releaseReasons": {}
+      }
+    },
+    {
+      "name": "first-contact-volley",
+      "time": 6.600000000000005,
+      "mode": "ambush",
+      "stage": "contact",
+      "heldSince": 1.4999999999999998,
+      "readyAt": 5.5500000000000025,
+      "ownShots": 4,
+      "lastShot": {
+        "at": 6.600000000000005,
+        "shooterId": 1,
+        "stage": "contact",
+        "readyAt": 5.5500000000000025,
+        "incoming": false,
+        "fireControl": "open"
+      },
+      "fireControl": "open",
+      "missionVersion": 1,
+      "routeIndex": 1,
+      "leaderId": 1,
+      "men": [
+        {
+          "id": 1,
+          "position": {
+            "x": -607,
+            "y": 22.76341079711915,
+            "z": -318
+          },
+          "moving": false,
+          "crouching": false,
+          "prone": false,
+          "targetId": 54,
+          "engagement": "engage",
+          "key": "tactical-posture|1|1"
+        },
+        {
+          "id": 3,
+          "position": {
+            "x": -607,
+            "y": 22.08499450683592,
+            "z": -321
+          },
+          "moving": false,
+          "crouching": false,
+          "prone": false,
+          "targetId": 54,
+          "engagement": "engage",
+          "key": "tactical-posture|1|3"
+        },
+        {
+          "id": 7,
+          "position": {
+            "x": -610,
+            "y": 21.91245376586912,
+            "z": -321
+          },
+          "moving": false,
+          "crouching": false,
+          "prone": false,
+          "targetId": 54,
+          "engagement": "engage",
+          "key": "tactical-posture|1|7"
+        },
+        {
+          "id": 2,
+          "position": {
+            "x": -613,
+            "y": 21.733030395507793,
+            "z": -321
+          },
+          "moving": false,
+          "crouching": false,
+          "prone": false,
+          "targetId": 54,
+          "engagement": "engage",
+          "key": "tactical-posture|1|2"
+        },
+        {
+          "id": 0,
+          "position": {
+            "x": -616,
+            "y": 21.51919387817381,
+            "z": -321
+          },
+          "moving": false,
+          "crouching": false,
+          "prone": true,
+          "engagement": "advance",
+          "key": "tactical-posture|1|0"
+        },
+        {
+          "id": 4,
+          "position": {
+            "x": -619,
+            "y": 21.31076316833494,
+            "z": -321
+          },
+          "moving": false,
+          "crouching": false,
+          "prone": false,
+          "targetId": 54,
+          "engagement": "engage",
+          "key": "tactical-posture|1|4"
+        },
+        {
+          "id": 5,
+          "position": {
+            "x": -622,
+            "y": 21.103413619995095,
+            "z": -321
+          },
+          "moving": false,
+          "crouching": false,
+          "prone": false,
+          "targetId": 54,
+          "engagement": "engage",
+          "key": "tactical-posture|1|5"
+        },
+        {
+          "id": 6,
+          "position": {
+            "x": -625,
+            "y": 20.896064071655253,
+            "z": -321
+          },
+          "moving": false,
+          "crouching": false,
+          "prone": true,
+          "engagement": "advance",
+          "key": "tactical-posture|1|6"
+        },
+        {
+          "id": 8,
+          "position": {
+            "x": -628,
+            "y": 20.645924606323224,
+            "z": -321
+          },
+          "moving": false,
+          "crouching": false,
+          "prone": false,
+          "targetId": 54,
+          "engagement": "engage",
+          "key": "tactical-posture|1|8"
+        },
+        {
+          "id": 9,
+          "position": {
+            "x": -631,
+            "y": 20.402754745483378,
+            "z": -321
+          },
+          "moving": false,
+          "crouching": false,
+          "prone": true,
+          "engagement": "advance",
+          "key": "tactical-posture|1|9"
+        }
+      ],
+      "metrics": {
+        "ambushes": 1,
+        "pressureHolds": 0,
+        "coordinatedContacts": 1,
+        "coveredManeuvers": 0,
+        "rejectedUnsafeBounds": 0,
+        "active": 1,
+        "releaseReasons": {}
+      }
+    }
+  ],
+  "shots": [
+    {
+      "at": 6.600000000000005,
+      "shooterId": 1,
+      "stage": "contact",
+      "readyAt": 5.5500000000000025,
+      "incoming": false,
+      "fireControl": "open"
+    }
+  ],
+  "setup": {
+    "time": 0,
+    "missionVersion": 1,
+    "routeIndex": 1,
+    "leaderId": 1,
+    "navigationVersion": 1,
+    "source": "preview-74c3da3",
+    "attempts": 24631,
+    "posts": [
+      {
+        "x": -607,
+        "z": -318
+      },
+      {
+        "x": -607,
+        "z": -321
+      },
+      {
+        "x": -610,
+        "z": -321
+      },
+      {
+        "x": -613,
+        "z": -321
+      },
+      {
+        "x": -616,
+        "z": -321
+      },
+      {
+        "x": -619,
+        "z": -321
+      },
+      {
+        "x": -622,
+        "z": -321
+      },
+      {
+        "x": -625,
+        "z": -321
+      },
+      {
+        "x": -628,
+        "z": -321
+      },
+      {
+        "x": -631,
+        "z": -321
+      }
+    ],
+    "reported": {
+      "x": -625,
+      "z": -255,
+      "at": 0,
+      "confidence": 0.9
+    }
+  },
+  "last": {
+    "time": 6.600000000000005,
+    "mode": "ambush",
+    "stage": "contact",
+    "heldSince": 1.4999999999999998,
+    "readyAt": 5.5500000000000025,
+    "ownShots": 4,
+    "lastShot": {
+      "at": 6.600000000000005,
+      "shooterId": 1,
+      "stage": "contact",
+      "readyAt": 5.5500000000000025,
+      "incoming": false,
+      "fireControl": "open"
+    },
+    "fireControl": "open",
+    "missionVersion": 1,
+    "routeIndex": 1,
+    "leaderId": 1,
+    "men": [
+      {
+        "id": 1,
+        "position": {
+          "x": -607,
+          "y": 22.76341079711915,
+          "z": -318
+        },
+        "moving": false,
+        "crouching": false,
+        "prone": false,
+        "targetId": 54,
+        "engagement": "engage",
+        "key": "tactical-posture|1|1"
+      },
+      {
+        "id": 3,
+        "position": {
+          "x": -607,
+          "y": 22.08499450683592,
+          "z": -321
+        },
+        "moving": false,
+        "crouching": false,
+        "prone": false,
+        "targetId": 54,
+        "engagement": "engage",
+        "key": "tactical-posture|1|3"
+      },
+      {
+        "id": 7,
+        "position": {
+          "x": -610,
+          "y": 21.91245376586912,
+          "z": -321
+        },
+        "moving": false,
+        "crouching": false,
+        "prone": false,
+        "targetId": 54,
+        "engagement": "engage",
+        "key": "tactical-posture|1|7"
+      },
+      {
+        "id": 2,
+        "position": {
+          "x": -613,
+          "y": 21.733030395507793,
+          "z": -321
+        },
+        "moving": false,
+        "crouching": false,
+        "prone": false,
+        "targetId": 54,
+        "engagement": "engage",
+        "key": "tactical-posture|1|2"
+      },
+      {
+        "id": 0,
+        "position": {
+          "x": -616,
+          "y": 21.51919387817381,
+          "z": -321
+        },
+        "moving": false,
+        "crouching": false,
+        "prone": true,
+        "engagement": "advance",
+        "key": "tactical-posture|1|0"
+      },
+      {
+        "id": 4,
+        "position": {
+          "x": -619,
+          "y": 21.31076316833494,
+          "z": -321
+        },
+        "moving": false,
+        "crouching": false,
+        "prone": false,
+        "targetId": 54,
+        "engagement": "engage",
+        "key": "tactical-posture|1|4"
+      },
+      {
+        "id": 5,
+        "position": {
+          "x": -622,
+          "y": 21.103413619995095,
+          "z": -321
+        },
+        "moving": false,
+        "crouching": false,
+        "prone": false,
+        "targetId": 54,
+        "engagement": "engage",
+        "key": "tactical-posture|1|5"
+      },
+      {
+        "id": 6,
+        "position": {
+          "x": -625,
+          "y": 20.896064071655253,
+          "z": -321
+        },
+        "moving": false,
+        "crouching": false,
+        "prone": true,
+        "engagement": "advance",
+        "key": "tactical-posture|1|6"
+      },
+      {
+        "id": 8,
+        "position": {
+          "x": -628,
+          "y": 20.645924606323224,
+          "z": -321
+        },
+        "moving": false,
+        "crouching": false,
+        "prone": false,
+        "targetId": 54,
+        "engagement": "engage",
+        "key": "tactical-posture|1|8"
+      },
+      {
+        "id": 9,
+        "position": {
+          "x": -631,
+          "y": 20.402754745483378,
+          "z": -321
+        },
+        "moving": false,
+        "crouching": false,
+        "prone": true,
+        "engagement": "advance",
+        "key": "tactical-posture|1|9"
+      }
+    ],
+    "metrics": {
+      "ambushes": 1,
+      "pressureHolds": 0,
+      "coordinatedContacts": 1,
+      "coveredManeuvers": 0,
+      "rejectedUnsafeBounds": 0,
+      "active": 1,
+      "releaseReasons": {}
+    }
+  },
+  "errors": []
+}

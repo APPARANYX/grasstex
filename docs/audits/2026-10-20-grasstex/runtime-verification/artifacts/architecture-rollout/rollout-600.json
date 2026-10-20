@@ -1,0 +1,10 @@
+{
+  "pr": 600,
+  "testedHead": "ffcd5c6fa7d7d1d70fdc9684bf2b1c2bde386a94",
+  "merge": "6bf03649861cf1d1a6621c2916c095a88a1e814b",
+  "build": "build-v559",
+  "deploymentRun": 39512151233,
+  "housekeepingRun": 39512151492,
+  "branchDeleted": true,
+  "liveModuleMatches": true
+}

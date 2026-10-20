@@ -1,0 +1,207 @@
+{
+  "urban": {
+    "stable": true,
+    "loops": 100,
+    "msPerSample": 1.021999999999971,
+    "serializedBytes": 24660,
+    "buildings": 19,
+    "streets": 3,
+    "visibilityProbes": 40
+  },
+  "enabled": true,
+  "stable": true,
+  "loops": 1000,
+  "totalMs": 80.40000000000873,
+  "msPerSample": 0.08040000000000873,
+  "serializedBytes": 2459,
+  "beforeContacts": 0,
+  "modules": 109,
+  "collectedHeapDeltaBytes": 26640,
+  "sampledAllocationBytes": 43010472,
+  "diagnostics": {
+    "fullMs": 39.89999999999418,
+    "compactMsPerExport": 3.055000000000291,
+    "fullSerializedBytes": 4770682,
+    "historyFrames": 10,
+    "time": 10.112
+  },
+  "intent": {
+    "loops": 1000,
+    "msPerSnapshot": 0.04020000000001164,
+    "serializedBytes": 556,
+    "frozen": true,
+    "factions": [
+      5,
+      5
+    ],
+    "sampledAllocationBytes": 9509912,
+    "collectedHeapDeltaBytes": -199968
+  },
+  "route": {
+    "fixture": "diagnostic lease on paused real squad; no movement injection",
+    "loops": 1000,
+    "msPerTick": 0.0022999999999883587,
+    "endReason": "arrived",
+    "gameplayUnchanged": true,
+    "nonemptyHistory": 1
+  },
+  "viewer": {
+    "imported": true,
+    "legacyCompatible": true,
+    "narrowFits": true,
+    "text": "A US · t=9.1s\nTactical (2.2s old): attacking · 0 reported contacts · 1 reserves\nUrban (4.5s old): 19 footprints / 0 with reports · 3 streets / 0 with reports\nLOS sample points: 38/40 clear · structure control unknown\nA GE · t=9.1s\nTactical (2.2s old): attacking · 0 reported contacts · 1 reserves\nUrban (4.5s old): 19 footprints / 0 with reports · 3 streets / 0 with reports\nLOS sample points: 30/40 clear · structure control unknown\n\nReports retain faction knowledge. Presence and clear LOS samples do not prove enemy detection or cleared streets."
+  },
+  "conflicts": {
+    "fixture": "owner API lease/order fixture on paused real squad; no movement injection",
+    "loops": 1000,
+    "msPerQuery": 0.003,
+    "winner": "regroup",
+    "cleanup": true,
+    "nonemptyHistory": 1,
+    "sampledAllocationBytes": 601824,
+    "collectedHeapDeltaBytes": -418016
+  },
+  "localPlanning": {
+    "natural": {
+      "transitions": 26,
+      "choices": {
+        "approach": 20,
+        "recon": 6
+      }
+    },
+    "loops": 1000,
+    "msPerUpdate": 0.0485,
+    "resourceMsPerRead": 0.027700000000011642,
+    "resource": {
+      "status": "reported",
+      "supportingIds": [],
+      "moverIds": [
+        "1",
+        "7",
+        "2",
+        "0",
+        "4",
+        "5",
+        "6",
+        "8",
+        "9"
+      ],
+      "observedAt": 10.112
+    },
+    "stable": true,
+    "cleanup": true,
+    "winner": "protect",
+    "fixture": "own-squad pressure report through policy and existing lease/Engagement owners",
+    "bytes": 1358,
+    "sampledAllocationBytes": 20904108,
+    "collectedHeapDeltaBytes": -69464
+  },
+  "coveredBounds": {
+    "safe": {
+      "eligible": true,
+      "reason": "covered-segment",
+      "distance": 6,
+      "samples": 9,
+      "maxExposure": 0
+    },
+    "unsafe": {
+      "eligible": false,
+      "reason": "exposed-route",
+      "distance": 8.94427190999916,
+      "samples": 11,
+      "maxExposure": 2.23606797749979
+    },
+    "stable": true,
+    "loops": 1000,
+    "msPerRoute": 0.04279999999998836,
+    "natural": {
+      "attempts": 0,
+      "accepted": 0,
+      "rejected": 0,
+      "candidates": 0,
+      "samples": 0
+    },
+    "sampledAllocationBytes": 12301172,
+    "collectedHeapDeltaBytes": -229536
+  },
+  "localMissionTasks": {
+    "loops": 1000,
+    "msPerExecution": 0.009,
+    "first": {
+      "kind": "route-transition",
+      "owner": "mission-execution",
+      "status": "traversing",
+      "leg": 0,
+      "target": {
+        "x": -229,
+        "z": -99.3
+      },
+      "missionVersion": 1,
+      "distance": 50,
+      "distanceMoved": 0,
+      "lastProgressAt": 10.112,
+      "clearance": "not-assessed"
+    },
+    "stable": true,
+    "staleRejected": true,
+    "fixture": "join on actual accepted real-page route; physical outcomes covered separately by shipping harness",
+    "sampledAllocationBytes": 1720012,
+    "collectedHeapDeltaBytes": -202564
+  },
+  "interiorContinuity": {
+    "fixture": "isolated controlled poses; shipping real-page Navigation/terrain/LOS and mission-owner APIs; not autonomous gameplay",
+    "buildingId": "B1",
+    "doorwayId": "B1-door-0",
+    "provenance": {
+      "provenance": "continuous-interior-presence",
+      "observerId": "900000",
+      "observerEpoch": 0,
+      "missionVersion": 1,
+      "leg": 1,
+      "enteredAt": 13.261999999999995,
+      "physicalEntryAt": 10.562,
+      "observedAt": 13.711999999999994,
+      "witnessId": "900001",
+      "observations": 8,
+      "presenceVerified": true
+    },
+    "freshSurveyRequired": true,
+    "freshWatchRequired": true,
+    "lostWitnessRejected": true,
+    "stable": true
+  },
+  "localDegradation": {
+    "loops": 1000,
+    "msPerValidation": 0.01769999999998254,
+    "validity": {
+      "kind": "protect",
+      "serial": 5,
+      "missionVersion": 1,
+      "status": "hold",
+      "reason": "mission-replaced",
+      "at": 10.112,
+      "finishBound": false,
+      "boundsAllowed": false,
+      "reconAllowed": false
+    },
+    "taskPreserved": true,
+    "cleanup": true
+  },
+  "restart": {
+    "terrainSettled": true,
+    "coveredAttemptsBefore": 1,
+    "leaderlessBefore": 1,
+    "localValidityCleared": true,
+    "coveredBoundsCleared": true,
+    "localTasksCleared": true,
+    "conflictsCleared": true,
+    "routeCleared": true,
+    "historyCleared": true,
+    "intentCleared": true,
+    "urbanCleared": true,
+    "urbanReports": 0,
+    "cleared": true,
+    "contacts": 0
+  },
+  "errors": []
+}

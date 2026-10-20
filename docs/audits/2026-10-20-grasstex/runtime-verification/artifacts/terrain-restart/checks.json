@@ -1,0 +1,44 @@
+[
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/terrain-restart-owner-check.js"
+    ],
+    "exitCode": 0
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/macro-relief-height-check.js"
+    ],
+    "exitCode": 0
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/fixed-clock-restart-check.js"
+    ],
+    "exitCode": 0
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/commander-lifecycle-check.js"
+    ],
+    "exitCode": 0
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/start-wrapper-contract-check.js"
+    ],
+    "exitCode": 0
+  },
+  {
+    "command": [
+      "node",
+      "scripts/check-strategic-restart-end.cjs"
+    ],
+    "exitCode": 0
+  }
+]

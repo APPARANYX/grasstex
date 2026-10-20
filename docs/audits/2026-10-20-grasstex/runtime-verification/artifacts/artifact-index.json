@@ -160,6 +160,36 @@
     "sha256": "b71db8e79b3a43c07c22e70830e41ccf2d601cf005f44e12015c7627f48cf8e0"
   },
   {
+    "path": "architecture-rollout/600-deploy-result.json",
+    "bytes": 187,
+    "sha256": "d0e5a9ee00a1267c51d7b1c0fea93a95f5170cc18ac31d6d01ba93b552c3c212"
+  },
+  {
+    "path": "architecture-rollout/600-housekeeping-result.json",
+    "bytes": 187,
+    "sha256": "43341bd468b494ba4763e09cdba79beddf720f92279eaee40916c8b943d5acf1"
+  },
+  {
+    "path": "architecture-rollout/600-live-diagnostics.json",
+    "bytes": 217,
+    "sha256": "f578e8ce8f4551668b3e769022d2f49dd56d56ac31bcd19d4774a016b006f2a5"
+  },
+  {
+    "path": "architecture-rollout/601-deploy-result.json",
+    "bytes": 216,
+    "sha256": "f023d953e7b0ed96bc938477ae63282884c71d6685b293583f30c416e35091c4"
+  },
+  {
+    "path": "architecture-rollout/601-housekeeping-result.json",
+    "bytes": 216,
+    "sha256": "bc058cfca092b20b922f3627164a85e80323d7148785eff75bbde9b488d3efbb"
+  },
+  {
+    "path": "architecture-rollout/601-live-source.json",
+    "bytes": 203,
+    "sha256": "a54809424e8eee5ea3cb3b94800577496d7f0e989b9e21139b7e2e0e492c4ba9"
+  },
+  {
     "path": "architecture-rollout/rollout-598.json",
     "bytes": 441,
     "sha256": "9550c6dee2cf343998d47f825d256e4902fb9da1dfdd69c9cfbe99e19a019ccc"
@@ -168,6 +198,16 @@
     "path": "architecture-rollout/rollout-599.json",
     "bytes": 455,
     "sha256": "18d9ba02e034d17f77f64e225a1af49582adeafcfa270d615813a3436ce51375"
+  },
+  {
+    "path": "architecture-rollout/rollout-600.json",
+    "bytes": 276,
+    "sha256": "af0789edd520f471eb9f10e97f891467dfef1229472fcf06f7b5cae91d0ddca4"
+  },
+  {
+    "path": "architecture-rollout/rollout-601.json",
+    "bytes": 329,
+    "sha256": "2f18b8509b15cd17d2131d4ee232c6cdce465d844ff7f5503cd8678ea45faf6c"
   },
   {
     "path": "architecture-rollout/rollout.json",
@@ -3035,6 +3075,51 @@
     "sha256": "4ea19f1847b390d24cae93a5fa262f9fa4711c7ec32dfbe30b7d08371379c934"
   },
   {
+    "path": "operator-restart/benchmark-restart-isolation-check.log",
+    "bytes": 66,
+    "sha256": "ab5b0e29638f1825a3b8881d91fc4df03e9c19fe0dcb85f36e762965ac5217d4"
+  },
+  {
+    "path": "operator-restart/check-strategic-restart-end.log",
+    "bytes": 96,
+    "sha256": "c617d51e014438797c22460322668399721a4bfc170149e73b52166fc78d8721"
+  },
+  {
+    "path": "operator-restart/checks.json",
+    "bytes": 1377,
+    "sha256": "3f2c365eafca77f1617895d95893897f6d9c40493c55ac9bfad92247c940792b"
+  },
+  {
+    "path": "operator-restart/commander-lifecycle-check.log",
+    "bytes": 151,
+    "sha256": "b5b2c2ef824de26eb12568b563ffeba6822a8e60e1f2080def124764c5502e23"
+  },
+  {
+    "path": "operator-restart/control-scenario-rejection-check.log",
+    "bytes": 91,
+    "sha256": "ce77570515922131c9ed71d394a41e6e87bf90141c9abbc17dd09d1af1196e1c"
+  },
+  {
+    "path": "operator-restart/fixed-clock-restart-check.log",
+    "bytes": 138,
+    "sha256": "9d56f4396183ec2fc854b8bdf2584f1989efbc48efcb558e2f9504fca14b73fc"
+  },
+  {
+    "path": "operator-restart/operator-restart-owner-check.log",
+    "bytes": 329,
+    "sha256": "cbec7a03cb1a80572dc0af385e7162e432871708398b6d58ed322dfdea5311e4"
+  },
+  {
+    "path": "operator-restart/start-wrapper-contract-check.log",
+    "bytes": 79,
+    "sha256": "f43cac6f4a4be37062e891f78fd0d1e6f72c2f0c1e9ab9d3d6e101972e52d379"
+  },
+  {
+    "path": "operator-restart/terrain-restart-owner-check.log",
+    "bytes": 131,
+    "sha256": "8621827b7b22184bebd89dec0765aec3eab18a88cbeb8837cb0d056c6382743e"
+  },
+  {
     "path": "outcome-probe-check.log",
     "bytes": 46,
     "sha256": "7c698d8ffd8533de8432b12cc1c20d7b08b317df227bde73a3a540a7469cfedc"
@@ -3608,6 +3693,201 @@
     "path": "targeted-fire-probe-check.log",
     "bytes": 99,
     "sha256": "252c831619e8a517a929e10043054cccfa08a46dd15088d93561edf9f9a4568d"
+  },
+  {
+    "path": "terrain-restart/baseline-run.json",
+    "bytes": 187,
+    "sha256": "424223574eef162b76aae524ec83d37e6d53b8f1c333aa864c0274d9bfbf35cd"
+  },
+  {
+    "path": "terrain-restart/benchmark-baseline/seeds-1049-compare/reports/compare.json",
+    "bytes": 7906,
+    "sha256": "6377568af0786e5a98bae7dece9dad149b34c67b680e09929a0f0e88e7013b25"
+  },
+  {
+    "path": "terrain-restart/benchmark-baseline/seeds-1049-compare/result/compare.json",
+    "bytes": 7906,
+    "sha256": "6377568af0786e5a98bae7dece9dad149b34c67b680e09929a0f0e88e7013b25"
+  },
+  {
+    "path": "terrain-restart/benchmark-baseline/seeds-1049-compare/result/off.json.gz",
+    "bytes": 171859,
+    "sha256": "47109e87b8c6f54bf9773572cb5822ce14f45ca1304dbf7a75a3ab4ac253abb3"
+  },
+  {
+    "path": "terrain-restart/benchmark-baseline/seeds-1049-compare/result/on.json.gz",
+    "bytes": 171858,
+    "sha256": "dea5f1e7f5165bbe54bac3dacf2c16346ac2ece69ce23b262892c3523aa65caa"
+  },
+  {
+    "path": "terrain-restart/benchmark-baseline/seeds-1049-compare/result/result.json",
+    "bytes": 9913,
+    "sha256": "51565c7c844dbf52c383354f6adcce75763d256170afcc53435e9c7052ab8e47"
+  },
+  {
+    "path": "terrain-restart/benchmark-baseline/seeds-1049-shard-1/off/battle-benchmark.json.gz",
+    "bytes": 155841,
+    "sha256": "02c22db19663fdd947b08a6cc9633c3bcc55861b07a1f34db7366747065455fb"
+  },
+  {
+    "path": "terrain-restart/benchmark-baseline/seeds-1049-shard-1/on/battle-benchmark.json.gz",
+    "bytes": 155842,
+    "sha256": "4c0ee05219f1cc8986d8778768f9ef2af2ba37fcd6a38a77740e4e028281a5cf"
+  },
+  {
+    "path": "terrain-restart/benchmark-baseline/seeds-1049-shard-2/off/battle-benchmark.json.gz",
+    "bytes": 128187,
+    "sha256": "b322ab5fd0813b099ad67d145dfc65ff0b6cf8b5754df23d8c489b8b470047a8"
+  },
+  {
+    "path": "terrain-restart/benchmark-baseline/seeds-1049-shard-2/on/battle-benchmark.json.gz",
+    "bytes": 128183,
+    "sha256": "bb86c66da229cf3a4ad53096aac35b3c31f2ca876a6b8cab5a413f39a52e436d"
+  },
+  {
+    "path": "terrain-restart/benchmark-baseline/seeds-1049-shard-3/off/battle-benchmark.json.gz",
+    "bytes": 98250,
+    "sha256": "f0ea3febe7dec36a0744470fef9d63f93d8ff65b408558736fd36d3ff5bbd815"
+  },
+  {
+    "path": "terrain-restart/benchmark-baseline/seeds-1049-shard-3/on/battle-benchmark.json.gz",
+    "bytes": 98253,
+    "sha256": "ed1b2800fc41461959c11e63b8cb1ca6e19a110af379715654a4fdacf2d2d7e8"
+  },
+  {
+    "path": "terrain-restart/benchmark-candidate/seeds-1050-compare/reports/compare.json",
+    "bytes": 7906,
+    "sha256": "c176fb33c1876df81fd9de1d6df48aeedb78d08f6ff299fee2eca79df3fb1822"
+  },
+  {
+    "path": "terrain-restart/benchmark-candidate/seeds-1050-compare/result/compare.json",
+    "bytes": 7906,
+    "sha256": "c176fb33c1876df81fd9de1d6df48aeedb78d08f6ff299fee2eca79df3fb1822"
+  },
+  {
+    "path": "terrain-restart/benchmark-candidate/seeds-1050-compare/result/off.json.gz",
+    "bytes": 171856,
+    "sha256": "60e2b3c443377a740aadfe654d5468c791181122cb5504f6f05fc3435ca2a0f4"
+  },
+  {
+    "path": "terrain-restart/benchmark-candidate/seeds-1050-compare/result/on.json.gz",
+    "bytes": 171855,
+    "sha256": "3a479b043196636f2a44526cd3786d139f6389fc1eef8eca99d5d0f509014399"
+  },
+  {
+    "path": "terrain-restart/benchmark-candidate/seeds-1050-compare/result/result.json",
+    "bytes": 10059,
+    "sha256": "c6344d411d3a509bbd795b73096b500314612b7139257f8c75292796c9c92bec"
+  },
+  {
+    "path": "terrain-restart/benchmark-candidate/seeds-1050-shard-1/off/battle-benchmark.json.gz",
+    "bytes": 155841,
+    "sha256": "74cfd6256fa8d70dac605cc46f270f3c6435c62851df834c676091b95b36d86e"
+  },
+  {
+    "path": "terrain-restart/benchmark-candidate/seeds-1050-shard-1/on/battle-benchmark.json.gz",
+    "bytes": 155841,
+    "sha256": "484c6dbfa295de45729a5ced7465e76ea8972524ec84df7cc1ac92c811195c88"
+  },
+  {
+    "path": "terrain-restart/benchmark-candidate/seeds-1050-shard-2/off/battle-benchmark.json.gz",
+    "bytes": 128181,
+    "sha256": "da8a3c29f3bb7181f689b46acd1de30241183a1afa35f3299bce7382de9f1bd2"
+  },
+  {
+    "path": "terrain-restart/benchmark-candidate/seeds-1050-shard-2/on/battle-benchmark.json.gz",
+    "bytes": 128181,
+    "sha256": "e08816f0147cf70e517dc0b4d0a793f00a94b1ac17bda57a116d64f078e0ba52"
+  },
+  {
+    "path": "terrain-restart/benchmark-candidate/seeds-1050-shard-3/off/battle-benchmark.json.gz",
+    "bytes": 98249,
+    "sha256": "42b6e4baa11e03b92f3d4c481f609cd9c1af9311af39779ea73a01ba21b20349"
+  },
+  {
+    "path": "terrain-restart/benchmark-candidate/seeds-1050-shard-3/on/battle-benchmark.json.gz",
+    "bytes": 98249,
+    "sha256": "2e1b39e17917e1909cc7e17611a43ba1141f4f54b83f33797bff0dd0ffdad73b"
+  },
+  {
+    "path": "terrain-restart/browser/ambush-report.json",
+    "bytes": 16486,
+    "sha256": "9b2864227d695613045fad92e5a16a2e56aad8b163da1e8f55e459aa18a73ac3"
+  },
+  {
+    "path": "terrain-restart/browser/c3-effective-fire.json",
+    "bytes": 452,
+    "sha256": "99375143335ba8cd9e49fd223f5fb79151a6296479dab414f932932674d71ffc"
+  },
+  {
+    "path": "terrain-restart/browser/report.json",
+    "bytes": 5690,
+    "sha256": "5c3236d6f702dde132fe5559f844e1a36f0ca4ae11fe573a19c237502d876ea3"
+  },
+  {
+    "path": "terrain-restart/browser/structure-report.json",
+    "bytes": 39575,
+    "sha256": "54bfe4160d8b63d775b7a199966f677f13ec4cb40d786f57eed887252b9c3454"
+  },
+  {
+    "path": "terrain-restart/candidate-run.json",
+    "bytes": 187,
+    "sha256": "d82e51f6f3ebc965cd1838a99d1b989a0354e09ae1d8387b81da74f9312c8d22"
+  },
+  {
+    "path": "terrain-restart/check-strategic-restart-end.log",
+    "bytes": 96,
+    "sha256": "c617d51e014438797c22460322668399721a4bfc170149e73b52166fc78d8721"
+  },
+  {
+    "path": "terrain-restart/checks.json",
+    "bytes": 736,
+    "sha256": "a51c4b2c301a67a688ff1739cded67d3a8023a8af48954b941a7eb6cef470352"
+  },
+  {
+    "path": "terrain-restart/commander-lifecycle-check.log",
+    "bytes": 151,
+    "sha256": "b5b2c2ef824de26eb12568b563ffeba6822a8e60e1f2080def124764c5502e23"
+  },
+  {
+    "path": "terrain-restart/cross-off.json",
+    "bytes": 532,
+    "sha256": "69229f750e9265e0867df805d85945a40e5dba46c2c8aa6c163e9dc47d1b172a"
+  },
+  {
+    "path": "terrain-restart/cross-on.json",
+    "bytes": 531,
+    "sha256": "23537a531b39ad205e58760013830df4845e678e61ff1ac12b60a18b156c3880"
+  },
+  {
+    "path": "terrain-restart/final-head-ci.json",
+    "bytes": 2799,
+    "sha256": "260acd2d6deae47a870a7a35e0b26d387e2377900b96d6672237c7c6376c1278"
+  },
+  {
+    "path": "terrain-restart/fixed-clock-restart-check.log",
+    "bytes": 138,
+    "sha256": "9d56f4396183ec2fc854b8bdf2584f1989efbc48efcb558e2f9504fca14b73fc"
+  },
+  {
+    "path": "terrain-restart/head-ci-in-progress.json",
+    "bytes": 3475,
+    "sha256": "17c5d925d8ef4df2a299cdf07f0668b18f97bfbfc27e816dcd00bd42bcbf959e"
+  },
+  {
+    "path": "terrain-restart/macro-relief-height-check.log",
+    "bytes": 79,
+    "sha256": "76a8a5b492585ad27fbbd84bf394d76cc104a30c895b26fff39aaf2f1a5a3b6c"
+  },
+  {
+    "path": "terrain-restart/start-wrapper-contract-check.log",
+    "bytes": 79,
+    "sha256": "f43cac6f4a4be37062e891f78fd0d1e6f72c2f0c1e9ab9d3d6e101972e52d379"
+  },
+  {
+    "path": "terrain-restart/terrain-restart-owner-check.log",
+    "bytes": 131,
+    "sha256": "8621827b7b22184bebd89dec0765aec3eab18a88cbeb8837cb0d056c6382743e"
   },
   {
     "path": "threat-disposition-check.log",

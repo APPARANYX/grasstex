@@ -1,0 +1,11 @@
+{
+  "pr": 601,
+  "testedHead": "74c3da315e3912d0ab687f8e80dcc27399e4e979",
+  "merge": "e8286d952176cfe9c3a98be2385c513a3fce4c92",
+  "build": "build-v560",
+  "deploymentRun": 39513560355,
+  "housekeepingRun": 39513559944,
+  "branchDeleted": true,
+  "liveModule": "battle/modules/46-macro-relief.js",
+  "liveModuleMatches": true
+}
