@@ -10,12 +10,15 @@ name: ⭐ Branch housekeeping
 # Weekly sweep: any branch with no commit missing from main (git cherry, so squash-merged and
 # cherry-picked work counts as merged), no open PR, and a tip at least MIN_AGE_DAYS old. Branches
 # with unmerged commits are never deleted, only listed in the run summary for a human to judge.
+# Daily: successful benchmark launcher branches older than 2 days are archived to
+# benchmark-results with pinned historical source parents before guarded deletion.
 
 on:
   pull_request:
     types: [closed]
   schedule:
-    - cron: '17 6 * * 1'
+    - cron: '17 6 * * 1' # full weekly sweep
+    - cron: '23 6 * * *' # daily archived benchmark-launch sweep
   workflow_dispatch:
     inputs:
       dry_run:
@@ -74,7 +77,7 @@ jobs:
 
   sweep:
     name: Sweep merged branches
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    if: (github.event_name == 'schedule' && github.event.schedule == '17 6 * * 1') || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -128,7 +131,7 @@ jobs:
     needs: [merged-head]
     if: >-
       always() && (
-        github.event_name == 'schedule' ||
+        (github.event_name == 'schedule' && github.event.schedule == '17 6 * * 1') ||
         (github.event_name == 'pull_request' && github.event.pull_request.merged == true) ||
         (github.event_name == 'workflow_dispatch' && inputs.clean_action_runs)
       )
@@ -143,9 +146,31 @@ jobs:
           MAX_DELETE: 100
         run: bash scripts/housekeeping-actions-runs.sh
 
+  benchmark-launch-sweep:
+    name: Archive and retire completed launcher branches
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Fetch exact branch tips
+        run: git fetch --prune origin '+refs/heads/*:refs/remotes/origin/*'
+      - name: Verify cleanup script
+        run: python3 -m py_compile scripts/housekeeping-benchmark-launches.py
+      - name: Archive verified benchmark launch requests before deleting their branches
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+          BENCHMARK_LAUNCH_MIN_AGE_DAYS: 2
+          BENCHMARK_LAUNCH_MAX_DELETE: 100
+        run: python3 scripts/housekeeping-benchmark-launches.py
+
   workflow-sidebar-audit:
     name: Audit stale Actions sidebar registrations
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    if: (github.event_name == 'schedule' && github.event.schedule == '17 6 * * 1') || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
