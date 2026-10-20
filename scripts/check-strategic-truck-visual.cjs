@@ -143,11 +143,12 @@ assert.ok(
   render.includes('fx._vehicleSeat.applyPose(fx)'),
   'On-foot animation should not overwrite seated pose'
 );
+window.location.search = '';
+assert.equal(api.enabled(sim), true, 'truck meshes are visible by default on strategic maps');
 for (const search of [
-  '',
-  '?strategicInterception=1',
-  '?motorTransport=1',
-  '?strategicInterception=1&motorTransport=1&truckVisual=0'
+  '?strategicInterception=0',
+  '?motorTransport=0',
+  '?truckVisual=0'
 ]) {
   window.location.search = search;
   assert.equal(api.enabled(sim), false);
