@@ -1,0 +1,12 @@
+PASS the twins are the weapon.<model> clips and nothing else
+PASS before any probe, every URL is the MP3
+PASS a decoded twin switches the twins, and only the twins, to .caf
+PASS a browser that decodes Ogg but not CAF (Chrome, Firefox) gets the .ogg twins
+PASS Safari (decodes both) stops at CAF; a browser that decodes neither stays MP3
+PASS the shipped manifest declares opusTwins "all" (every clip is in grasstex-audio with both twins)
+PASS opusTwins "all" swaps every MP3 the page loads, not only the weapon clips
+PASS ?audioFormat=ogg probes Ogg only
+PASS a browser that cannot decode it, a missing twin or no OfflineAudioContext stays MP3
+PASS ?audioFormat=mp3 never probes
+PASS ready resolves to the settled format
+audio-format-check: 11 checks passed

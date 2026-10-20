@@ -1,0 +1,22 @@
+{
+  "initial": {
+    "baseline": 39515406808,
+    "candidate": 39515410475,
+    "offRatio": 1.589,
+    "onRatio": 1.537,
+    "identicalBattlesPerArm": 3,
+    "runtimeErrors": 0,
+    "threshold": 1.25
+  },
+  "recheck": {
+    "baseline": 39515924703,
+    "candidate": 39515927250,
+    "reason": "Hold merge and repeat matched execution after separate-runner timing gate exceeded; no source changes",
+    "offRatio": 0.766,
+    "onRatio": 0.792,
+    "identicalBattlesPerArm": 3,
+    "runtimeErrors": 0,
+    "comparisonsPass": true
+  },
+  "classification": "Initial separate-runner timing threshold exceedance did not reproduce; direction reversed with unchanged source/seeds. Retain both, no causal CPU effect claim."
+}

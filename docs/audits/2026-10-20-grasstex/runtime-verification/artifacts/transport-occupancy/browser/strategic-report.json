@@ -1,0 +1,365 @@
+{
+  "profile": "strategic",
+  "activation": {
+    "version": 1,
+    "flags": {
+      "strategicInterception": true,
+      "frontLines": false,
+      "motorTransport": true,
+      "truckAccess": true,
+      "truckCollision": true,
+      "truckVisual": true,
+      "aerialRecon": true,
+      "interception": true,
+      "reinforcements": true,
+      "reinforcementSortie": true
+    },
+    "features": {
+      "transport": true,
+      "recon": true,
+      "interception": true,
+      "truckVisual": true,
+      "truckCollision": true
+    }
+  },
+  "ownerActivation": {
+    "transport": true,
+    "recon": true,
+    "interception": true,
+    "truckCollision": true
+  },
+  "map": {
+    "width": 5000,
+    "depth": 5000,
+    "unitM": 20,
+    "source": "strategic-5km"
+  },
+  "objectives": 12,
+  "roads": 21,
+  "buildings": 24,
+  "terrainVertices": 83521,
+  "terrainBounds": {
+    "minX": -2500,
+    "maxX": 2500,
+    "minZ": -2500,
+    "maxZ": 2500
+  },
+  "obstacles": 1938,
+  "navScenario": true,
+  "cameraMaxZ": 9500,
+  "navPaths": [
+    {
+      "base": "us-base-0",
+      "goal": "strategic-obj-6",
+      "waypoints": 8,
+      "allStepsClear": true,
+      "startDistance": 1421.1808646333513,
+      "remainingDistance": 1344.3808646333512,
+      "rollingProgress": true
+    },
+    {
+      "base": "us-base-1",
+      "goal": "strategic-obj-7",
+      "waypoints": 8,
+      "allStepsClear": true,
+      "startDistance": 1375.3571318025,
+      "remainingDistance": 1298.5571318025002,
+      "rollingProgress": true
+    },
+    {
+      "base": "us-base-2",
+      "goal": "strategic-obj-8",
+      "waypoints": 8,
+      "allStepsClear": true,
+      "startDistance": 1194.4463905927298,
+      "remainingDistance": 1117.6463905927296,
+      "rollingProgress": true
+    },
+    {
+      "base": "ge-base-0",
+      "goal": "strategic-obj-9",
+      "waypoints": 8,
+      "allStepsClear": true,
+      "startDistance": 1427.4545351779163,
+      "remainingDistance": 1350.6545351779164,
+      "rollingProgress": true
+    },
+    {
+      "base": "ge-base-1",
+      "goal": "strategic-obj-10",
+      "waypoints": 8,
+      "allStepsClear": true,
+      "startDistance": 1266.315110863011,
+      "remainingDistance": 1189.515110863011,
+      "rollingProgress": true
+    },
+    {
+      "base": "ge-base-2",
+      "goal": "strategic-obj-11",
+      "waypoints": 8,
+      "allStepsClear": true,
+      "startDistance": 1003.4317116774814,
+      "remainingDistance": 926.6317116774816,
+      "rollingProgress": true
+    }
+  ],
+  "meshes": 756,
+  "activeMeshes": 396,
+  "vertices": 2857541,
+  "timeLimit": 1800,
+  "factions": {
+    "us": {
+      "squads": 5,
+      "soldiers": 50,
+      "bases": [
+        "us-base-0",
+        "us-base-1",
+        "us-base-2",
+        "us-base-0",
+        "us-base-1"
+      ],
+      "homes": [
+        {
+          "x": -1689,
+          "z": -2039.7
+        },
+        {
+          "x": 1590.8,
+          "z": -1979.3
+        },
+        {
+          "x": -141.8,
+          "z": -1569
+        },
+        {
+          "x": -1689,
+          "z": -2039.7
+        },
+        {
+          "x": 1590.8,
+          "z": -1979.3
+        }
+      ]
+    },
+    "ge": {
+      "squads": 5,
+      "soldiers": 50,
+      "bases": [
+        "ge-base-0",
+        "ge-base-1",
+        "ge-base-2",
+        "ge-base-0",
+        "ge-base-1"
+      ],
+      "homes": [
+        {
+          "x": -1617.6,
+          "z": 2076.3
+        },
+        {
+          "x": 1708,
+          "z": 1939.5
+        },
+        {
+          "x": 205.5,
+          "z": 1522.4
+        },
+        {
+          "x": -1617.6,
+          "z": 2076.3
+        },
+        {
+          "x": 1708,
+          "z": 1939.5
+        }
+      ]
+    }
+  },
+  "fps": 1.3835085777531766,
+  "heap": 39600000,
+  "bootMs": 7952,
+  "audioFixture": "silent PCM for private audio files omitted from public checkout",
+  "mockedPrivateAudio": 660,
+  "simTimeAfterFiveSeconds": 1.25,
+  "fpsAfterFiveSeconds": 1.0160708540075527,
+  "liveMissionRoutes": [
+    {
+      "faction": "us",
+      "squad": "us-0",
+      "mission": "strategic-obj-6",
+      "status": "executing",
+      "missionRoadLegs": 0,
+      "expectedRoadLegs": 0,
+      "followsRoad": true,
+      "squadRouteLegs": 1,
+      "objectiveDistance": 1423.3500143660553
+    },
+    {
+      "faction": "us",
+      "squad": "us-1",
+      "mission": "strategic-obj-7",
+      "status": "executing",
+      "missionRoadLegs": 0,
+      "expectedRoadLegs": 0,
+      "followsRoad": true,
+      "squadRouteLegs": 1,
+      "objectiveDistance": 1372.9014798055498
+    },
+    {
+      "faction": "us",
+      "squad": "us-2",
+      "mission": "strategic-obj-8",
+      "status": "executing",
+      "missionRoadLegs": 0,
+      "expectedRoadLegs": 0,
+      "followsRoad": true,
+      "squadRouteLegs": 1,
+      "objectiveDistance": 1191.3298628049513
+    },
+    {
+      "faction": "us",
+      "squad": "us-3",
+      "mission": null,
+      "status": "executing",
+      "missionRoadLegs": 0,
+      "expectedRoadLegs": 0,
+      "followsRoad": true,
+      "squadRouteLegs": 1,
+      "objectiveDistance": 2.3986750542778656
+    },
+    {
+      "faction": "us",
+      "squad": "us-4",
+      "mission": null,
+      "status": "executing",
+      "missionRoadLegs": 0,
+      "expectedRoadLegs": 0,
+      "followsRoad": true,
+      "squadRouteLegs": 1,
+      "objectiveDistance": 4.899537121171734
+    },
+    {
+      "faction": "ge",
+      "squad": "ge-0",
+      "mission": "strategic-obj-9",
+      "status": "executing",
+      "missionRoadLegs": 0,
+      "expectedRoadLegs": 0,
+      "followsRoad": true,
+      "squadRouteLegs": 1,
+      "objectiveDistance": 1425.6549562987282
+    },
+    {
+      "faction": "ge",
+      "squad": "ge-1",
+      "mission": "strategic-obj-10",
+      "status": "executing",
+      "missionRoadLegs": 0,
+      "expectedRoadLegs": 0,
+      "followsRoad": true,
+      "squadRouteLegs": 1,
+      "objectiveDistance": 1263.2088437587583
+    },
+    {
+      "faction": "ge",
+      "squad": "ge-2",
+      "mission": "strategic-obj-11",
+      "status": "executing",
+      "missionRoadLegs": 0,
+      "expectedRoadLegs": 0,
+      "followsRoad": true,
+      "squadRouteLegs": 1,
+      "objectiveDistance": 1006.0264275663469
+    },
+    {
+      "faction": "ge",
+      "squad": "ge-3",
+      "mission": null,
+      "status": "executing",
+      "missionRoadLegs": 0,
+      "expectedRoadLegs": 0,
+      "followsRoad": true,
+      "squadRouteLegs": 1,
+      "objectiveDistance": 2.2577900567615594
+    },
+    {
+      "faction": "ge",
+      "squad": "ge-4",
+      "mission": null,
+      "status": "executing",
+      "missionRoadLegs": 0,
+      "expectedRoadLegs": 0,
+      "followsRoad": true,
+      "squadRouteLegs": 1,
+      "objectiveDistance": 4.80493153565779
+    }
+  ],
+  "forcedRoadHandoff": {
+    "label": "test-only forced long re-task; not a natural AI decision",
+    "before": "strategic-obj-6",
+    "target": "strategic-obj-4",
+    "status": "executing",
+    "expectedRoadLegs": 2,
+    "actualRoadLegs": 2,
+    "roadPrefixMatches": true,
+    "squadRouteLegs": 3,
+    "waypoint": {
+      "x": -123.1,
+      "z": -374.7
+    },
+    "firstRoadPoint": {
+      "x": -123.1,
+      "z": -374.7
+    }
+  },
+  "legacy": {
+    "activation": {
+      "version": 1,
+      "flags": {
+        "strategicInterception": false,
+        "frontLines": false,
+        "motorTransport": true,
+        "truckAccess": true,
+        "truckCollision": true,
+        "truckVisual": true,
+        "aerialRecon": true,
+        "interception": true,
+        "reinforcements": true,
+        "reinforcementSortie": true
+      },
+      "features": {
+        "transport": false,
+        "recon": false,
+        "interception": false,
+        "truckVisual": false,
+        "truckCollision": false
+      }
+    },
+    "ownerActivation": {
+      "transport": false,
+      "recon": false,
+      "interception": false,
+      "truckCollision": false
+    },
+    "map": {
+      "width": 2000,
+      "depth": 1200,
+      "unitM": 20,
+      "source": "ww2fps MAPW/MAPH"
+    },
+    "objectives": 5,
+    "terrainVertices": 15617,
+    "meshes": 449,
+    "activeMeshes": 129,
+    "vertices": 2713789,
+    "obstacles": 1511,
+    "fps": 1.8362100624311224,
+    "heap": 39600000,
+    "soldiers": 100,
+    "timeLimit": 600,
+    "bootMs": 8317,
+    "simTimeAfterFiveSeconds": 2.5,
+    "fpsAfterFiveSeconds": 2.2352862284015407
+  },
+  "fpsRatioStrategicToLegacy": 0.4545596179573601
+}

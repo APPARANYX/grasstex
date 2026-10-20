@@ -1,0 +1,12 @@
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+PASS the module installs the verbatim set back into engagement.js through the ctx sink
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+PASS the parent seam keeps the pre-split names and arities and the tuning export reads the parent constants
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+PASS firing: a committed crouch lands on the body and fire permission answers through the seam
+PASS engagement.js without the module fails loudly on the first fire or stance use
+PASS the module without engagement.js fails loudly at load
+PASS 5 fire-stance ctx checks

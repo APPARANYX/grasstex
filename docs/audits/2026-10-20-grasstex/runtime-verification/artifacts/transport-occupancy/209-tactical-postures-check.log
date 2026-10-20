@@ -1,0 +1,411 @@
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture on; movement off; relay on
+[COMMAND] execution outcome reader (derived, no state)
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[NAV] firing-station navigation loaded
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[NAV] graph built; walls=0 nodes=0 doors=0 firingStations=0 rejectedWindows=0
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture on; movement off; relay on
+[COMMAND] execution outcome reader (derived, no state)
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[NAV] firing-station navigation loaded
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[NAV] graph built; walls=0 nodes=0 doors=0 firingStations=0 rejectedWindows=0
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture on; movement off; relay on
+[COMMAND] execution outcome reader (derived, no state)
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[NAV] firing-station navigation loaded
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[NAV] graph built; walls=0 nodes=0 doors=0 firingStations=0 rejectedWindows=0
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture on; movement off; relay on
+[COMMAND] execution outcome reader (derived, no state)
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[NAV] firing-station navigation loaded
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[NAV] graph built; walls=0 nodes=0 doors=0 firingStations=0 rejectedWindows=0
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture on; movement off; relay on
+[COMMAND] execution outcome reader (derived, no state)
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[NAV] firing-station navigation loaded
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[NAV] graph built; walls=0 nodes=0 doors=0 firingStations=0 rejectedWindows=0
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture on; movement off; relay on
+[COMMAND] execution outcome reader (derived, no state)
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[NAV] firing-station navigation loaded
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[NAV] graph built; walls=0 nodes=0 doors=0 firingStations=0 rejectedWindows=0
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture on; movement off; relay on
+[COMMAND] execution outcome reader (derived, no state)
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[NAV] firing-station navigation loaded
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[NAV] graph built; walls=0 nodes=0 doors=0 firingStations=0 rejectedWindows=0
+[NAV] graph built; walls=0 nodes=0 doors=0 firingStations=0 rejectedWindows=0
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture on; movement off; relay on
+[COMMAND] execution outcome reader (derived, no state)
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[NAV] firing-station navigation loaded
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[NAV] graph built; walls=0 nodes=0 doors=0 firingStations=0 rejectedWindows=0
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture on; movement off; relay on
+[COMMAND] execution outcome reader (derived, no state)
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[NAV] firing-station navigation loaded
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[NAV] graph built; walls=0 nodes=0 doors=0 firingStations=0 rejectedWindows=0
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture on; movement off; relay on
+[COMMAND] execution outcome reader (derived, no state)
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[NAV] firing-station navigation loaded
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[NAV] graph built; walls=0 nodes=0 doors=0 firingStations=0 rejectedWindows=0
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture on; movement off; relay on
+[COMMAND] execution outcome reader (derived, no state)
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[NAV] firing-station navigation loaded
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[NAV] graph built; walls=0 nodes=0 doors=0 firingStations=0 rejectedWindows=0
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture on; movement off; relay on
+[COMMAND] execution outcome reader (derived, no state)
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[NAV] firing-station navigation loaded
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[NAV] graph built; walls=0 nodes=0 doors=0 firingStations=0 rejectedWindows=0
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture on; movement off; relay on
+[COMMAND] execution outcome reader (derived, no state)
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[NAV] firing-station navigation loaded
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[NAV] graph built; walls=0 nodes=0 doors=0 firingStations=0 rejectedWindows=0
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture on; movement off; relay on
+[COMMAND] execution outcome reader (derived, no state)
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[NAV] firing-station navigation loaded
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[NAV] graph built; walls=0 nodes=0 doors=0 firingStations=0 rejectedWindows=0
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture on; movement off; relay on
+[COMMAND] execution outcome reader (derived, no state)
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[NAV] firing-station navigation loaded
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[NAV] graph built; walls=0 nodes=0 doors=0 firingStations=0 rejectedWindows=0
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture on; movement off; relay on
+[COMMAND] execution outcome reader (derived, no state)
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[NAV] firing-station navigation loaded
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[NAV] graph built; walls=0 nodes=0 doors=0 firingStations=0 rejectedWindows=0
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture on; movement off; relay on
+[COMMAND] execution outcome reader (derived, no state)
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[NAV] firing-station navigation loaded
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[NAV] graph built; walls=0 nodes=0 doors=0 firingStations=0 rejectedWindows=0
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture on; movement off; relay on
+[COMMAND] execution outcome reader (derived, no state)
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[NAV] firing-station navigation loaded
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[NAV] graph built; walls=0 nodes=0 doors=0 firingStations=0 rejectedWindows=0
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture on; movement off; relay on
+[COMMAND] execution outcome reader (derived, no state)
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[NAV] firing-station navigation loaded
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[NAV] graph built; walls=0 nodes=0 doors=0 firingStations=0 rejectedWindows=0
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture on; movement off; relay on
+[COMMAND] execution outcome reader (derived, no state)
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[NAV] firing-station navigation loaded
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[NAV] graph built; walls=0 nodes=0 doors=0 firingStations=0 rejectedWindows=0
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture on; movement off; relay on
+[COMMAND] execution outcome reader (derived, no state)
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[NAV] firing-station navigation loaded
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[NAV] graph built; walls=0 nodes=0 doors=0 firingStations=0 rejectedWindows=0
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture on; movement off; relay on
+[COMMAND] execution outcome reader (derived, no state)
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[NAV] firing-station navigation loaded
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[NAV] graph built; walls=0 nodes=0 doors=0 firingStations=0 rejectedWindows=0
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture on; movement off; relay on
+[COMMAND] execution outcome reader (derived, no state)
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[NAV] firing-station navigation loaded
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[NAV] graph built; walls=0 nodes=0 doors=0 firingStations=0 rejectedWindows=0
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture on; movement off; relay on
+[COMMAND] execution outcome reader (derived, no state)
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[NAV] firing-station navigation loaded
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[NAV] graph built; walls=0 nodes=0 doors=0 firingStations=0 rejectedWindows=0
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture on; movement off; relay on
+[COMMAND] execution outcome reader (derived, no state)
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[NAV] firing-station navigation loaded
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[NAV] graph built; walls=0 nodes=0 doors=0 firingStations=0 rejectedWindows=0
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture on; movement off; relay on
+[COMMAND] execution outcome reader (derived, no state)
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[NAV] firing-station navigation loaded
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[NAV] graph built; walls=0 nodes=0 doors=0 firingStations=0 rejectedWindows=0
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture on; movement off; relay on
+[COMMAND] execution outcome reader (derived, no state)
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[NAV] firing-station navigation loaded
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[NAV] graph built; walls=0 nodes=0 doors=0 firingStations=0 rejectedWindows=0
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture on; movement off; relay on
+[COMMAND] execution outcome reader (derived, no state)
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[NAV] firing-station navigation loaded
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[NAV] graph built; walls=0 nodes=0 doors=0 firingStations=0 rejectedWindows=0
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture on; movement off; relay on
+[COMMAND] execution outcome reader (derived, no state)
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[NAV] firing-station navigation loaded
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[NAV] graph built; walls=0 nodes=0 doors=0 firingStations=0 rejectedWindows=0
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture on; movement off; relay on
+[COMMAND] execution outcome reader (derived, no state)
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[NAV] firing-station navigation loaded
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[NAV] graph built; walls=0 nodes=0 doors=0 firingStations=0 rejectedWindows=0
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture on; movement off; relay on
+[COMMAND] execution outcome reader (derived, no state)
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[NAV] firing-station navigation loaded
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[NAV] graph built; walls=0 nodes=0 doors=0 firingStations=0 rejectedWindows=0
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture on; movement off; relay on
+[COMMAND] execution outcome reader (derived, no state)
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[NAV] firing-station navigation loaded
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[NAV] graph built; walls=0 nodes=0 doors=0 firingStations=0 rejectedWindows=0
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture on; movement off; relay on
+[COMMAND] execution outcome reader (derived, no state)
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[NAV] firing-station navigation loaded
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[NAV] graph built; walls=0 nodes=0 doors=0 firingStations=0 rejectedWindows=0
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture on; movement off; relay on
+[COMMAND] execution outcome reader (derived, no state)
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[NAV] firing-station navigation loaded
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[NAV] graph built; walls=0 nodes=0 doors=0 firingStations=0 rejectedWindows=0
+PHASE_C_NATURAL_PRESSURE_ACCEPTANCE {"preparedAt":4.35,"admittedAt":0.15,"receivedPressure":4,"afterEmergency":"emergency-hold","cases":7,"stagedCandidate":true,"physicalRouteVerified":true}
+PASS masked ambush native preparation, minimum hold, unsafe stations, authority/lifecycle invalidation and pressure hysteresis {"holdAt":0.3,"readyAt":4.35,"firstShot":5.250000000000002,"shots":31}

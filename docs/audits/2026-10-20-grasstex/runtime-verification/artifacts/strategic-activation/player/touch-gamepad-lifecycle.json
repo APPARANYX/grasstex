@@ -1,0 +1,74 @@
+{
+  "history": [
+    {
+      "phase": "event-first",
+      "oldDisposed": true,
+      "sameWrapper": true,
+      "desktop": true,
+      "active": true,
+      "oldWakeObservers": 0
+    },
+    {
+      "phase": "disconnect-and-reconnect",
+      "menuOpen": false,
+      "playerLeases": 0,
+      "desktop": true,
+      "camera": "cam"
+    },
+    {
+      "phase": "restart",
+      "cycle": 0,
+      "oldDisposed": true,
+      "newWrapper": true,
+      "oldHasStop": true,
+      "nextDesktop": true,
+      "newDisposed": false,
+      "activeCamera": true,
+      "observerCountBefore": 19
+    },
+    {
+      "phase": "restart",
+      "cycle": 1,
+      "oldDisposed": true,
+      "newWrapper": true,
+      "oldHasStop": true,
+      "nextDesktop": false,
+      "newDisposed": false,
+      "activeCamera": true,
+      "observerCountBefore": 19
+    },
+    {
+      "phase": "restart",
+      "cycle": 2,
+      "oldDisposed": true,
+      "newWrapper": true,
+      "oldHasStop": true,
+      "nextDesktop": false,
+      "newDisposed": false,
+      "activeCamera": true,
+      "observerCountBefore": 19
+    },
+    {
+      "phase": "restart",
+      "cycle": 3,
+      "oldDisposed": true,
+      "newWrapper": true,
+      "oldHasStop": true,
+      "nextDesktop": false,
+      "newDisposed": false,
+      "activeCamera": true,
+      "observerCountBefore": 19
+    },
+    {
+      "phase": "poll-only",
+      "transitioned": true,
+      "oldDisposed": false
+    }
+  ],
+  "result": {
+    "desktop": true,
+    "frameObservers": 1,
+    "activeCamera": true
+  },
+  "errors": []
+}

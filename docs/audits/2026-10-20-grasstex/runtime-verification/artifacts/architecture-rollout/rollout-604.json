@@ -1,0 +1,11 @@
+{
+  "pr": 604,
+  "testedHead": "cb80387dda15e0d53f22dda49e00ce3e78a6ef8c",
+  "merge": "43248a346ebb69afeb23a69ed535ce8b696c38ad",
+  "build": "build-v562",
+  "deploymentRun": 39516422127,
+  "housekeepingRun": 39516423213,
+  "branchDeleted": true,
+  "liveModule": "battle/core-runtime.js",
+  "liveModuleMatches": true
+}

@@ -1,0 +1,2 @@
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+PASS generated live seed links clear on load; refresh randomizes; named and pinned links replay

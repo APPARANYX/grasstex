@@ -1,0 +1,8 @@
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[BALLISTICS] direct fire uses combat-calibrated dispersed raycasts
+PASS prone player cannot fire behind body when camera turns 180 degrees
+PASS sideways free-look respects the prone weapon yaw limit
+PASS weapon yaw stays physically bounded in all player stances
+PASS aligned prone rifle continues hitting forward enemies
+PASS AI muzzle behavior is unchanged

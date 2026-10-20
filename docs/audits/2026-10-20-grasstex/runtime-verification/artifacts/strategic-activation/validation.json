@@ -1,0 +1,18 @@
+{
+  "pr": 604,
+  "head": "cb80387dda15e0d53f22dda49e00ce3e78a6ef8c",
+  "localInvocations": 254,
+  "initialPasses": 251,
+  "initialFailures": "three isolated fixtures omitted the already-required runtime foundation",
+  "targetedReruns": "all pass",
+  "configurationCases": 4096,
+  "composedPhpRuntimeCases": 64,
+  "ownHeadCI": "all applicable success",
+  "nativeOwnerActivation": "matches declaration in strategic and legacy pages",
+  "battleExecutions": 24,
+  "uniqueSeeds": 3,
+  "collections": 2,
+  "identicalRecordsPerArmPerCollection": 3,
+  "runtimeErrors": 0,
+  "timingAlert": "initial 1.589/1.537 ratios reversed to 0.766/0.792 without source/seed changes; retain both, no causal CPU claim"
+}

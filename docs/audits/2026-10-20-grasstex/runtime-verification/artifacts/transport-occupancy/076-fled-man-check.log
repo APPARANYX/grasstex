@@ -1,0 +1,258 @@
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+PASS an ordinary one-man remnant retreats and cannot continue as a one-man assault squad
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+PASS he leaves his weapons, tells the soldier condition and runs to the squad's last safe point
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+PASS his squad's safe point is the last place it stood out of contact with nobody known near
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+PASS he runs home instead when the trouble is known to be near the safe point
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+PASS a prepared defender flees and extracts to its immutable base, not the tactical garrison home
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+PASS at the refuge he waits FLED_WAIT seconds, however calm he gets, then goes home on his own
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+PASS an enemy known near him sends him home at once
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+PASS at base he is issued a weapon again, is a man of a retreating squad of one and recovers, never below FLED_FLOOR
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+PASS rallied or re-briefed on his own he is not: no state, mission or plan of ordinary command reaches a fled detachment
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+PASS a retreating squad out of contact near the waiting man takes him in; one in contact or far off does not
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+PASS a squad that takes in a waiting man ends his reconstitute brief and group (?fledBriefEnd=0 keeps them open)
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+PASS an id shared by a disbanded lone squad and a live one resolves to the live one (?fledBriefEnd=0 the first)
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+PASS ?fledElimination=0 is the paired control: a fled man still counts
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+PASS a man still running to his refuge is not picked up, only one who waits
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+PASS a leader who runs leaves his squad leaderless; the next man takes command after the succession lease
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+PASS a lone man at base is grouped by reconstitution with enough other survivors and rejoins a viable squad
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+PASS a fled sergeant can supply the surviving squad object without leaving the rebuilt squad marked fled
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+PASS an unarmed man runs through the whole pipeline: ammunition, sidearm, fire, the report and the snapshot
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+PASS none of it draws from the combat RNG
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+PASS flee is the only reaction that leaves a man his weapons nowhere: cower and freeze keep them
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+PASS a man going home who was taken in by a squad in regroup keeps running home, not to the regroup anchor
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+PASS a man in a fled phase is not part of the squad's cohesion: a squad that took him in and rallied does not regroup on his account
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+PASS a soldier who flees twice never reuses a disbanded squad ID
+fled-man-check: 23 tests passed

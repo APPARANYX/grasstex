@@ -1,0 +1,1366 @@
+{
+  "initial": {
+    "profile": "strategic",
+    "us": 5,
+    "ge": 5,
+    "soldiers": 100,
+    "skeletons": 100
+  },
+  "initialFleet": {
+    "time": 0,
+    "visual": [
+      {
+        "faction": "us",
+        "squad": null,
+        "vehicleId": "us-base-0-truck-0",
+        "baseId": "us-base-0",
+        "phase": "parked",
+        "model": "german_transport.fbx",
+        "showcase": false,
+        "parked": true,
+        "seats": 0,
+        "boardedCount": 0,
+        "renderedRiders": 0,
+        "liveModels": [],
+        "riderIds": [],
+        "meshReady": true,
+        "wheels": {
+          "front": {
+            "nodes": 1,
+            "radius": 0.548,
+            "rotation": 0,
+            "axis": "x",
+            "center": [
+              0,
+              0.551,
+              2.167
+            ]
+          },
+          "rear": {
+            "nodes": 1,
+            "radius": 0.548,
+            "rotation": 0,
+            "axis": "x",
+            "center": [
+              0.003,
+              0.548,
+              -1.795
+            ]
+          }
+        },
+        "posesReady": true,
+        "errors": []
+      },
+      {
+        "faction": "us",
+        "squad": null,
+        "vehicleId": "us-base-0-truck-1",
+        "baseId": "us-base-0",
+        "phase": "parked",
+        "model": "german_transport.fbx",
+        "showcase": false,
+        "parked": true,
+        "seats": 0,
+        "boardedCount": 0,
+        "renderedRiders": 0,
+        "liveModels": [],
+        "riderIds": [],
+        "meshReady": true,
+        "wheels": {
+          "front": {
+            "nodes": 1,
+            "radius": 0.548,
+            "rotation": 0,
+            "axis": "x",
+            "center": [
+              0,
+              0.551,
+              2.167
+            ]
+          },
+          "rear": {
+            "nodes": 1,
+            "radius": 0.548,
+            "rotation": 0,
+            "axis": "x",
+            "center": [
+              0.003,
+              0.548,
+              -1.795
+            ]
+          }
+        },
+        "posesReady": true,
+        "errors": []
+      },
+      {
+        "faction": "us",
+        "squad": null,
+        "vehicleId": "us-base-1-truck-0",
+        "baseId": "us-base-1",
+        "phase": "parked",
+        "model": "german_transport.fbx",
+        "showcase": false,
+        "parked": true,
+        "seats": 0,
+        "boardedCount": 0,
+        "renderedRiders": 0,
+        "liveModels": [],
+        "riderIds": [],
+        "meshReady": true,
+        "wheels": {
+          "front": {
+            "nodes": 1,
+            "radius": 0.548,
+            "rotation": 0,
+            "axis": "x",
+            "center": [
+              0,
+              0.551,
+              2.167
+            ]
+          },
+          "rear": {
+            "nodes": 1,
+            "radius": 0.548,
+            "rotation": 0,
+            "axis": "x",
+            "center": [
+              0.003,
+              0.548,
+              -1.795
+            ]
+          }
+        },
+        "posesReady": true,
+        "errors": []
+      },
+      {
+        "faction": "us",
+        "squad": null,
+        "vehicleId": "us-base-1-truck-1",
+        "baseId": "us-base-1",
+        "phase": "parked",
+        "model": "german_transport.fbx",
+        "showcase": false,
+        "parked": true,
+        "seats": 0,
+        "boardedCount": 0,
+        "renderedRiders": 0,
+        "liveModels": [],
+        "riderIds": [],
+        "meshReady": true,
+        "wheels": {
+          "front": {
+            "nodes": 1,
+            "radius": 0.548,
+            "rotation": 0,
+            "axis": "x",
+            "center": [
+              0,
+              0.551,
+              2.167
+            ]
+          },
+          "rear": {
+            "nodes": 1,
+            "radius": 0.548,
+            "rotation": 0,
+            "axis": "x",
+            "center": [
+              0.003,
+              0.548,
+              -1.795
+            ]
+          }
+        },
+        "posesReady": true,
+        "errors": []
+      },
+      {
+        "faction": "us",
+        "squad": null,
+        "vehicleId": "us-base-2-truck-0",
+        "baseId": "us-base-2",
+        "phase": "parked",
+        "model": "german_transport.fbx",
+        "showcase": false,
+        "parked": true,
+        "seats": 0,
+        "boardedCount": 0,
+        "renderedRiders": 0,
+        "liveModels": [],
+        "riderIds": [],
+        "meshReady": true,
+        "wheels": {
+          "front": {
+            "nodes": 1,
+            "radius": 0.548,
+            "rotation": 0,
+            "axis": "x",
+            "center": [
+              0,
+              0.551,
+              2.167
+            ]
+          },
+          "rear": {
+            "nodes": 1,
+            "radius": 0.548,
+            "rotation": 0,
+            "axis": "x",
+            "center": [
+              0.003,
+              0.548,
+              -1.795
+            ]
+          }
+        },
+        "posesReady": true,
+        "errors": []
+      },
+      {
+        "faction": "us",
+        "squad": null,
+        "vehicleId": "us-base-2-truck-1",
+        "baseId": "us-base-2",
+        "phase": "parked",
+        "model": "german_transport.fbx",
+        "showcase": false,
+        "parked": true,
+        "seats": 0,
+        "boardedCount": 0,
+        "renderedRiders": 0,
+        "liveModels": [],
+        "riderIds": [],
+        "meshReady": true,
+        "wheels": {
+          "front": {
+            "nodes": 1,
+            "radius": 0.548,
+            "rotation": 0,
+            "axis": "x",
+            "center": [
+              0,
+              0.551,
+              2.167
+            ]
+          },
+          "rear": {
+            "nodes": 1,
+            "radius": 0.548,
+            "rotation": 0,
+            "axis": "x",
+            "center": [
+              0.003,
+              0.548,
+              -1.795
+            ]
+          }
+        },
+        "posesReady": true,
+        "errors": []
+      },
+      {
+        "faction": "ge",
+        "squad": null,
+        "vehicleId": "ge-base-0-truck-0",
+        "baseId": "ge-base-0",
+        "phase": "parked",
+        "model": "german_transport.fbx",
+        "showcase": false,
+        "parked": true,
+        "seats": 0,
+        "boardedCount": 0,
+        "renderedRiders": 0,
+        "liveModels": [],
+        "riderIds": [],
+        "meshReady": true,
+        "wheels": {
+          "front": {
+            "nodes": 1,
+            "radius": 0.548,
+            "rotation": 0,
+            "axis": "x",
+            "center": [
+              0,
+              0.551,
+              2.167
+            ]
+          },
+          "rear": {
+            "nodes": 1,
+            "radius": 0.548,
+            "rotation": 0,
+            "axis": "x",
+            "center": [
+              0.003,
+              0.548,
+              -1.795
+            ]
+          }
+        },
+        "posesReady": true,
+        "errors": []
+      },
+      {
+        "faction": "ge",
+        "squad": null,
+        "vehicleId": "ge-base-0-truck-1",
+        "baseId": "ge-base-0",
+        "phase": "parked",
+        "model": "german_transport.fbx",
+        "showcase": false,
+        "parked": true,
+        "seats": 0,
+        "boardedCount": 0,
+        "renderedRiders": 0,
+        "liveModels": [],
+        "riderIds": [],
+        "meshReady": true,
+        "wheels": {
+          "front": {
+            "nodes": 1,
+            "radius": 0.548,
+            "rotation": 0,
+            "axis": "x",
+            "center": [
+              0,
+              0.551,
+              2.167
+            ]
+          },
+          "rear": {
+            "nodes": 1,
+            "radius": 0.548,
+            "rotation": 0,
+            "axis": "x",
+            "center": [
+              0.003,
+              0.548,
+              -1.795
+            ]
+          }
+        },
+        "posesReady": true,
+        "errors": []
+      },
+      {
+        "faction": "ge",
+        "squad": null,
+        "vehicleId": "ge-base-1-truck-0",
+        "baseId": "ge-base-1",
+        "phase": "parked",
+        "model": "german_transport.fbx",
+        "showcase": false,
+        "parked": true,
+        "seats": 0,
+        "boardedCount": 0,
+        "renderedRiders": 0,
+        "liveModels": [],
+        "riderIds": [],
+        "meshReady": true,
+        "wheels": {
+          "front": {
+            "nodes": 1,
+            "radius": 0.548,
+            "rotation": 0,
+            "axis": "x",
+            "center": [
+              0,
+              0.551,
+              2.167
+            ]
+          },
+          "rear": {
+            "nodes": 1,
+            "radius": 0.548,
+            "rotation": 0,
+            "axis": "x",
+            "center": [
+              0.003,
+              0.548,
+              -1.795
+            ]
+          }
+        },
+        "posesReady": true,
+        "errors": []
+      },
+      {
+        "faction": "ge",
+        "squad": null,
+        "vehicleId": "ge-base-1-truck-1",
+        "baseId": "ge-base-1",
+        "phase": "parked",
+        "model": "german_transport.fbx",
+        "showcase": false,
+        "parked": true,
+        "seats": 0,
+        "boardedCount": 0,
+        "renderedRiders": 0,
+        "liveModels": [],
+        "riderIds": [],
+        "meshReady": true,
+        "wheels": {
+          "front": {
+            "nodes": 1,
+            "radius": 0.548,
+            "rotation": 0,
+            "axis": "x",
+            "center": [
+              0,
+              0.551,
+              2.167
+            ]
+          },
+          "rear": {
+            "nodes": 1,
+            "radius": 0.548,
+            "rotation": 0,
+            "axis": "x",
+            "center": [
+              0.003,
+              0.548,
+              -1.795
+            ]
+          }
+        },
+        "posesReady": true,
+        "errors": []
+      },
+      {
+        "faction": "ge",
+        "squad": null,
+        "vehicleId": "ge-base-2-truck-0",
+        "baseId": "ge-base-2",
+        "phase": "parked",
+        "model": "german_transport.fbx",
+        "showcase": false,
+        "parked": true,
+        "seats": 0,
+        "boardedCount": 0,
+        "renderedRiders": 0,
+        "liveModels": [],
+        "riderIds": [],
+        "meshReady": true,
+        "wheels": {
+          "front": {
+            "nodes": 1,
+            "radius": 0.548,
+            "rotation": 0,
+            "axis": "x",
+            "center": [
+              0,
+              0.551,
+              2.167
+            ]
+          },
+          "rear": {
+            "nodes": 1,
+            "radius": 0.548,
+            "rotation": 0,
+            "axis": "x",
+            "center": [
+              0.003,
+              0.548,
+              -1.795
+            ]
+          }
+        },
+        "posesReady": true,
+        "errors": []
+      },
+      {
+        "faction": "ge",
+        "squad": null,
+        "vehicleId": "ge-base-2-truck-1",
+        "baseId": "ge-base-2",
+        "phase": "parked",
+        "model": "german_transport.fbx",
+        "showcase": false,
+        "parked": true,
+        "seats": 0,
+        "boardedCount": 0,
+        "renderedRiders": 0,
+        "liveModels": [],
+        "riderIds": [],
+        "meshReady": true,
+        "wheels": {
+          "front": {
+            "nodes": 1,
+            "radius": 0.548,
+            "rotation": 0,
+            "axis": "x",
+            "center": [
+              0,
+              0.551,
+              2.167
+            ]
+          },
+          "rear": {
+            "nodes": 1,
+            "radius": 0.548,
+            "rotation": 0,
+            "axis": "x",
+            "center": [
+              0.003,
+              0.548,
+              -1.795
+            ]
+          }
+        },
+        "posesReady": true,
+        "errors": []
+      }
+    ],
+    "actual": [
+      {
+        "id": "us-base-0-truck-0",
+        "faction": "us",
+        "baseId": "us-base-0",
+        "baseIndex": 0,
+        "slot": 0,
+        "position": {
+          "x": -1739.5148219518242,
+          "z": -2077.5432157366163
+        },
+        "parking": {
+          "x": -1739.5148219518242,
+          "z": -2077.5432157366163
+        },
+        "heading": {
+          "x": 0.8100817629816638,
+          "z": 0.5863169256336707
+        },
+        "phase": "parked",
+        "squadId": null
+      },
+      {
+        "id": "us-base-0-truck-1",
+        "faction": "us",
+        "baseId": "us-base-0",
+        "baseIndex": 0,
+        "slot": 1,
+        "position": {
+          "x": -1715.722234580836,
+          "z": -2089.949374940572
+        },
+        "parking": {
+          "x": -1715.722234580836,
+          "z": -2089.949374940572
+        },
+        "heading": {
+          "x": 0.8100817629816638,
+          "z": 0.5863169256336707
+        },
+        "phase": "parked",
+        "squadId": null
+      },
+      {
+        "id": "us-base-1-truck-0",
+        "faction": "us",
+        "baseId": "us-base-1",
+        "baseIndex": 1,
+        "slot": 0,
+        "position": {
+          "x": 1552.646530408729,
+          "z": -1936.0652642423877
+        },
+        "parking": {
+          "x": 1552.646530408729,
+          "z": -1936.0652642423877
+        },
+        "heading": {
+          "x": -0.8299472430691068,
+          "z": 0.5578418895368011
+        },
+        "phase": "parked",
+        "squadId": null
+      },
+      {
+        "id": "us-base-1-truck-1",
+        "faction": "us",
+        "baseId": "us-base-1",
+        "baseIndex": 1,
+        "slot": 1,
+        "position": {
+          "x": 1556.075368840783,
+          "z": -1909.4524277342873
+        },
+        "parking": {
+          "x": 1556.075368840783,
+          "z": -1909.4524277342873
+        },
+        "heading": {
+          "x": -0.8299472430691068,
+          "z": 0.5578418895368011
+        },
+        "phase": "parked",
+        "squadId": null
+      },
+      {
+        "id": "us-base-2-truck-0",
+        "faction": "us",
+        "baseId": "us-base-2",
+        "baseIndex": 2,
+        "slot": 0,
+        "position": {
+          "x": -141.86636834931488,
+          "z": -1501.3373418305255
+        },
+        "parking": {
+          "x": -141.86636834931488,
+          "z": -1501.3373418305255
+        },
+        "heading": {
+          "x": 0.14984540917332273,
+          "z": 0.9887094382828959
+        },
+        "phase": "parked",
+        "squadId": null
+      },
+      {
+        "id": "us-base-2-truck-1",
+        "faction": "us",
+        "baseId": "us-base-2",
+        "baseIndex": 2,
+        "slot": 1,
+        "position": {
+          "x": -116.33919692044552,
+          "z": -1493.0691183912904
+        },
+        "parking": {
+          "x": -116.33919692044552,
+          "z": -1493.0691183912904
+        },
+        "heading": {
+          "x": 0.14984540917332273,
+          "z": 0.9887094382828959
+        },
+        "phase": "parked",
+        "squadId": null
+      },
+      {
+        "id": "ge-base-0-truck-0",
+        "faction": "ge",
+        "baseId": "ge-base-0",
+        "baseIndex": 0,
+        "slot": 0,
+        "position": {
+          "x": -1584.514297129321,
+          "z": 2076.5980350552545
+        },
+        "parking": {
+          "x": -1584.514297129321,
+          "z": 2076.5980350552545
+        },
+        "heading": {
+          "x": 0.8034890802472294,
+          "z": -0.5953194923093494
+        },
+        "phase": "parked",
+        "squadId": null
+      },
+      {
+        "id": "ge-base-0-truck-1",
+        "faction": "ge",
+        "baseId": "ge-base-0",
+        "baseIndex": 0,
+        "slot": 1,
+        "position": {
+          "x": -1589.1600959817786,
+          "z": 2050.1704632216088
+        },
+        "parking": {
+          "x": -1589.1600959817786,
+          "z": 2050.1704632216088
+        },
+        "heading": {
+          "x": 0.8034890802472294,
+          "z": -0.5953194923093494
+        },
+        "phase": "parked",
+        "squadId": null
+      },
+      {
+        "id": "ge-base-1-truck-0",
+        "faction": "ge",
+        "baseId": "ge-base-1",
+        "baseIndex": 1,
+        "slot": 0,
+        "position": {
+          "x": 1725.3330156226982,
+          "z": 1933.3239677690658
+        },
+        "parking": {
+          "x": 1725.3330156226982,
+          "z": 1933.3239677690658
+        },
+        "heading": {
+          "x": -0.8559590253431748,
+          "z": -0.5170436605680048
+        },
+        "phase": "parked",
+        "squadId": null
+      },
+      {
+        "id": "ge-base-1-truck-1",
+        "faction": "ge",
+        "baseId": "ge-base-1",
+        "baseIndex": 1,
+        "slot": 1,
+        "position": {
+          "x": 1702.6524594649477,
+          "z": 1947.662460450486
+        },
+        "parking": {
+          "x": 1702.6524594649477,
+          "z": 1947.662460450486
+        },
+        "heading": {
+          "x": -0.8559590253431748,
+          "z": -0.5170436605680048
+        },
+        "phase": "parked",
+        "squadId": null
+      },
+      {
+        "id": "ge-base-2-truck-0",
+        "faction": "ge",
+        "baseId": "ge-base-2",
+        "baseIndex": 2,
+        "slot": 0,
+        "position": {
+          "x": 196.4003260862077,
+          "z": 1546.3335447578813
+        },
+        "parking": {
+          "x": 196.4003260862077,
+          "z": 1546.3335447578813
+        },
+        "heading": {
+          "x": -0.2902553814962947,
+          "z": -0.9569492220136032
+        },
+        "phase": "parked",
+        "squadId": null
+      },
+      {
+        "id": "ge-base-2-truck-1",
+        "faction": "ge",
+        "baseId": "ge-base-2",
+        "baseIndex": 2,
+        "slot": 1,
+        "position": {
+          "x": 169.9504801799257,
+          "z": 1541.816283249629
+        },
+        "parking": {
+          "x": 169.9504801799257,
+          "z": 1541.816283249629
+        },
+        "heading": {
+          "x": -0.2902553814962947,
+          "z": -0.9569492220136032
+        },
+        "phase": "parked",
+        "squadId": null
+      }
+    ]
+  },
+  "setup": {
+    "skeletons": 100,
+    "models": [
+      [
+        "us-captain.fbx",
+        "us-gunner.fbx",
+        "us-scout.fbx",
+        "us-scout.fbx",
+        "us-paratrooper.fbx",
+        "us-paratrooper.fbx",
+        "us-paratrooper.fbx",
+        "us-paratrooper.fbx",
+        "us-paratrooper.fbx",
+        "us-engineer.fbx"
+      ],
+      [
+        "ge-captain.fbx",
+        "ge-gunner.fbx",
+        "ge-scout.fbx",
+        "ge-scout.fbx",
+        "ge-paratrooper.fbx",
+        "ge-paratrooper.fbx",
+        "ge-paratrooper.fbx",
+        "ge-paratrooper.fbx",
+        "ge-paratrooper.fbx",
+        "ge-engineer.fbx"
+      ]
+    ]
+  },
+  "report": {
+    "per": {
+      "us": {
+        "squadId": "us-0",
+        "riders": [
+          {
+            "id": 1,
+            "role": "sergeant",
+            "model": "us-captain.fbx",
+            "seat": 0,
+            "clip": "Truck - Driving.fbx",
+            "sameObject": true,
+            "inAnchor": true,
+            "dist": 1.262900425890325,
+            "rootUnchanged": true
+          },
+          {
+            "id": 3,
+            "role": "gunner",
+            "model": "us-gunner.fbx",
+            "seat": 1,
+            "clip": "Truck - Sitting 1.fbx",
+            "sameObject": true,
+            "inAnchor": true,
+            "dist": 1.4910449653998792,
+            "rootUnchanged": true
+          },
+          {
+            "id": 7,
+            "role": "scout",
+            "model": "us-scout.fbx",
+            "seat": 2,
+            "clip": "Truck - Sitting 2.fbx",
+            "sameObject": true,
+            "inAnchor": true,
+            "dist": 1.8854621669028189,
+            "rootUnchanged": true
+          },
+          {
+            "id": 2,
+            "role": "scout",
+            "model": "us-scout.fbx",
+            "seat": 3,
+            "clip": "Truck - Sitting 3.fbx",
+            "sameObject": true,
+            "inAnchor": true,
+            "dist": 2.3957982376403013,
+            "rootUnchanged": true
+          },
+          {
+            "id": 0,
+            "role": "rifleman",
+            "model": "us-paratrooper.fbx",
+            "seat": 4,
+            "clip": "Truck - Sitting 1.fbx",
+            "sameObject": true,
+            "inAnchor": true,
+            "dist": 2.8561860918370385,
+            "rootUnchanged": true
+          },
+          {
+            "id": 4,
+            "role": "rifleman",
+            "model": "us-paratrooper.fbx",
+            "seat": 5,
+            "clip": "Truck - Sitting 3.fbx",
+            "sameObject": true,
+            "inAnchor": true,
+            "dist": 1.6162614752944127,
+            "rootUnchanged": true
+          },
+          {
+            "id": 5,
+            "role": "rifleman",
+            "model": "us-paratrooper.fbx",
+            "seat": 6,
+            "clip": "Truck - Sitting 2.fbx",
+            "sameObject": true,
+            "inAnchor": true,
+            "dist": 1.8997061459843236,
+            "rootUnchanged": true
+          },
+          {
+            "id": 6,
+            "role": "rifleman",
+            "model": "us-paratrooper.fbx",
+            "seat": 7,
+            "clip": "Truck - Sitting 1.fbx",
+            "sameObject": true,
+            "inAnchor": true,
+            "dist": 2.346983624546457,
+            "rootUnchanged": true
+          },
+          {
+            "id": 8,
+            "role": "rifleman",
+            "model": "us-paratrooper.fbx",
+            "seat": 8,
+            "clip": "Truck - Sitting 3.fbx",
+            "sameObject": true,
+            "inAnchor": true,
+            "dist": 3.013233600523568,
+            "rootUnchanged": true
+          },
+          {
+            "id": 9,
+            "role": "engineer",
+            "model": "us-engineer.fbx",
+            "seat": 9,
+            "clip": "Truck - Sitting 3.fbx",
+            "sameObject": true,
+            "inAnchor": true,
+            "dist": 1.2460293507452351,
+            "rootUnchanged": true
+          }
+        ]
+      },
+      "ge": {
+        "squadId": "ge-0",
+        "riders": [
+          {
+            "id": 54,
+            "role": "sergeant",
+            "model": "ge-captain.fbx",
+            "seat": 0,
+            "clip": "Truck - Driving.fbx",
+            "sameObject": true,
+            "inAnchor": true,
+            "dist": 1.2629249419420838,
+            "rootUnchanged": true
+          },
+          {
+            "id": 52,
+            "role": "gunner",
+            "model": "ge-gunner.fbx",
+            "seat": 1,
+            "clip": "Truck - Sitting 1.fbx",
+            "sameObject": true,
+            "inAnchor": true,
+            "dist": 1.4911013931579005,
+            "rootUnchanged": true
+          },
+          {
+            "id": 59,
+            "role": "scout",
+            "model": "ge-scout.fbx",
+            "seat": 2,
+            "clip": "Truck - Sitting 2.fbx",
+            "sameObject": true,
+            "inAnchor": true,
+            "dist": 1.8853965408522604,
+            "rootUnchanged": true
+          },
+          {
+            "id": 50,
+            "role": "scout",
+            "model": "ge-scout.fbx",
+            "seat": 3,
+            "clip": "Truck - Sitting 3.fbx",
+            "sameObject": true,
+            "inAnchor": true,
+            "dist": 2.395812847063686,
+            "rootUnchanged": true
+          },
+          {
+            "id": 51,
+            "role": "rifleman",
+            "model": "ge-paratrooper.fbx",
+            "seat": 4,
+            "clip": "Truck - Sitting 1.fbx",
+            "sameObject": true,
+            "inAnchor": true,
+            "dist": 2.856243805492537,
+            "rootUnchanged": true
+          },
+          {
+            "id": 53,
+            "role": "rifleman",
+            "model": "ge-paratrooper.fbx",
+            "seat": 5,
+            "clip": "Truck - Sitting 3.fbx",
+            "sameObject": true,
+            "inAnchor": true,
+            "dist": 1.6162551543765042,
+            "rootUnchanged": true
+          },
+          {
+            "id": 55,
+            "role": "rifleman",
+            "model": "ge-paratrooper.fbx",
+            "seat": 6,
+            "clip": "Truck - Sitting 2.fbx",
+            "sameObject": true,
+            "inAnchor": true,
+            "dist": 1.8997503373850695,
+            "rootUnchanged": true
+          },
+          {
+            "id": 56,
+            "role": "rifleman",
+            "model": "ge-paratrooper.fbx",
+            "seat": 7,
+            "clip": "Truck - Sitting 1.fbx",
+            "sameObject": true,
+            "inAnchor": true,
+            "dist": 2.346894852723169,
+            "rootUnchanged": true
+          },
+          {
+            "id": 57,
+            "role": "rifleman",
+            "model": "ge-paratrooper.fbx",
+            "seat": 8,
+            "clip": "Truck - Sitting 3.fbx",
+            "sameObject": true,
+            "inAnchor": true,
+            "dist": 3.0132491379308326,
+            "rootUnchanged": true
+          },
+          {
+            "id": 58,
+            "role": "engineer",
+            "model": "ge-engineer.fbx",
+            "seat": 9,
+            "clip": "Truck - Sitting 3.fbx",
+            "sameObject": true,
+            "inAnchor": true,
+            "dist": 1.2459517325666456,
+            "rootUnchanged": true
+          }
+        ]
+      }
+    },
+    "parkedAfterBoard": 10,
+    "skeletonsBefore": 100,
+    "skeletonsAfter": 100,
+    "animationGroupsBefore": 0,
+    "animationGroupsAfter": 0,
+    "meshesBefore": 3221,
+    "meshesAfter": 3221,
+    "fps": 1.171143035602749
+  },
+  "wheelEvidence": {
+    "us": {
+      "initial": {
+        "front": {
+          "nodes": 1,
+          "radius": 0.548,
+          "rotation": 0,
+          "axis": "x",
+          "center": [
+            0,
+            0.551,
+            2.167
+          ]
+        },
+        "rear": {
+          "nodes": 1,
+          "radius": 0.548,
+          "rotation": 0,
+          "axis": "x",
+          "center": [
+            0.003,
+            0.548,
+            -1.795
+          ]
+        }
+      },
+      "moved": {
+        "front": {
+          "nodes": 1,
+          "radius": 0.548,
+          "rotation": 1.013,
+          "axis": "x",
+          "center": [
+            0,
+            0.551,
+            2.167
+          ]
+        },
+        "rear": {
+          "nodes": 1,
+          "radius": 0.548,
+          "rotation": 1.013,
+          "axis": "x",
+          "center": [
+            0.003,
+            0.548,
+            -1.795
+          ]
+        }
+      },
+      "stationary": {
+        "front": {
+          "nodes": 1,
+          "radius": 0.548,
+          "rotation": 1.013,
+          "axis": "x",
+          "center": [
+            0,
+            0.551,
+            2.167
+          ]
+        },
+        "rear": {
+          "nodes": 1,
+          "radius": 0.548,
+          "rotation": 1.013,
+          "axis": "x",
+          "center": [
+            0.003,
+            0.548,
+            -1.795
+          ]
+        }
+      }
+    },
+    "ge": {
+      "initial": {
+        "front": {
+          "nodes": 1,
+          "radius": 0.548,
+          "rotation": 0,
+          "axis": "x",
+          "center": [
+            0,
+            0.551,
+            2.167
+          ]
+        },
+        "rear": {
+          "nodes": 1,
+          "radius": 0.548,
+          "rotation": 0,
+          "axis": "x",
+          "center": [
+            0.003,
+            0.548,
+            -1.795
+          ]
+        }
+      },
+      "moved": {
+        "front": {
+          "nodes": 1,
+          "radius": 0.548,
+          "rotation": 5.27,
+          "axis": "x",
+          "center": [
+            0,
+            0.551,
+            2.167
+          ]
+        },
+        "rear": {
+          "nodes": 1,
+          "radius": 0.548,
+          "rotation": 5.27,
+          "axis": "x",
+          "center": [
+            0.003,
+            0.548,
+            -1.795
+          ]
+        }
+      },
+      "stationary": {
+        "front": {
+          "nodes": 1,
+          "radius": 0.548,
+          "rotation": 5.27,
+          "axis": "x",
+          "center": [
+            0,
+            0.551,
+            2.167
+          ]
+        },
+        "rear": {
+          "nodes": 1,
+          "radius": 0.548,
+          "rotation": 5.27,
+          "axis": "x",
+          "center": [
+            0.003,
+            0.548,
+            -1.795
+          ]
+        }
+      }
+    }
+  },
+  "dismount": {
+    "us": [
+      {
+        "seat": false,
+        "fxSeat": false,
+        "parentBack": true,
+        "socketBack": true
+      },
+      {
+        "seat": false,
+        "fxSeat": false,
+        "parentBack": true,
+        "socketBack": true
+      },
+      {
+        "seat": false,
+        "fxSeat": false,
+        "parentBack": true,
+        "socketBack": true
+      },
+      {
+        "seat": false,
+        "fxSeat": false,
+        "parentBack": true,
+        "socketBack": true
+      },
+      {
+        "seat": false,
+        "fxSeat": false,
+        "parentBack": true,
+        "socketBack": true
+      },
+      {
+        "seat": false,
+        "fxSeat": false,
+        "parentBack": true,
+        "socketBack": true
+      },
+      {
+        "seat": false,
+        "fxSeat": false,
+        "parentBack": true,
+        "socketBack": true
+      },
+      {
+        "seat": false,
+        "fxSeat": false,
+        "parentBack": true,
+        "socketBack": true
+      },
+      {
+        "seat": false,
+        "fxSeat": false,
+        "parentBack": true,
+        "socketBack": true
+      },
+      {
+        "seat": false,
+        "fxSeat": false,
+        "parentBack": true,
+        "socketBack": true
+      }
+    ],
+    "ge": [
+      {
+        "seat": false,
+        "fxSeat": false,
+        "parentBack": true,
+        "socketBack": true
+      },
+      {
+        "seat": false,
+        "fxSeat": false,
+        "parentBack": true,
+        "socketBack": true
+      },
+      {
+        "seat": false,
+        "fxSeat": false,
+        "parentBack": true,
+        "socketBack": true
+      },
+      {
+        "seat": false,
+        "fxSeat": false,
+        "parentBack": true,
+        "socketBack": true
+      },
+      {
+        "seat": false,
+        "fxSeat": false,
+        "parentBack": true,
+        "socketBack": true
+      },
+      {
+        "seat": false,
+        "fxSeat": false,
+        "parentBack": true,
+        "socketBack": true
+      },
+      {
+        "seat": false,
+        "fxSeat": false,
+        "parentBack": true,
+        "socketBack": true
+      },
+      {
+        "seat": false,
+        "fxSeat": false,
+        "parentBack": true,
+        "socketBack": true
+      },
+      {
+        "seat": false,
+        "fxSeat": false,
+        "parentBack": true,
+        "socketBack": true
+      },
+      {
+        "seat": false,
+        "fxSeat": false,
+        "parentBack": true,
+        "socketBack": true
+      }
+    ]
+  },
+  "restartCleanup": {
+    "oldActors": 20,
+    "allSeatsCleared": true,
+    "allSocketsDisposed": true,
+    "allHoldersDisposed": true,
+    "oldWeaponsDisposed": true,
+    "currentRoster": 100,
+    "oldActorRootsDisposed": true,
+    "ghostWeaponMeshNames": []
+  },
+  "postBattle": [
+    {
+      "selector": "#restartBtn",
+      "ended": true,
+      "paused": true,
+      "buttons": [
+        true,
+        true
+      ],
+      "bannerVisible": true,
+      "pGuarded": true
+    },
+    {
+      "selector": "#endBattleBtn",
+      "ended": true,
+      "paused": true,
+      "buttons": [
+        true,
+        true
+      ],
+      "bannerVisible": true,
+      "pGuarded": true
+    },
+    {
+      "selector": "#restartBtn",
+      "ended": true,
+      "paused": true,
+      "buttons": [
+        true,
+        true
+      ],
+      "bannerVisible": true,
+      "pGuarded": true
+    }
+  ],
+  "elapsedMs": 50336,
+  "errors": []
+}

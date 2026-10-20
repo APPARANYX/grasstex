@@ -1,0 +1,2 @@
+PASS state-owner scanner mutations and false-positive controls (56 cases)
+PASS only state owners write protected fields (145 runtime files; 2 guarded setup fallbacks)

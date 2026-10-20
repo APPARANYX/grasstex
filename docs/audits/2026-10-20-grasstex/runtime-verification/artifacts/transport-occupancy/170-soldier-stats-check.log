@@ -1,0 +1,85 @@
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[STATS] soldier stats active (default): phy mkm for tac agi tec, hash rolls
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[STATS] soldier stats active (default): phy mkm for tac agi tec, hash rolls
+PASS rolls are hashes of the man: the same in every world, role-independent, six of them in [0, 1]
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[STATS] soldier stats active (default): phy mkm for tac agi tec, hash rolls
+PASS the rolls are bell-shaped around 0.5 and the six are independent
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[STATS] soldier stats active (default): phy mkm for tac agi tec, hash rolls
+PASS the effect table is the whole vocabulary: every effect names a stat, every stat has an effect
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[STATS] soldier stats active (default): phy mkm for tac agi tec, hash rolls
+PASS an average man is exactly 1; a high stat moves each effect the way the table says, never past its span
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[STATS] soldier stats active (default): phy mkm for tac agi tec, hash rolls
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[STATS] soldier stats active (default): phy mkm for tac agi tec, hash rolls
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[STATS] soldier stats active (default): phy mkm for tac agi tec, hash rolls
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[STATS] soldier stats active (default): phy mkm for tac agi tec, hash rolls
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[STATS] soldier stats active (default): phy mkm for tac agi tec, hash rolls
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[STATS] soldier stats active (default): phy mkm for tac agi tec, hash rolls
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[STATS] soldier stats active (default): phy mkm for tac agi tec, hash rolls
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[STATS] soldier stats active (default): phy mkm for tac agi tec, hash rolls
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[STATS] soldier stats active (default): phy mkm for tac agi tec, hash rolls
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[STATS] soldier stats active (default): phy mkm for tac agi tec, hash rolls
+PASS ?stats=0 is the module absent; ?stats=for switches on only fortitude; the roll-up is its own lever
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[STATS] soldier stats active (default): phy mkm for tac agi tec, hash rolls
+PASS nothing here draws from the combat RNG or Math.random
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[STATS] soldier stats active (default): phy mkm for tac agi tec, hash rolls
+PASS a squad reads the mean of its living men, once per sim time; nobody living reads n 0
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[STATS] soldier stats active (default): phy mkm for tac agi tec, hash rolls
+PASS ranks: the highest composite is 1, the lowest 0, ties by squad id, thin and lone squads pull nothing
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[STATS] soldier stats active (default): phy mkm for tac agi tec, hash rolls
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[STATS] soldier stats active (default): phy mkm for tac agi tec, hash rolls
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[STATS] soldier stats active (default): phy mkm for tac agi tec, hash rolls
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[STATS] soldier stats active (default): phy mkm for tac agi tec, hash rolls
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[STATS] soldier stats active (default): phy mkm for tac agi tec, hash rolls
+PASS deal: default-on permutation of the squad's ten ids, each command slot to the best of what is left
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[STATS] soldier stats active (default): phy mkm for tac agi tec, hash rolls
+PASS the module writes only `stats`: nothing else on a man or a squad changes
+soldier-stats-check: 10 passed

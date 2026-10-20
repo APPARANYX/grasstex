@@ -1,0 +1,92 @@
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture off; movement off; relay off
+[COMMAND] execution outcome reader (derived, no state)
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[INFANTRY] realistic walk/run/sprint + crouch/crawl gait bands active
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture off; movement off; relay off
+[COMMAND] execution outcome reader (derived, no state)
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[INFANTRY] realistic walk/run/sprint + crouch/crawl gait bands active
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture off; movement off; relay off
+[COMMAND] execution outcome reader (derived, no state)
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[INFANTRY] realistic walk/run/sprint + crouch/crawl gait bands active
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture off; movement off; relay off
+[COMMAND] execution outcome reader (derived, no state)
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[INFANTRY] realistic walk/run/sprint + crouch/crawl gait bands active
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture off; movement off; relay off
+[COMMAND] execution outcome reader (derived, no state)
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[INFANTRY] realistic walk/run/sprint + crouch/crawl gait bands active
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture off; movement off; relay off
+[COMMAND] execution outcome reader (derived, no state)
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[INFANTRY] realistic walk/run/sprint + crouch/crawl gait bands active
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture off; movement off; relay off
+[COMMAND] execution outcome reader (derived, no state)
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[INFANTRY] realistic walk/run/sprint + crouch/crawl gait bands active
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture off; movement off; relay off
+[COMMAND] execution outcome reader (derived, no state)
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[INFANTRY] realistic walk/run/sprint + crouch/crawl gait bands active
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture off; movement off; relay off
+[COMMAND] execution outcome reader (derived, no state)
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[INFANTRY] realistic walk/run/sprint + crouch/crawl gait bands active
+[STRATEGIC] opt-in abstract motor transport ready
+PASS native autonomous movement handoff: warning, final cover approach, stable contact gait and withdrawal

@@ -1,0 +1,7 @@
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[ENGAGE] combat urgency drills: suppressed cover bound + shared-contact reaction
+[MOVE] lean movement execution: committed micro-route + conservative recovery
+PASS: movement execution preserves committed Meso formation order across resolve calls

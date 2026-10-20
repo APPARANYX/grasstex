@@ -1,0 +1,7 @@
+PASS men beyond the leader are published unreachable and stay behind the newest order
+PASS the anchor advances when the men it can reach have arrived, though half the squad cannot be reached
+PASS a stale acknowledgement from a man who CAN be reached still holds the anchor
+PASS ?unreachableAnchor=0 is the old rule: the unreachable half holds the anchor
+PASS mixed current-brief unreachable and physical blockers leave the remaining men free
+PASS no able recipients is not mistaken for successful arrival
+6 passed

@@ -1,0 +1,42 @@
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture on; movement on; relay on
+[COMMAND] execution outcome reader (derived, no state)
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[{"t":3.15,"anchorZ":13,"version":1},{"t":3.3,"anchorZ":26,"version":2},{"t":3.45,"anchorZ":26,"version":2},{"t":3.6,"anchorZ":26,"version":2},{"t":3.75,"anchorZ":26,"version":2},{"t":3.9,"anchorZ":26,"version":2},{"t":4.05,"anchorZ":26,"version":2},{"t":4.2,"anchorZ":26,"version":2},{"t":4.35,"anchorZ":26,"version":2},{"t":4.5,"anchorZ":26,"version":2}]
+PASS: pending movement cannot repeatedly advance the squad anchor
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture on; movement on; relay on
+[COMMAND] execution outcome reader (derived, no state)
+[MOVE] resolver: sole combat-request coalescer and destination writer
+PASS: individually adopted travel preserves physical progress, cohesion and fireteam lanes
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture on; movement on; relay on
+[COMMAND] execution outcome reader (derived, no state)
+[MOVE] resolver: sole combat-request coalescer and destination writer
+PASS: one regroup lease gives each soldier one stable rally-area destination
+PASS: genuine separation recovers physically and resumes the original mission without repeated regroup
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture on; movement on; relay on
+[COMMAND] execution outcome reader (derived, no state)
+[MOVE] resolver: sole combat-request coalescer and destination writer
+PASS: a valid individual tactical commitment survives formation replacement

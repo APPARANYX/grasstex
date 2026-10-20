@@ -2,18 +2,19 @@
   "authorization": "User: do each of the other PRs for me one at a time, once ci is green, merge, and continue til done",
   "completed": [
     600,
-    601
+    601,
+    603,
+    604
   ],
   "current": {
-    "pr": 603,
-    "topic": "operator restart owner",
-    "head": "e4efbfb8",
-    "baselineRun": 39513882268,
-    "candidateRun": 39513885488
+    "pr": 605,
+    "topic": "transport-owned occupancy reads",
+    "head": "945a20132c3b7a92bfb041781c0ec7f3db663a6a",
+    "baselineRun": 39517113159,
+    "candidateRun": 39517116322
   },
   "remaining": [
-    "shared strategic activation rules preserving existing independent transport and lab semantics",
-    "transport-owned occupancy reads without changing boarding/capture policies",
+    "one canonical fleet pose with derived active journey views and detached terminal history",
     "fail-safe ballistic geometry-query error contract and bounded diagnostics"
   ],
   "finalVerification": "existing remote battle workflows plus retained native browser/soak artifacts; update existing audit and limits"

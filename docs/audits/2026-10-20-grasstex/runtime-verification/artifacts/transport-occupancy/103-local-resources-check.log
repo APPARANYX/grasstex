@@ -1,0 +1,185 @@
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+[NAV] graph built; walls=0 nodes=0 doors=0 firingStations=0 rejectedWindows=0
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+[NAV] graph built; walls=0 nodes=0 doors=0 firingStations=0 rejectedWindows=0
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+[NAV] graph built; walls=0 nodes=0 doors=0 firingStations=0 rejectedWindows=0
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+[NAV] graph built; walls=0 nodes=0 doors=0 firingStations=0 rejectedWindows=0
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+[NAV] graph built; walls=0 nodes=0 doors=0 firingStations=0 rejectedWindows=0
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+[NAV] graph built; walls=0 nodes=0 doors=0 firingStations=0 rejectedWindows=0
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+[NAV] graph built; walls=0 nodes=0 doors=0 firingStations=0 rejectedWindows=0
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+[NAV] graph built; walls=0 nodes=0 doors=0 firingStations=0 rejectedWindows=0
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+[NAV] graph built; walls=0 nodes=0 doors=0 firingStations=0 rejectedWindows=0
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+[NAV] graph built; walls=0 nodes=0 doors=0 firingStations=0 rejectedWindows=0
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+[NAV] graph built; walls=0 nodes=0 doors=0 firingStations=0 rejectedWindows=0
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+[NAV] graph built; walls=0 nodes=0 doors=0 firingStations=0 rejectedWindows=0
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+[NAV] graph built; walls=0 nodes=0 doors=0 firingStations=0 rejectedWindows=0
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+[NAV] graph built; walls=0 nodes=0 doors=0 firingStations=0 rejectedWindows=0
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+[NAV] graph built; walls=0 nodes=0 doors=0 firingStations=0 rejectedWindows=0
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+[NAV] graph built; walls=0 nodes=0 doors=0 firingStations=0 rejectedWindows=0
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+[NAV] graph built; walls=0 nodes=0 doors=0 firingStations=0 rejectedWindows=0
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+[NAV] graph built; walls=0 nodes=0 doors=0 firingStations=0 rejectedWindows=0
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+[NAV] graph built; walls=0 nodes=0 doors=0 firingStations=0 rejectedWindows=0
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+[NAV] graph built; walls=0 nodes=0 doors=0 firingStations=0 rejectedWindows=0
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+[NAV] graph built; walls=0 nodes=0 doors=0 firingStations=0 rejectedWindows=0
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+[NAV] graph built; walls=0 nodes=0 doors=0 firingStations=0 rejectedWindows=0
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+[NAV] graph built; walls=0 nodes=0 doors=0 firingStations=0 rejectedWindows=0
+PASS bounded local resources, readiness/roster invalidation, opt-in actual publisher, succession/restart; causal outcome {"metres":4.068,"arrivedDistance":0.2320000000000002,"shots":2}

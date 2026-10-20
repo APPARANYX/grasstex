@@ -1,0 +1,20 @@
+PASS a supersonic round cracks close, zips farther out, plays nothing past the range
+PASS a .45 (Thompson, M1911A1) only whizzes
+PASS closer is louder
+PASS the shooter's own round (camera at his muzzle, or behind him) is not a flyby
+PASS a round that ends near the camera counts at its end point; one that ends short does not
+PASS one round plays one clip, at the pass point, and the old onShot still runs
+PASS a burst arriving at one instant is one sound, not a cacophony
+PASS rounds a gap apart play in turn, never more than the cap at once
+PASS a clip is not restarted while it sounds, and variants rotate
+PASS a delayed round of a burst plays when its tracer shows
+PASS a far round, or no clips on disk yet, plays nothing and throws nothing
+PASS a suppressive burst past the camera is one flyby
+PASS surfaces are told apart; a body is flesh
+PASS a round ending near the camera plays one impact, after the sound arrives; far off nothing
+PASS stone and metal ricochet instead of an impact, never both, and the choice is a fixed hash
+PASS a man hit plays one flesh hit and one cry; a round stopped in him plays no impact
+PASS a round through one man into the next: two hits, one cry (the gap), then the impact where it ended
+PASS the same man does not cry again within PAIN_REPEAT
+PASS ?combatAudio=0 installs nothing
+combat-audio-check: 19 passed

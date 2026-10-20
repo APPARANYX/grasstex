@@ -1,0 +1,31 @@
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[ORDER-PROVENANCE] writer tracing active (fast setters, 1.6s in-place sampler); battle behavior unchanged
+PASS the scenario visits both paths: the per-step advance and the regroup commit
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[ORDER-PROVENANCE] writer tracing active (fast setters, 1.6s in-place sampler); battle behavior unchanged
+PASS the Squad Leader is not a writer conflict with itself across advance, regroup, advance
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[ORDER-PROVENANCE] writer tracing active (fast setters, 1.6s in-place sampler); battle behavior unchanged
+PASS the pair has one owner in the provenance log, whichever path wrote it
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[ORDER-PROVENANCE] writer tracing active (fast setters, 1.6s in-place sampler); battle behavior unchanged
+PASS rally is the order anchor: the pair agrees after every advance, regroup and hold tick
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[ORDER-PROVENANCE] writer tracing active (fast setters, 1.6s in-place sampler); battle behavior unchanged
+PASS publishAnchor is the Squad Leader's API: both fields, copies, no aliasing
+anchor-publisher-check: 5 passed

@@ -1,0 +1,9 @@
+PASS first visual contact holds fire and makes the squad prepare prone before a volley
+PASS same-threat relayed refresh keeps an existing hold but cannot create one by itself
+PASS long range prefers one strong in-range marksman while the rest keep holding
+PASS a man under incoming fire may answer immediately and the leader opens the squad
+PASS zero firing lines after the prep window repositions under hold fire instead of deadlocking
+PASS one viable firing line breaks the max-hold dead band
+PASS zero-line reposition times out even after the initiating contact ages out
+PASS fireControl=0 preserves immediate-fire behavior
+8 fire-control checks passed

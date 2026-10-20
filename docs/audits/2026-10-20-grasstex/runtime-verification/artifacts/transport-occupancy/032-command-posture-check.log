@@ -1,0 +1,9 @@
+PASS posture adoption is default-on after Phase 0E benchmark validation
+PASS a fresh HOLD order is not personal truth until that soldier adopts it
+PASS one HOLD command yields staggered individual execution instead of a same-tick squad flip
+PASS an adopted HOLD remains effective until the replacement OPEN is personally adopted
+PASS personal incoming fire bypasses an adopted HOLD immediately without rewriting the command
+PASS precision permission is also personal: only the adopted designated shooter may fire
+PASS legacy/control arm still reads shared squad fireControl immediately
+PASS Command Reception remains a sidecar and does not become a stance/fire owner
+8 command-posture checks passed

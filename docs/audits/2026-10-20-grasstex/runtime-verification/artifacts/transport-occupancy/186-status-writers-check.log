@@ -1,0 +1,5 @@
+PASS pin holds a free man for the seconds it is given, extends a hold, and never shortens one
+PASS area fire pins the enemies inside its spread for the suppressive hold and no one else
+PASS a wound that does not drop a man pins him for the shock hold through the same writer
+PASS markUrgent sets now + seconds, clearUrgent zeroes it
+status-writers-check: 4 passed

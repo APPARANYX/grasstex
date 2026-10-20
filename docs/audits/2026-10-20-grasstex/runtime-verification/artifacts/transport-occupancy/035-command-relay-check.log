@@ -1,0 +1,13 @@
+PASS relay topology is default-on and the legacy timing model remains available via ?commandRelay=0
+PASS simple squad orders stay direct even for a member of another fireteam
+PASS a referenced team order relays through the deterministic first living man of that fireteam
+PASS the relay man himself receives the referenced order directly
+PASS a direct order outside voice range but inside clear visual range uses a visual signal
+PASS blocked visual line of sight prevents an out-of-voice-range command
+PASS a failing line-of-sight provider cannot silently authorize a visual order
+PASS a direct order beyond both bounded channels remains explicitly unreachable
+PASS a caller may explicitly require direct delivery instead of a fireteam relay
+PASS shipping personal movement uses the relay path only when both experimental gates are on
+PASS relay outcomes are deterministic and draw no combat RNG
+PASS Command Reception remains an information boundary, not a physical relay/movement owner
+12 command-relay checks passed

@@ -1,0 +1,9 @@
+PASS the vocabulary is declared data with distinct priorities, and an unknown kind is an error
+PASS a kind nobody reads is not queued; a dead man is not posted to
+PASS a reader drains its own kinds by priority then posting order; other readers keep theirs
+PASS the queue is bounded: past capacity the lowest-priority, oldest event goes, and it is counted
+PASS a casualty is logged and announced once, to living men of his own side inside reach only
+PASS SquadAI.pin posts the hold it set (after the fortitude scale); the queue never recomputes it
+PASS the wound model posts a wound for a hit he survives, and not for one that drops him
+PASS the queue draws nothing from the combat RNG
+8 soldier-events checks passed

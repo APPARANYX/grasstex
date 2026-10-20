@@ -1,0 +1,278 @@
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+[MOVE] soldier personal space active: 0.90m minimum center spacing
+[MOVE] lean movement execution: committed micro-route + conservative recovery
+[DIAG] compact + full end-session diagnostics export ready
+[NAV] graph built; walls=4 nodes=9 doors=2 firingStations=1 rejectedWindows=0
+PASS one station has one assignee, including soldier id zero and another faction
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+[MOVE] soldier personal space active: 0.90m minimum center spacing
+[MOVE] lean movement execution: committed micro-route + conservative recovery
+[DIAG] compact + full end-session diagnostics export ready
+[NAV] graph built; walls=4 nodes=9 doors=2 firingStations=1 rejectedWindows=0
+PASS selection skips a held window without calling it a collision
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+[MOVE] soldier personal space active: 0.90m minimum center spacing
+[MOVE] lean movement execution: committed micro-route + conservative recovery
+[DIAG] compact + full end-session diagnostics export ready
+[NAV] graph built; walls=4 nodes=9 doors=2 firingStations=1 rejectedWindows=0
+PASS personal target loss, target death and a target behind the window retain the same task
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+[MOVE] soldier personal space active: 0.90m minimum center spacing
+[MOVE] lean movement execution: committed micro-route + conservative recovery
+[DIAG] compact + full end-session diagnostics export ready
+[NAV] graph built; walls=4 nodes=9 doors=2 firingStations=1 rejectedWindows=0
+PASS reload and stoppage preserve reservation, pause ingress, then resume the committed route
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+[MOVE] soldier personal space active: 0.90m minimum center spacing
+[MOVE] lean movement execution: committed micro-route + conservative recovery
+[DIAG] compact + full end-session diagnostics export ready
+[NAV] graph built; walls=4 nodes=9 doors=2 firingStations=1 rejectedWindows=0
+PASS death releases immediately through the shipping kill path and the station can be reused
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+[MOVE] soldier personal space active: 0.90m minimum center spacing
+[MOVE] lean movement execution: committed micro-route + conservative recovery
+[DIAG] compact + full end-session diagnostics export ready
+[NAV] graph built; walls=4 nodes=9 doors=2 firingStations=1 rejectedWindows=0
+PASS retreat releases through the manager
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+[MOVE] soldier personal space active: 0.90m minimum center spacing
+[MOVE] lean movement execution: committed micro-route + conservative recovery
+[DIAG] compact + full end-session diagnostics export ready
+[NAV] graph built; walls=4 nodes=9 doors=2 firingStations=1 rejectedWindows=0
+PASS regroup releases through the manager
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+[MOVE] soldier personal space active: 0.90m minimum center spacing
+[MOVE] lean movement execution: committed micro-route + conservative recovery
+[DIAG] compact + full end-session diagnostics export ready
+[NAV] graph built; walls=4 nodes=9 doors=2 firingStations=1 rejectedWindows=0
+PASS incapacitated releases through the manager
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+[MOVE] soldier personal space active: 0.90m minimum center spacing
+[MOVE] lean movement execution: committed micro-route + conservative recovery
+[DIAG] compact + full end-session diagnostics export ready
+[NAV] graph built; walls=4 nodes=9 doors=2 firingStations=1 rejectedWindows=0
+PASS explicit-task-change releases through the manager
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+[MOVE] soldier personal space active: 0.90m minimum center spacing
+[MOVE] lean movement execution: committed micro-route + conservative recovery
+[DIAG] compact + full end-session diagnostics export ready
+[NAV] graph built; walls=4 nodes=9 doors=2 firingStations=1 rejectedWindows=0
+PASS explicit-task-change releases through the manager
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+[MOVE] soldier personal space active: 0.90m minimum center spacing
+[MOVE] lean movement execution: committed micro-route + conservative recovery
+[DIAG] compact + full end-session diagnostics export ready
+[NAV] graph built; walls=4 nodes=9 doors=2 firingStations=1 rejectedWindows=0
+PASS engagement-ended releases through the manager
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+[MOVE] soldier personal space active: 0.90m minimum center spacing
+[MOVE] lean movement execution: committed micro-route + conservative recovery
+[DIAG] compact + full end-session diagnostics export ready
+[NAV] graph built; walls=4 nodes=9 doors=2 firingStations=1 rejectedWindows=0
+[NAV] graph built; walls=0 nodes=0 doors=0 firingStations=0 rejectedWindows=0
+PASS station-invalid releases through the manager
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+[MOVE] soldier personal space active: 0.90m minimum center spacing
+[MOVE] lean movement execution: committed micro-route + conservative recovery
+[DIAG] compact + full end-session diagnostics export ready
+[NAV] graph built; walls=4 nodes=9 doors=2 firingStations=1 rejectedWindows=0
+PASS Micro task, target and engagement-plan churn cannot revoke a Squad Leader-owned post
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+[MOVE] soldier personal space active: 0.90m minimum center spacing
+[MOVE] lean movement execution: committed micro-route + conservative recovery
+[DIAG] compact + full end-session diagnostics export ready
+[NAV] graph built; walls=4 nodes=9 doors=2 firingStations=1 rejectedWindows=0
+PASS normal allocation excludes the squad leader and maneuver team; occupied slots count without personal targets
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+[MOVE] soldier personal space active: 0.90m minimum center spacing
+[MOVE] lean movement execution: committed micro-route + conservative recovery
+[DIAG] compact + full end-session diagnostics export ready
+[NAV] graph built; walls=4 nodes=9 doors=2 firingStations=1 rejectedWindows=0
+PASS rear door, complete ingress and station hold survive target flicker without path replanning
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+[MOVE] soldier personal space active: 0.90m minimum center spacing
+[MOVE] lean movement execution: committed micro-route + conservative recovery
+[DIAG] compact + full end-session diagnostics export ready
+[NAV] graph built; walls=4 nodes=9 doors=2 firingStations=1 rejectedWindows=0
+PASS safe-door approach does not shortcut through the exposed front door
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+[MOVE] soldier personal space active: 0.90m minimum center spacing
+[MOVE] lean movement execution: committed micro-route + conservative recovery
+[DIAG] compact + full end-session diagnostics export ready
+[NAV] graph built; walls=4 nodes=9 doors=2 firingStations=1 rejectedWindows=0
+PASS a soldier already within occupancy tolerance receives an exact station task
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+[MOVE] soldier personal space active: 0.90m minimum center spacing
+[MOVE] lean movement execution: committed micro-route + conservative recovery
+[DIAG] compact + full end-session diagnostics export ready
+[NAV] graph built; walls=4 nodes=9 doors=2 firingStations=1 rejectedWindows=0
+PASS occupied station survives separation while approaching soldiers remain movable
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+[MOVE] soldier personal space active: 0.90m minimum center spacing
+[MOVE] lean movement execution: committed micro-route + conservative recovery
+[DIAG] compact + full end-session diagnostics export ready
+[NAV] graph built; walls=4 nodes=9 doors=2 firingStations=1 rejectedWindows=0
+PASS engagement quiet closure cannot revoke a still-valid Squad Leader positional order
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+[MOVE] soldier personal space active: 0.90m minimum center spacing
+[MOVE] lean movement execution: committed micro-route + conservative recovery
+[DIAG] compact + full end-session diagnostics export ready
+[NAV] graph built; walls=4 nodes=9 doors=2 firingStations=1 rejectedWindows=0
+PASS stable Meso fireteam orders are coalesced before the movement resolver
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+[MOVE] soldier personal space active: 0.90m minimum center spacing
+[MOVE] lean movement execution: committed micro-route + conservative recovery
+[DIAG] compact + full end-session diagnostics export ready
+[NAV] graph built; walls=4 nodes=9 doors=2 firingStations=1 rejectedWindows=0
+PASS unreachable station is rejected; real obstacle changes invalidate one cached route
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+[MOVE] soldier personal space active: 0.90m minimum center spacing
+[MOVE] lean movement execution: committed micro-route + conservative recovery
+[DIAG] compact + full end-session diagnostics export ready
+[NAV] graph built; walls=4 nodes=9 doors=2 firingStations=1 rejectedWindows=0
+PASS full diagnostics export includes live route, releases, roles and lifetime; restart clears registry
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+[MOVE] soldier personal space active: 0.90m minimum center spacing
+[MOVE] lean movement execution: committed micro-route + conservative recovery
+[DIAG] compact + full end-session diagnostics export ready
+[NAV] graph built; walls=4 nodes=9 doors=2 firingStations=1 rejectedWindows=0
+PASS unavailable weapons cannot count as suppressors or effective window fire
+All 23 tactical-position checks passed.

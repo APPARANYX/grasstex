@@ -1,0 +1,7 @@
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[INFANTRY] realistic walk/run/sprint + crouch/crawl gait bands active
+[BALLISTICS] direct fire uses combat-calibrated dispersed raycasts
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+PASS: isPlayer gates Micro/indoor routing, no aim assist, input goes straight indoors, RT free-fires through shipping ballistics, and release returns AI control
