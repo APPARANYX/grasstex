@@ -282,7 +282,19 @@
       by = heightAt(bx, bz) + eyeHeight(b);
     var F = field();
     if (F) {
-      if (F.sightBlocked(obstacles, { x: ax, z: az, y: ay }, { x: bx, z: bz, y: by })) return false;
+      // Only an admitted occupant can look out through his own carrier envelope.
+      // Other trucks, terrain and static cover still occlude the crew's sight.
+      var transport = a.squad && a.squad._transport,
+        aboard =
+          transport &&
+          (transport.phase === 'embarked' ||
+            ((transport.phase === 'boarding' || transport.phase === 'disembarking') &&
+              transport.boardedIds &&
+              transport.boardedIds.indexOf(a.id) >= 0 &&
+              (!transport.exitedIds || transport.exitedIds.indexOf(a.id) < 0))),
+        sightOptions = aboard ? { ignoreDynamicId: transport.vehicleId } : undefined;
+      if (F.sightBlocked(obstacles, { x: ax, z: az, y: ay }, { x: bx, z: bz, y: by }, sightOptions))
+        return false;
     } else if (obstacleBlocks(ax, az, bx, bz, obstacles)) return false;
     if (
       root.BattleNavigation &&

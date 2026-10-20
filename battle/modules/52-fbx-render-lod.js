@@ -261,6 +261,18 @@
               continue;
             }
             if (!fx.root.isEnabled()) continue;
+            /* Mesh LOD: full detail within `far` (with a `band` of hysteresis), the simplified list beyond. */
+            if (fx.meshLod) {
+              if (!MESH_LOD.on || !eye) meshLodApply(fx, false);
+              else {
+                var mp = fx.root.position,
+                  mx = eye.x - mp.x,
+                  my = eye.y - mp.y - 0.9,
+                  mz = eye.z - mp.z,
+                  md = Math.sqrt(mx * mx + my * my + mz * mz);
+                meshLodApply(fx, fx._meshFar ? md > mf - mb : md > mf + mb);
+              }
+            }
             /* A seated passenger is the same squad soldier, with the same rig,
                skin damage and role model. The seat owns his PRESENTATION pose
                while the transport system still owns his authoritative root.
@@ -305,18 +317,6 @@
             fx.holder.rotation.z += (tilt.roll - fx.holder.rotation.z) * follow;
             cullApply(fx, !!(cull && cam && lodOut(fx, shadows, CULL.radius)));
             if (on && fx._culled) POSE.lod.culled++;
-            /* Mesh LOD: full detail within `far` (with a `band` of hysteresis), the simplified list beyond. */
-            if (fx.meshLod) {
-              if (!MESH_LOD.on || !eye) meshLodApply(fx, false);
-              else {
-                var mp = fx.root.position,
-                  mx = eye.x - mp.x,
-                  my = eye.y - mp.y - 0.9,
-                  mz = eye.z - mp.z,
-                  md = Math.sqrt(mx * mx + my * my + mz * mz);
-                meshLodApply(fx, fx._meshFar ? md > mf - mb : md > mf + mb);
-              }
-            }
             if (lod) {
               var hold = (fx._lodHold = lodHold(fx, now, cam, shadows, screenScale));
               if (on && fx._lodShadowKept) POSE.lod.shadowKept++;

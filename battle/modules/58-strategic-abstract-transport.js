@@ -843,43 +843,61 @@
       });
     });
   }
+  function stagingTarget(sim, t, s, index) {
+    var from = position(s.root.position),
+      row = Math.floor(index / 2) * 1.15,
+      side = index % 2 ? 1 : -1,
+      candidates = [
+        { x: side * 1.15, z: -5.5 - row },
+        { x: side * 3, z: -row },
+        { x: -side * 3, z: -row },
+        { x: side * 1.85, z: 5.5 + row }
+      ];
+    t.stagingPoints = t.stagingPoints || {};
+    var saved = t.stagingPoints[s.id];
+    if (saved && safe(sim, saved, saved) && accessWaypoint(sim, t, from, saved)) return saved;
+    for (var i = 0; i < candidates.length; i++) {
+      var target = accessPoint(t, candidates[i]);
+      if (!safe(sim, target, target) || !accessWaypoint(sim, t, from, target)) continue;
+      var reserved = Object.keys(t.stagingPoints).some(function (id) {
+        return id !== String(s.id) && dist(t.stagingPoints[id], target) < 1;
+      });
+      if (!reserved) return (t.stagingPoints[s.id] = target);
+    }
+    return null;
+  }
   function disembark(sim, sq, dt) {
     var t = sq._transport,
       members = alive(sq),
       allStaged = true;
-    // Exited men continue walking while the next occupied seat waits only for a free exit.
+    // Walk to reachable assembly space; another parked truck may block the rear line.
     members.forEach(function (s) {
       if (t.exitedIds.indexOf(s.id) < 0) return;
       var index = t.exitOrder.indexOf(s.id),
-        target = accessPoint(t, { x: (index % 2 ? 1 : -1) * 1.15, z: -5.5 - Math.floor(index / 2) * 1.15 });
+        target = stagingTarget(sim, t, s, index);
+      if (!target) {
+        allStaged = false;
+        return;
+      }
       if (dist(position(s.root.position), target) > SEAT_TOLERANCE) {
         var next = accessWaypoint(sim, t, position(s.root.position), target);
         if (next) advancePassenger(sim, s, next, dt, 'transport-disembarking');
       }
       if (dist(position(s.root.position), target) > SEAT_TOLERANCE) allStaged = false;
     });
-    if (t.exitCursor >= t.exitOrder.length) {
-      if (allStaged) completeFinish(sim, sq, t.endReason);
-      return;
-    }
-    var id = t.exitOrder[t.exitCursor],
-      rank = t.boardingOrder.indexOf(id),
-      s = members.find(function (s) {
-        return s.id === id;
-      });
-    if (!s) {
-      t.exitCursor++;
-      return;
-    }
-    if (t.exitedIds.indexOf(id) < 0) {
-      var door = accessPoint(t, accessDoor(rank));
-      if (!safe(sim, door, door) || !exitSpaceFree(sim, door, s)) {
-        if (!t.exitBlockedAt) {
-          t.exitBlockedAt = sim.time;
-          log(sim, sq, 'exit-blocked', { soldierId: id, vehicleId: t.vehicleId });
-        }
-        return;
-      }
+    // A blocked driver door must not hold occupants of the other door or tailgate.
+    // Admit at most one safe ground exit per tick, preserving seat identity.
+    var waiting = false;
+    for (var i = 0; i < t.exitOrder.length; i++) {
+      var id = t.exitOrder[i],
+        s = members.find(function (member) {
+          return member.id === id;
+        });
+      if (!s || t.exitedIds.indexOf(id) >= 0) continue;
+      waiting = true;
+      var rank = t.boardingOrder.indexOf(id),
+        door = accessPoint(t, accessDoor(rank));
+      if (!safe(sim, door, door) || !exitSpaceFree(sim, door, s)) continue;
       root.BattleSim.moveTransportPassenger(sim, s, door, 'transport-disembarking');
       t.exitedIds.push(id);
       t.exitCursor++;
@@ -889,6 +907,12 @@
         exit: rank < 2 ? (rank === 0 ? 'driver-door' : 'passenger-door') : 'tailgate'
       });
       return;
+    }
+    if (!waiting) {
+      if (allStaged) completeFinish(sim, sq, t.endReason);
+    } else if (!t.exitBlockedAt) {
+      t.exitBlockedAt = sim.time;
+      log(sim, sq, 'exit-blocked', { vehicleId: t.vehicleId });
     }
   }
   function board(sim, sq, dt) {

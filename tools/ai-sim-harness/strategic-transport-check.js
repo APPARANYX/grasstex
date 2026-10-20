@@ -791,19 +791,6 @@ for (const [collision, endReason] of [
   assert.equal(t.phase, 'disembarking');
   const truck = a.api.fleetSummary(a.sim).find(v => v.id === t.vehicleId);
   assert.equal(truck.squadId, a.squad.id, 'truck remains reserved while people exit');
-  const blocker = {
-    id: 'exit-blocker',
-    root: {
-      position: {
-        x: t.position.x - t.heading.z * 1.85 + t.heading.x * 0.7,
-        z: t.position.z + t.heading.x * 1.85 + t.heading.z * 0.7
-      }
-    }
-  };
-  a.sim._roster.ge.push(blocker);
-  a.run(0.45);
-  assert.equal(t.exitedIds.length, 0, 'occupied exit keeps its occupant seated');
-  blocker.root.position = { x: 2000, z: 2000 };
   a.run(0.15);
   assert.equal(t.exitedIds.length, 1, 'free driver exit releases immediately');
   a.run(0.15);
@@ -960,3 +947,49 @@ console.log('PASS arrival at either door admits immediately; partial pickup exit
 console.log(
   'PASS live rotated truck blocks infantry and rounds, preserves detours, roof clearance and complete transport'
 );
+
+// A blocked cab door cannot strand the bed occupants or the other cab occupant.
+{
+  const a = make('strategic', '?motorTransport=1&truckAccess=1');
+  const mission = a.brief();
+  assert(a.api.considerMission(a.sim, a.squad, mission));
+  mission.status = 'executing';
+  for (let i = 0; i < 800 && a.squad._transport.phase === 'boarding'; i++) a.run(0.15);
+  const t = a.squad._transport;
+  assert.equal(t.phase, 'embarked');
+  a.api.finish(a.sim, a.squad, 'crew-sighting');
+  const blocker = {
+    id: 'door-blocker',
+    root: {
+      position: {
+        x: t.position.x - t.heading.z * 1.85 + t.heading.x * 0.7,
+        z: t.position.z + t.heading.x * 1.85 + t.heading.z * 0.7
+      }
+    }
+  };
+  a.sim._roster.ge.push(blocker);
+  a.run(20);
+  assert.equal(t.exitedIds.length, 9, 'other exits drain while driver remains safely seated');
+  assert(!t.exitedIds.includes(t.boardingOrder[0]));
+  blocker.root.position = { x: 2000, z: 2000 };
+  a.run(20);
+  assert.equal(t.phase, 'aborted');
+  assert(a.members.every(s => !a.api.isPassenger(s)));
+}
+// A parked vehicle behind the tailgate can block the usual assembly line.
+{
+  const a = make('strategic', '?motorTransport=1&truckAccess=1');
+  const mission = a.brief();
+  assert(a.api.considerMission(a.sim, a.squad, mission));
+  mission.status = 'executing';
+  for (let i = 0; i < 800 && a.squad._transport.phase === 'boarding'; i++) a.run(0.15);
+  const t = a.squad._transport;
+  a.api.finish(a.sim, a.squad, 'contact');
+  const original = a.root.BattleNavigation.movementClear;
+  a.root.BattleNavigation.movementClear = (from, to) =>
+    original(from, to) && from.z >= t.position.z - 5 && to.z >= t.position.z - 5;
+  a.run(40);
+  assert.equal(t.phase, 'aborted', 'reachable flank assembly restores infantry ownership');
+  assert(a.members.every(s => s.root.position.z >= t.position.z - 5));
+}
+console.log('PASS independent safe exits and reachable dismount assembly around blocked rear space');
