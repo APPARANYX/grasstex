@@ -162,7 +162,7 @@ for (const args of [
   assert.equal(w.squad._transport, null);
 }
 const defaultTransport = make('strategic', '');
-assert.equal(defaultTransport.api.enabled(defaultTransport.sim), true, 'strategic transport is default-on');
+assert.equal(defaultTransport.api.fleetSummary(defaultTransport.sim).length, 12, 'strategic transport fleet is default-on');
 assert.equal(
   defaultTransport.sim.obstacles.__dynamicFootprints.length,
   12,
