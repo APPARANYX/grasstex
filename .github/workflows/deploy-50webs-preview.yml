@@ -6,6 +6,10 @@ name: ⭐ Deploy Battle Sim Branch Preview
 # production assets, policy and scenario memory, and makes no telemetry, policy or learning writes.
 
 on:
+  # Isolated hosted repair preview; does not publish production runtime.
+  push:
+    branches:
+      - 'preview/strategic-truck-collision-20261020'
   # Manual only: the production branch never deploys itself into a preview.
   workflow_dispatch:
     inputs:
@@ -30,7 +34,7 @@ jobs:
   preview:
     name: Upload branch preview
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 16
     steps:
       - name: Checkout preview ref
         uses: actions/checkout@v4
@@ -165,6 +169,10 @@ jobs:
           # inventory metadata; this fails if the rewrite overlay is missing.
           overlay_test_url="https://test.ivandpopov.com/grasstex/preview/$SLUG/Assets/soldiers/ge-paratrooper.fbx"
           curl --fail --silent --show-error --location --head "$overlay_test_url" >/dev/null
+          # Truck rendering also needs vehicle and seat-pose assets in this overlay.
+          for asset in 'vehicles/german_transport.fbx' 'animations/Truck%20-%20Driving.fbx' 'animations/Truck%20-%20Sitting%201.fbx' 'animations/Truck%20-%20Sitting%202.fbx' 'animations/Truck%20-%20Sitting%203.fbx'; do
+            curl --fail --silent --show-error --location --head "https://test.ivandpopov.com/grasstex/preview/$SLUG/Assets/$asset" >/dev/null
+          done
           overlay_metadata_url="https://test.ivandpopov.com/grasstex/preview/$SLUG/asset-overlay.json"
           overlay_metadata="$(curl -fsSL "$overlay_metadata_url")"
           python3 -c 'import json,sys; d=json.loads(sys.argv[1]); assert d["assetOverlay"] and d["version"]==1' "$overlay_metadata"
@@ -208,6 +216,22 @@ jobs:
             echo "- Asset upload: only branch-changed FBX/GLB/PNG/BIN; unchanged assets served from production."
             echo "- Production untouched; preview makes no telemetry, policy or learning writes."
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Install hosted truck QA browser
+        run: |
+          npm install --no-save --no-package-lock playwright@1.58.2
+          npx playwright install --with-deps chromium
+      - name: Verify trucks and real riders on the deployed preview
+        env:
+          STRATEGIC_QA_URL: https://test.ivandpopov.com/grasstex/preview/${{ steps.id.outputs.slug }}/battle_sim.php?truckAccess=1&truckCollision=1
+        run: node scripts/probe_strategic_truck_visual.cjs
+      - name: Preserve hosted truck evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hosted-truck-preview
+          path: closeups/strategic-truck-ci/
+          if-no-files-found: ignore
 
   combat-lab-smoke:
     name: Native Combat Lab Chromium QA
