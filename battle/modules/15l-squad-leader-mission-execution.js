@@ -62,7 +62,7 @@
       if (
         (tr.phase !== 'dismounted' && tr.phase !== 'aborted') ||
         tr.missionVersion !== m.version ||
-        !(tr.travelled > 0)
+        !(tr.travelled > 0 || (tr.access && tr.boardedCount > 0))
       )
         return;
       var pos = average(sq),

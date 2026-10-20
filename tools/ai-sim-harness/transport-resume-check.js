@@ -3,7 +3,7 @@
 const assert = require('node:assert/strict');
 const H = require('./harness');
 const { loadModule } = require('./module-loader');
-for (const phase of ['dismounted', 'aborted']) {
+for (const phase of ['dismounted', 'aborted', 'boarding-abort']) {
   H.resetIds();
   const r = H.bootstrap({ search: '?commandMovement=1&commandRelay=0&stressAct=0&scoutsForward=0' });
   loadModule(r, 'battle/movement-resolver.js');
@@ -32,9 +32,11 @@ for (const phase of ['dismounted', 'aborted']) {
     R.restoreAfterTransport(s);
   });
   q._transport = {
-    phase,
+    phase: phase === 'boarding-abort' ? 'aborted' : phase,
     missionVersion: 1,
-    travelled: 200,
+    travelled: phase === 'boarding-abort' ? 0 : 200,
+    access: phase === 'boarding-abort',
+    boardedCount: phase === 'boarding-abort' ? 2 : 10,
     initialPosition: { x: 0, z: 0 },
     vehicleId: 'truck-1'
   };
