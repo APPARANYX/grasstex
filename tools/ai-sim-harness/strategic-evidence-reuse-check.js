@@ -8,6 +8,7 @@ const {
 assert(
   safeDiff([
     'scripts/probes/strategic-mission-trace.js',
+    'scripts/probes/contact-flicker.js',
     'tools/ai-sim-harness/strategic-mission-trace-check.js',
     'scripts/probe_fbx_render_pose.cjs',
     '.github/workflows/strategic-diagnostics.yml'

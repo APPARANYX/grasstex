@@ -7,7 +7,7 @@ const { execFileSync } = require('node:child_process');
 const TYPES = ['meeting', 'us-defend', 'ge-defend'];
 function safeDiff(files) {
   return files.every(file =>
-    /^(docs\/|tools\/ai-sim-harness\/|\.github\/workflows\/|scripts\/probe_[^/]+\.cjs$|scripts\/probes\/strategic-mission-trace\.js$|scripts\/reuse_strategic_evidence\.cjs$)/.test(
+    /^(docs\/|tools\/ai-sim-harness\/|\.github\/workflows\/|scripts\/probe_[^/]+\.cjs$|scripts\/probes\/|scripts\/reuse_strategic_evidence\.cjs$)/.test(
       file
     )
   );
