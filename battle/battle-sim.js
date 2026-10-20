@@ -502,6 +502,8 @@
     spawnSide('ge');
   };
   BattleSim.prototype.restart = function () {
+    var request = { operator: !(arguments[0] && arguments[0].operator === false) };
+    if (root.BattleModules) root.BattleModules.runHook('beforeBattleRestartRequest', this, request);
     if (root.BattleModules) root.BattleModules.runHook('beforeBattleRestart', this, {});
     var all = this._roster.us.concat(this._roster.ge),
       i;
@@ -518,6 +520,7 @@
     this.spawnAll();
     if (root.BattleModules) root.BattleModules.runHook('afterBattleRosterReset', this, {});
     if (root.BattleModules) root.BattleModules.runHook('afterBattleRestart', this, {});
+    if (root.BattleModules) root.BattleModules.runHook('afterBattleRestartComplete', this, request);
   };
   BattleSim.prototype.setTimeScale = function (v) {
     this.timeScale = Math.max(0, +v || 0);
