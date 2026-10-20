@@ -126,11 +126,13 @@ const { requestPreview } = require('./preview_request.cjs');
        on the pinned preview origin; its runtime/source requests use that stage. */
     const exported = await page.evaluate(() => {
       const start = performance.now();
-      const diagnostic = BattleDiagnosticsExport.snapshot('full', __battle__);
+      if (BattleDiagnosticsExport.current() !== __battle__)
+        throw new Error('diagnostics current session differs from the published battle');
+      const diagnostic = BattleDiagnosticsExport.snapshot('full');
       const fullMs = performance.now() - start;
       const loops = 20,
         compactStart = performance.now();
-      for (let i = 0; i < loops; i++) BattleDiagnosticsExport.compact(__battle__);
+      for (let i = 0; i < loops; i++) BattleDiagnosticsExport.compact();
       return {
         diagnostic,
         cost: {

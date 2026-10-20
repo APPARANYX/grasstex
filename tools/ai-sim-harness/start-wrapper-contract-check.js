@@ -9,12 +9,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const ROOT = path.join(__dirname, '../..');
 const read = name => fs.readFileSync(path.join(ROOT, name), 'utf8');
-const owners = [
-  '00-fixed-step-clock',
-  '12-soldier-animation-events',
-  '98-damage-range',
-  '99-session-diagnostics-export'
-];
+const owners = ['00-fixed-step-clock', '12-soldier-animation-events', '98-damage-range'];
 const files = owners.map(name => 'battle/modules/' + name + '.js');
 const php = read('battle_sim.php');
 assert.match(php, /sort\(\$found, SORT_STRING\)/, 'PHP-discovered modules load sorted');
@@ -35,6 +30,10 @@ for (const file of files) {
     file + ' forwards to predecessor'
   );
 }
+// Diagnostics migrated to the application's published session; it must stay outside the chain.
+const diagnostics = read('battle/modules/99-session-diagnostics-export.js');
+assert.doesNotMatch(diagnostics, /root\.BattleSim\.start\s*=/, 'diagnostics cannot wrap startup');
+assert.match(diagnostics, /return root\.__battle__\s*\|\|\s*null/, 'diagnostics reads the published session');
 assert.match(
   read('battle/modules/98-damage-range.js'),
   /q\.get\('damageRange'\)\s*!==\s*'1'/,

@@ -29,7 +29,14 @@ The tactical status overlay is data-driven. `battle/module-registry.js` owns the
 In the page: a load overlay (`BattleLoading`, in `battle_sim.html`) shows each boot phase (runtime
 scripts, scenario, terrain, soldiers/weapons/clips, cover, navigation and squads); the FBX backend
 reports per-file progress to it. **Start Battle** unpauses and unlocks audio (iOS needs the gesture).
-`window.__battle__` is the live `BattleSim`. HUD buttons: World Debug, Motion Lab. **The AI Graph workbench
+`window.__battle__` is the live `BattleSim`. Diagnostics use that published session consistently
+for `current()`, `build()`, `compact()` and `snapshot()` when no explicit simulation is supplied.
+Creating an unpublished simulation cannot redirect those exports. Explicit simulation arguments
+still support offline/benchmark sessions; with no published session, default exports report
+`No active battle simulation` and `current()` returns null. The diagnostics reader keeps no private
+active-session reference and does not wrap `BattleSim.start`.
+
+HUD buttons: World Debug, Motion Lab. **The AI Graph workbench
 is stashed** (modules 30-38, until the UI pass): it does not define `BattleAIGraphEditor`, the gate every
 graph module checks, so there is no AI Graph button, Macro ON/OFF button, Leases panel, Loop Watch / Order
 Trace panel or export button, and `?editor=ai` / `#ai-graph` open nothing. What sat behind them still runs:

@@ -9,7 +9,15 @@
   'use strict';
   if (root.BattleDiagnosticsExport) return;
 
-  var activeSim = null;
+  // The page publishes the live session. Creating a simulation is not publication.
+  function currentSimulation() {
+    return root.__battle__ || null;
+  }
+  function resolveSimulation(sim) {
+    var selected = sim || currentSimulation();
+    if (!selected) throw new Error('No active battle simulation');
+    return selected;
+  }
 
   function finite(v) {
     return typeof v === 'number' && isFinite(v) ? v : null;
@@ -782,8 +790,7 @@
     return el ? el.innerText : null;
   }
   function buildPayload(sim) {
-    sim = sim || activeSim;
-    if (!sim) throw new Error('No active battle simulation');
+    sim = resolveSimulation(sim);
     var scenario =
       (sim.scene &&
         sim.scene.metadata &&
@@ -921,7 +928,7 @@
   }
   /* Focused exports for the AI Graph buttons: the battle header, each squad's analysis, and one section. */
   function snapshot(kind, sim) {
-    sim = sim || activeSim || root.__battle__;
+    sim = resolveSimulation(sim);
     if (kind !== 'loops' && kind !== 'orders') return buildPayload(sim);
     var ai = aiSections(sim),
       squads = [];
@@ -1074,8 +1081,7 @@
     );
   }
   function compactSnapshot(sim) {
-    sim = sim || activeSim || root.__battle__;
-    if (!sim) throw new Error('No active battle simulation');
+    sim = resolveSimulation(sim);
     var ai = aiSections(sim),
       scenario =
         (sim.scene &&
@@ -1457,7 +1463,7 @@
         e.preventDefault();
         e.stopPropagation();
         try {
-          downloadCompact(activeSim);
+          downloadCompact();
         } catch (err) {
           console.error('[DIAG] compact export failed', err);
         }
@@ -1478,7 +1484,7 @@
         e.preventDefault();
         e.stopPropagation();
         try {
-          download('full', activeSim);
+          download('full');
         } catch (err) {
           console.error('[DIAG] export failed', err);
         }
@@ -1487,15 +1493,6 @@
     }
   }
 
-  /* This module sorts last, so it sees the fully wrapped BattleSim.start and only remembers the
-   returned simulation. It does not participate in movement, AI or benchmark results. */
-  if (root.BattleSim && typeof root.BattleSim.start === 'function') {
-    var oldStart = root.BattleSim.start;
-    root.BattleSim.start = function (scene, opts) {
-      activeSim = oldStart.apply(this, arguments);
-      return activeSim;
-    };
-  }
   if (typeof document !== 'undefined') {
     if (document.readyState === 'loading')
       document.addEventListener('DOMContentLoaded', installButton, { once: true });
@@ -1512,9 +1509,7 @@
     exportCurrent: function (sim) {
       return download('full', sim);
     },
-    current: function () {
-      return activeSim;
-    }
+    current: currentSimulation
   };
   root.GTLog('[DIAG] compact + full end-session diagnostics export ready');
 })(typeof window !== 'undefined' ? window : globalThis);
