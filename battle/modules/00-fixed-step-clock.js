@@ -84,13 +84,17 @@
       clock.advance(scene.getEngine().getDeltaTime() / 1000);
     });
 
-    var oldRestart = sim.restart;
-    sim.restart = function () {
-      clock.reset();
-      return oldRestart.apply(this, arguments);
-    };
     return sim;
   };
+
+  // Core restart owns the sequence. Reset every attached clock before roster replacement,
+  // including the explicit benchmark clock that does not install a live render observer.
+  if (root.BattleModules)
+    root.BattleModules.registerSystem('fixed-step-clock', {
+      beforeBattleRestart: function (sim) {
+        if (sim._fixedClock) sim._fixedClock.reset();
+      }
+    });
 
   root.BattleFixedStepClock = {
     stepSeconds: STEP,

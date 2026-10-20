@@ -346,6 +346,13 @@ the target object still exists.
 `squad.contact` remains Perception's aggregate picture **upward** for squad/commander status: its own sightings, else a
 friendly squad's first-hand sighting actually delivered through the tactical callout channel (module 09; `?callouts=0`
 is the legacy free relay), else enemy gunfire within 120 m. It is not instant common knowledge inside Engagement.
+The fixed-step clock resets through `beforeBattleRestart`, dispatched by the core before roster
+replacement. This covers both explicit benchmark drives and `?fixedClock=all`; the clock adds no
+per-instance restart wrapper. Ordinary live render observers/cadence remain unchanged, and
+`?fixedClock=0` creates no clock. `fixed-clock-restart-check.js` executes the shipping core restart
+body with the real registry/clock and fixture spawning to verify reset order, repeated cycles,
+observer counts and battle isolation.
+
 Battle restarts clear Perception-owned gunfire, aggregate contact, belief telemetry and per-man belief stores, and module 09
 clears its own pending/by-soldier/by-squad callout delivery state; this matters because simulated time returns to zero and
 old evidence would otherwise look fresh/future-dated. The grouped restart regression is guarded by

@@ -6,22 +6,26 @@ const path = require('node:path');
 
 const source = fs.readFileSync(path.join(__dirname, '../../battle/modules/00-fixed-step-clock.js'), 'utf8');
 const root = {
+  GTLog() {},
   BattleSim: {
     AI_TICK: 0.15,
     start(scene) {
       const sim = makeSim();
       // Model the actual BattleSim observer and the separate Commander observer.
       sim._renderObserver = scene.onBeforeRenderObservable.add(() =>
-        sim._frame(Math.min(0.25, scene.getEngine().getDeltaTime() / 1000 * sim.timeScale))
+        sim._frame(Math.min(0.25, (scene.getEngine().getDeltaTime() / 1000) * sim.timeScale))
       );
       scene.onBeforeRenderObservable.add(() => {
         if (!sim._fixedClockInstalled && !sim.paused && !sim.winner && !sim._trainerStepActive)
-          sim._liveCommanderTick(Math.min(0.25, scene.getEngine().getDeltaTime() / 1000 * sim.timeScale));
+          sim._liveCommanderTick(Math.min(0.25, (scene.getEngine().getDeltaTime() / 1000) * sim.timeScale));
       });
       return sim;
     }
   }
 };
+new Function('window', fs.readFileSync(path.join(__dirname, '../../battle/module-registry.js'), 'utf8'))(
+  root
+);
 const fakeLocation = { search: '' };
 new Function('window', 'globalThis', 'location', source)(root, root, fakeLocation);
 const Clock = root.BattleFixedStepClock;
@@ -59,6 +63,7 @@ function makeSim() {
       }
     },
     restart() {
+      root.BattleModules.runHook('beforeBattleRestart', this, {});
       this.time = 0;
       this.steps = 0;
       this.smoothDts = [];
