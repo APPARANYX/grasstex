@@ -178,7 +178,8 @@ assert.equal(
   0,
   'explicit opt-out removes dynamic truck footprints'
 );
-const w = make(undefined, '?motorTransport=1&truckPhysics=0&truckAccess=0&truckCollision=0'); // the exact constant-speed carrier contract; handling below
+// This preserves the exact constant-speed carrier contract for historical handling controls.
+const w = make(undefined, '?motorTransport=1&truckPhysics=0&truckAccess=0&truckCollision=0');
 const initialFleet = w.api.fleetSummary(w.sim);
 assert.equal(initialFleet.length, 12, 'all six bases own two parked trucks before the first mission');
 assert.equal(new Set(initialFleet.map(v => v.id)).size, 12, 'every truck has a stable unique identity');
