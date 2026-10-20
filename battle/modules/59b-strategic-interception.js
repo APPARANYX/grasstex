@@ -22,10 +22,10 @@
       town &&
       town.profile === 'strategic' &&
       !root.PHASE_C_COMBAT_LAB &&
-      /(?:^|[?&])strategicInterception=1(?:&|$)/.test(search) &&
-      /(?:^|[?&])motorTransport=1(?:&|$)/.test(search) &&
-      /(?:^|[?&])aerialRecon=1(?:&|$)/.test(search) &&
-      /(?:^|[?&])interception=1(?:&|$)/.test(search)
+      !/(?:^|[?&])strategicInterception=0(?:&|$)/.test(search) &&
+      !/(?:^|[?&])motorTransport=0(?:&|$)/.test(search) &&
+      !/(?:^|[?&])aerialRecon=0(?:&|$)/.test(search) &&
+      !/(?:^|[?&])interception=0(?:&|$)/.test(search)
     );
   }
   /* ?reconCorridors=0 restores the General's own road projection. */
