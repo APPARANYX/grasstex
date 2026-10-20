@@ -9,6 +9,7 @@ on:
       - 'battle/modules/15f-squad-leader-retreat-anchor.js'
       - 'battle/modules/21-defender-engineers.js'
       - 'battle/modules/43-squad-forward-progress.js'
+      - 'scripts/reuse_strategic_evidence.cjs'
       - 'scripts/triage_battle_diagnostics.cjs'
       - 'scripts/probes/strategic-mission-trace.js'
       - 'tools/ai-sim-harness/diagnostic-triage-check.cjs'
@@ -23,6 +24,10 @@ on:
         description: Number of complete 5 km battles per scenario
         required: false
         default: '10'
+      reuse_run:
+        description: Optional completed run supplying unchanged battle collection; forensic controls always rerun
+        required: false
+        default: ''
       seconds:
         description: Simulated seconds (minimum 60)
         required: false
@@ -30,14 +35,38 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: strategic-diagnostics-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  evidence:
+    name: Select unchanged battle evidence
+    runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.select.outputs.run }}
+      sha: ${{ steps.select.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Validate reusable collection against simulation sources and requested profile
+        id: select
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          BRANCH: ${{ github.head_ref || github.ref_name }}
+          SEED_PREFIX: ${{ github.event.inputs.seed || 'strategic-diag-001' }}
+          REQUESTED: ${{ github.event.inputs.battles_per_scenario || '10' }}
+          SIM_SECONDS: ${{ github.event.inputs.seconds || '1800' }}
+          REUSE_RUN: ${{ github.event.inputs.reuse_run || '' }}
+        run: node scripts/reuse_strategic_evidence.cjs
+
   diagnostic-replay:
     name: ${{ matrix.type }} · forensic browser replay
+    needs: evidence
     runs-on: ubuntu-latest
     timeout-minutes: 65
     strategy:
@@ -72,7 +101,28 @@ jobs:
           done
           cat "$RUNNER_TEMP/strategic-diagnostics-php.log"
           exit 1
+      - name: Download validated battle collection
+        if: needs.evidence.outputs.run != ''
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ needs.evidence.outputs.run }}
+          pattern: strategic-diagnostics-${{ matrix.type }}-*
+          merge-multiple: true
+          path: reused-results
+      - name: Prepare reused collection with explicit provenance
+        if: needs.evidence.outputs.run != ''
+        env:
+          TYPE: ${{ matrix.type }}
+          SOURCE_RUN: ${{ needs.evidence.outputs.run }}
+          SOURCE_SHA: ${{ needs.evidence.outputs.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          SEED_PREFIX: ${{ github.event.inputs.seed || 'strategic-diag-001' }}
+          REQUESTED: ${{ github.event.inputs.battles_per_scenario || '10' }}
+          SIM_SECONDS: ${{ github.event.inputs.seconds || '1800' }}
+        run: node scripts/reuse_strategic_evidence.cjs prepare
       - name: Replay the real strategic battle and collect diagnostic evidence
+        if: needs.evidence.outputs.run == ''
         env:
           TYPE: ${{ matrix.type }}
           SEED_PREFIX: ${{ github.event.inputs.seed || 'strategic-diag-001' }}
@@ -193,7 +243,7 @@ jobs:
 
   acceptance-report:
     name: Aggregate strategic diagnostic acceptance
-    needs: diagnostic-replay
+    needs: [evidence, diagnostic-replay]
     if: always() && !cancelled()
     runs-on: ubuntu-latest
     timeout-minutes: 12
@@ -210,6 +260,9 @@ jobs:
       - name: Merge all 30 evidence streams
         env:
           EXPECTED_PER_MODE: ${{ github.event.inputs.battles_per_scenario || '10' }}
+          REUSED_RUN: ${{ needs.evidence.outputs.run }}
+          SOURCE_SHA: ${{ needs.evidence.outputs.sha }}
+          VALIDATION_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           set -euo pipefail
           BATTLE_BENCHMARK_MERGE_INPUT=shard-reports \
@@ -266,6 +319,7 @@ jobs:
           if (completedTrips.length === 0) problems.push('No physically verified long-distance road arrival observed');
           const verdict = problems.length ? 'REVIEW REQUIRED' : 'BASELINE VERIFIED';
           const out = {
+            evidenceSource: { reusedRun: process.env.REUSED_RUN || null, sourceSha: process.env.SOURCE_SHA || null, validationSha: process.env.VALIDATION_SHA },
             schema: 'grasstex-strategic-evidence-gate-v1',
             verdict, complete: !problems.length, problems,
             expectedBattles: expected * types.length,
