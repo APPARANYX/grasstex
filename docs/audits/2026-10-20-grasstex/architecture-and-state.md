@@ -31,7 +31,8 @@ flowchart TD
   BALL --> GEO
   TP --> DYN["Dynamic truck footprints"]
   DYN --> BALL
-  DYN -. "MISSING in movementClear" .-> NAV
+  DYN --> PHYS["39 physicality extension: wrapped movementClear/findPath/nextWaypoint"]
+  PHYS --> NAV
 ```
 
 **Source:** [HTML startup](https://github.com/APPARANYX/grasstex/blob/f89939f2f6e8ff21063d1b24c28a8ab73fe9d2e9/battle/battle_sim.html#L94-L106), [BattleSim creation](https://github.com/APPARANYX/grasstex/blob/f89939f2f6e8ff21063d1b24c28a8ab73fe9d2e9/battle/battle-sim.js#L357-L384), [frame/AI scheduling](https://github.com/APPARANYX/grasstex/blob/f89939f2f6e8ff21063d1b24c28a8ab73fe9d2e9/battle/battle-sim.js#L859-L897), [commander start/restart/tick](https://github.com/APPARANYX/grasstex/blob/f89939f2f6e8ff21063d1b24c28a8ab73fe9d2e9/battle/commander-ai.js#L737-L811), [hook dispatch](https://github.com/APPARANYX/grasstex/blob/f89939f2f6e8ff21063d1b24c28a8ab73fe9d2e9/battle/module-registry.js#L115-L142).
@@ -48,7 +49,7 @@ flowchart TD
 | Command reception | `18-command-reception.js` | envelopes, per-recipient adoption / acknowledgement | Dedicated lifecycle with time-indexed settle |
 | Soldier combat | `squad-ai.js`, `engagement.js`, `17-soldier-mind.js` | perception, engagement state, injuries, combat movement proposals | Meaningful owners; soldier fields cross many extensions |
 | Movement arbitration | `movement-resolver.js` | final soldier `destination`, precedence and hysteresis | Good authority, but physical corrections in `battle-sim.js` |
-| Navigation/geometry | `battle-navigation.js`, `obstacle-field.js`, `14-z-ballistic-raycast.js` | static wall paths and LOS, obstacle/ballistic footprints | **Dynamic truck physical split** |
+| Navigation/geometry | `battle-navigation.js`, `obstacle-field.js`, `14-z-ballistic-raycast.js` | static wall paths and LOS, obstacle/ballistic footprints | Layered static + physicality wrappers; no missing effective public collision proved |
 | Vehicle lifecycle | `58-strategic-abstract-transport.js` | fleet registry and per-squad task, passengers and collision footprints | One file, several overlapping state views |
 | Animation/rendering | `52`–`53` FBX/LOD modules; `59-strategic-truck-visual.js` | meshes, cached rigs, visual vehicle updates | Visual-only truck contract is correct direction |
 | UI/diagnostics | `camera-controls.js`, `55-reported-contact-tactical-map.js`, `36-order-provenance.js`, `99-session-diagnostics-export.js` | read models plus some method instrumentation | Read/write observability separation needs stronger tests |
@@ -85,7 +86,7 @@ flowchart TD
 | Transport | vehicle parked/assigned/moving/disembarking/stopped + squad boarding/embarked/disembarking/dismounted/aborted; seat lists and counts | Abstract Transport | Exactly zero/one owner per vehicle, at most one seat per living passenger, no leaked reservation, terminal release, continuous body position on resume. |
 | Objective | owner neutral/us/ge, active faction, pressure progress, phase idle/held/capturing/neutralizing | Objective System + capture-zone type | Owning a zone is not the same as active pressure; progress does not switch side without reset; phase may be derived from owner/pressure. |
 | Recon | sightings, bounded report, confidence, age, corridor opportunity, issued intercept brief | Aerial Recon + General | General accesses report DTO, not hidden actor transforms; expired intel cannot be treated as current truth. |
-| Navigation | route/waypoint, cache, blocked/replan hold, tactical move intents | Resolver + physical navigation | Each movement step is collision-legal under the same authoritative geometry that determines bullet/sight occlusion. |
+| Navigation | route/waypoint, cache, blocked/replan hold, tactical move intents | Resolver + physical navigation | Public movement checks go through physicality's wrapped `movementClear` and dynamically registered footprints when enabled; routing also uses the physical planner. Assert parity of effective queries, not just the base module's local calls. |
 | Diagnostics | active session, timeline/provenance, counters and downloadable read views | Multiple observer modules | Observers do not change gameplay output; error paths cannot silently report success. |
 
 ### Highest-risk transition tables
@@ -109,4 +110,8 @@ flowchart TD
 
 ### Simplification direction
 
-Keep genuinely orthogonal states (combat posture vs mission progress), but **eliminate competing writers and redundant materializations**. Use one battle-generation lifecycle event stream and deterministic step coordinator; one mission-versioned command boundary; one canonical vehicle occupancy ledger with derived squad-facing status; one geometry service and validated feature-profile/config contract. Do not convert everything to an overbuilt generalized FSM framework.
+Keep genuinely orthogonal states (combat posture vs mission progress), but **eliminate competing writers and redundant materializations**. Use one battle-generation lifecycle event stream and deterministic step coordinator; one mission-versioned command boundary; one canonical vehicle occupancy ledger with derived squad-facing status; a verified physicality/geometry contract and validated feature-profile/config contract. Do not convert everything to an overbuilt generalized FSM framework.
+
+### PHYSICALITY CORRECTION (final source cross-check)
+
+The base module's [`movementClear(a,b)`](https://github.com/APPARANYX/grasstex/blob/f89939f2f6e8ff21063d1b24c28a8ab73fe9d2e9/battle/battle-navigation.js#L107-L129) indeed handles only static wall geometry. **However,** the shipping [`39-navigation-physicality-debug.js:871–906`](https://github.com/APPARANYX/grasstex/blob/f89939f2f6e8ff21063d1b24c28a8ab73fe9d2e9/battle/modules/39-navigation-physicality-debug.js#L871-L906) captures the base function, replaces exported `N.movementClear(a,b,options)` with the dynamic-volume check (including `ignoreDynamicId`), **and replaces `N.findPath` and `N.nextWaypoint` with physical routing**. [`gatherStatic:198–210`](https://github.com/APPARANYX/grasstex/blob/f89939f2f6e8ff21063d1b24c28a8ab73fe9d2e9/battle/modules/39-navigation-physicality-debug.js#L198-L210) merges dynamic footprints. Therefore an earlier inference that effective runtime movement ignores trucks is **incorrect**. What remains is architecture debt: the correctness of collision depends on the load-time wrapper, the URL flag, module-scope `simRef`, and different geometry owners. Test the *composed* runtime before proposing consolidation.
