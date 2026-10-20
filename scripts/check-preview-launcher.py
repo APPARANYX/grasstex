@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Offline launcher checks using real PHP/cURL and a concurrent local HTTP fixture."""
 import os
+import json
 from pathlib import Path
 import subprocess
 import tempfile
@@ -37,6 +38,7 @@ $source = file_get_contents($argv[1] . '/preview.php');
 $source = substr($source, 5, strpos($source, '/* Game flags') - 5);
 // Route only transport/metadata to fixtures; execute the shipping staging functions unchanged.
 $source = str_replace('curl_init($url)', 'curl_init(getenv("PREVIEW_TEST_URL") . parse_url($url, PHP_URL_PATH))', $source);
+$source = str_replace('$root = dirname(__FILE__);', '$root = $argv[1];', $source);
 $source = str_replace('function gh_json(', 'function unused_gh_json(', $source);
 eval($source);
 function gh_json($path, &$error) { return $GLOBALS['testTree']; }
@@ -48,8 +50,30 @@ function put($path, $body) {
 function entry($path, $body) {
     return array('path' => $path, 'type' => 'blob', 'sha' => sha1('blob ' . strlen($body) . "\0" . $body), 'size' => strlen($body));
 }
+// The public server contract must retain every explicit strategic control, including zeros.
+$strategic = array('strategicInterception','frontLines','motorTransport','truckAccess','truckCollision','truckVisual','aerialRecon','interception','reinforcements','reinforcementSortie');
+for ($mask = 0; $mask < 1024; $mask++) {
+    $query = array();
+    foreach ($strategic as $bit => $name) $query[$name] = ($mask & (1 << $bit)) ? '1' : '0';
+    check(grasstex_preview_options($query) === $query, 'all strategic combinations preserve explicit zero/one controls');
+}
+check(grasstex_preview_options(array()) === array(), 'absent flags do not become explicit defaults');
+check(grasstex_preview_options(array('seed'=>'seed-1','motorTransport'=>'0','unknown'=>'1','aerialRecon'=>array('1'),'interception'=>"1\n")) === array('seed'=>'seed-1','motorTransport'=>'0'), 'malformed and unsupported controls rejected without dropping valid controls');
+$groups = grasstex_runtime_contract()['optionalModules'];
+$gameplay = array('58-strategic-abstract-transport.js','59-strategic-aerial-recon.js','36-order-provenance.js','engagement.js');
+$allFiles = array_merge($gameplay, $groups['graph'], $groups['bench'], $groups['damageRange']);
+for ($mask = 0; $mask < 16; $mask++) {
+    $query = array('devModules'=>($mask & 1) ? '1' : '0', 'editor'=>($mask & 2) ? 'ai' : '', 'bench'=>($mask & 4) ? '1' : '0', 'damageRange'=>($mask & 8) ? '1' : '0');
+    $expected = $gameplay;
+    if ($mask & 3) $expected = array_merge($expected, $groups['graph']);
+    if ($mask & 5) $expected = array_merge($expected, $groups['bench']);
+    if ($mask & 9) $expected = array_merge($expected, $groups['damageRange']);
+    check(grasstex_runtime_modules($allFiles, $query) === $expected, 'module-selection parity across all developer gate combinations');
+}
+
 $base = $argv[2]; $root = $base . '/host'; $previewRoot = $root . '/preview';
 mkdir($previewRoot, 0775, true);
+put($root . '/runtime-contract.php', file_get_contents($argv[1] . '/runtime-contract.php'));
 $commit = str_repeat('a', 40); $entries = array();
 for ($i = 0; $i < 24; $i++) {
     $path = 'battle/queue-' . $i . '.js';
@@ -98,17 +122,29 @@ $html = entry('battle/battle_sim.html', 'fixture:battle_sim.html');
 $truck = entry('Assets/vehicles/truck.fbx', 'fixture:truck.fbx');
 $truckGlb = entry('Assets/vehicles/truck.glb', 'fixture:truck.glb');
 put($root . '/Assets/vehicles/truck.fbx.json', '{"hostOwned":true}');
-$testTree = array('tree' => array_merge($entries, array($html, $truck, $truckGlb, entry('untrusted.php', '<?php evil();'))));
+$testTree = array('tree' => array_merge($entries, array($html, $truck, $truckGlb, entry('untrusted.php', '<?php evil();'), entry('runtime-contract.php', '<?php untrusted_contract();'))));
 $error = null; $newCommit = str_repeat('b', 40);
 $slug = stage('main', $newCommit, $root, $previewRoot, $error);
 check($slug !== null, 'full staging: ' . $error);
 $dest = $previewRoot . '/' . $slug;
 check(file_get_contents($dest . '/battle_sim.php') === $loader, 'host loader retained');
 check(!file_exists($dest . '/untrusted.php'), 'branch PHP excluded');
+check(file_get_contents($dest . '/runtime-contract.php') === file_get_contents($root . '/runtime-contract.php'), 'host contract retained beside staged loader');
+check(staged_current($dest), 'complete loader/contract pair recognized');
+$stagedContract = file_get_contents($dest . '/runtime-contract.php');
+put($dest . '/runtime-contract.php', '<?php damaged contract');
+check(!staged_current($dest), 'damaged contract invalidates cached preview');
+put($dest . '/runtime-contract.php', $stagedContract);
+put($dest . '/battle_sim.php', '<?php damaged loader');
+check(!staged_current($dest), 'damaged loader invalidates cached preview');
+put($dest . '/battle_sim.php', $loader);
+put($root . '/runtime-contract.php', '<?php // changed production contract');
+check(staged_current($dest), 'production contract changes cannot mutate immutable preview');
 check(file_get_contents($dest . '/' . $truck['path']) === 'fixture:truck.fbx', 'vehicle FBX included in full staging');
 check(file_get_contents($dest . '/' . $truckGlb['path']) === 'fixture:truck.glb', 'vehicle GLB included in full staging');
 check(file_get_contents($dest . '/Assets/vehicles/truck.fbx.json') === '{"hostOwned":true}', 'vehicle sidecar retained');
 $meta = read_cache($dest . '/preview.json');
+check($meta['contractMatchesBranch'] === false && $meta['loaderMatchesBranch'] === false, 'branch helper mismatch remains visible while untrusted helper is excluded');
 check($meta['runtimeReused'] === 24 && $meta['runtimeDownloaded'] === 2, 'reuse counters');
 $testTree = null;
 check(stage('main', $newCommit, $root, $previewRoot, $error) === $slug, 'staged launch requires no tree fetch');
@@ -129,10 +165,12 @@ echo json_encode(array('warmRuntimeMs' => round($warmMs, 2), 'runtimeFiles' => 2
 
 def main():
     source = (ROOT / 'preview.php').read_text()
-    pass_segment = source[source.index('/* Game flags passed through'):source.index('$error = null;')]
-    required = ['damageRange', 'rangeTarget', 'rangeZone', 'rangeExit', 'rangeAuto', 'rangeInterval', 'rangeOrbit', 'rangeDist', 'rangeUi', 'rangeFps']
-    missing = [name for name in required if ("'" + name + "'") not in pass_segment]
-    assert not missing, 'damage-range preview flags missing: ' + ', '.join(missing)
+    required = ['damageRange', 'rangeTarget', 'rangeZone', 'rangeExit', 'rangeAuto', 'rangeInterval', 'rangeOrbit', 'rangeDist', 'rangeUi', 'rangeFps',
+                'strategicInterception', 'frontLines', 'motorTransport', 'truckAccess', 'truckCollision', 'truckVisual', 'aerialRecon', 'interception', 'reinforcements', 'reinforcementSortie']
+    code = 'require $argv[1]; echo json_encode(grasstex_preview_options(json_decode($argv[2], true)));'
+    result = subprocess.run(['php', '-r', code, str(ROOT / 'runtime-contract.php'), json.dumps(dict.fromkeys(required, '0'))], capture_output=True, text=True, check=True)
+    forwarded = json.loads(result.stdout)
+    assert forwarded == dict.fromkeys(required, '0'), 'explicit runtime opt-outs lost in preview forwarding'
     server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     try:
@@ -148,7 +186,7 @@ def main():
             starts = [name for name, event, _ in events if event == 'start']
             assert starts.count('queue-1.js') == 1, 'unchanged/previous runtime re-downloaded'
             assert starts.count('new.js') == 2, 'delta/full stage downloaded unexpected files'
-            print('PASS: rolling queue; exact local reuse; immutable scripts; delta downloads; failed transfers; atomic publication; org URL; damage-range flags')
+            print('PASS: rolling queue; exact local reuse; immutable scripts; delta downloads; failed transfers; atomic publication; org URL; damage-range/strategic flags; shared module selection')
             print(result.stdout.strip())
     finally:
         server.shutdown()

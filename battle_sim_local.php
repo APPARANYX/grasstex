@@ -13,6 +13,7 @@ header('Content-Type: text/html; charset=utf-8');
 header('Cache-Control: no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
 header('Pragma: no-cache');header('Expires: 0');header('Surrogate-Control: no-store');header('X-Grasstex-Source: modular-ai-lab-v29');
 $root=dirname(__FILE__);
+require_once $root . '/runtime-contract.php';
 /* Branch previews: the preview deploy workflow copies a branch runtime to /grasstex/preview/<slug>/
    with a preview.json marker. The same loader then serves that directory's runtime, reads production
    assets/policy/memory, and the page makes no telemetry, policy or learning writes. */
@@ -50,23 +51,8 @@ $pagePath=$root.'/battle/battle_sim.html';
 $runtimeFiles=array('battle/battle_sim.html','battle/core-runtime.js','battle/soldier.js','battle/weapons.js','battle/obstacle-field.js','battle/terrain-features.js','battle/squad-ai.js','battle/engagement.js','battle/battle-sim.js','battle/camera-controls.js','battle/acoustics.js','battle/scenario-generator.js','battle/battle-navigation.js','battle/town-objectives.js','battle/module-registry.js','battle/ai-policy.js','battle/objective-system.js','battle/battle-telemetry.js','battle/commander-doctrine.js','battle/commander-routes.js','battle/commander-ai.js','battle/ai-trainer.js','battle/battle-control.js');
 $modulePaths=glob($root.'/battle/modules/*.js');if($modulePaths===false)$modulePaths=array();sort($modulePaths,SORT_STRING);$moduleFiles=array();foreach($modulePaths as $modulePath){$name=basename($modulePath);$moduleFiles[]=$name;$runtimeFiles[]='battle/modules/'.$name;}
 if(!is_file($pagePath)||!is_readable($pagePath)){http_response_code(503);echo '<!doctype html><html><body><h1>Battle sim unavailable</h1><p>Local battle page is missing.</p></body></html>';exit;}
-/* #456 R4: safe production/QA module split. Keep all gameplay, recorder,
-   navigation, order-provenance and strategic-stall modules in the shipping set.
-   Only the inert/stashed graph UI and strictly opt-in QA pages are lazy-tagged.
-   Every discovered module remains available through ?devModules=1. */
-$graphUiOnlyModules = array('30-ai-graph-editor.js'=>true,'31-ai-graph-logic.js'=>true,'33-ai-graph-usability.js'=>true,'34-ai-timing-map.js'=>true,'37-lease-panel.js'=>true,'38-ai-diagnostics-export.js'=>true);
-$allDevModules = isset($_GET['devModules']) && $_GET['devModules'] === '1';
-$graphUiRequested = $allDevModules || (isset($_GET['editor']) && $_GET['editor'] === 'ai');
-$deviceBenchRequested = $allDevModules || (isset($_GET['bench']) && $_GET['bench'] === '1');
-$damageRangeRequested = $allDevModules || (isset($_GET['damageRange']) && $_GET['damageRange'] === '1');
-$moduleAllowed = static function ($name) use ($graphUiOnlyModules, $graphUiRequested, $deviceBenchRequested, $damageRangeRequested) {
-    if (isset($graphUiOnlyModules[$name])) return $graphUiRequested;
-    if ($name === '97-device-benchmark.js') return $deviceBenchRequested;
-    if (in_array($name, array('97z-damage-range-lifetime.js','97z-damage-range-panel.js','97z-damage-range-session.js','97z-damage-range-view.js','98-damage-range.js'), true)) return $damageRangeRequested;
-    return true;
-};
-
-$activeModuleFiles = array_values(array_filter($moduleFiles, $moduleAllowed));
+/* The shared contract preserves gameplay modules and selects only opt-in tooling. */
+$activeModuleFiles = grasstex_runtime_modules($moduleFiles, $_GET);
 
 $deployId=0;foreach($runtimeFiles as $rel){$p=$root.'/'.$rel;if(is_file($p))$deployId=max($deployId,intval(@filemtime($p)));}if($deployId<=0)$deployId=time();
 $body=@file_get_contents($pagePath);if($body===false||stripos($body,'<html')===false){http_response_code(503);echo '<!doctype html><html><body><h1>Battle sim unavailable</h1><p>Local battle page could not be read.</p></body></html>';exit;}
