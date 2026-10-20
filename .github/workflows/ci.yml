@@ -142,16 +142,6 @@ jobs:
       # complied. A full one-shot reformat would break every in-flight branch, so instead every
       # JS file a pull request touches must be on-standard. Legacy files stay as they are and
       # converge as they get edited; nothing that was ever cleaned may regress.
-      - name: TEMP format-recovery evidence (remove before merge)
-        run: |
-          set -euo pipefail
-          npx --yes prettier@3.3.3 --write "scripts/probes/contact-flicker.js" "scripts/probes/hold-reason.js" "scripts/probes/stale-threat.js" "scripts/probes/loop-alerts.js" "tools/ai-sim-harness/observer-probe-recovery-check.js"
-          for f in "scripts/probes/contact-flicker.js" "scripts/probes/hold-reason.js" "scripts/probes/stale-threat.js" "scripts/probes/loop-alerts.js" "tools/ai-sim-harness/observer-probe-recovery-check.js"; do
-            printf 'AI_FORMAT_BEGIN %s\\n' "$f"
-            base64 -w0 "$f"
-            printf '\\nAI_FORMAT_END %s\\n' "$f"
-          done
-
       - name: Prettier ratchet
         run: |
           set -euo pipefail
