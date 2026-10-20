@@ -33,7 +33,7 @@ function check(ok, msg) {
 }
 check(/function publishPersonalMovement\(/.test(meso), 'Meso personal publisher exists');
 check(
-  /CR\.adopted\s*&&\s*CR\.adopted\(s,\s*battle,\s*'movement',\s*scope\)/.test(meso),
+  /CR\.adoptedView\s*&&\s*CR\.adoptedView\(s,\s*battle,\s*'movement',\s*scope\)/.test(meso),
   'Meso reads personal movement adoption'
 );
 check(/if\s*\(!adopted\s*\|\|\s*!adopted\.point/.test(meso), 'Meso rejects pending/unreachable movement');
@@ -46,7 +46,7 @@ check(
   'Meso publishes the personally adopted point through the movement commit helper'
 );
 check(
-  /CR\.adopted\s*&&\s*CR\.adopted\(s,\s*battle,\s*'posture-fire',\s*'squad'\)/.test(fire),
+  /CR\.adoptedView\s*&&\s*CR\.adoptedView\(s,\s*battle,\s*'posture-fire',\s*'squad'\)/.test(fire),
   'Engagement fire/stance (19b) reads personal posture adoption'
 );
 check(

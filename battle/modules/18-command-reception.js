@@ -532,18 +532,27 @@
         if (next === 'adopted' && !rec.countedAdopted) {
           rec.countedAdopted = true;
           st.counts.adopted++;
-          active[slot] = publicRecord(rec);
+          // The adopted slot is the canonical immutable read model. It is replaced only
+          // when this recipient adopts a new envelope; no parallel cache to invalidate.
+          var view = publicRecord(rec);
+          if (view.data) Object.freeze(view.data);
+          if (view.point) Object.freeze(view.point);
+          active[slot] = Object.freeze(view);
         }
       }
     }
     return st;
   }
-  function adopted(soldier, battle, category, scope) {
+  function adoptedView(soldier, battle, category, scope) {
     if (!ON || !soldier || !battle) return null;
     var st = settle(battle),
       by = st && st.adoptedBySoldier[String(soldier.id)],
       slot = String(category || 'command') + '|' + String(scope || 'squad');
-    return by && by[slot] ? publicRecord(by[slot]) : null;
+    return by && by[slot] ? by[slot] : null;
+  }
+  // Preserve detached, mutable copies for existing diagnostic/external callers.
+  function adopted(soldier, battle, category, scope) {
+    return publicRecord(adoptedView(soldier, battle, category, scope));
   }
   // Issuer-side acknowledgement query. No settlement/copy of every soldier is needed:
   // execution can acknowledge only the latest personally published envelope.
@@ -677,6 +686,7 @@
     publish: publish,
     settle: settle,
     adopted: adopted,
+    adoptedView: adoptedView,
     executionCurrent: executionCurrent,
     peek: peek,
     snapshot: snapshot,

@@ -1018,7 +1018,7 @@
       var lostContact = false;
       if (opt.lostContactRetreat && sq.state === 'retreat' && sq.baseHome && !s.dead && !s.isPlayer) {
         var recent = CR && CR.peek && CR.peek(s, battle, 'movement', movementScope(s)),
-          heard = CR && CR.adopted && CR.adopted(s, battle, 'movement', movementScope(s));
+          heard = CR && CR.adoptedView && CR.adoptedView(s, battle, 'movement', movementScope(s));
         lostContact = !!(
           recent &&
           recent.unreachable &&
@@ -1045,7 +1045,7 @@
       slot = 'movement|' + scope,
       view = CR.snapshot && CR.snapshot(s, battle),
       pending = view && view.records && view.records[slot],
-      adopted = CR.adopted && CR.adopted(s, battle, 'movement', scope),
+      adopted = CR.adoptedView && CR.adoptedView(s, battle, 'movement', scope),
       samePending =
         pending &&
         pending.phase !== 'adopted' &&
@@ -1073,7 +1073,7 @@
           missionVersion: missionVersion(sq)
         }
       });
-      adopted = CR.adopted && CR.adopted(s, battle, 'movement', scope);
+      adopted = CR.adoptedView && CR.adoptedView(s, battle, 'movement', scope);
     }
 
     /* If survival fallback replaced the last adopted tactical order, do not resurrect that stale
