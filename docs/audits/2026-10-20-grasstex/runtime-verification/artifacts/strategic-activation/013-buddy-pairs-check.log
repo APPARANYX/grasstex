@@ -1,0 +1,28 @@
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS stable deterministic pairing is inspectable and does not reshuffle
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS casualty retires only the affected pair and deterministically re-pairs its survivors
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS suppression/incompatibility degrades cooperation without deadlocking the other buddy
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS plan refreshes do not create fake break/reform churn and separation uses hysteresis
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS cover/move cooperation narrows an authorized bound but never becomes a movement writer
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS flag defaults on; flag off is inert and preserves the legacy whole-fireteam bound
+6 buddy-pairs checks passed

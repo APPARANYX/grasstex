@@ -1,0 +1,10 @@
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS Squad Leader phase data, single writer, legacy telemetry/no-op semantics and five mutation controls

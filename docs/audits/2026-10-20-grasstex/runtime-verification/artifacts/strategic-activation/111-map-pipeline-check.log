@@ -1,0 +1,41 @@
+
+== standard-benchmark-meeting-s1-b0001-0001 ==
+  PASS  bocage runtime volumes stay in the mature 2.8-4.57 m range
+  PASS  bocage height varies by generated hedge run
+  PASS  tall bocage reaches roughly 15 ft where appropriate
+  PASS  coalesced hedge height is visible height + buried skirt + terrain envelope
+  PASS  standing eye/muzzle line is blocked by the generated tall hedge
+  PASS  page load coalesces hedge chunks into runtime volumes
+  PASS  regenerate publishes the same physical footprint count as page load
+  PASS  regenerate publishes identical physical footprints
+  PASS  regenerate publishes identical tactical obstacles
+  PASS  regenerate installs the rendered scenario for battle and navigation
+  PASS  repeated regeneration does not accumulate geometry
+
+== standard-benchmark-us-defend-s1-b0002-0001 ==
+  PASS  bocage runtime volumes stay in the mature 2.8-4.57 m range
+  PASS  bocage height varies by generated hedge run
+  PASS  tall bocage reaches roughly 15 ft where appropriate
+  PASS  coalesced hedge height is visible height + buried skirt + terrain envelope
+  PASS  standing eye/muzzle line is blocked by the generated tall hedge
+  PASS  page load coalesces hedge chunks into runtime volumes
+  PASS  regenerate publishes the same physical footprint count as page load
+  PASS  regenerate publishes identical physical footprints
+  PASS  regenerate publishes identical tactical obstacles
+  PASS  regenerate installs the rendered scenario for battle and navigation
+  PASS  repeated regeneration does not accumulate geometry
+
+== standard-benchmark-ge-defend-s2-b0001-0001 ==
+  PASS  bocage runtime volumes stay in the mature 2.8-4.57 m range
+  PASS  bocage height varies by generated hedge run
+  PASS  tall bocage reaches roughly 15 ft where appropriate
+  PASS  coalesced hedge height is visible height + buried skirt + terrain envelope
+  PASS  standing eye/muzzle line is blocked by the generated tall hedge
+  PASS  page load coalesces hedge chunks into runtime volumes
+  PASS  regenerate publishes the same physical footprint count as page load
+  PASS  regenerate publishes identical physical footprints
+  PASS  regenerate publishes identical tactical obstacles
+  PASS  regenerate installs the rendered scenario for battle and navigation
+  PASS  repeated regeneration does not accumulate geometry
+
+33/33 map pipeline checks passed

@@ -1,0 +1,2 @@
+PASS #456 R3 rendering LOD config, instance mesh far/full switching, ownership, duplicate hook protection
+PASS seated actors update near/far mesh detail at the presentation seat

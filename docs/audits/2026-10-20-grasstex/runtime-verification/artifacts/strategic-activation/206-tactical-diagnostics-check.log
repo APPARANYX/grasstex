@@ -1,0 +1,5 @@
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[DIAG] AI timeline + battle observer active: 1 s backbone, 0.5 s focused context
+[DIAG] compact + full end-session diagnostics export ready
+PASS tactical diagnostics on-demand export, separate bounded deterministic history, aging and restart

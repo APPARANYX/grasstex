@@ -1,0 +1,12 @@
+PASS module owns telemetry only and never writes stance, target or destinations
+PASS same published command coalesces; a changed command gets the next version
+PASS one command produces deterministic staggered personal receipt/adoption plans without RNG
+PASS receipt phases advance on simulated time while current gameplay remains untouched
+PASS shipping Meso publication is observed for both fire-control and fireteam movement
+PASS squad get-down posture cannot change a possessed soldier stance; player input still can
+PASS Phase 0A is behavior-neutral against commandReception=0 for the same Meso decisions
+PASS full diagnostics exports battle, squad and per-soldier command receipt views
+PASS a man released from player control is enrolled on the unchanged order, with his own clock (#361 defect 3)
+PASS a returning soldier with an old envelope is enrolled into the new unchanged order
+PASS squad diagnostics are safe before publication and after restart without creating state
+11 command-reception checks passed

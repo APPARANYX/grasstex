@@ -1,0 +1,91 @@
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture on; movement on; relay on
+[COMMAND] execution outcome reader (derived, no state)
+PASS observer sight stays personal until another man actually hears the callout
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture on; movement on; relay on
+[COMMAND] execution outcome reader (derived, no state)
+PASS missed and out-of-range callouts create no personal knowledge
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture on; movement on; relay on
+[COMMAND] execution outcome reader (derived, no state)
+PASS heard gunfire is lower-confidence, imprecise location-only information
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture on; movement on; relay on
+[COMMAND] execution outcome reader (derived, no state)
+PASS aimed fire reveals a distant prone shooter origin and reports it to the squad
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture on; movement on; relay on
+[COMMAND] execution outcome reader (derived, no state)
+PASS incoming-fire reveal has a complete legacy control arm
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture on; movement on; relay on
+[COMMAND] execution outcome reader (derived, no state)
+PASS direct personal sight supersedes a weaker report and does not follow hidden truth afterward
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture on; movement on; relay on
+[COMMAND] execution outcome reader (derived, no state)
+PASS stale beliefs expire by time without hidden truth validation
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture on; movement on; relay on
+[COMMAND] execution outcome reader (derived, no state)
+PASS personally visible non-threat replaces stale threat memory instead of resurrecting it
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture on; movement on; relay on
+[COMMAND] execution outcome reader (derived, no state)
+PASS diagnostic snapshots are observe-only
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture on; movement on; relay on
+[COMMAND] execution outcome reader (derived, no state)
+PASS flag off reproduces legacy shared-contact knowledge and creates no belief state
+10 soldier-beliefs checks passed

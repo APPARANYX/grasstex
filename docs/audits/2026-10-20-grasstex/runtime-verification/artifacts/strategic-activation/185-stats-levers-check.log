@@ -1,0 +1,14 @@
+PASS FOR: a steadier man is pinned for less time, a shakier one for more; the average man for exactly 1.3 s
+PASS FOR: with the module absent or ?stats=0 the hold is the flat constant, whoever he is
+PASS FOR: the stat replaces the hash nerve; a sergeant is still steadier; off, the old hash is back
+PASS FOR: the same wound costs a shakier man more stress than a steadier one, in proportion to nerve
+PASS AGI: a nimbler man settles his aim sooner after a stance change; the average man in exactly 0.4 s
+PASS AGI: a nimbler pinned man looks for cover again sooner (0.9 s for an average man)
+PASS AGI: the two fast gaits follow agility, inside their historical bands; walking does not
+PASS TAC: a more aware man recognises a contact sooner; the average man in exactly the role time
+PASS TAC: a more aware man spots an enemy 150 m ahead that an average man (140 m) cannot see
+PASS MKM: a better marksman shoots a tighter group; the average man exactly the flat sigma
+PASS PHY: a stronger man is faster on every gait (his fitness), inside the historical bands
+PASS PHY: a stronger gunner emplaces the machine gun sooner (1.4 s for an average man)
+PASS TEC: a more technical man jams less often and clears faster; the average man exactly the flat numbers
+stats-levers-check: 13 passed

@@ -1,0 +1,11 @@
+PASS off (?callouts=0): the module is inert and the 50 m relay is as before
+PASS on: word passes only once it has been said and heard, keeping the sighting age
+PASS on: a newer callout may refine the same enemy without erasing this squad's first-hand memory
+PASS on, legacy audience: out of earshot nobody learns, and there is no free 50 m relay
+PASS on: a frozen or fleeing man does not listen, a dead man hears nothing
+PASS on: a sighting gone stale by the time it is heard is not passed on
+PASS on: a squad calls again only after CALL_REPEAT, or for another enemy
+PASS on: calls never chain
+PASS restart clears callout and Perception battle memory before time returns to zero
+PASS on: misses are deterministic, rarer close than far and in quiet than in gunfire; no combat RNG
+10 callout checks passed

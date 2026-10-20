@@ -1,0 +1,12 @@
+PASS every fielded model has single-round fire, distant fire and stoppage clips
+PASS each mechanism reloads in its own order, stages in time order
+PASS a tail waits for TAIL_QUIET cyclic intervals of quiet, never less than 0.15 s
+PASS a reload near the camera plays the model's stages in order, a far one plays nothing
+PASS a man killed mid-reload plays no further stages
+PASS a stoppage clicks, then racks clear; a bipod gun deploys and folds
+PASS a bolt gun cycles after a shot with rounds left; the Garand pings out an empty clip
+PASS an automatic plays one tail after it falls quiet, heard well beyond handling range
+PASS the module never writes a soldier field or draws Math.random
+PASS ?weaponFoley=0 installs nothing
+PASS unplayed handling extras and shots are not preloaded by the foley module
+weapon-foley-audio-check: 11 checks passed

@@ -1,0 +1,36 @@
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[ENGAGE] combat urgency drills: suppressed cover bound + shared-contact reaction
+PASS: Micro consumes Squad Leader formation without republishing Meso intent
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[ENGAGE] combat urgency drills: suppressed cover bound + shared-contact reaction
+PASS: assault mission alone does not authorize an individual rush
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[ENGAGE] combat urgency drills: suppressed cover bound + shared-contact reaction
+PASS: a consumed bound window cannot start another independent push
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[ENGAGE] combat urgency drills: suppressed cover bound + shared-contact reaction
+PASS: one authorized no-cover bound commits once through target loss and arrival
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[ENGAGE] combat urgency drills: suppressed cover bound + shared-contact reaction
+PASS: Squad Leader never calls the moving fireteam its own base of fire
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[ENGAGE] combat urgency drills: suppressed cover bound + shared-contact reaction
+PASS: a defensive Squad Leader mission does not issue offensive bounds

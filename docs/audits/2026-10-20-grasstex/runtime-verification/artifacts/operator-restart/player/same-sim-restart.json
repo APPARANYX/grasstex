@@ -1,0 +1,47 @@
+[
+  {
+    "phase": "possessed",
+    "sameBattleObject": true,
+    "oldRootDisposed": true,
+    "oldSoldierRemoved": true,
+    "freshRoster": 100,
+    "newSoldiers": true,
+    "previousFaction": "us",
+    "frameObservers": 1,
+    "skipHidden": true,
+    "menuHidden": true,
+    "currentController": true,
+    "activeCamera": "cam",
+    "paused": false
+  },
+  {
+    "phase": "menu",
+    "sameBattleObject": true,
+    "oldRootDisposed": true,
+    "oldSoldierRemoved": true,
+    "freshRoster": 100,
+    "newSoldiers": true,
+    "previousFaction": "us",
+    "frameObservers": 1,
+    "skipHidden": true,
+    "menuHidden": true,
+    "currentController": true,
+    "activeCamera": "cam",
+    "paused": false
+  },
+  {
+    "phase": "death",
+    "sameBattleObject": true,
+    "oldRootDisposed": true,
+    "oldSoldierRemoved": true,
+    "freshRoster": 100,
+    "newSoldiers": true,
+    "previousFaction": "us",
+    "frameObservers": 1,
+    "skipHidden": true,
+    "menuHidden": true,
+    "currentController": true,
+    "activeCamera": "cam",
+    "paused": false
+  }
+]

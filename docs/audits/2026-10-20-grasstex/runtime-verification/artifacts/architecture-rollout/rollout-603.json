@@ -1,0 +1,11 @@
+{
+  "pr": 603,
+  "testedHead": "e4efbfb85ecbe1939409db097fb8fb6c557bf271",
+  "merge": "5a713d3a00f3781df29a564275208dd9555c3f71",
+  "build": "build-v561",
+  "deploymentRun": 39514940850,
+  "housekeepingRun": 39514941134,
+  "branchDeleted": true,
+  "liveModule": "battle/battle-control.js",
+  "liveModuleMatches": true
+}

@@ -1,0 +1,1 @@
+Fixed-step clock: explicit 0.15s parity across 1x/4x/8x and 20/30/60/120fps, retained debt and commander order, legacy live observers at every speed, and opt-in fixed parity PASS

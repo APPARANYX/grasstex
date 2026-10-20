@@ -1,0 +1,26 @@
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+PASS the module installs the verbatim set back into commander-ai.js through the ctx sink
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+PASS firing: a viable 8-man pool forms one group, and the group at the rally point merges
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+PASS commander-ai.js without the module fails loudly on the first commander tick
+PASS the module without commander-ai.js fails loudly at load
+PASS 4 reconstitution ctx checks
+PASS the parent seam keeps the pre-split name, arities and the exported constants

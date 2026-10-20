@@ -1,0 +1,17 @@
+battle/modules/21c-strategic-reinforcements.js:22
+    return root.BattleStrategicConfig.flag('reinforcements');
+                                      ^
+
+TypeError: Cannot read properties of undefined (reading 'flag')
+    at flagOn (battle/modules/21c-strategic-reinforcements.js:22:39)
+    at active (battle/modules/21c-strategic-reinforcements.js:29:15)
+    at Object.tick [as onCommanderTick] (battle/modules/21c-strategic-reinforcements.js:156:10)
+    at Object.tick (/Users/ivanpopov/Desktop/grasstex-strategic-activation-20261020/scripts/check-strategic-reinforcements.cjs:80:56)
+    at Object.<anonymous> (/Users/ivanpopov/Desktop/grasstex-strategic-activation-20261020/scripts/check-strategic-reinforcements.cjs:89:5)
+    at Module._compile (node:internal/modules/cjs/loader:1934:14)
+    at Object..js (node:internal/modules/cjs/loader:2074:10)
+    at Module.load (node:internal/modules/cjs/loader:1656:32)
+    at Module._load (node:internal/modules/cjs/loader:1448:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:261:19)
+
+Node.js v26.7.0

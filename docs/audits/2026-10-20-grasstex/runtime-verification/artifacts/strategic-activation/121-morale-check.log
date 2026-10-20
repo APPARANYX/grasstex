@@ -1,0 +1,119 @@
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS ?morale=0 is the only flag that turns morale off, and it is on by default
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS flag off: the flat rule, whatever the men feel, and no memory (a squad under 6 casualties is not retreating)
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS flag on, calm men (stress 0 or no roll-up): exactly the flat rule, from any prior state
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+     first mean stress at which morale breaks a squad the flat rule keeps: {"0":null,"1":null,"2":null,"3":1,"4":0.667,"5":0.334,"6":null,"7":null,"8":null,"9":null,"10":null}
+PASS flag on: where stress makes a squad break earlier than the flat rule (the dose map of a ten-man squad)
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS flag on: a squad the flat rule keeps is retreating from 5 casualties at mean stress 0.34, not at 0.33
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS flag on: rally needs calm men and a gap below the break threshold; a flat break (6+) never rallies, an early one (4-5) does
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS flag on: a squad broken early on stress breaks, waits, rallies when calm, and breaks again only on new stress
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+     180 of 2,211 (casualties x stress) points rally, none of them flips
+PASS no flip for any casualty count and stress: whatever rallies does not break on the same inputs
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS flag on: a merged squad (10 living on an establishment of 10) stays in retreat until its men are calm; flag off releases it at once
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS the mean is the only stress read: the max, or an absent roll-up, changes nothing
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS the numbers are the layer tuning, read live (BattleSquadStability.tuning.morale)
+PASS 11 morale checks

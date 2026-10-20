@@ -1,0 +1,20 @@
+{
+  "authorization": "User: do each of the other PRs for me one at a time, once ci is green, merge, and continue til done",
+  "completed": [
+    600,
+    601
+  ],
+  "current": {
+    "pr": 603,
+    "topic": "operator restart owner",
+    "head": "e4efbfb8",
+    "baselineRun": 39513882268,
+    "candidateRun": 39513885488
+  },
+  "remaining": [
+    "shared strategic activation rules preserving existing independent transport and lab semantics",
+    "transport-owned occupancy reads without changing boarding/capture policies",
+    "fail-safe ballistic geometry-query error contract and bounded diagnostics"
+  ],
+  "finalVerification": "existing remote battle workflows plus retained native browser/soak artifacts; update existing audit and limits"
+}

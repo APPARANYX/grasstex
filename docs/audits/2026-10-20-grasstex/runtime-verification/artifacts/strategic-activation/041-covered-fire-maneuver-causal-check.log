@@ -1,0 +1,25 @@
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[NAV] graph built; walls=0 nodes=0 doors=0 firingStations=0 rejectedWindows=0
+CAUSAL_SUPPORT_REPORT {"fired":6,"supporters":[0,1,2],"men":[{"id":0,"state":"engage","target":4},{"id":1,"state":"engage","target":4},{"id":2,"state":"engage","target":4},{"id":3,"state":"engage","target":4}]}
+CAUSAL_DIAGNOSTICS {"moved":1.545,"firstMoveAt":8.450000000000008,"goal":{"x":0,"z":-2.2},"shots":8,"supportShotsDuringMove":2,"support":[{"id":1,"state":"engage","x":-4,"z":-36,"targetId":4},{"id":2,"state":"engage","x":0,"z":-36,"targetId":4},{"id":3,"state":"engage","x":4,"z":-36,"targetId":4}]}
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[NAV] graph built; walls=0 nodes=0 doors=0 firingStations=0 rejectedWindows=0
+covered-fire-maneuver-causal-check: PASS {"moverId":0,"supportIds":[1,2,3],"firstMoveAt":8.450000000000008,"metres":1.54,"supportShotsDuringMove":2,"cover":{"x":0,"z":-2.2},"unsafeBoundRejections":1}
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[NAV] graph built; walls=0 nodes=0 doors=0 firingStations=0 rejectedWindows=0
+PASS C3 native no-effective-support bound denial

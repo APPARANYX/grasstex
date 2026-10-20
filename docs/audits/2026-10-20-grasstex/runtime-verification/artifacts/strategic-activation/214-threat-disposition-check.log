@@ -1,0 +1,25 @@
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[MOVE] lean movement execution: committed micro-route + conservative recovery
+PASS classification distinguishes active threat, visible non-threat and inactive without hiding the person
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[MOVE] lean movement execution: committed micro-route + conservative recovery
+PASS visible non-threats still have physical LOS but are excluded from target acquisition and tracking
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[MOVE] lean movement execution: committed micro-route + conservative recovery
+PASS shared contact drops a known non-threat and does not relay him as a squad threat
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[MOVE] lean movement execution: committed micro-route + conservative recovery
+PASS aimed fire and area suppression independently re-check disposition; rage remains shootable/suppressible
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[MOVE] lean movement execution: committed micro-route + conservative recovery
+PASS fire-control preparation and tactical routing consume the same classification
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[MOVE] lean movement execution: committed micro-route + conservative recovery
+PASS the disposition API itself is observational and consumes no combat RNG
+threat-disposition-check: 6 passed

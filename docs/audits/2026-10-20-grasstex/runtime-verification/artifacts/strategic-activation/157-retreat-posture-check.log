@@ -1,0 +1,2 @@
+PASS a retreat ends the withdraw and voids the earlier HOLD
+PASS ?retreatPosture=0 restores the old behavior

@@ -1,0 +1,3 @@
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+PASS UrbanOperatingPicture rotated geometry, LOS, observed-only reports, movement and lifecycle

@@ -1,0 +1,2558 @@
+[
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/advance-stance-reason-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.058,
+    "log": "000-advance-stance-reason-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/anchor-publisher-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.076,
+    "log": "001-anchor-publisher-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/audio-format-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.045,
+    "log": "002-audio-format-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/audio-mix-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.04,
+    "log": "003-audio-mix-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/autonomous-movement-handoff-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.08,
+    "log": "004-autonomous-movement-handoff-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/ballistics-geometry-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.052,
+    "log": "005-ballistics-geometry-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/battle-loader-player-camera-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.041,
+    "log": "006-battle-loader-player-camera-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/battle-observer-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.044,
+    "log": "007-battle-observer-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/battle-page-inline-script-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.039,
+    "log": "008-battle-page-inline-script-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/benchmark-compare-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.526,
+    "log": "009-benchmark-compare-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/benchmark-evidence-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.042,
+    "log": "010-benchmark-evidence-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/benchmark-restart-isolation-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.041,
+    "log": "011-benchmark-restart-isolation-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/benchmark-window-diagnostics-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.043,
+    "log": "012-benchmark-window-diagnostics-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/buddy-pairs-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.065,
+    "log": "013-buddy-pairs-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/callouts-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.115,
+    "log": "014-callouts-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/camera-input-frame-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.042,
+    "log": "015-camera-input-frame-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/camera-lifecycle-stop-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.042,
+    "log": "016-camera-lifecycle-stop-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/camera-player-menu-template-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.04,
+    "log": "017-camera-player-menu-template-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/camera-possession-lease-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.042,
+    "log": "018-camera-possession-lease-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/camera-presentation-reset-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.044,
+    "log": "019-camera-presentation-reset-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/camera-strategic-fast-flight-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.042,
+    "log": "020-camera-strategic-fast-flight-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/camera-touch-handoff-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.041,
+    "log": "021-camera-touch-handoff-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/causal-inaction-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.048,
+    "log": "022-causal-inaction-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/clear-contact-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.092,
+    "log": "023-clear-contact-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/coa-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.11,
+    "log": "024-coa-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/cohesion-regroup-ctx-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.074,
+    "log": "025-cohesion-regroup-ctx-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/combat-audio-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.048,
+    "log": "026-combat-audio-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/combat-handoff-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.057,
+    "log": "027-combat-handoff-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/command-adoption-ratchet-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.053,
+    "log": "028-command-adoption-ratchet-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/command-hierarchy-observer-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.041,
+    "log": "029-command-hierarchy-observer-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/command-movement-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.088,
+    "log": "030-command-movement-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/command-orientation-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.079,
+    "log": "031-command-orientation-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/command-posture-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.085,
+    "log": "032-command-posture-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/command-read-model-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.06,
+    "log": "033-command-read-model-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/command-reception-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.088,
+    "log": "034-command-reception-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/command-relay-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.087,
+    "log": "035-command-relay-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/commander-lifecycle-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.042,
+    "log": "036-commander-lifecycle-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/control-scenario-rejection-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.04,
+    "log": "037-control-scenario-rejection-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/cover-positions-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.092,
+    "log": "038-cover-positions-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/cover-positions-ctx-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.055,
+    "log": "039-cover-positions-ctx-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/covered-bounds-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.066,
+    "log": "040-covered-bounds-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/covered-fire-maneuver-causal-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.072,
+    "log": "041-covered-fire-maneuver-causal-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/covered-pressure-bound-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.071,
+    "log": "042-covered-pressure-bound-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/crest-fire-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.074,
+    "log": "043-crest-fire-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/damage-range-geometry-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.04,
+    "log": "044-damage-range-geometry-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/damage-range-input-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.041,
+    "log": "045-damage-range-input-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/damage-range-lifecycle-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.043,
+    "log": "046-damage-range-lifecycle-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/damage-range-panel-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.042,
+    "log": "047-damage-range-panel-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/diagnostics-session-owner-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.043,
+    "log": "048-diagnostics-session-owner-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/effective-fire-support-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.088,
+    "log": "049-effective-fire-support-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/engagement-state-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.056,
+    "log": "050-engagement-state-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/execution-contract-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 2.26,
+    "log": "051-execution-contract-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/extension-order-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.058,
+    "log": "052-extension-order-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/faction-progress-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.041,
+    "log": "053-faction-progress-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/fbx-animation-state-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.041,
+    "log": "054-fbx-animation-state-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/fbx-asset-import-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.043,
+    "log": "055-fbx-asset-import-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/fbx-clip-converter-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.041,
+    "log": "056-fbx-clip-converter-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/fbx-clip-mixer-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.042,
+    "log": "057-fbx-clip-mixer-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/fbx-clip-pack-integrity-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.114,
+    "log": "058-fbx-clip-pack-integrity-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/fbx-library-lifecycle-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.041,
+    "log": "059-fbx-library-lifecycle-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/fbx-model-retarget-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.041,
+    "log": "060-fbx-model-retarget-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/fbx-prepared-pack-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.04,
+    "log": "061-fbx-prepared-pack-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/fbx-presentation-lod-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.042,
+    "log": "062-fbx-presentation-lod-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/fbx-render-pose-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.043,
+    "log": "063-fbx-render-pose-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/fbx-restart-cleanup-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.039,
+    "log": "064-fbx-restart-cleanup-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/fbx-retarget-quat-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.04,
+    "log": "065-fbx-retarget-quat-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/fbx-retarget-rest-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.042,
+    "log": "066-fbx-retarget-rest-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/fbx-rig-canon-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.04,
+    "log": "067-fbx-rig-canon-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/fbx-surface-damage-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.042,
+    "log": "068-fbx-surface-damage-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/fbx-weapon-calibration-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.042,
+    "log": "069-fbx-weapon-calibration-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/fire-control-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.082,
+    "log": "070-fire-control-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/fire-stance-ctx-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.053,
+    "log": "071-fire-stance-ctx-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/fireteam-frontage-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.254,
+    "log": "072-fireteam-frontage-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/fixed-clock-restart-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.041,
+    "log": "073-fixed-clock-restart-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/fixed-step-clock-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.042,
+    "log": "074-fixed-step-clock-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/flank-side-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.056,
+    "log": "075-flank-side-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/fled-man-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 1.878,
+    "log": "076-fled-man-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/formation-backward-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.096,
+    "log": "077-formation-backward-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/forward-line-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.118,
+    "log": "078-forward-line-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/forward-progress-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.044,
+    "log": "079-forward-progress-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/general-isolation-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.053,
+    "log": "080-general-isolation-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/genome-gate-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.057,
+    "log": "081-genome-gate-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/grenade-audio-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.043,
+    "log": "082-grenade-audio-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/grenade-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.136,
+    "log": "083-grenade-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/grenade-fog-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.044,
+    "log": "084-grenade-fog-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/ground-stop-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.09,
+    "log": "085-ground-stop-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/gunner-trace-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.064,
+    "log": "086-gunner-trace-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/hill-stalemate-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.664,
+    "log": "087-hill-stalemate-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/impact-fx-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.171,
+    "log": "088-impact-fx-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/impact-fx-restart-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.039,
+    "log": "089-impact-fx-restart-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/initial-seed-url-check.js"
+    ],
+    "env": {},
+    "exitCode": 1,
+    "seconds": 0.04,
+    "log": "090-initial-seed-url-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/intent-evidence-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.054,
+    "log": "091-intent-evidence-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/leaderless-intent-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.124,
+    "log": "092-leaderless-intent-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/leaderless-retreat-reception-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.082,
+    "log": "093-leaderless-retreat-reception-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/lean-runtime-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.086,
+    "log": "094-lean-runtime-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/lease-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.077,
+    "log": "095-lease-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/lease-conflict-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.071,
+    "log": "096-lease-conflict-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/lifecycle-checkpoints-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.04,
+    "log": "097-lifecycle-checkpoints-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/listener-acoustics-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.05,
+    "log": "098-listener-acoustics-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/loadout-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.072,
+    "log": "099-loadout-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/local-degradation-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.097,
+    "log": "100-local-degradation-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/local-mission-tasks-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.36,
+    "log": "101-local-mission-tasks-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/local-plan-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.068,
+    "log": "102-local-plan-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/local-resources-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.103,
+    "log": "103-local-resources-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/local-steering-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.041,
+    "log": "104-local-steering-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/local-withdraw-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.058,
+    "log": "105-local-withdraw-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/loop-evidence-window-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.043,
+    "log": "106-loop-evidence-window-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/loop-period-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.061,
+    "log": "107-loop-period-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/macro-command-toggle-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.041,
+    "log": "108-macro-command-toggle-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/macro-relief-height-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.041,
+    "log": "109-macro-relief-height-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/macro-state-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.049,
+    "log": "110-macro-state-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/map-pipeline-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 7.149,
+    "log": "111-map-pipeline-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/matrix-diagnostics-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.05,
+    "log": "112-matrix-diagnostics-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/matrix-diagnostics-merge-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.193,
+    "log": "113-matrix-diagnostics-merge-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/medic-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.069,
+    "log": "114-medic-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/mg-station-setup-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.073,
+    "log": "115-mg-station-setup-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/mg-suppression-setup-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.054,
+    "log": "116-mg-suppression-setup-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/mind-read-map-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.292,
+    "log": "117-mind-read-map-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/module-load-profile-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.415,
+    "log": "118-module-load-profile-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/module-loader-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.042,
+    "log": "119-module-loader-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/module-unit-set-restart-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.042,
+    "log": "120-module-unit-set-restart-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/morale-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.67,
+    "log": "121-morale-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/movement-arrival-adoption-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.261,
+    "log": "122-movement-arrival-adoption-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/movement-recovery-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.112,
+    "log": "123-movement-recovery-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/movement-state-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.062,
+    "log": "124-movement-state-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/muzzle-fx-origin-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.041,
+    "log": "125-muzzle-fx-origin-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/objective-marker-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.041,
+    "log": "126-objective-marker-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/objective-nav-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.564,
+    "log": "127-objective-nav-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/observer-diagnostic-trigger-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.044,
+    "log": "128-observer-diagnostic-trigger-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/observer-probe-recovery-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.043,
+    "log": "129-observer-probe-recovery-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/operator-restart-owner-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.042,
+    "log": "130-operator-restart-owner-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/outcome-probe-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.042,
+    "log": "131-outcome-probe-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/perception-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.078,
+    "log": "132-perception-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/personal-space-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.084,
+    "log": "133-personal-space-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/plan-local-widening-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.051,
+    "log": "134-plan-local-widening-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/player-control-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.06,
+    "log": "135-player-control-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/player-death-camera-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.041,
+    "log": "136-player-death-camera-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/player-facing-bore-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.048,
+    "log": "137-player-facing-bore-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/player-fire-mode-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.054,
+    "log": "138-player-fire-mode-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/player-grenade-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.05,
+    "log": "139-player-grenade-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/player-menu-audio-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.043,
+    "log": "140-player-menu-audio-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/player-possession-flight-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.039,
+    "log": "141-player-possession-flight-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/player-restart-possession-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.041,
+    "log": "142-player-restart-possession-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/preview-runtime-flags-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.107,
+    "log": "143-preview-runtime-flags-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/prone-terrain-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.052,
+    "log": "144-prone-terrain-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/rally-recovery-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.066,
+    "log": "145-rally-recovery-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/recon-budget-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.155,
+    "log": "146-recon-budget-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/recon-outcomes-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.257,
+    "log": "147-recon-outcomes-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/reconstitution-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 2.856,
+    "log": "148-reconstitution-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/reconstitution-ctx-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.056,
+    "log": "149-reconstitution-ctx-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/ref-preview-vehicle-staging-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.04,
+    "log": "150-ref-preview-vehicle-staging-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/regroup-axis-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.107,
+    "log": "151-regroup-axis-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/residual-small-debt-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.296,
+    "log": "152-residual-small-debt-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/retreat-anchor-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.086,
+    "log": "153-retreat-anchor-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/retreat-defender-fireteam-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.052,
+    "log": "154-retreat-defender-fireteam-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/retreat-lost-contact-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.075,
+    "log": "155-retreat-lost-contact-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/retreat-men-export-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.059,
+    "log": "156-retreat-men-export-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/retreat-posture-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.064,
+    "log": "157-retreat-posture-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/route-final-objective-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.043,
+    "log": "158-route-final-objective-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/route-transition-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.083,
+    "log": "159-route-transition-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/scouts-forward-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.103,
+    "log": "160-scouts-forward-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/screen-space-lod-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.041,
+    "log": "161-screen-space-lod-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/sidearm-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.09,
+    "log": "162-sidearm-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/sidearm-rearm-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.055,
+    "log": "163-sidearm-rearm-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/sight-query-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 1.697,
+    "log": "164-sight-query-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/soldier-beliefs-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.081,
+    "log": "165-soldier-beliefs-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/soldier-events-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.074,
+    "log": "166-soldier-events-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/soldier-mind-behaviour-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.37,
+    "log": "167-soldier-mind-behaviour-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/soldier-mind-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.401,
+    "log": "168-soldier-mind-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/soldier-mind-telemetry-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.531,
+    "log": "169-soldier-mind-telemetry-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/soldier-stats-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.848,
+    "log": "170-soldier-stats-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/spawn-slots-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.066,
+    "log": "171-spawn-slots-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/squad-broadcast-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.079,
+    "log": "172-squad-broadcast-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/squad-command-stack-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.054,
+    "log": "173-squad-command-stack-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/squad-fit-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.084,
+    "log": "174-squad-fit-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/squad-local-starvation-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.041,
+    "log": "175-squad-local-starvation-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/squad-performance-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.041,
+    "log": "176-squad-performance-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/squad-phase-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.089,
+    "log": "177-squad-phase-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/squad-relay-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.071,
+    "log": "178-squad-relay-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/squad-status-overlay-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.042,
+    "log": "179-squad-status-overlay-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/squad-stress-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.1,
+    "log": "180-squad-stress-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/stall-clock-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.061,
+    "log": "181-stall-clock-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/stance-ownership-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.139,
+    "log": "182-stance-ownership-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/start-wrapper-contract-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.044,
+    "log": "183-start-wrapper-contract-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/state-ownership-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.484,
+    "log": "184-state-ownership-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/stats-levers-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.129,
+    "log": "185-stats-levers-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/status-writers-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.063,
+    "log": "186-status-writers-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/steer-navigation-leg-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.042,
+    "log": "187-steer-navigation-leg-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/strategic-aerial-recon-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.057,
+    "log": "188-strategic-aerial-recon-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/strategic-chain-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.043,
+    "log": "189-strategic-chain-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/strategic-config-owner-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.063,
+    "log": "190-strategic-config-owner-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/strategic-evidence-reuse-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.043,
+    "log": "191-strategic-evidence-reuse-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/strategic-interception-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.067,
+    "log": "192-strategic-interception-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/strategic-mission-trace-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.044,
+    "log": "193-strategic-mission-trace-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/strategic-mobile-defense-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.043,
+    "log": "194-strategic-mobile-defense-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/strategic-recovery-ctx-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.067,
+    "log": "195-strategic-recovery-ctx-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/strategic-recovery-review-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.097,
+    "log": "196-strategic-recovery-review-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/strategic-route-stall-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.048,
+    "log": "197-strategic-route-stall-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/strategic-transport-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.249,
+    "log": "198-strategic-transport-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/stress-memory-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.155,
+    "log": "199-stress-memory-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/stress-reaction-animation-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.042,
+    "log": "200-stress-reaction-animation-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/stress-reactions-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.2,
+    "log": "201-stress-reactions-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/stress-reactions-ctx-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.062,
+    "log": "202-stress-reactions-ctx-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/succession-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.105,
+    "log": "203-succession-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/suppression-integrity-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.061,
+    "log": "204-suppression-integrity-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/tactical-default-flags-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.062,
+    "log": "205-tactical-default-flags-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/tactical-diagnostics-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.096,
+    "log": "206-tactical-diagnostics-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/tactical-map-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.049,
+    "log": "207-tactical-map-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/tactical-positions-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.153,
+    "log": "208-tactical-positions-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/tactical-postures-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.379,
+    "log": "209-tactical-postures-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/tactical-situation-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.05,
+    "log": "210-tactical-situation-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/tactical-symbol-registry-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.042,
+    "log": "211-tactical-symbol-registry-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/targeted-fire-probe-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.042,
+    "log": "212-targeted-fire-probe-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/terrain-restart-owner-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.041,
+    "log": "213-terrain-restart-owner-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/threat-disposition-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.058,
+    "log": "214-threat-disposition-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/transport-resume-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.114,
+    "log": "215-transport-resume-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/unreachable-anchor-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.084,
+    "log": "216-unreachable-anchor-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/urban-operating-picture-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.05,
+    "log": "217-urban-operating-picture-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/voice-determinism-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.215,
+    "log": "218-voice-determinism-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/voice-observations-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.634,
+    "log": "219-voice-observations-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/voice-playback-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.048,
+    "log": "220-voice-playback-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/voice-retry-deadline-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.042,
+    "log": "221-voice-retry-deadline-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/weapon-foley-audio-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.048,
+    "log": "222-weapon-foley-audio-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/weapon-shot-buffer-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.041,
+    "log": "223-weapon-shot-buffer-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/weapon-wound-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 9.93,
+    "log": "224-weapon-wound-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/window-port-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.13,
+    "log": "225-window-port-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/wire-map-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.318,
+    "log": "226-wire-map-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/world-debug-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.048,
+    "log": "227-world-debug-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/world-placement-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 4.461,
+    "log": "228-world-placement-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/wound-restart-isolation-check.js"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.046,
+    "log": "229-wound-restart-isolation-check.log"
+  },
+  {
+    "command": [
+      "node",
+      "scripts/run_command_lifecycle_audit.cjs"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 5.722,
+    "log": "230-run_command_lifecycle_audit.log"
+  },
+  {
+    "command": [
+      "node",
+      "scripts/check-meso-formation-frame-stability.cjs"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.052,
+    "log": "231-check-meso-formation-frame-stability.log"
+  },
+  {
+    "command": [
+      "node",
+      "scripts/check-macro-mission-command.cjs"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.17,
+    "log": "232-check-macro-mission-command.log"
+  },
+  {
+    "command": [
+      "node",
+      "scripts/check-movement-order-ownership.cjs"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.049,
+    "log": "233-check-movement-order-ownership.log"
+  },
+  {
+    "command": [
+      "node",
+      "scripts/check-meso-micro-movement-ownership.cjs"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.063,
+    "log": "234-check-meso-micro-movement-ownership.log"
+  },
+  {
+    "command": [
+      "node",
+      "scripts/check-physical-waypoint-refill.cjs"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.042,
+    "log": "235-check-physical-waypoint-refill.log"
+  },
+  {
+    "command": [
+      "node",
+      "scripts/check-purposeful-contact-gait.cjs"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.041,
+    "log": "236-check-purposeful-contact-gait.log"
+  },
+  {
+    "command": [
+      "node",
+      "scripts/check-autonomous-contact-mobility.cjs"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.042,
+    "log": "237-check-autonomous-contact-mobility.log"
+  },
+  {
+    "command": [
+      "node",
+      "scripts/check-building-interior-ingress.cjs"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.041,
+    "log": "238-check-building-interior-ingress.log"
+  },
+  {
+    "command": [
+      "node",
+      "scripts/check-strategic-5km.cjs"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.426,
+    "log": "239-check-strategic-5km.log"
+  },
+  {
+    "command": [
+      "node",
+      "scripts/check-strategic-front-lines.cjs"
+    ],
+    "env": {},
+    "exitCode": 1,
+    "seconds": 0.102,
+    "log": "240-check-strategic-front-lines.log"
+  },
+  {
+    "command": [
+      "node",
+      "scripts/check-strategic-reinforcements.cjs"
+    ],
+    "env": {},
+    "exitCode": 1,
+    "seconds": 0.045,
+    "log": "241-check-strategic-reinforcements.log"
+  },
+  {
+    "command": [
+      "node",
+      "scripts/check_vehicle_lab.cjs"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.043,
+    "log": "242-check_vehicle_lab.log"
+  },
+  {
+    "command": [
+      "node",
+      "scripts/check-strategic-truck-visual.cjs"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.045,
+    "log": "243-check-strategic-truck-visual.log"
+  },
+  {
+    "command": [
+      "node",
+      "scripts/check-strategic-truck-lite.cjs"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.043,
+    "log": "244-check-strategic-truck-lite.log"
+  },
+  {
+    "command": [
+      "node",
+      "scripts/check-strategic-restart-end.cjs"
+    ],
+    "env": {},
+    "exitCode": 0,
+    "seconds": 0.04,
+    "log": "245-check-strategic-restart-end.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/run.js"
+    ],
+    "env": {
+      "HARNESS_SEED": "12345"
+    },
+    "exitCode": 0,
+    "seconds": 0.639,
+    "log": "246-run.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/run.js"
+    ],
+    "env": {
+      "HARNESS_SEED": "1"
+    },
+    "exitCode": 0,
+    "seconds": 0.668,
+    "log": "247-run.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/run.js"
+    ],
+    "env": {
+      "HARNESS_SEED": "2"
+    },
+    "exitCode": 0,
+    "seconds": 0.611,
+    "log": "248-run.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/run.js"
+    ],
+    "env": {
+      "HARNESS_SEED": "3"
+    },
+    "exitCode": 0,
+    "seconds": 0.606,
+    "log": "249-run.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/run.js"
+    ],
+    "env": {
+      "HARNESS_SEED": "5"
+    },
+    "exitCode": 0,
+    "seconds": 0.586,
+    "log": "250-run.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/run.js"
+    ],
+    "env": {
+      "HARNESS_SEED": "8"
+    },
+    "exitCode": 0,
+    "seconds": 0.598,
+    "log": "251-run.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/run.js"
+    ],
+    "env": {
+      "HARNESS_SEED": "13"
+    },
+    "exitCode": 0,
+    "seconds": 0.6,
+    "log": "252-run.log"
+  },
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/run.js"
+    ],
+    "env": {
+      "HARNESS_SEED": "21"
+    },
+    "exitCode": 0,
+    "seconds": 0.632,
+    "log": "253-run.log"
+  }
+]

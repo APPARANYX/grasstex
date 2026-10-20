@@ -1,0 +1,8 @@
+PASS impact materials and hole kinds per surface; hedges leave no hole
+PASS decals follow terrain and sit on the wall face
+PASS sheet cells are grid-addressed and load from Assets/effects/decals
+PASS entry and exit wounds ride the hit bone; the next man; splash, exit spray and the final strike
+PASS FBX skinned-quad fallback locks to and follows the sampled surface
+PASS FBX body wounds accumulate in one private UV map and clear without body disposal
+PASS resource budgets, expiry, floor slabs, suppression strikes and restart cleanup
+PASS ballistic body, ground, wall, vegetation and metal impact metadata; range misses

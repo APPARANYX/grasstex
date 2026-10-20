@@ -1,0 +1,9 @@
+PASS a machine gunner at arm's length draws his pistol, unemplaced, after the draw time
+PASS the same gunner at 12 m keeps his gun; a sergeant with a working SMG never draws
+PASS a primary out of action within NEAR gives the sidearm to any carrier; beyond NEAR it does not
+PASS no sidearm, no change; a dry sidearm is not drawn
+PASS the primary comes back after HOLD once the target is past LEAVE, with its jam cleared at a cost
+PASS a dry sidearm is put away for the primary even inside NEAR
+PASS switching draws no combat RNG and writes no stance
+PASS the drawn sidearm fires as a pistol: its stats, its range
+8 passed

@@ -1,0 +1,13 @@
+PASS each side carries its own weapon for a kind
+PASS an automatic trigger pull is a burst at the cyclic rate
+PASS sustained rates follow each weapon: MG42 > M1919A6, Garand > Kar98k
+PASS a burst stops when the belt runs dry and the gun reloads
+PASS scouts: US M1 Carbine, GE FG 42 on the full-power round with the rifle reach
+PASS the FG 42 fires bursts up close and single aimed rounds at range
+PASS the FG 42 carries eight magazines, not the carbine load
+PASS hit zones come from where the ray met the body
+PASS a head hit drops him; leg hits take several and slow him
+PASS a chest wound he stays up from bleeds him out; an arm wound spoils his aim
+PASS drop odds match the zone table and scale with the cartridge
+PASS a full-power round can go through one man and hit the man behind him
+12 weapon and wound checks passed

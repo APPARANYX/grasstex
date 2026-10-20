@@ -190,6 +190,21 @@
     "sha256": "a54809424e8eee5ea3cb3b94800577496d7f0e989b9e21139b7e2e0e492c4ba9"
   },
   {
+    "path": "architecture-rollout/603-deploy-result.json",
+    "bytes": 216,
+    "sha256": "f702046c26f8cb44135a0c8c91405252d8c9b43f7dd73ac338f2bb87b72fff1e"
+  },
+  {
+    "path": "architecture-rollout/603-housekeeping-result.json",
+    "bytes": 216,
+    "sha256": "252893c000011329eae909ba2f69f186f14ae4b247837c6a773924d9e04dd2e9"
+  },
+  {
+    "path": "architecture-rollout/603-live-source.json",
+    "bytes": 194,
+    "sha256": "0912a9d87f1b3dbd9739fed56bc26b5145abb514ff50f57453a2b3bc1949028f"
+  },
+  {
     "path": "architecture-rollout/rollout-598.json",
     "bytes": 441,
     "sha256": "9550c6dee2cf343998d47f825d256e4902fb9da1dfdd69c9cfbe99e19a019ccc"
@@ -210,9 +225,19 @@
     "sha256": "2f18b8509b15cd17d2131d4ee232c6cdce465d844ff7f5503cd8678ea45faf6c"
   },
   {
+    "path": "architecture-rollout/rollout-603.json",
+    "bytes": 320,
+    "sha256": "ce95f3799f16bc97aee82fe83a2debe527246c089edadc5e63cde48a8a73554f"
+  },
+  {
     "path": "architecture-rollout/rollout.json",
     "bytes": 645,
     "sha256": "70fb1366fd54ed8e92be2bf74555ef30092d9162fd835993cb237a6426b10803"
+  },
+  {
+    "path": "architecture-sequence.json",
+    "bytes": 748,
+    "sha256": "81f0a6e4b0333302bb60fc78091d705eab80fae83b47a851f35c219adff1ce38"
   },
   {
     "path": "audio-format-check.log",
@@ -3075,9 +3100,129 @@
     "sha256": "4ea19f1847b390d24cae93a5fa262f9fa4711c7ec32dfbe30b7d08371379c934"
   },
   {
+    "path": "operator-restart/baseline-run.json",
+    "bytes": 187,
+    "sha256": "183be944eb71c96acf1f8d9f8ee2e959a821eedb9e0232f6888096a78e35fdfe"
+  },
+  {
+    "path": "operator-restart/benchmark-baseline/seeds-1051-compare/reports/compare.json",
+    "bytes": 7938,
+    "sha256": "d35e8aaf7162fa5e8ffc6222d0411d8bc9911ae2628929fe3de1a0db901c2501"
+  },
+  {
+    "path": "operator-restart/benchmark-baseline/seeds-1051-compare/result/compare.json",
+    "bytes": 7938,
+    "sha256": "d35e8aaf7162fa5e8ffc6222d0411d8bc9911ae2628929fe3de1a0db901c2501"
+  },
+  {
+    "path": "operator-restart/benchmark-baseline/seeds-1051-compare/result/off.json.gz",
+    "bytes": 192055,
+    "sha256": "de46020f81ce93ffb00c9740694adb899ad47b255d107418b9a9e19220b33125"
+  },
+  {
+    "path": "operator-restart/benchmark-baseline/seeds-1051-compare/result/on.json.gz",
+    "bytes": 192054,
+    "sha256": "e613d1812e75a577471aa5ca3074d76d51ff5ee8af2bbc76d5e6588e2472662d"
+  },
+  {
+    "path": "operator-restart/benchmark-baseline/seeds-1051-compare/result/result.json",
+    "bytes": 9949,
+    "sha256": "ec3ebbcd250c4627ae146a8b1bace09efb8096973917f37a63836557f76567c3"
+  },
+  {
+    "path": "operator-restart/benchmark-baseline/seeds-1051-shard-1/off/battle-benchmark.json.gz",
+    "bytes": 119179,
+    "sha256": "25b8f85f97f22de8846f9f38d05a48a77c06fde51fae0768d985068b0906bf30"
+  },
+  {
+    "path": "operator-restart/benchmark-baseline/seeds-1051-shard-1/on/battle-benchmark.json.gz",
+    "bytes": 119184,
+    "sha256": "91fa2a5bf1622b35c48d2b005c62f426a3900e0f21dc8355dc9905cfd9a78b0d"
+  },
+  {
+    "path": "operator-restart/benchmark-baseline/seeds-1051-shard-2/off/battle-benchmark.json.gz",
+    "bytes": 132027,
+    "sha256": "5fa35c7128b34d730a7bfd24db2a879a9585418335fa7f133d6f063c329126aa"
+  },
+  {
+    "path": "operator-restart/benchmark-baseline/seeds-1051-shard-2/on/battle-benchmark.json.gz",
+    "bytes": 132027,
+    "sha256": "4dd4afb3cbb420fab373947281b45daeaeca285c656c0df74c5edbbafdf07c2b"
+  },
+  {
+    "path": "operator-restart/benchmark-baseline/seeds-1051-shard-3/off/battle-benchmark.json.gz",
+    "bytes": 139506,
+    "sha256": "0c72379ad3197f7576fb894d86662d1d090245cd5f09f1639371557b2d4762d8"
+  },
+  {
+    "path": "operator-restart/benchmark-baseline/seeds-1051-shard-3/on/battle-benchmark.json.gz",
+    "bytes": 139510,
+    "sha256": "bf0c4e7ccce7f3d7697aef592817cbd1dc6180b893a41d8b5ad8eb5b9d35e15e"
+  },
+  {
+    "path": "operator-restart/benchmark-candidate/seeds-1052-compare/reports/compare.json",
+    "bytes": 7938,
+    "sha256": "ca0754439da1adba8a1d0e80fd430ba019124fe8e6de3741ad5e18b87fae6508"
+  },
+  {
+    "path": "operator-restart/benchmark-candidate/seeds-1052-compare/result/compare.json",
+    "bytes": 7938,
+    "sha256": "ca0754439da1adba8a1d0e80fd430ba019124fe8e6de3741ad5e18b87fae6508"
+  },
+  {
+    "path": "operator-restart/benchmark-candidate/seeds-1052-compare/result/off.json.gz",
+    "bytes": 192055,
+    "sha256": "cf3299e146d34bb5562654653b27dc630bed787e0f2ee2f8041034e33ad478eb"
+  },
+  {
+    "path": "operator-restart/benchmark-candidate/seeds-1052-compare/result/on.json.gz",
+    "bytes": 192054,
+    "sha256": "668b19fb9879df4897fa7f403e99f35b7eb738ee859ff23886e1e164611aea29"
+  },
+  {
+    "path": "operator-restart/benchmark-candidate/seeds-1052-compare/result/result.json",
+    "bytes": 10097,
+    "sha256": "8213d2eac98c10f60a52cbce77e379de6436270b46b041fae974ef42f63f5334"
+  },
+  {
+    "path": "operator-restart/benchmark-candidate/seeds-1052-shard-1/off/battle-benchmark.json.gz",
+    "bytes": 119187,
+    "sha256": "fc093fbd0565de07e859f2688429f68fbcb4a1832b8a62e0fe42dc226bef0678"
+  },
+  {
+    "path": "operator-restart/benchmark-candidate/seeds-1052-shard-1/on/battle-benchmark.json.gz",
+    "bytes": 119187,
+    "sha256": "95148177f875d6c456ee6c412497039ecf67301f8e2f150935ba9a48ab31ce84"
+  },
+  {
+    "path": "operator-restart/benchmark-candidate/seeds-1052-shard-2/off/battle-benchmark.json.gz",
+    "bytes": 132031,
+    "sha256": "751ab4b9bf9f6b5f077351eb4a30c9c733fed309122370326ba4b0c9f7fd787d"
+  },
+  {
+    "path": "operator-restart/benchmark-candidate/seeds-1052-shard-2/on/battle-benchmark.json.gz",
+    "bytes": 132034,
+    "sha256": "a3fddd1add8d4a4a5f196cccf8cd234267c560e72504e4ac7099df511edff12e"
+  },
+  {
+    "path": "operator-restart/benchmark-candidate/seeds-1052-shard-3/off/battle-benchmark.json.gz",
+    "bytes": 139499,
+    "sha256": "96355b8ba26c3e285a130433cc0f20e1694145bbfe21d9b9b59ba00184b94801"
+  },
+  {
+    "path": "operator-restart/benchmark-candidate/seeds-1052-shard-3/on/battle-benchmark.json.gz",
+    "bytes": 139505,
+    "sha256": "dc621aaa4dd764938ad667bdec64c30c509a53d38d26cf35e732193c42f2ce45"
+  },
+  {
     "path": "operator-restart/benchmark-restart-isolation-check.log",
     "bytes": 66,
     "sha256": "ab5b0e29638f1825a3b8881d91fc4df03e9c19fe0dcb85f36e762965ac5217d4"
+  },
+  {
+    "path": "operator-restart/candidate-run.json",
+    "bytes": 187,
+    "sha256": "47ccf475e06d8fc70b15cd85b3a9f4c0716059eb7aca1399b95e995d6f246d62"
   },
   {
     "path": "operator-restart/check-strategic-restart-end.log",
@@ -3100,6 +3245,21 @@
     "sha256": "ce77570515922131c9ed71d394a41e6e87bf90141c9abbc17dd09d1af1196e1c"
   },
   {
+    "path": "operator-restart/cross-off.json",
+    "bytes": 534,
+    "sha256": "52d1699cfd1f1bcf3ac940d6b846909866c541223d0d252e64f0ed50966c0a53"
+  },
+  {
+    "path": "operator-restart/cross-on.json",
+    "bytes": 534,
+    "sha256": "212d698c126b43bd81f9e1bf9974fa73af9b637bbce2dd92a0e3c9cf1a28f731"
+  },
+  {
+    "path": "operator-restart/final-head-ci.json",
+    "bytes": 2154,
+    "sha256": "d66d6350806d6e98c99f36d93a18938e00e9d429296c581eae84e5a0ebc33583"
+  },
+  {
     "path": "operator-restart/fixed-clock-restart-check.log",
     "bytes": 138,
     "sha256": "9d56f4396183ec2fc854b8bdf2584f1989efbc48efcb558e2f9504fca14b73fc"
@@ -3108,6 +3268,31 @@
     "path": "operator-restart/operator-restart-owner-check.log",
     "bytes": 329,
     "sha256": "cbec7a03cb1a80572dc0af385e7162e432871708398b6d58ed322dfdea5311e4"
+  },
+  {
+    "path": "operator-restart/player/camera-soak.json",
+    "bytes": 5691,
+    "sha256": "ede045809d61d8698adc07b4b80e7a2c5e8a5458a39eb597254a56a17a33988a"
+  },
+  {
+    "path": "operator-restart/player/same-sim-restart.json",
+    "bytes": 1055,
+    "sha256": "90c9149f8e2fe5a44ffa12fb1d7e7bb2ba086043ff909b2f4813e6b4e3957ca4"
+  },
+  {
+    "path": "operator-restart/player/strategic-report.json",
+    "bytes": 7045,
+    "sha256": "3b232727d23537e21fc52e18ea23d90e598d7b14109ace3f4b8834a8ac04f7b9"
+  },
+  {
+    "path": "operator-restart/player/summary.json",
+    "bytes": 1318,
+    "sha256": "a0ec7f773d0998ca7ce1720f8ca0dda20341fb965902f2ce0fdf13f779a03d76"
+  },
+  {
+    "path": "operator-restart/player/touch-gamepad-lifecycle.json",
+    "bytes": 1551,
+    "sha256": "e2f8b361b7f4a52e8a0c80f84a36220da72c6362b025cb0ccd8a796228836af0"
   },
   {
     "path": "operator-restart/start-wrapper-contract-check.log",
@@ -3575,6 +3760,1301 @@
     "sha256": "b76e8fe4301b78c10b642e5d2f66ba4166ca1ca348f5c487663d9335f0a08641"
   },
   {
+    "path": "strategic-activation/000-advance-stance-reason-check.log",
+    "bytes": 611,
+    "sha256": "47d990db2f17d408de22b78230245911f8d4f1f853f06d46cd73af91b3523556"
+  },
+  {
+    "path": "strategic-activation/001-anchor-publisher-check.log",
+    "bytes": 2511,
+    "sha256": "7184d666747456abb9939fa21bd6dde448299bd9e726b126da00ad00596a713c"
+  },
+  {
+    "path": "strategic-activation/002-audio-format-check.log",
+    "bytes": 758,
+    "sha256": "7bfe0776dee7c15d2fc558dfc85db9f76bac784e61c14e2b8438f7ec0cb064c5"
+  },
+  {
+    "path": "strategic-activation/003-audio-mix-check.log",
+    "bytes": 22,
+    "sha256": "0a6a06cdb3c76412dd7d57550c7c96e1523a494c70974aa1e4c4560d7f864224"
+  },
+  {
+    "path": "strategic-activation/004-autonomous-movement-handoff-check.log",
+    "bytes": 6493,
+    "sha256": "72d277ef5db83423490acdab2b81359fa64dd8e9a5eca9d045bbd582f408e6d2"
+  },
+  {
+    "path": "strategic-activation/005-ballistics-geometry-check.log",
+    "bytes": 1761,
+    "sha256": "71d5eb7ef4645c24da8ab3f56325667087c7d0c31a9956f7816e80ac8519d553"
+  },
+  {
+    "path": "strategic-activation/006-battle-loader-player-camera-check.log",
+    "bytes": 40,
+    "sha256": "1bbb2f362d5ca87af7fa4d000aa03bfef3e233f83ce6bd4f8e7ec5e609412a98"
+  },
+  {
+    "path": "strategic-activation/007-battle-observer-check.log",
+    "bytes": 115,
+    "sha256": "f67d756a7c4ce564dec679105a248b3f9c4cd146f9b81f05cc12bd9a1d4eedd0"
+  },
+  {
+    "path": "strategic-activation/008-battle-page-inline-script-check.log",
+    "bytes": 62,
+    "sha256": "c3b70042b0240f565b00a0019e67aba91207b8a85236bb57bfa21bbeaba846bd"
+  },
+  {
+    "path": "strategic-activation/009-benchmark-compare-check.log",
+    "bytes": 1167,
+    "sha256": "34fa98e6828e0b5b80c8ae95e2ca7a39960ea11498cc14d823899fc45162523d"
+  },
+  {
+    "path": "strategic-activation/010-benchmark-evidence-check.log",
+    "bytes": 115,
+    "sha256": "87302c5c12e99e7f2eb5a363ae3fe8158deb147a8ff4f636ad21b787d0a84ae6"
+  },
+  {
+    "path": "strategic-activation/011-benchmark-restart-isolation-check.log",
+    "bytes": 66,
+    "sha256": "ab5b0e29638f1825a3b8881d91fc4df03e9c19fe0dcb85f36e762965ac5217d4"
+  },
+  {
+    "path": "strategic-activation/012-benchmark-window-diagnostics-check.log",
+    "bytes": 75,
+    "sha256": "43f722d3d162fa24f1d4546278d78f8f811bf01298255c96db17554623126172"
+  },
+  {
+    "path": "strategic-activation/013-buddy-pairs-check.log",
+    "bytes": 2200,
+    "sha256": "b68b1171e3ac97022f78c4384531c5e11c8b593698c2c36d4eb3023c3c6b107c"
+  },
+  {
+    "path": "strategic-activation/014-callouts-check.log",
+    "bytes": 804,
+    "sha256": "9b3d3051ba2f9f38dbb95d9cf27cce2467be7bdd894f05fdc4d0becc22be764a"
+  },
+  {
+    "path": "strategic-activation/015-camera-input-frame-check.log",
+    "bytes": 104,
+    "sha256": "c24a5265e864a8662f1c4fe696b6df90b7d20cba9af0fb9e172e7cd0905a3cdd"
+  },
+  {
+    "path": "strategic-activation/016-camera-lifecycle-stop-check.log",
+    "bytes": 116,
+    "sha256": "a83e21bae134e3aba64b47960b5fa49af8be25493e8151f06df934fd4b06b7bc"
+  },
+  {
+    "path": "strategic-activation/017-camera-player-menu-template-check.log",
+    "bytes": 73,
+    "sha256": "a4b4cd9efc6ed6fe2e2ff027f5d00e0a88bf86574666e8b03adcbda16b8e2fd0"
+  },
+  {
+    "path": "strategic-activation/018-camera-possession-lease-check.log",
+    "bytes": 111,
+    "sha256": "72cd0823ecbfe4026cf17328bd97d65d94ee38f9135f9b7c2be4982dc81c0f0e"
+  },
+  {
+    "path": "strategic-activation/019-camera-presentation-reset-check.log",
+    "bytes": 91,
+    "sha256": "855ea974591e957c228159b1a10d138303158c0ba0bb1502db35b2800d369783"
+  },
+  {
+    "path": "strategic-activation/020-camera-strategic-fast-flight-check.log",
+    "bytes": 117,
+    "sha256": "e0cd124ab51287625989e829b90f33b2430110e72fe806c101a0fd5114a911fb"
+  },
+  {
+    "path": "strategic-activation/021-camera-touch-handoff-check.log",
+    "bytes": 109,
+    "sha256": "bae38aa91235f079d260fc9f160a4cdc4fe27bc5bce6f82838e34c772bd698e3"
+  },
+  {
+    "path": "strategic-activation/022-causal-inaction-check.log",
+    "bytes": 187,
+    "sha256": "db0b3d4b2b8751b4ab09e98606708a59515aa918fac3bc8ec3e4a1bb2e04df15"
+  },
+  {
+    "path": "strategic-activation/023-clear-contact-check.log",
+    "bytes": 618,
+    "sha256": "e36cc6c1c8be2b734316ebe83e7b84f88236aef114bc223fbbd784dec85c727a"
+  },
+  {
+    "path": "strategic-activation/024-coa-check.log",
+    "bytes": 1024,
+    "sha256": "6d94b00090a593cd48a765fd52cff9128bd5ac48ccda589afdc9ea66a58b2021"
+  },
+  {
+    "path": "strategic-activation/025-cohesion-regroup-ctx-check.log",
+    "bytes": 1926,
+    "sha256": "eb7e708d463d6b9f67af7d996cc18e45a98279c08a99d8631bb1b77fe4c224b7"
+  },
+  {
+    "path": "strategic-activation/026-combat-audio-check.log",
+    "bytes": 1349,
+    "sha256": "8133821db4f0c6754afa43a4c179c95610bac73b180db48d96748cf09a3dd543"
+  },
+  {
+    "path": "strategic-activation/027-combat-handoff-check.log",
+    "bytes": 630,
+    "sha256": "d90592f3c8808a2ec643d53761531dad3690e7fbc2599128e7faa27bac4ba9cf"
+  },
+  {
+    "path": "strategic-activation/028-command-adoption-ratchet-check.log",
+    "bytes": 77,
+    "sha256": "7d0b101f4628e9f03c05bb3f5c93ef3b2744b362f794d5520ce593142b4f82c7"
+  },
+  {
+    "path": "strategic-activation/029-command-hierarchy-observer-check.log",
+    "bytes": 66,
+    "sha256": "6ce08acc31ac07431baaaca7e2c5d75ad0453a33f3b89cf50385df81b73ec21f"
+  },
+  {
+    "path": "strategic-activation/030-command-movement-check.log",
+    "bytes": 959,
+    "sha256": "476a3850b414d904dd0a462b41337b7ebb073d92b469bd044eda98ab5dce8a20"
+  },
+  {
+    "path": "strategic-activation/031-command-orientation-check.log",
+    "bytes": 563,
+    "sha256": "e8fd09c84ed249d935ee3a03276d6c607c6eb1e423f8adf179fc268b57fccd6e"
+  },
+  {
+    "path": "strategic-activation/032-command-posture-check.log",
+    "bytes": 699,
+    "sha256": "fc70dde5eb39bfdc59a77dc4d76e47d1b4ce1148ccc0d7b3e792549ca2b700ca"
+  },
+  {
+    "path": "strategic-activation/033-command-read-model-check.log",
+    "bytes": 672,
+    "sha256": "0977b4e017816aa5ffd57989aa8d7897d51474a5fe382a7f72e812cc236631da"
+  },
+  {
+    "path": "strategic-activation/034-command-reception-check.log",
+    "bytes": 1016,
+    "sha256": "140c8160e54756342ede61ce3d2e9b81e560b7c9d8e07f7667bfd342efb25e2c"
+  },
+  {
+    "path": "strategic-activation/035-command-relay-check.log",
+    "bytes": 1018,
+    "sha256": "03fa8646e6dbd7bee88348a8fe673adc80575390a410e48a1f70978e24862a94"
+  },
+  {
+    "path": "strategic-activation/036-commander-lifecycle-check.log",
+    "bytes": 151,
+    "sha256": "b5b2c2ef824de26eb12568b563ffeba6822a8e60e1f2080def124764c5502e23"
+  },
+  {
+    "path": "strategic-activation/037-control-scenario-rejection-check.log",
+    "bytes": 91,
+    "sha256": "ce77570515922131c9ed71d394a41e6e87bf90141c9abbc17dd09d1af1196e1c"
+  },
+  {
+    "path": "strategic-activation/038-cover-positions-check.log",
+    "bytes": 18392,
+    "sha256": "26815bfbd25541cf6e25b6e3bc5c19d3b67661c9219d860265edba50fab5fb38"
+  },
+  {
+    "path": "strategic-activation/039-cover-positions-ctx-check.log",
+    "bytes": 1538,
+    "sha256": "6557ddfa8b4fbb5e9e5cd62b15c4765637ae5e8d2193002360d152dd4fa7aa1b"
+  },
+  {
+    "path": "strategic-activation/040-covered-bounds-check.log",
+    "bytes": 3580,
+    "sha256": "af68ae29b26e1adcfaf1677a6bbe762de1291a9a1829f638575fcbcb722c2284"
+  },
+  {
+    "path": "strategic-activation/041-covered-fire-maneuver-causal-check.log",
+    "bytes": 2275,
+    "sha256": "96f2ae21f5ee503711881a9b7736ae5262944b91c54e06c477c0ae58b607ed88"
+  },
+  {
+    "path": "strategic-activation/042-covered-pressure-bound-check.log",
+    "bytes": 5165,
+    "sha256": "a5215a4772460b88a26937e06d4ddb48d80b054de1361d2b4a81fbd13224fc09"
+  },
+  {
+    "path": "strategic-activation/043-crest-fire-check.log",
+    "bytes": 359,
+    "sha256": "4bb387d5a6886da82d68a83a339af8ac91cf478e332a29d8f4215d04f54737e6"
+  },
+  {
+    "path": "strategic-activation/044-damage-range-geometry-check.log",
+    "bytes": 99,
+    "sha256": "18a674ef1be7a16741d2c98fb4337447be3642b2a2020b7d75bac8e225e34f52"
+  },
+  {
+    "path": "strategic-activation/045-damage-range-input-check.log",
+    "bytes": 96,
+    "sha256": "f25bd8f5f30b3d872ed0a8663672f98e8bba9e6aaaf3d0d71bd9ee416c471efb"
+  },
+  {
+    "path": "strategic-activation/046-damage-range-lifecycle-check.log",
+    "bytes": 139,
+    "sha256": "c94b1586c0f30ec9cf92bb7e848819ed6229897d3580c309f07d7ec6a8db68e5"
+  },
+  {
+    "path": "strategic-activation/047-damage-range-panel-check.log",
+    "bytes": 86,
+    "sha256": "77555b58f37e543385a2d299f3c2d4583ce521b8c8fbce2ff986242634ba77d6"
+  },
+  {
+    "path": "strategic-activation/048-diagnostics-session-owner-check.log",
+    "bytes": 139,
+    "sha256": "8886bd47488d11842c01ac77e6536c0d9182fe64f3bf76ed79cfc3c5064b7014"
+  },
+  {
+    "path": "strategic-activation/049-effective-fire-support-check.log",
+    "bytes": 9913,
+    "sha256": "73bdb5a8aceeb861633379f88a306f5c608b53c9c00b7945599d7151e0831361"
+  },
+  {
+    "path": "strategic-activation/050-engagement-state-check.log",
+    "bytes": 643,
+    "sha256": "63db393b3aeffef385aab609e24c95df6f08f26dff6df3a99dfebdcdaa76698f"
+  },
+  {
+    "path": "strategic-activation/051-execution-contract-check.log",
+    "bytes": 1348,
+    "sha256": "921bbebb3ec2a07bacd3d66bc8e16ca4c7c7eb446806dbd47d60034ea954efcf"
+  },
+  {
+    "path": "strategic-activation/052-extension-order-check.log",
+    "bytes": 3131,
+    "sha256": "3439c209fe337dbbcec14a7cf1a03f457f3e4c487c46108a3915739613edc32b"
+  },
+  {
+    "path": "strategic-activation/053-faction-progress-check.log",
+    "bytes": 79,
+    "sha256": "185aa4929ae05661df27dedc29a525e5daeea6a09697bcb31dc20ae4d7fa2c85"
+  },
+  {
+    "path": "strategic-activation/054-fbx-animation-state-check.log",
+    "bytes": 173,
+    "sha256": "a9ae7e1f396712b515fc50173dfbf3ee89de76373023df9c4324d1dd09d79266"
+  },
+  {
+    "path": "strategic-activation/055-fbx-asset-import-check.log",
+    "bytes": 147,
+    "sha256": "f303bb338909cc7e616b0d3d33bdffe509305cd2472f2ad7eac9ea699bf49e70"
+  },
+  {
+    "path": "strategic-activation/056-fbx-clip-converter-check.log",
+    "bytes": 156,
+    "sha256": "1837e51ad21735bdbad50a002c09b86dbac2dcd024880b74058bef6c7103cff6"
+  },
+  {
+    "path": "strategic-activation/057-fbx-clip-mixer-check.log",
+    "bytes": 180,
+    "sha256": "478972ceb6fe1f879624a3e0b7dc8ab1b57f9c87a633099df7ac29443e5f1435"
+  },
+  {
+    "path": "strategic-activation/058-fbx-clip-pack-integrity-check.log",
+    "bytes": 145,
+    "sha256": "ca6fde328e8b92c622b60d5ab8a1900cc64f6b9083a265cb655e7b8c19af23ab"
+  },
+  {
+    "path": "strategic-activation/059-fbx-library-lifecycle-check.log",
+    "bytes": 682,
+    "sha256": "5b88c5521294867d5fb7299ccaf95a9b2f6bb5e511150e6904e0c2f9e69951c0"
+  },
+  {
+    "path": "strategic-activation/060-fbx-model-retarget-check.log",
+    "bytes": 120,
+    "sha256": "31a31ed9d9315b8fd047ef8ad1b9c2d3740e2a124f191170a4ad5c03eaaa260b"
+  },
+  {
+    "path": "strategic-activation/061-fbx-prepared-pack-check.log",
+    "bytes": 187,
+    "sha256": "91ba2edc86ff4df80568cd9083c7f3ea6841312f044d028185a47ea0d9a1ecc9"
+  },
+  {
+    "path": "strategic-activation/062-fbx-presentation-lod-check.log",
+    "bytes": 178,
+    "sha256": "4c75ee012e0ce8f28c8bf9d2dca22fdcf0908a6a719f5e39c71785f6e4026281"
+  },
+  {
+    "path": "strategic-activation/063-fbx-render-pose-check.log",
+    "bytes": 146,
+    "sha256": "7ab2f1ab47f6fe5f3a74af932a1248711279f50078175da1b464031e92f80559"
+  },
+  {
+    "path": "strategic-activation/064-fbx-restart-cleanup-check.log",
+    "bytes": 73,
+    "sha256": "45595340769d05715ca8d9c995c8352510c8c03676463b823c11d1040d4eb1e7"
+  },
+  {
+    "path": "strategic-activation/065-fbx-retarget-quat-check.log",
+    "bytes": 146,
+    "sha256": "0310e8b09d8fbc811bb29dcc99dea622bebb89fee03b8e621eb846507783b6b2"
+  },
+  {
+    "path": "strategic-activation/066-fbx-retarget-rest-check.log",
+    "bytes": 142,
+    "sha256": "431902411c3372bca679c3421a2b155855c80a8e931fe23f02f02a7f4faace6c"
+  },
+  {
+    "path": "strategic-activation/067-fbx-rig-canon-check.log",
+    "bytes": 108,
+    "sha256": "d1a8d5266a958a67d65fee7179c9c5bec45ae8c6c515336eea1426770dcb16c2"
+  },
+  {
+    "path": "strategic-activation/068-fbx-surface-damage-check.log",
+    "bytes": 125,
+    "sha256": "5b5ca18a6d82432c7dd13c115c976af5b359be7f114de80a5661fde365bd070b"
+  },
+  {
+    "path": "strategic-activation/069-fbx-weapon-calibration-check.log",
+    "bytes": 120,
+    "sha256": "1b51b5c7fd7f07dfbd509556fa36f462e7c95b10624b41322bec1550c7d0f817"
+  },
+  {
+    "path": "strategic-activation/070-fire-control-check.log",
+    "bytes": 656,
+    "sha256": "df2de0d53799b656c9281e7ef66ea1e89b2790b26255a1dc0b61fa5af0eb926a"
+  },
+  {
+    "path": "strategic-activation/071-fire-stance-ctx-check.log",
+    "bytes": 903,
+    "sha256": "bd58b34fbdf1a5d7f6d378784319cf3d127918bccbe2babf2aef99094c84ec74"
+  },
+  {
+    "path": "strategic-activation/072-fireteam-frontage-check.log",
+    "bytes": 2027,
+    "sha256": "72b186770ae3159b685bcb286f859e59c757b89a1a45659870f937b58c6ef3b5"
+  },
+  {
+    "path": "strategic-activation/073-fixed-clock-restart-check.log",
+    "bytes": 138,
+    "sha256": "9d56f4396183ec2fc854b8bdf2584f1989efbc48efcb558e2f9504fca14b73fc"
+  },
+  {
+    "path": "strategic-activation/074-fixed-step-clock-check.log",
+    "bytes": 179,
+    "sha256": "35ff38bc0add68b9b3b9f0d0d18194750bbad328c202ab9f01bd59e9e6977134"
+  },
+  {
+    "path": "strategic-activation/075-flank-side-check.log",
+    "bytes": 627,
+    "sha256": "609c63efc9f129503981a324e959c6e46eb679040eb6b8f4a253ab4f0475c34a"
+  },
+  {
+    "path": "strategic-activation/076-fled-man-check.log",
+    "bytes": 18109,
+    "sha256": "4a977a044ac0c67f67a0dedc8e731fb63d199e2d3c5ae9dec861970d038bc8d5"
+  },
+  {
+    "path": "strategic-activation/077-formation-backward-check.log",
+    "bytes": 4840,
+    "sha256": "b13d8e5f93eaaed6372c9aeecd589aec990bd7fd7ffc0d51c262f5cbacec9870"
+  },
+  {
+    "path": "strategic-activation/078-forward-line-check.log",
+    "bytes": 6769,
+    "sha256": "bebeff6a18c231957162dfcb873faf3406e4afea5f532f4cae19351e84077fb7"
+  },
+  {
+    "path": "strategic-activation/079-forward-progress-check.log",
+    "bytes": 361,
+    "sha256": "d09765dce5385ffebc8f0a9be6ec017d289a08c4f2a66c7e066511525c448fef"
+  },
+  {
+    "path": "strategic-activation/080-general-isolation-check.log",
+    "bytes": 356,
+    "sha256": "87d3733a42983d2cfb74c849e0d59b3e97a3835ae95216755763dab3634040e4"
+  },
+  {
+    "path": "strategic-activation/081-genome-gate-check.log",
+    "bytes": 919,
+    "sha256": "8a7f5ab76c2ee847325ecdc594e925a50dc183e83f51e4478b783c29e8e7b295"
+  },
+  {
+    "path": "strategic-activation/082-grenade-audio-check.log",
+    "bytes": 699,
+    "sha256": "ccd26edd6120f420381d89b2f8bbee00f04c687e05785b5edf722ea532d6bb70"
+  },
+  {
+    "path": "strategic-activation/083-grenade-check.log",
+    "bytes": 3004,
+    "sha256": "467fc7b75c237ec8e734d2f2c4f3b8a6e9536092aa70ef2521c4ca3112117504"
+  },
+  {
+    "path": "strategic-activation/084-grenade-fog-check.log",
+    "bytes": 88,
+    "sha256": "6a021f11909a2df54b3570c3c54cd9c7cb6c66b3cc3843fe52ac1e84ce3b6e61"
+  },
+  {
+    "path": "strategic-activation/085-ground-stop-check.log",
+    "bytes": 497,
+    "sha256": "015649bbf116df483da2e8d6fc6026eb3f09d1d4e30fa59d11e6c94c294e7ce5"
+  },
+  {
+    "path": "strategic-activation/086-gunner-trace-check.log",
+    "bytes": 83,
+    "sha256": "32e8850a0ac26cfeb8180853f7d1ef0b7b8b86d9257615cda99a47956d48d437"
+  },
+  {
+    "path": "strategic-activation/087-hill-stalemate-check.log",
+    "bytes": 449,
+    "sha256": "c84e427587ae1417a030cbc74005a5c3d765c49ce161529ab0be5585b114741e"
+  },
+  {
+    "path": "strategic-activation/088-impact-fx-check.log",
+    "bytes": 623,
+    "sha256": "ae5a9a41c487f3e21f0f6eea9773edb35f521af632f7e6cee4a754bfe656a679"
+  },
+  {
+    "path": "strategic-activation/089-impact-fx-restart-check.log",
+    "bytes": 59,
+    "sha256": "2b6b2dd0bd2308d6dfa16381478f5b32eaebbf398e6b2ca0811c694fc2adaa40"
+  },
+  {
+    "path": "strategic-activation/090-initial-seed-url-check.log",
+    "bytes": 1140,
+    "sha256": "2def1f4894c5c8945054ae2b420fa077bb164dd44c795040ef7e10dabe0263f8"
+  },
+  {
+    "path": "strategic-activation/091-intent-evidence-check.log",
+    "bytes": 465,
+    "sha256": "9685d99eefed5c85165d5c27c317e748ac4e1072b6844f98183769c2cd111319"
+  },
+  {
+    "path": "strategic-activation/092-leaderless-intent-check.log",
+    "bytes": 7594,
+    "sha256": "07d86b9076d968e8dd4536bbeb2dafbb15316f42a85c0bed93d5ad6effd0471d"
+  },
+  {
+    "path": "strategic-activation/093-leaderless-retreat-reception-check.log",
+    "bytes": 2568,
+    "sha256": "33e594676c63c107e6c80653f31ac9033b6da39117661e221eb0534f0510b1f6"
+  },
+  {
+    "path": "strategic-activation/094-lean-runtime-check.log",
+    "bytes": 9537,
+    "sha256": "1699c78c1d5d12536c736978c9a034597ecba7473c125592c25873a853bc1c67"
+  },
+  {
+    "path": "strategic-activation/095-lease-check.log",
+    "bytes": 4126,
+    "sha256": "3187c42eae6e9854726b96baf87a74fb7c147bd09fe232851d696fb612e118f4"
+  },
+  {
+    "path": "strategic-activation/096-lease-conflict-check.log",
+    "bytes": 2540,
+    "sha256": "770e85d31fef3113e133c6a6243d34267bc7a2d1cc420826229ee6045cf579bf"
+  },
+  {
+    "path": "strategic-activation/097-lifecycle-checkpoints-check.log",
+    "bytes": 68,
+    "sha256": "83d65e7cf1ed1796c27a35dbfb5804dc0bb7074645cd020078422cdb60feef51"
+  },
+  {
+    "path": "strategic-activation/098-listener-acoustics-check.log",
+    "bytes": 31,
+    "sha256": "bb1a81233bb8fcd24e93733e8f4ddd444075468ada9162906ce278fcb2525475"
+  },
+  {
+    "path": "strategic-activation/099-loadout-check.log",
+    "bytes": 525,
+    "sha256": "1b415f9357673576db7fee12d6aab64dd8683703957f3806ed631967073be07a"
+  },
+  {
+    "path": "strategic-activation/100-local-degradation-check.log",
+    "bytes": 10143,
+    "sha256": "ba1a6806a3a0ff0cd1bbc60b715372d25afca04082a357058f53d5eec82e368c"
+  },
+  {
+    "path": "strategic-activation/101-local-mission-tasks-check.log",
+    "bytes": 59819,
+    "sha256": "80781b16417ac2605851f0a49b7ef05b1bebeb4c2292f02be55423a95d761316"
+  },
+  {
+    "path": "strategic-activation/102-local-plan-check.log",
+    "bytes": 2288,
+    "sha256": "11d82e43668278624102a0b747627abe4999a1d10e8860fc763243f24a671d46"
+  },
+  {
+    "path": "strategic-activation/103-local-resources-check.log",
+    "bytes": 13433,
+    "sha256": "af41a97219640e9acd4b5f31f34ee4f8dc3c6774ed29bed65eb1d595637ed33d"
+  },
+  {
+    "path": "strategic-activation/104-local-steering-check.log",
+    "bytes": 533,
+    "sha256": "2ea9f35cb2eaea8c4682f7515faded1d29f3b87e2eb304db0d7f5f86497b83d0"
+  },
+  {
+    "path": "strategic-activation/105-local-withdraw-check.log",
+    "bytes": 715,
+    "sha256": "6b3a54697d7462afd30270a670a2528f8c0b422a35f7c748b2eb72fd66c16a9a"
+  },
+  {
+    "path": "strategic-activation/106-loop-evidence-window-check.log",
+    "bytes": 63,
+    "sha256": "19a7b924aa32e9b92322621aede94c516e099d287b4fb6cfff9a68b2fd3d7ef1"
+  },
+  {
+    "path": "strategic-activation/107-loop-period-check.log",
+    "bytes": 1503,
+    "sha256": "eaea4c59f7249a1ce6770512a047faf73c1e9c77ea66dc8cfdd45d4e9704c696"
+  },
+  {
+    "path": "strategic-activation/108-macro-command-toggle-check.log",
+    "bytes": 77,
+    "sha256": "41eff5a50222aaebbac9b1df5e44d9130341183c2e082d8a01a8dfde18635e71"
+  },
+  {
+    "path": "strategic-activation/109-macro-relief-height-check.log",
+    "bytes": 79,
+    "sha256": "76a8a5b492585ad27fbbd84bf394d76cc104a30c895b26fff39aaf2f1a5a3b6c"
+  },
+  {
+    "path": "strategic-activation/110-macro-state-check.log",
+    "bytes": 371,
+    "sha256": "a659d62d6beca8741199931a5b6829d94675a2c2f017bbc5e5d4a5a494c9a871"
+  },
+  {
+    "path": "strategic-activation/111-map-pipeline-check.log",
+    "bytes": 2354,
+    "sha256": "be4f9d2379e6c4e4e12180d2598b428c2c442bdfb381fd6350d54ae9c41054b8"
+  },
+  {
+    "path": "strategic-activation/112-matrix-diagnostics-check.log",
+    "bytes": 130,
+    "sha256": "fb09d9b33e95a3a7e0c991c5eba7fce293474853b683a6a9b9ebe54b41389b81"
+  },
+  {
+    "path": "strategic-activation/113-matrix-diagnostics-merge-check.log",
+    "bytes": 121,
+    "sha256": "ccd5b62d4d0c2cd18e06cd673a0e6e9ddfcf94041116e319f5984699d88ecaea"
+  },
+  {
+    "path": "strategic-activation/114-medic-check.log",
+    "bytes": 75,
+    "sha256": "9fb3bac3f9ea6c4ed5b3adef6ea9dc480c05b88fe8829de0a4bcc31ad80c6897"
+  },
+  {
+    "path": "strategic-activation/115-mg-station-setup-check.log",
+    "bytes": 877,
+    "sha256": "178359eccd2555a96ebf2b7755776a232e83339fb71e5f7d8ad399c0b87e1bc2"
+  },
+  {
+    "path": "strategic-activation/116-mg-suppression-setup-check.log",
+    "bytes": 612,
+    "sha256": "a5f513d0fc42a956f69fbe5b700b468c5bb101737e5dc3cd76f090397ae97275"
+  },
+  {
+    "path": "strategic-activation/117-mind-read-map-check.log",
+    "bytes": 1065,
+    "sha256": "536bdfa31d7d1a76426edfbcee9aa95b39ccb1d2038ac628f5708a72c47ff94b"
+  },
+  {
+    "path": "strategic-activation/118-module-load-profile-check.log",
+    "bytes": 97,
+    "sha256": "aca7571ab0216d1acee487b7709fc200c9da6dad8f3c39373e88c219b9a18a39"
+  },
+  {
+    "path": "strategic-activation/119-module-loader-check.log",
+    "bytes": 143,
+    "sha256": "baca001c762ea47ee36e9fdc31516dc62511b2890a23fae1cff3cac0a3d28fd1"
+  },
+  {
+    "path": "strategic-activation/120-module-unit-set-restart-check.log",
+    "bytes": 39,
+    "sha256": "d1740eecd206abbee09b8ca9ed5d373fb860ecf59685046e8345ca7b9df51b3c"
+  },
+  {
+    "path": "strategic-activation/121-morale-check.log",
+    "bytes": 9684,
+    "sha256": "0cb0c0e4edcd4318d7f769fde8daa0e1aa20a33c53ee562ab4afe0c4d7ef692f"
+  },
+  {
+    "path": "strategic-activation/122-movement-arrival-adoption-check.log",
+    "bytes": 3294,
+    "sha256": "f6c9ef47451880ee1ffad49899389afac034baaceed172f805e365b70dab41c4"
+  },
+  {
+    "path": "strategic-activation/123-movement-recovery-check.log",
+    "bytes": 14218,
+    "sha256": "995bcacda033fcf2be0ff6510d79b23e906a72cf733a638a61e5138b6418ef0f"
+  },
+  {
+    "path": "strategic-activation/124-movement-state-check.log",
+    "bytes": 5422,
+    "sha256": "460ee3276a0c8e8e1caf48f8a7f3065c26de50c522982d51032fbbc2b92ccfd7"
+  },
+  {
+    "path": "strategic-activation/125-muzzle-fx-origin-check.log",
+    "bytes": 95,
+    "sha256": "669e639720e33eba4954a1dec4d5cffcd6a8b7bc3955a34156463c28e564d61c"
+  },
+  {
+    "path": "strategic-activation/126-objective-marker-check.log",
+    "bytes": 89,
+    "sha256": "05a12f844ad161c685af154695fdbb7c70f7cd799d31d4203db4ddf8df51e201"
+  },
+  {
+    "path": "strategic-activation/127-objective-nav-check.log",
+    "bytes": 9773,
+    "sha256": "6a35a8075ee0e9859de94268b67184236f5a5a718ff46c9a7e1256594fd90333"
+  },
+  {
+    "path": "strategic-activation/128-observer-diagnostic-trigger-check.log",
+    "bytes": 80,
+    "sha256": "50a2eed1500d89599b34c8a62be6d76aa8f983752cf63deff6541f85ca26319a"
+  },
+  {
+    "path": "strategic-activation/129-observer-probe-recovery-check.log",
+    "bytes": 84,
+    "sha256": "3204ee9b4e3bb51d5fe6d226d43537e78d404a622924a7ee41b2300c49d9531e"
+  },
+  {
+    "path": "strategic-activation/130-operator-restart-owner-check.log",
+    "bytes": 147,
+    "sha256": "318fa9fd94c706101e1a0ba765feedeaa37f10988a299c56495695ad71d1a0b2"
+  },
+  {
+    "path": "strategic-activation/131-outcome-probe-check.log",
+    "bytes": 46,
+    "sha256": "7c698d8ffd8533de8432b12cc1c20d7b08b317df227bde73a3a540a7469cfedc"
+  },
+  {
+    "path": "strategic-activation/132-perception-check.log",
+    "bytes": 706,
+    "sha256": "e83d44a705e2a606fdf36d234a3467eff7c8bd176b449eff1aae14a8955fe210"
+  },
+  {
+    "path": "strategic-activation/133-personal-space-check.log",
+    "bytes": 3581,
+    "sha256": "29b6875595c129dc6f2a88f01bf7dfead2d74b74794bddf12d0a6d56f2a320a1"
+  },
+  {
+    "path": "strategic-activation/134-plan-local-widening-check.log",
+    "bytes": 76,
+    "sha256": "9ee58634f1cb6faeeb538af0ba7e80189f9e37aafb35e608b09851b36c751e9c"
+  },
+  {
+    "path": "strategic-activation/135-player-control-check.log",
+    "bytes": 586,
+    "sha256": "8165630610e01d4e54ef7672b75a4470444f36e06d4bbae28edd22fad701aced"
+  },
+  {
+    "path": "strategic-activation/136-player-death-camera-check.log",
+    "bytes": 122,
+    "sha256": "66c3ba3bd46b51786131fd733833c2a1d52fcb2bb585d239f375f68d88f3ff62"
+  },
+  {
+    "path": "strategic-activation/137-player-facing-bore-check.log",
+    "bytes": 505,
+    "sha256": "19488eb38cecfa4248209429ee3888f6ec4e3b8555f1d9a9d4381b1dfa0e8adc"
+  },
+  {
+    "path": "strategic-activation/138-player-fire-mode-check.log",
+    "bytes": 1189,
+    "sha256": "6040e5619d979dbda8a1883e2fa7970859aa88d8e380dcda1f4238924b29574a"
+  },
+  {
+    "path": "strategic-activation/139-player-grenade-check.log",
+    "bytes": 91,
+    "sha256": "4c782b062f5fb5315e0abe59b13f47455453fcb76da6427a71a04b4563a2b774"
+  },
+  {
+    "path": "strategic-activation/140-player-menu-audio-check.log",
+    "bytes": 30,
+    "sha256": "fe05e64e9fcfa03ec357070298443c5805f643a83397139a549f5b1ba6536343"
+  },
+  {
+    "path": "strategic-activation/141-player-possession-flight-check.log",
+    "bytes": 123,
+    "sha256": "1ea5e10672ac146d725403310e469d95ddc2a06a568e5396905d9c9b909a5952"
+  },
+  {
+    "path": "strategic-activation/142-player-restart-possession-check.log",
+    "bytes": 64,
+    "sha256": "ebe6fec69da4e947c387882ab764858bfd9b3698a2c170c97384ba0bc5d11a1f"
+  },
+  {
+    "path": "strategic-activation/143-preview-runtime-flags-check.log",
+    "bytes": 5829,
+    "sha256": "77e923578a566949b4a3e9423648a8a25603823a0321d42be6bd55d23877108e"
+  },
+  {
+    "path": "strategic-activation/144-prone-terrain-check.log",
+    "bytes": 1193,
+    "sha256": "30ba7923b118656a28aeafa97a41b143f31fb1541731aaf1627031cf65b8a598"
+  },
+  {
+    "path": "strategic-activation/145-rally-recovery-check.log",
+    "bytes": 1203,
+    "sha256": "49e9ed089ccf4178b47627d4443521cba9781382ce424658b3802c5d54b31233"
+  },
+  {
+    "path": "strategic-activation/146-recon-budget-check.log",
+    "bytes": 3821,
+    "sha256": "a1d11eccbe0eba6cc73469851c74f44e941fb6f15a49178cb3e014ddfbff89d5"
+  },
+  {
+    "path": "strategic-activation/147-recon-outcomes-check.log",
+    "bytes": 6529,
+    "sha256": "b2d5acf4c89ac8779f000d7d4f0cedf506358fa24d8c8b6ac242b2439c56f240"
+  },
+  {
+    "path": "strategic-activation/148-reconstitution-check.log",
+    "bytes": 15415,
+    "sha256": "fae22e69e9724640c0eda5c2e74dcafa7a84e2d3aa780dd6194aaf4e4b36e55b"
+  },
+  {
+    "path": "strategic-activation/149-reconstitution-ctx-check.log",
+    "bytes": 1592,
+    "sha256": "7d8846210294f78aab5cc22dbf100871ef68ed0fcd8abcab9f3f5242a03fbebd"
+  },
+  {
+    "path": "strategic-activation/150-ref-preview-vehicle-staging-check.log",
+    "bytes": 96,
+    "sha256": "4f3af2a7d9fb21074a5e88d9c4ba05b71f938089430c39bc075ec8920051ea16"
+  },
+  {
+    "path": "strategic-activation/151-regroup-axis-check.log",
+    "bytes": 5242,
+    "sha256": "807f4bb923f72844ec2820b6e94c8be3dfeb1fc9368232768b837003001021b9"
+  },
+  {
+    "path": "strategic-activation/152-residual-small-debt-check.log",
+    "bytes": 562,
+    "sha256": "ec633d3257fd11beadc44d2d7cdad32f8c0ae45e33b4317766127748d6018614"
+  },
+  {
+    "path": "strategic-activation/153-retreat-anchor-check.log",
+    "bytes": 5389,
+    "sha256": "1ef6d849e4bfa918ba395d78f562f3255074f445acadb45b6048eee1a83578cd"
+  },
+  {
+    "path": "strategic-activation/154-retreat-defender-fireteam-check.log",
+    "bytes": 754,
+    "sha256": "d1f419f065ba59292f8e26ea9a7fe70d2a9e2e512c57963b03a7f1806611302d"
+  },
+  {
+    "path": "strategic-activation/155-retreat-lost-contact-check.log",
+    "bytes": 1292,
+    "sha256": "3b1ecb199d89d1f35d42b502717ebc9f63c65b0b8f9f13790764b7ea5c7b586e"
+  },
+  {
+    "path": "strategic-activation/156-retreat-men-export-check.log",
+    "bytes": 717,
+    "sha256": "80a8611e6aa4616716017d43c21403d14e31d41e0c7f586155cb250af260a8f1"
+  },
+  {
+    "path": "strategic-activation/157-retreat-posture-check.log",
+    "bytes": 109,
+    "sha256": "a3d89d649d0b1c7aedb78a9e99d3a754bef8f3b6887d644eea4334da68fcec6b"
+  },
+  {
+    "path": "strategic-activation/158-route-final-objective-check.log",
+    "bytes": 141,
+    "sha256": "801952afbf0e2d28aab4b53d474d66d7ab54b8832f46fca55d808c7c70b59013"
+  },
+  {
+    "path": "strategic-activation/159-route-transition-check.log",
+    "bytes": 4611,
+    "sha256": "005bf53b229ceeabf311ca782dd18dc011377aaf0d75113ebdfd0b76114d6b22"
+  },
+  {
+    "path": "strategic-activation/160-scouts-forward-check.log",
+    "bytes": 12196,
+    "sha256": "7a598083494f162cf4cf07cbf3eec10a0d4157274db1d69e6c1e4584be0ad53a"
+  },
+  {
+    "path": "strategic-activation/161-screen-space-lod-check.log",
+    "bytes": 29,
+    "sha256": "52369f516396789d60ae2b516b34af971428c0d884e753baa8390aa1e1a5d8f1"
+  },
+  {
+    "path": "strategic-activation/162-sidearm-check.log",
+    "bytes": 621,
+    "sha256": "3f2f607f51d36fbbb056ad02fdde3d7654a2726169fd939a7c8b059cdd02a4e9"
+  },
+  {
+    "path": "strategic-activation/163-sidearm-rearm-check.log",
+    "bytes": 70,
+    "sha256": "cd0e47181c5864fc9783a5c02eacd31544f98950b03c2655cc81ee5f88d20914"
+  },
+  {
+    "path": "strategic-activation/164-sight-query-check.log",
+    "bytes": 850,
+    "sha256": "cbc746aba8356bf972110d7f79319536b5ed22db42b8b209bb915b212dbf2662"
+  },
+  {
+    "path": "strategic-activation/165-soldier-beliefs-check.log",
+    "bytes": 6391,
+    "sha256": "049102306425cf022fbead8eb3acb581cb80eb90aa77d35e8a750ded3cccb94a"
+  },
+  {
+    "path": "strategic-activation/166-soldier-events-check.log",
+    "bytes": 716,
+    "sha256": "e7805f78e24a9aac0940cbbae099f352c0a639fde18dd84edccc6c37c6deeb92"
+  },
+  {
+    "path": "strategic-activation/167-soldier-mind-behaviour-check.log",
+    "bytes": 1043,
+    "sha256": "05b400981bfa198c48e996493eadfdd62bad51c2ba6afec10d6bf8892b73aa58"
+  },
+  {
+    "path": "strategic-activation/168-soldier-mind-check.log",
+    "bytes": 1587,
+    "sha256": "d64bbe7038eb2910ed576eaae83ba147d04f3bdf34cadeaa04e9ef4544c5a798"
+  },
+  {
+    "path": "strategic-activation/169-soldier-mind-telemetry-check.log",
+    "bytes": 2170,
+    "sha256": "2260b4caaf56c5628d197e9304ed7b3ebe79b6cb3485a246cbc32faa57788d08"
+  },
+  {
+    "path": "strategic-activation/170-soldier-stats-check.log",
+    "bytes": 6447,
+    "sha256": "2ca763844f9cfa440c06415020bfb2a7c7549755654eb30162631d28c63e8426"
+  },
+  {
+    "path": "strategic-activation/171-spawn-slots-check.log",
+    "bytes": 232,
+    "sha256": "12d550d4f9f133b68cd90f4348cbd38075c04cdf640a6e36773ed58a7c50019b"
+  },
+  {
+    "path": "strategic-activation/172-squad-broadcast-check.log",
+    "bytes": 6332,
+    "sha256": "77883c824f028dabe932b2a184ae938fd9894957ed781fd4b0149359624ccab0"
+  },
+  {
+    "path": "strategic-activation/173-squad-command-stack-check.log",
+    "bytes": 642,
+    "sha256": "616c464b94012490542f0be1a3114a9cba5a10a6f81bc62c4bd0eb49a276563b"
+  },
+  {
+    "path": "strategic-activation/174-squad-fit-check.log",
+    "bytes": 7976,
+    "sha256": "6b8a44a5c474980b47bdb411d2c1303d5d604eac9fb890b4325b0d4fe45a08a9"
+  },
+  {
+    "path": "strategic-activation/175-squad-local-starvation-check.log",
+    "bytes": 94,
+    "sha256": "9fe47aed4cd54fb4a8a997bb483590fa6ab55cbc3d6ce16d2da57da951f2c803"
+  },
+  {
+    "path": "strategic-activation/176-squad-performance-check.log",
+    "bytes": 122,
+    "sha256": "cd85861678339daac83246ef5ee56689ddc92fa8e3114dff994a82bb6059b0db"
+  },
+  {
+    "path": "strategic-activation/177-squad-phase-check.log",
+    "bytes": 813,
+    "sha256": "560d3cd3445cc1b5302ed267f62552c29239bd3b45b5cb578b404518a3d5f7c5"
+  },
+  {
+    "path": "strategic-activation/178-squad-relay-check.log",
+    "bytes": 406,
+    "sha256": "66992cddea3d7fcfa730a362641a7830078b923077f1a2c8cb4100758b28c420"
+  },
+  {
+    "path": "strategic-activation/179-squad-status-overlay-check.log",
+    "bytes": 33,
+    "sha256": "ee497b1f69d196f648843486eee936743ba719a9e8992da1ee7ced873325c59f"
+  },
+  {
+    "path": "strategic-activation/180-squad-stress-check.log",
+    "bytes": 683,
+    "sha256": "2119055385176d3a4508d7cd912538e4fd2c0b18df72dd102ae8dff376a4b99e"
+  },
+  {
+    "path": "strategic-activation/181-stall-clock-check.log",
+    "bytes": 2022,
+    "sha256": "4fe4bc50fc3021fd85487b52c771b6e3394f1d4ecb9582207351988818e5cd8c"
+  },
+  {
+    "path": "strategic-activation/182-stance-ownership-check.log",
+    "bytes": 15843,
+    "sha256": "7c5022b25eb88def197d7fc485309e18ff173c6a06f51c6770e3b48bd1fe9133"
+  },
+  {
+    "path": "strategic-activation/183-start-wrapper-contract-check.log",
+    "bytes": 79,
+    "sha256": "f43cac6f4a4be37062e891f78fd0d1e6f72c2f0c1e9ab9d3d6e101972e52d379"
+  },
+  {
+    "path": "strategic-activation/184-state-ownership-check.log",
+    "bytes": 167,
+    "sha256": "a8a44329bc55d7eb12fed4294c908cc5684fd86b92b70a7334468f5f4fc3641c"
+  },
+  {
+    "path": "strategic-activation/185-stats-levers-check.log",
+    "bytes": 1279,
+    "sha256": "a5aced8d7ab4e021e34b63d5dfdd93ff76b1f07dca916b8c827df45b622376b6"
+  },
+  {
+    "path": "strategic-activation/186-status-writers-check.log",
+    "bytes": 364,
+    "sha256": "9c7ea0f40e2dc84c0d3403b226f5226d49b1708515b64377e87a7c13ef455e80"
+  },
+  {
+    "path": "strategic-activation/187-steer-navigation-leg-check.log",
+    "bytes": 106,
+    "sha256": "6c21af5aa3c6921647eae8c850f7bb092e29e97b3fd343347e72b984a417bc5c"
+  },
+  {
+    "path": "strategic-activation/188-strategic-aerial-recon-check.log",
+    "bytes": 449,
+    "sha256": "6e1e36aad152e3e160e114cde3388960cef96271ec45bfafaabf0001854c4712"
+  },
+  {
+    "path": "strategic-activation/189-strategic-chain-check.log",
+    "bytes": 92,
+    "sha256": "0164dd6567790200525722e9d3cd309775e39b2eb737e5367bc4392d6fb14d13"
+  },
+  {
+    "path": "strategic-activation/190-strategic-config-owner-check.log",
+    "bytes": 160,
+    "sha256": "0f8d38b99051da7f21dc7db43b5dff0e147d2b04747633d88fa74063510b3df0"
+  },
+  {
+    "path": "strategic-activation/191-strategic-evidence-reuse-check.log",
+    "bytes": 138,
+    "sha256": "6a294e2d4546cabe1a91ffd321b9150fd831d29f2f7b13f4845e0a44a4f43784"
+  },
+  {
+    "path": "strategic-activation/192-strategic-interception-check.log",
+    "bytes": 2135,
+    "sha256": "8c964df1851a7a9481d08b58c3d4659a5a6194c34bc20a68f0c67f2b9a3be42e"
+  },
+  {
+    "path": "strategic-activation/193-strategic-mission-trace-check.log",
+    "bytes": 144,
+    "sha256": "392f55c736f1a233375133ce81eadb43ac28c06d4e0564bc377866cea20d003e"
+  },
+  {
+    "path": "strategic-activation/194-strategic-mobile-defense-check.log",
+    "bytes": 94,
+    "sha256": "136f891e8b3cc30f0322b47dbbaf0725f8fb023777a6f75d3a03689b05897470"
+  },
+  {
+    "path": "strategic-activation/195-strategic-recovery-ctx-check.log",
+    "bytes": 2216,
+    "sha256": "913a3920464c5549a23398f55f4e5b6b591c80f816c3f9e0b26842bcbd2f7a98"
+  },
+  {
+    "path": "strategic-activation/196-strategic-recovery-review-check.log",
+    "bytes": 5368,
+    "sha256": "52a47915f881a84bde515a6ce67c1289ee0655af661d827eddc880fd91005d6c"
+  },
+  {
+    "path": "strategic-activation/197-strategic-route-stall-check.log",
+    "bytes": 151,
+    "sha256": "347f8cfa3c30f068e61cc412e00a4dce86b5d223fdb4d5eed032815f108671d7"
+  },
+  {
+    "path": "strategic-activation/198-strategic-transport-check.log",
+    "bytes": 3466,
+    "sha256": "b7fbac2cdb866dd152f6750e9a91e4f098fa5352a8091d20e13884cdc7079b6f"
+  },
+  {
+    "path": "strategic-activation/199-stress-memory-check.log",
+    "bytes": 1569,
+    "sha256": "623c190d95336c52c451d2875236972bbe1f07aac79ee94f0e564406a8db7890"
+  },
+  {
+    "path": "strategic-activation/200-stress-reaction-animation-check.log",
+    "bytes": 179,
+    "sha256": "91747843dbc3dd03068d9506410184ac0ebca11cae2d9813518dc2585b45cbb1"
+  },
+  {
+    "path": "strategic-activation/201-stress-reactions-check.log",
+    "bytes": 2822,
+    "sha256": "7c61d40492f8ac504a593eda8c34ca521bf77f67ac8e202c6f57eb44cb2a2874"
+  },
+  {
+    "path": "strategic-activation/202-stress-reactions-ctx-check.log",
+    "bytes": 1367,
+    "sha256": "543944b3034cea2e28c5d1f74d8195c9e283a4f5f4c317ecb223cd26d60a9cdb"
+  },
+  {
+    "path": "strategic-activation/203-succession-check.log",
+    "bytes": 2574,
+    "sha256": "d9dc7895d5580fbcab3bdcde51f1f57dbadd79822920fe5dd48c6a9fd08adeb1"
+  },
+  {
+    "path": "strategic-activation/204-suppression-integrity-check.log",
+    "bytes": 1744,
+    "sha256": "eac1a849dc1fd307190f4f73a2762178bb2644040d0efb629f9b8ec779444445"
+  },
+  {
+    "path": "strategic-activation/205-tactical-default-flags-check.log",
+    "bytes": 2813,
+    "sha256": "56e58b76c3e25feb36337bc7ff3b79b1840d2afe3669c816fe4e56282bcfae4d"
+  },
+  {
+    "path": "strategic-activation/206-tactical-diagnostics-check.log",
+    "bytes": 389,
+    "sha256": "9a6398d89b97972de59a413c7727089806709855420a7c551db9384c3e9e90f9"
+  },
+  {
+    "path": "strategic-activation/207-tactical-map-check.log",
+    "bytes": 25,
+    "sha256": "559d89e305e550acf8bb8428c370b3b98696ea713aabdbd0497d17f7a55ff1c8"
+  },
+  {
+    "path": "strategic-activation/208-tactical-positions-check.log",
+    "bytes": 19800,
+    "sha256": "8ded8c277820fa4417ca37f977097acaffbcbc864b019042691d0ec70d46708f"
+  },
+  {
+    "path": "strategic-activation/209-tactical-postures-check.log",
+    "bytes": 28721,
+    "sha256": "f5f9af49280663ead21542d645ea2e0c9f17755f1266e5ec4400f7cd38131b39"
+  },
+  {
+    "path": "strategic-activation/210-tactical-situation-check.log",
+    "bytes": 235,
+    "sha256": "f06376c0c1611368109b14fbbab5230ce877e4835185612b612c79926207966d"
+  },
+  {
+    "path": "strategic-activation/211-tactical-symbol-registry-check.log",
+    "bytes": 37,
+    "sha256": "410734b00a9469eb8f153ca18cc7ecfaa1275a37d7a52b27048db96e47ad41d6"
+  },
+  {
+    "path": "strategic-activation/212-targeted-fire-probe-check.log",
+    "bytes": 99,
+    "sha256": "252c831619e8a517a929e10043054cccfa08a46dd15088d93561edf9f9a4568d"
+  },
+  {
+    "path": "strategic-activation/213-terrain-restart-owner-check.log",
+    "bytes": 131,
+    "sha256": "8621827b7b22184bebd89dec0765aec3eab18a88cbeb8837cb0d056c6382743e"
+  },
+  {
+    "path": "strategic-activation/214-threat-disposition-check.log",
+    "bytes": 1949,
+    "sha256": "8003340b48657f40e37468ff83dc70a5616347ae9b525be3bcefcfda2d1fde8f"
+  },
+  {
+    "path": "strategic-activation/215-transport-resume-check.log",
+    "bytes": 1981,
+    "sha256": "b8fd06712df099762e1eb3467f3027e1b755ceac1f055c20bafaa2bbf8a013ea"
+  },
+  {
+    "path": "strategic-activation/216-unreachable-anchor-check.log",
+    "bytes": 514,
+    "sha256": "785619af347c88bea55bcd19078d5d98159b3c0e6b11a36d29986b79667e1928"
+  },
+  {
+    "path": "strategic-activation/217-urban-operating-picture-check.log",
+    "bytes": 243,
+    "sha256": "afcc4f72efa4c9bfce272b443c0d98328d39ce5387e29adc787f84abe94a8fee"
+  },
+  {
+    "path": "strategic-activation/218-voice-determinism-check.log",
+    "bytes": 1198,
+    "sha256": "733a19d276c9174b0dc1c36fad5b5a272ea2a9cd7d404f7f1a88f45187b3322c"
+  },
+  {
+    "path": "strategic-activation/219-voice-observations-check.log",
+    "bytes": 450,
+    "sha256": "73e31794003c64e8ea7a220b2b0683b1d76e581b11c435b0ef2b06432249e3bc"
+  },
+  {
+    "path": "strategic-activation/220-voice-playback-check.log",
+    "bytes": 27,
+    "sha256": "90daa26ac18641120c5d273fee99e41c787e9961f8da44bca14add8e360a914e"
+  },
+  {
+    "path": "strategic-activation/221-voice-retry-deadline-check.log",
+    "bytes": 50,
+    "sha256": "c8abe2f707d08257b1345c29d23d2c1382498d7477247c32736c98f598c34cd7"
+  },
+  {
+    "path": "strategic-activation/222-weapon-foley-audio-check.log",
+    "bytes": 845,
+    "sha256": "6d669f32593cbad863dfa573b2be8dd8e7ed962d22e16cba0b05c677c9223e19"
+  },
+  {
+    "path": "strategic-activation/223-weapon-shot-buffer-check.log",
+    "bytes": 61,
+    "sha256": "a6c51ebc374c24313e6cc17d1d49e398909236c0ab3fcc1497794cf596c9206d"
+  },
+  {
+    "path": "strategic-activation/224-weapon-wound-check.log",
+    "bytes": 825,
+    "sha256": "d5e18a2f365d86d4e746407f95bd64f22291efebb0affa8f49571af546152872"
+  },
+  {
+    "path": "strategic-activation/225-window-port-check.log",
+    "bytes": 20380,
+    "sha256": "a19069643b1f0e1de44cc61486ad42a47bf85de98e3908a1b37af657e2f4531f"
+  },
+  {
+    "path": "strategic-activation/226-wire-map-check.log",
+    "bytes": 1063,
+    "sha256": "c83c0df9fffcf641d5050c317ec4e3d1e646b5d8acf11d1ea900a0d43561727d"
+  },
+  {
+    "path": "strategic-activation/227-world-debug-check.log",
+    "bytes": 191,
+    "sha256": "25a1d0fa60d22d344690dc2ff53b2c805537fd981fbd2b4458c840f96b8b9640"
+  },
+  {
+    "path": "strategic-activation/228-world-placement-check.log",
+    "bytes": 511,
+    "sha256": "13767fd809c58f5b133563bef2c64083bd0fb0c3293bc69b743d7abe44e14081"
+  },
+  {
+    "path": "strategic-activation/229-wound-restart-isolation-check.log",
+    "bytes": 60,
+    "sha256": "0b5724deb43c30c2ec96a8b2864031ecb8ab368538815750bec3d7a95d4baf34"
+  },
+  {
+    "path": "strategic-activation/230-run_command_lifecycle_audit.log",
+    "bytes": 32262,
+    "sha256": "16d25d58d5e14cd03d9d8d24491b6433858a38f3ac0728a593b96ff7946e54f4"
+  },
+  {
+    "path": "strategic-activation/231-check-meso-formation-frame-stability.log",
+    "bytes": 324,
+    "sha256": "4d2070a915c73a6036d668dc920c7f8fbce4701e342522e21151b0e4c98ade4e"
+  },
+  {
+    "path": "strategic-activation/232-check-macro-mission-command.log",
+    "bytes": 3286,
+    "sha256": "ca48d584c9fb94a06e94fd62aad2f40b6f804bd0c118e7de33ccf0a973953176"
+  },
+  {
+    "path": "strategic-activation/233-check-movement-order-ownership.log",
+    "bytes": 502,
+    "sha256": "0c5c54daada87c582c2858a2b3afc76aea358af4b19c8fff213fb70402a9aaaf"
+  },
+  {
+    "path": "strategic-activation/234-check-meso-micro-movement-ownership.log",
+    "bytes": 2757,
+    "sha256": "f0c20b8c044a606d255a41d5f43f3f58f5ab8603cbc06a3ec6fab90502c81828"
+  },
+  {
+    "path": "strategic-activation/235-check-physical-waypoint-refill.log",
+    "bytes": 81,
+    "sha256": "87be51bd791730c85d3b7fdf16410024b0cfd63fc67aacb8d10c1e542594b06b"
+  },
+  {
+    "path": "strategic-activation/236-check-purposeful-contact-gait.log",
+    "bytes": 79,
+    "sha256": "4ef9ac56244a3971312e342b522cce09cc127dac5c62320ff1ddd20c1d3dfb81"
+  },
+  {
+    "path": "strategic-activation/237-check-autonomous-contact-mobility.log",
+    "bytes": 89,
+    "sha256": "5f029a9bc07f716ab86790e4692be5984c6b58728650c916fe1b8a8ffbc460b7"
+  },
+  {
+    "path": "strategic-activation/238-check-building-interior-ingress.log",
+    "bytes": 92,
+    "sha256": "767625dddf15348a6ebf7492349c88e4773fc9ab14459a37a5648fe6f75867a1"
+  },
+  {
+    "path": "strategic-activation/239-check-strategic-5km.log",
+    "bytes": 205,
+    "sha256": "f58158171f239feb7891793c98fb4a6b929efd878c01d9c2bc35381cc6957143"
+  },
+  {
+    "path": "strategic-activation/240-check-strategic-front-lines.log",
+    "bytes": 1022,
+    "sha256": "85d3e8bba28f016f011280b18699516055ed6e0bdf8bdd0c2385f8055f17936f"
+  },
+  {
+    "path": "strategic-activation/241-check-strategic-reinforcements.log",
+    "bytes": 1058,
+    "sha256": "b6dda04af78a1d6de3f7346afb79af7905b429ca6340acb752ce6dd74cfa44cc"
+  },
+  {
+    "path": "strategic-activation/242-check_vehicle_lab.log",
+    "bytes": 183,
+    "sha256": "4b78d19e0d6a155e5201d9184394dad34cdb501d5971684666facbcceef68497"
+  },
+  {
+    "path": "strategic-activation/243-check-strategic-truck-visual.log",
+    "bytes": 249,
+    "sha256": "1e6ca8a20c627fdff3890777b157986f765061e87d5451bd9e5d1f085a81f540"
+  },
+  {
+    "path": "strategic-activation/244-check-strategic-truck-lite.log",
+    "bytes": 78,
+    "sha256": "984e13fcd333d3bcb7b12f23cde78ba25fb1b3f6c544aa85e8a8a033c2f23959"
+  },
+  {
+    "path": "strategic-activation/245-check-strategic-restart-end.log",
+    "bytes": 96,
+    "sha256": "c617d51e014438797c22460322668399721a4bfc170149e73b52166fc78d8721"
+  },
+  {
+    "path": "strategic-activation/246-run.log",
+    "bytes": 12733,
+    "sha256": "6454818e36dd910af73a52392a494466ada0748595442afce04ade5f57f815e0"
+  },
+  {
+    "path": "strategic-activation/247-run.log",
+    "bytes": 12729,
+    "sha256": "e31ca0d022b70142a6b6663f23231d2fb763e961f69d3033898758dc1299220c"
+  },
+  {
+    "path": "strategic-activation/248-run.log",
+    "bytes": 12729,
+    "sha256": "97d1ae7bc5f38cccb02a611aff8cebafe1458aa5c92e8fd7f636d859b0230796"
+  },
+  {
+    "path": "strategic-activation/249-run.log",
+    "bytes": 12729,
+    "sha256": "970f848aaebf21f424380ddf4e30fc376e5f705d6f37764da6fd0440ea4050f0"
+  },
+  {
+    "path": "strategic-activation/250-run.log",
+    "bytes": 12729,
+    "sha256": "6fffb825e444afbf0aa1d447ab18640573d175858b5a5511e78d4ade863b5ab8"
+  },
+  {
+    "path": "strategic-activation/251-run.log",
+    "bytes": 12729,
+    "sha256": "d2b41b8d5c390b557fe58eb2b6937e69e802ad041261c528eb327373bfadd017"
+  },
+  {
+    "path": "strategic-activation/252-run.log",
+    "bytes": 12730,
+    "sha256": "7ef7c90bf12cd7f113111d38d392a25a2bd48f3530fdb41490bfa6bfa236dfa9"
+  },
+  {
+    "path": "strategic-activation/253-run.log",
+    "bytes": 12730,
+    "sha256": "1a25a8120ed5f641729b392dc4b77335e15bb11ce884b5adb1a5dae818228b86"
+  },
+  {
+    "path": "strategic-activation/check-strategic-front-lines-rerun.log",
+    "bytes": 166,
+    "sha256": "ae4d278dea209f9afca8e0ea26a34a915184dc032662856ebd45ecda54d66b76"
+  },
+  {
+    "path": "strategic-activation/check-strategic-reinforcements-rerun.log",
+    "bytes": 29,
+    "sha256": "b9a0de7a47ebeaa63ffc9fe8e1afd398ceda918a333e924b29b8aa88bfe60717"
+  },
+  {
+    "path": "strategic-activation/checks.json",
+    "bytes": 51704,
+    "sha256": "02fc6564c8bb801838310b1ad4430e63c107cc0a48b0d8c0d074c66cbf5b049a"
+  },
+  {
+    "path": "strategic-activation/initial-seed-url-check-rerun.log",
+    "bytes": 152,
+    "sha256": "0fa6f2451980cfba5886d1103662b6fdb706060506c9c8771fb64ef89e740fc1"
+  },
+  {
+    "path": "strategic-activation/reruns.json",
+    "bytes": 506,
+    "sha256": "769cafe4e46e29b14367c013e10df8ef55d0cb1a571b52410a0b43c6ef94448f"
+  },
+  {
     "path": "strategic-aerial-recon-check.log",
     "bytes": 89,
     "sha256": "88a597f1727d1ad6aa2c3c58583a6fd5fcec85b957320d3221d3708d869a25f9"
@@ -3878,6 +5358,31 @@
     "path": "terrain-restart/macro-relief-height-check.log",
     "bytes": 79,
     "sha256": "76a8a5b492585ad27fbbd84bf394d76cc104a30c895b26fff39aaf2f1a5a3b6c"
+  },
+  {
+    "path": "terrain-restart/player/camera-soak.json",
+    "bytes": 5675,
+    "sha256": "bbbc3a447c266def34729ee016eb0c45540d581fcc22375a8c7f52821030c4d9"
+  },
+  {
+    "path": "terrain-restart/player/same-sim-restart.json",
+    "bytes": 1055,
+    "sha256": "90c9149f8e2fe5a44ffa12fb1d7e7bb2ba086043ff909b2f4813e6b4e3957ca4"
+  },
+  {
+    "path": "terrain-restart/player/strategic-report.json",
+    "bytes": 7047,
+    "sha256": "c1175b121760d5dd184f78e2c15278b583d2ed32b4279718eaf61872fdeb5953"
+  },
+  {
+    "path": "terrain-restart/player/summary.json",
+    "bytes": 1318,
+    "sha256": "a0ec7f773d0998ca7ce1720f8ca0dda20341fb965902f2ce0fdf13f779a03d76"
+  },
+  {
+    "path": "terrain-restart/player/touch-gamepad-lifecycle.json",
+    "bytes": 1551,
+    "sha256": "e2f8b361b7f4a52e8a0c80f84a36220da72c6362b025cb0ccd8a796228836af0"
   },
   {
     "path": "terrain-restart/start-wrapper-contract-check.log",

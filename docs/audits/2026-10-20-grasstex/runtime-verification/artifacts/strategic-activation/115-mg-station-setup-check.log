@@ -1,0 +1,13 @@
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[NAV] firing-station navigation loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[NAV-PHYS] rolling 3+ waypoint routing + buffered mesh-footprint avoidance loaded
+[FIRE] finite combat loads + reloads + heat-sensitive stoppages active
+[MOVE] soldier personal space active: 0.90m minimum center spacing
+[MOVE] lean movement execution: committed micro-route + conservative recovery
+[DIAG] compact + full end-session diagnostics export ready
+[NAV] graph built; walls=4 nodes=9 doors=2 firingStations=1 rejectedWindows=0
+PASS a machine gunner at a firing station does not fire before his gun is set up
+1 checks passed

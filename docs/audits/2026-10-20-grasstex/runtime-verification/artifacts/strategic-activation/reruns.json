@@ -1,0 +1,26 @@
+[
+  {
+    "command": [
+      "node",
+      "tools/ai-sim-harness/initial-seed-url-check.js"
+    ],
+    "exitCode": 0,
+    "log": "initial-seed-url-check-rerun.log"
+  },
+  {
+    "command": [
+      "node",
+      "scripts/check-strategic-front-lines.cjs"
+    ],
+    "exitCode": 0,
+    "log": "check-strategic-front-lines-rerun.log"
+  },
+  {
+    "command": [
+      "node",
+      "scripts/check-strategic-reinforcements.cjs"
+    ],
+    "exitCode": 0,
+    "log": "check-strategic-reinforcements-rerun.log"
+  }
+]

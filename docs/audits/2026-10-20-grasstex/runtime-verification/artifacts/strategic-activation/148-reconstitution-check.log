@@ -1,0 +1,231 @@
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS a prepared defender remnant extracts to its immutable base, not its in-field tactical home
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS three four-man remnants rebuild the nearest pair and leave the third in the pool
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS no group is planned until enough survivors are actually home and out of contact
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS the rendezvous slides toward the next objective only inside each remnant's 15% travel budget
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS far-apart remnants wait instead of accepting an absurd cross-map assembly march
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS four three-man remnants rebuild as two nearby six-man squads
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS a four-man remnant stays in the survivor pool past the old 120-second solo-redeploy window
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS a five-man squad remains a viable squad and is not consumed by the survivor pool
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS two four-man remnants form a viable understrength squad instead of waiting for ten
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS geography beats raw strength: two nearby threes group before a distant four
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS the most senior leader takes command: a sergeant outranks a rifleman who stepped up
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS with every leader dead each remnant's successor steps up and the merge keeps one of them
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS a forming group dissolves only when losses take it below the six-man viable minimum
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS a re-formed squad holds together and retreats again only at 60% of full strength
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS Macro OFF: no General, no reconstitution
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS the same battle reconstitutes identically
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS a member that leaves retreat dissolves its forming group and returns the other remnant to the pool
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS a merged squad that is still shaken rests at base: it is not grouped with itself again, tick after tick
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS the fresh brief for a rebuilt squad waits for its rally, not issued into the retreat to die a tick later
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS wound floors do not freeze a rebuilt squad: the rally gate measures the still-drainable stress
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS short retreat-anchor recovery still moves every reconstitution survivor toward the rally
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS a dissolved rally sends an en-route remnant back through to-base instead of declaring it home
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS a source squad wiped during assembly is cleaned when the surviving sources merge
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS a fled man waiting at his refuge does not keep the group from meeting
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS ?fledWaitMerge=0 restores the old wait: the group stays open on the waiting man
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS a fled man waiting at his refuge is never pooled into a group, so groups do not form and dissolve in a loop
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[COMMAND] doctrine + objective scoring loaded
+[COMMAND] force allocation + approach routes loaded
+[COMMAND] objective commander module loaded
+[MOVE] resolver: sole combat-request coalescer and destination writer
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+PASS too few without the waiting fled man: the group closes with a reason instead of staying open
+27 reconstitution checks passed

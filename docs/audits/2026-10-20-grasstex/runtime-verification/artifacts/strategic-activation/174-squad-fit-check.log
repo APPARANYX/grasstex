@@ -1,0 +1,116 @@
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture on; movement on; relay on
+[COMMAND] execution outcome reader (derived, no state)
+[COMMAND] doctrine + objective scoring loaded
+PASS the score ties exactly, so the module absent picks the first objective in the list for every squad
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[STATS] soldier stats active (default): phy mkm for tac agi tec, hash rolls
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture on; movement on; relay on
+[COMMAND] execution outcome reader (derived, no state)
+[COMMAND] doctrine + objective scoring loaded
+PASS pace takes the first objective, grit the furthest, support the safest
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[STATS] soldier stats active (default): phy mkm for tac agi tec, hash rolls
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture on; movement on; relay on
+[COMMAND] execution outcome reader (derived, no state)
+[COMMAND] doctrine + objective scoring loaded
+PASS shipping General uses reported hostile position, not the live enemy transform, for support fit
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[STATS] soldier stats active (default): phy mkm for tac agi tec, hash rolls
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture on; movement on; relay on
+[COMMAND] execution outcome reader (derived, no state)
+[COMMAND] doctrine + objective scoring loaded
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[STATS] soldier stats active (default): phy mkm for tac agi tec, hash rolls
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture on; movement on; relay on
+[COMMAND] execution outcome reader (derived, no state)
+[COMMAND] doctrine + objective scoring loaded
+PASS the pull is above the median only: a squad in the middle of its side gets the module-absent choice
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[STATS] soldier stats active (default): phy mkm for tac agi tec, hash rolls
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture on; movement on; relay on
+[COMMAND] execution outcome reader (derived, no state)
+[COMMAND] doctrine + objective scoring loaded
+PASS it is a score, not a veto: an objective another squad is already on still loses
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[STATS] soldier stats active (off): phy mkm for tac agi tec, hash rolls
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture on; movement on; relay on
+[COMMAND] execution outcome reader (derived, no state)
+[COMMAND] doctrine + objective scoring loaded
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[STATS] soldier stats active (for,tac): phy mkm for tac agi tec, hash rolls
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture on; movement on; relay on
+[COMMAND] execution outcome reader (derived, no state)
+[COMMAND] doctrine + objective scoring loaded
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[STATS] soldier stats active (default): phy mkm for tac agi tec, hash rolls
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture on; movement on; relay on
+[COMMAND] execution outcome reader (derived, no state)
+[COMMAND] doctrine + objective scoring loaded
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture on; movement on; relay on
+[COMMAND] execution outcome reader (derived, no state)
+[COMMAND] doctrine + objective scoring loaded
+PASS ?stats=0, a list without squad, and a defence give the choice the module absent gives
+[FIELD] shared 3D obstacle volumes + stance-aware LOS loaded
+[ENGAGE] state/fire owner loaded; combat locomotion proposed to the Movement Resolver
+[STATS] soldier stats active (default): phy mkm for tac agi tec, hash rolls
+[M3C] meso squad-command owner: stable Squad Leader plan + coalesced fireteam publishing
+[WOUNDS] hit-zone incapacitation + bleeding active
+[SCENARIO] generator v20 loaded; battlefield=2000x1200m
+[MIND] soldier condition active (default): stress from fire, wounds, casualties, leadership
+[COMMAND] individual receipt active; posture on; movement on; relay on
+[COMMAND] execution outcome reader (derived, no state)
+[COMMAND] doctrine + objective scoring loaded
+PASS the terms add no random draw
+squad-fit-check: 7 passed

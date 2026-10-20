@@ -1,0 +1,20 @@
+
+== standard-benchmark-meeting-s1-b0001-0001 ==
+  PASS  sightBlocked agrees with the nearest-hit sightBlocker on every ray
+  PASS  the rays exercise both answers
+  PASS  movementClear with wall boxes matches the unpruned wall test
+  PASS  the steps exercise both answers
+
+== standard-benchmark-us-defend-s1-b0002-0001 ==
+  PASS  sightBlocked agrees with the nearest-hit sightBlocker on every ray
+  PASS  the rays exercise both answers
+  PASS  movementClear with wall boxes matches the unpruned wall test
+  PASS  the steps exercise both answers
+
+== standard-benchmark-ge-defend-s2-b0001-0001 ==
+  PASS  sightBlocked agrees with the nearest-hit sightBlocker on every ray
+  PASS  the rays exercise both answers
+  PASS  movementClear with wall boxes matches the unpruned wall test
+  PASS  the steps exercise both answers
+
+12/12 sight query checks passed
