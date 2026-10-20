@@ -114,10 +114,20 @@ function make(scenario = 'strategic', flag = '?motorTransport=1', road = true) {
   });
   const sim = {
     time: 0,
+    obstacles: [],
+    _roster: { us: members, ge: [] },
     scene: { metadata: { battleScenario: town } },
     factions: { us: { squads: [squad] }, ge: { squads: [] } },
     heightAt: () => 0
   };
+  if (flag.includes('truckCollision=1')) {
+    loadModule(root, 'battle/core-runtime.js');
+    loadModule(root, 'battle/obstacle-field.js');
+    loadModule(root, 'battle/battle-navigation.js');
+    root.BattleNavigation.installScenario(town);
+    root.__battle__ = sim;
+    loadModule(root, 'battle/modules/39-navigation-physicality-debug.js');
+  }
   system.onBattleStart(sim);
   const api = root.BattleSquadTransport;
   function brief(version = 1) {
@@ -708,8 +718,13 @@ console.log(
 
 // Opt-in door/tailgate access: physical single-file queue, immediate serial seating,
 // then serial ground exits and an outside-body walk to the rear staging line.
-for (const endReason of ['arrival', 'crew-sighting']) {
-  const a = make('strategic', '?motorTransport=1&truckAccess=1');
+for (const [collision, endReason] of [
+  [false, 'arrival'],
+  [false, 'crew-sighting'],
+  [true, 'arrival'],
+  [true, 'crew-sighting']
+]) {
+  const a = make('strategic', '?motorTransport=1&truckAccess=1' + (collision ? '&truckCollision=1' : ''));
   if (endReason === 'crew-sighting')
     a.sim._strategicTransportFleet.vehicles.forEach(v => {
       v.heading = { x: 1, z: 0 };
@@ -812,3 +827,84 @@ console.log('PASS truck access: door/tailgate queue, serial seats, outside-body 
   assert.equal(t.phase, 'aborted');
 }
 console.log('PASS arrival at either door admits immediately; partial pickup exits the occupied door');
+
+// Unrelated infantry and actual ballistic rounds share the same live volume.
+{
+  const a = make('strategic', '?motorTransport=1&truckAccess=1&truckCollision=1');
+  const N = a.root.BattleNavigation,
+    F = a.root.BattleObstacleField;
+  const vehicle = a.sim._strategicTransportFleet.vehicles[0];
+  const fp = a.sim.obstacles.__dynamicFootprints[0];
+  assert.equal(a.sim.obstacles.__dynamicFootprints.length, 12);
+  assert.equal(make().sim.obstacles.__dynamicFootprints.length, 0, 'control has no new geometry');
+  for (const h of [
+    { x: 0, z: 1 },
+    { x: 1, z: 0 }
+  ]) {
+    vehicle.heading = h;
+    const from = { x: fp.x - h.z * 8, z: fp.z + h.x * 8 };
+    const to = { x: fp.x + h.z * 8, z: fp.z - h.x * 8 };
+    assert.equal(N.movementClear(from, to), false, 'truck blocks a crossing');
+    assert.equal(
+      N.movementClear(from, to, { ignoreDynamicId: vehicle.id }),
+      true,
+      'carrier-only self exemption'
+    );
+    const path = N.findPath(from, to);
+    assert.ok(path.length > 1, 'physical navigation supplies a real detour');
+    let p = from;
+    for (const q of path) {
+      assert.ok(N.movementClear(p, q), 'every detour segment clears the body');
+      p = q;
+    }
+    assert.ok(Math.hypot(p.x - to.x, p.z - to.z) < 0.5, 'route reaches the original goal');
+    assert.equal(F.sightBlocked(a.sim.obstacles, { ...from, y: 1.55 }, { ...to, y: 1.55 }), true);
+    assert.equal(
+      F.sightBlocked(a.sim.obstacles, { ...from, y: 3 }, { ...to, y: 3 }),
+      false,
+      'above roof stays clear'
+    );
+    const H = require('./harness'),
+      r = H.bootstrap({ modules: false });
+    loadModule(r, 'battle/modules/14-z-ballistic-raycast.js');
+    const b = H.makeBattle(r, { obstacles: a.sim.obstacles });
+    const shooter = {
+      faction: 'us',
+      root: { position: { ...from, y: 0 }, rotation: { y: 0 } },
+      weapon: { kind: 'rifle', stats: { range: 120, combatSigmaAt100: 0.000001, damage: 10, power: 1 } }
+    };
+    const target = { faction: 'ge', hp: 100, root: { position: { ...to, y: 0 }, rotation: { y: 0 } } };
+    b._roster.ge.push(target);
+    b.factions.ge.alive = 1;
+    b.random = () => 0.5;
+    let shot;
+    b.onShot = (s, t, hit, d, m) => (shot = m);
+    r.BattleBallistics.resolve(shooter, target, b);
+    assert.notEqual(shot.victim, target, 'no hit through truck');
+    assert.ok(
+      shot.impact && Math.hypot(shot.impact.x - from.x, shot.impact.z - from.z) < 9,
+      'round ends at near face'
+    );
+  }
+  vehicle.position = { x: 40, z: 40 };
+  assert.equal(fp.x, 40, 'collision follows the real carrier without rebuilding terrain');
+  assert.equal(N.movementClear({ x: 4, z: 12 }, { x: 20, z: 12 }), true, 'old parked position clears');
+  a.system.onBattleRestart(a.sim);
+  assert.equal(
+    a.sim.obstacles.__dynamicFootprints.length,
+    12,
+    'restart replaces rather than duplicates volumes'
+  );
+  const mission = a.brief();
+  assert.ok(a.api.considerMission(a.sim, a.squad, mission));
+  mission.status = 'executing';
+  a.run(350);
+  assert.equal(
+    a.squad._transport.phase,
+    'dismounted',
+    'own body does not deadlock boarding/driving/dismount'
+  );
+}
+console.log(
+  'PASS live rotated truck blocks infantry and rounds, preserves detours, roof clearance and complete transport'
+);

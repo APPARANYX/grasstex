@@ -101,6 +101,7 @@ To navigate and inspect the larger strategic map in **free-fly spectator mode** 
 ### Transport lifecycle playtest adjustments (draft #561)
 
 The user-observed early-transport and presentation contract is now:
+
 - Second actual base truck departs **35 simulated seconds after its lead's capture brief**, if the General's faction-local reports do not identify known enemy pressure; its launch does not wait for objective ownership. A known hostile-held objective is never treated as uncontested.
 - Forward screen drives through the real road graph to a **25 m standoff from its ahead-of-objective observation post**, unlike standard assaults that retain 180 m. All transport missions include a verified **11 m drive onto a clear shoulder** before unloading, not a teleport or a road-blocking abandoned vehicle.
 - The same existing ten soldiers approach the vehicle, then enter **one at a time** in deterministic driver-to-rear seat order, with 0.8 s minimum separation between seat occupancy events; no new soldier rigs, actor duplication or cosmetic pop-in. The native truck Chromium QA explicitly checks the rider-attachment sequence from **zero through ten** distinct occupied seats for both factions.
@@ -116,8 +117,8 @@ This is the intended strategic sequence for opt-in Phase 3B in [draft #559](http
 
 1. **Lead, first:** The first combat-ready squad at a base accepts a normal capture/secure objective brief. It takes one real parked transport and travels to the assigned objective using the existing 12 m/s road carrier and 180 m pre-goal dismount.
 2. **Second squad has a conditional purpose:** If a distinct second squad actually started at the **same** base, assign it a genuine short-term forward-screen follow-on brief; a lone squad cannot be idled under a fictitious reserve. Its own second truck must already exist.
-3. **If the objective is contested:** If friendly physical contact or recent *friendly-reported* enemies near the lead objective establish resistance, use the available second truck to **reinforce the contested capture**, not blindly pass the threat. Normal Squad Leader movement/combat authority applies.
-4. **If secure and no known contact:** Only after the objective's public control is friendly, the lead is physically near it, and no recent credible friendly report identifies local enemy pressure, send the second squad down a connected forward road roughly **215–340 metres beyond that objective**. An absence of reports is *not* omniscient proof of safety.
+3. **If the objective is contested:** If friendly physical contact or recent _friendly-reported_ enemies near the lead objective establish resistance, use the available second truck to **reinforce the contested capture**, not blindly pass the threat. Normal Squad Leader movement/combat authority applies.
+4. **If secure and no known contact:** Only after the objective's public control is friendly, the lead is physically near it, and no recent credible friendly report identifies local enemy pressure, send the second squad down a connected forward road roughly **215–340 metres beyond that objective**. An absence of reports is _not_ omniscient proof of safety.
 5. **Physically establish the screen:** The second squad drives, dismounts, walks the final leg, sets a real post, and observes from there. No virtual scouts or scripted ambush occupancy. Infantry retains independent LOS and weapons.
 6. **Report before ambush planning:** The actual Soldiers' **firsthand** stored contact observations move upward through the faction-local tactical report reader. Hearing/secondhand reports do not count as fresh firsthand motion evidence. A direction/speed inference needs **two observed positions at distinct times**; sightings without sufficient motion remain useful reported sightings, **not valid future-route predictions**.
 7. **General chooses:** Using only those reports and public roads, the General scores a future intercept point, actual friendly foot travel from the screen, setup budget and uncertainty, and predicted enemy ETA. **Only issue an interception if the friendly squad can arrive first**; the physically established screen can itself hold an already advantageous watch position. Existing aerial recon may supplement intelligence but cannot steal the second squad from its intended mission.
@@ -129,14 +130,14 @@ This is the intended strategic sequence for opt-in Phase 3B in [draft #559](http
 
 ### Native 40-second mission-ownership correction
 
-Earlier meeting-seed triage found that two squads were *eligible* for forward-screen duty but every squad had already been committed to a capture truck by 40.05 s. The block was not a late ETA or route obstacle: ordinary `request-changed` and `reserve-commit` reconsiderations displaced the intended second-truck reservation. The corrected opt-in command path now:
+Earlier meeting-seed triage found that two squads were _eligible_ for forward-screen duty but every squad had already been committed to a capture truck by 40.05 s. The block was not a late ETA or route obstacle: ordinary `request-changed` and `reserve-commit` reconsiderations displaced the intended second-truck reservation. The corrected opt-in command path now:
 
 - assigns the purpose-first screen brief on the second squad's **initial** Macro mission (not only after a reserve already exists);
-- protects the explicit second-truck reserve *ahead of* ordinary catalog/request wake reasons;
+- protects the explicit second-truck reserve _ahead of_ ordinary catalog/request wake reasons;
 - uses the reserve only after the lead reaches a genuinely uncontested objective, or uses its truck to reinforce a genuinely contested lead;
 - releases an unfulfilled reserve to normal General reconsideration after 600 simulated seconds to avoid permanent idling.
 
-**Evidence status:** dedicated deterministic mission checks cover the physical 12-vehicle inventory and report provenance. The *native* long-horizon screen, intercept and contact chain remains subject to ON/OFF browser proof; do not convert diagnostic CI green into an accepted natural ambush claim.
+**Evidence status:** dedicated deterministic mission checks cover the physical 12-vehicle inventory and report provenance. The _native_ long-horizon screen, intercept and contact chain remains subject to ON/OFF browser proof; do not convert diagnostic CI green into an accepted natural ambush claim.
 
 ---
 
@@ -157,7 +158,7 @@ This slice intentionally does not add garages, vehicle respawns, replacement sol
 
 ## New primary scenario
 
-Model deliberate **General-directed route interception** in a large open-country battlefield. A friendly General optionally calls a one-time aerial reconnaissance event. Based on a time-stamped snapshot of enemy squads' positions, headings, and speeds, it evaluates plausible objective routes, chooses an interception corridor **between the enemy and its plausible objective(s)**, and allocates an available motorized squad only when it can dismount and occupy that corridor *before* the enemy is expected to reach it. The Squad Leader receives a high-level intercept mission; soldiers independently establish observation/firing posts and engage under ordinary combat rules.
+Model deliberate **General-directed route interception** in a large open-country battlefield. A friendly General optionally calls a one-time aerial reconnaissance event. Based on a time-stamped snapshot of enemy squads' positions, headings, and speeds, it evaluates plausible objective routes, chooses an interception corridor **between the enemy and its plausible objective(s)**, and allocates an available motorized squad only when it can dismount and occupy that corridor _before_ the enemy is expected to reach it. The Squad Leader receives a high-level intercept mission; soldiers independently establish observation/firing posts and engage under ordinary combat rules.
 
 Unlike the existing local Phase C tactical-posture work, **no three-man/four-second gate is a prerequisite for useful behavior**. Those measurements may remain diagnostic observations of a prepared fireteam. A squad that misses an intercept continues ordinary mission execution; a failed ambush is not a simulation dead-end.
 
@@ -177,6 +178,8 @@ Ownership invariant: **General = Macro** (air-recon request, target and corridor
 ## Delivery 2: abstract motorized squad transport (no visible vehicle yet)
 
 Experimental `truckAccess=1` uses the current 6.2m truck footprint: driver/front passenger approach their own doors, rear passengers queue in single file at the tailgate, and admitted actors occupy their actual calibrated seats. Arrival or abort enters a serial `disembarking` phase: driver, front passenger, then rear occupants exit outside the body and walk to separate rear staging positions. The carrier remains reserved and infantry capture/fire/movement stays suspended until the group is clear; ordinary Squad Leader transport handoff then resumes the mission. A blocked exit stays observable and does not place a soldier under the truck. This opt-in candidate adds a conservative 45s serial-release allowance to interception quotes; it changes no assets or animation clips.
+
+Experimental `truckCollision=1` with motor transport publishes a live oriented 2.5 × 6.2 × 2.8m truck volume to physical navigation, sight and ballistic tracing. Infantry route around it with normal body clearance; rounds stop at its surface, while rays above or beside it remain clear. Volumes follow the carrier's actual position and heading and do not depend on rendering or model loading. The small dynamic set stays separate from the static terrain index. Only the transport owner's own seat/drive checks exempt its own truck; foot approaches, exits and other vehicles remain blocked. Use with `truckAccess=1`. This is a solid-box approximation, not destructible vehicle armor or a traffic/right-of-way system.
 
 - Provide an explicit squad `embarked` transport task granted by its General, with only one transport position/route owner. All squadmembers move **as one very tight formation** representing passengers, rather than individually sprinting faster or competing with normal formation orders.
 - Proposed tunable provisional travel speeds for testing: road travel ~10–14 m/s (36–50 km/h), rough off-road travel substantially slower; use road/path and terrain restrictions. These are starting hypotheses requiring actual simulation timing checks, not hard-coded promises.

@@ -289,8 +289,8 @@
           throw new Error('truck FBX contains no meshes');
         }
         materialBothSides(renderMeshes);
-        // Meshes are presentation only. No new ray-pickable armor, bullet
-        // blockers, AI vision occluders or colliders are introduced in V1.
+        // Meshes remain presentation only. Opt-in physical truck volumes are
+        // simulation-owned, independent of asset loading and render distance.
         renderMeshes.forEach(function (mesh) {
           mesh.isPickable = false;
           mesh.checkCollisions = false;

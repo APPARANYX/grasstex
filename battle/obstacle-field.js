@@ -302,10 +302,11 @@
 
   function sightBlocker(obstacles, a, b) {
     var field = fieldFor(obstacles);
-    if (!field) return false;
-    var candidates = gatherSegment(field, a.x, a.z, b.x, b.z),
+    var dynamic = obstacles && obstacles.__dynamicFootprints,
+      candidates = field ? gatherSegment(field, a.x, a.z, b.x, b.z) : [],
       best = null,
       bestT = Infinity;
+    if (dynamic && dynamic.length) candidates = candidates.concat(dynamic);
     for (var i = 0; i < candidates.length; i++) {
       var ob = candidates[i],
         t = sightHitT(ob, a, b);
@@ -324,8 +325,9 @@
   /* Blocked or not needs any hit, not the nearest one: stop at the first. */
   function sightBlocked(obstacles, a, b) {
     var field = fieldFor(obstacles);
-    if (!field) return false;
-    var candidates = gatherCrossed(field, a.x, a.z, b.x, b.z);
+    var dynamic = obstacles && obstacles.__dynamicFootprints,
+      candidates = field ? gatherCrossed(field, a.x, a.z, b.x, b.z) : [];
+    if (dynamic && dynamic.length) candidates = candidates.concat(dynamic);
     for (var i = 0; i < candidates.length; i++) {
       var ob = candidates[i];
       if (sightHitT(ob, a, b) == null) continue;

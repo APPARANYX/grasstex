@@ -41,7 +41,7 @@
     });
     return { x: x / members.length, z: z / members.length };
   }
-  function safe(sim, a, b) {
+  function safe(sim, a, b, vehicleId) {
     var N = root.BattleNavigation,
       map = sim.scene && sim.scene.metadata && sim.scene.metadata.battleScenario,
       width = map && map.map && map.map.width,
@@ -50,7 +50,7 @@
     if (width && (Math.abs(b.x) >= width / 2 - 4 || Math.abs(a.x) >= width / 2 - 4)) return false;
     if (depth && (Math.abs(b.z) >= depth / 2 - 4 || Math.abs(a.z) >= depth / 2 - 4)) return false;
     try {
-      return !!N.movementClear(a, b);
+      return !!N.movementClear(a, b, vehicleId ? { ignoreDynamicId: vehicleId } : undefined);
     } catch (_) {
       return false;
     }
@@ -260,6 +260,7 @@
   function initializeFleet(sim) {
     var town = sim.scene && sim.scene.metadata && sim.scene.metadata.battleScenario,
       fleet = { version: 1, vehicles: [] };
+    if (sim.obstacles) sim.obstacles.__dynamicFootprints = [];
     if (!enabled(sim) || !town || !town.spawnZones) {
       sim._strategicTransportFleet = fleet;
       return fleet;
@@ -302,6 +303,69 @@
       });
     });
     sim._strategicTransportFleet = fleet;
+    // Live, simulation-owned volumes; renderer readiness never controls collision.
+    // Keep the tiny dynamic set separate from the terrain's static spatial index.
+    if (
+      sim.obstacles &&
+      /(?:^|[?&])truckCollision=1(?:&|$)/.test((root.location && root.location.search) || '')
+    ) {
+      sim.obstacles.__dynamicFootprints = fleet.vehicles.map(function (v) {
+        var fp = {
+          id: v.id,
+          type: 'truck',
+          shape: 'obb',
+          hx: 1.25,
+          hz: 3.1,
+          height: 2.8,
+          impactMaterial: 'metal'
+        };
+        Object.defineProperties(fp, {
+          x: {
+            enumerable: true,
+            get: function () {
+              return v.position.x;
+            }
+          },
+          z: {
+            enumerable: true,
+            get: function () {
+              return v.position.z;
+            }
+          },
+          y: {
+            enumerable: true,
+            get: function () {
+              return sim.heightAt(v.position.x, v.position.z);
+            }
+          },
+          ux: {
+            enumerable: true,
+            get: function () {
+              return v.heading.z;
+            }
+          },
+          uz: {
+            enumerable: true,
+            get: function () {
+              return -v.heading.x;
+            }
+          },
+          vx: {
+            enumerable: true,
+            get: function () {
+              return v.heading.x;
+            }
+          },
+          vz: {
+            enumerable: true,
+            get: function () {
+              return v.heading.z;
+            }
+          }
+        });
+        return fp;
+      });
+    }
     return fleet;
   }
   function vehicleFor(sim, id) {
@@ -447,7 +511,7 @@
           x: last.x + side.x * TURNOUT_METRES * direction,
           z: last.z + side.z * TURNOUT_METRES * direction
         };
-        if (!safe(sim, last, shoulder) || turnoutTaken(sim, vehicle, shoulder)) continue;
+        if (!safe(sim, last, shoulder, vehicle.id) || turnoutTaken(sim, vehicle, shoulder)) continue;
         if (k) path[path.length - 1] = { point: last, speed: path[path.length - 1].speed };
         return turnInto(route, path, last, shoulder, TURNOUT_METRES * k);
       }
@@ -591,9 +655,9 @@
       trial = pullOff(sim, town, trial, vehicle);
       if (!trial) continue;
       var previous = vehicle.position,
-        passable = safe(sim, center, vehicle.position);
+        passable = safe(sim, center, vehicle.position, vehicle.id);
       for (var i = 0; passable && i < trial.path.length; i++) {
-        passable = safe(sim, previous, trial.path[i].point);
+        passable = safe(sim, previous, trial.path[i].point, vehicle.id);
         previous = trial.path[i].point;
       }
       if (passable)
@@ -742,7 +806,7 @@
         rank = ready[0].rank;
       var index = t.seatIds.indexOf(passenger.id),
         seat = memberSeat(index, t.seatIds.length, t.position, t.heading);
-      if (!safe(sim, seat, seat)) {
+      if (!safe(sim, seat, seat, t.vehicleId)) {
         finish(sim, sq, 'seat-blocked');
         return;
       }
@@ -977,12 +1041,13 @@
     }
   }
   function moveCarrier(sim, sq, t, members, next, newHeading, amount) {
-    if (!safe(sim, t.position, next)) return 'road-blocked';
+    if (!safe(sim, t.position, next, t.vehicleId)) return 'road-blocked';
     var seats = members.map(function (s, i) {
       return { s: s, next: memberSeat(i, members.length, next, newHeading) };
     });
     for (var j = 0; j < seats.length; j++)
-      if (!safe(sim, position(seats[j].s.root.position), seats[j].next)) return 'passenger-path-blocked';
+      if (!safe(sim, position(seats[j].s.root.position), seats[j].next, t.vehicleId))
+        return 'passenger-path-blocked';
     seats.forEach(function (seat) {
       root.BattleSim.moveTransportPassenger(sim, seat.s, seat.next, 'embarked-passenger');
     });
@@ -1094,7 +1159,7 @@
         amount = to.speed * elapsed,
         next = { x: from.x + dx * amount, z: from.z + dz * amount },
         newHeading = { x: dx, z: dz };
-      if (!safe(sim, from, next)) {
+      if (!safe(sim, from, next, t.vehicleId)) {
         finish(sim, sq, 'road-blocked');
         return;
       }
@@ -1102,7 +1167,7 @@
         return { s: s, next: memberSeat(i, members.length, next, newHeading) };
       });
       for (var j = 0; j < seats.length; j++) {
-        if (!safe(sim, position(seats[j].s.root.position), seats[j].next)) {
+        if (!safe(sim, position(seats[j].s.root.position), seats[j].next, t.vehicleId)) {
           finish(sim, sq, 'passenger-path-blocked');
           return;
         }
