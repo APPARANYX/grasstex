@@ -737,12 +737,7 @@
       entry.squadId = task ? squad.id : null;
       entry.members = task ? seatsFor(squad) : [];
       entry.boardedCount = task ? task.boardedCount || 0 : 0;
-      entry.seatedIds =
-        task && task.access
-          ? (task.boardedIds || task.boardingOrder.slice(0, task.boardedCount)).filter(function (id) {
-              return (task.exitedIds || []).indexOf(id) < 0;
-            })
-          : null;
+      entry.seatedIds = task ? root.BattleSquadTransport.seatedIds(squad) : null;
       if (['boarding', 'embarked', 'disembarking'].indexOf(entry.phase) < 0 && entry.riders.length)
         disposeRiders(entry);
       if (st.source && !entry.root) {

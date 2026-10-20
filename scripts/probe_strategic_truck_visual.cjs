@@ -233,7 +233,11 @@ const out = path.resolve(process.env.STRATEGIC_TRUCK_QA_OUT || 'closeups/strateg
         t.exitedIds = [ids[0]];
         qa.system.onSimulationStep(b, { dt: 0 });
         const remaining = sq.members.filter(s => api.seatForSoldier(s)).map(s => s.id);
-        rows.push({ side, early, seated, remaining, expected: [ids[0], ids[9]], passenger: ids[9] });
+        rows.push({ side, early, seated, remaining, expected: [ids[0], ids[9]], passenger: ids[9],
+          ownerRemaining: window.BattleSquadTransport.seatedIds(sq),
+          carrierRemaining: sq.members.filter(s => window.BattleSquadTransport.carrierId(s) === t.vehicleId).map(s => s.id),
+          journeyLocked: sq.members.every(s => window.BattleSquadTransport.isPassenger(s))
+        });
         t.access = false;
         t.phase = 'embarked';
         t.boardedCount = 10;
@@ -249,6 +253,9 @@ const out = path.resolve(process.env.STRATEGIC_TRUCK_QA_OUT || 'closeups/strateg
         row.side + ' driver and front passenger enter their own seats'
       );
       assert.deepEqual(row.remaining, [row.passenger], row.side + ' one dismount releases only the driver');
+      assert.deepEqual(row.ownerRemaining, row.remaining, row.side + ' renderer reads owner seat projection');
+      assert.deepEqual(row.carrierRemaining, row.remaining, row.side + ' LOS exclusion follows admitted/unexited occupants');
+      assert.equal(row.journeyLocked, true, row.side + ' capture/movement commitment lasts through dismount');
     }
     // No additional soldier FBX model parse occurs at boarding.
     await page.waitForFunction(

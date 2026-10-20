@@ -1297,14 +1297,37 @@
       step(sim, p && +p.dt);
     }
   });
+  // Read policy stays with the journey owner. A boarding commitment locks movement/capture
+  // before admission, while only admitted/unexited occupants may ignore their own carrier in LOS.
+  function passengerJourney(s) {
+    var t = s && s.squad && s.squad._transport;
+    return t && (t.phase === 'boarding' || t.phase === 'embarked' || t.phase === 'disembarking') ? t : null;
+  }
+  function carrierId(s) {
+    var t = passengerJourney(s);
+    return t &&
+      (t.phase === 'embarked' ||
+        (t.boardedIds && t.boardedIds.indexOf(s.id) >= 0 && (!t.exitedIds || t.exitedIds.indexOf(s.id) < 0)))
+      ? t.vehicleId
+      : null;
+  }
+  function seatedIds(squad) {
+    var t = squad && squad._transport;
+    if (!t || !t.access) return null;
+    // Preserve the original presentation fallback for historical tasks without explicit IDs.
+    return (t.boardedIds || t.boardingOrder.slice(0, t.boardedCount)).filter(function (id) {
+      return (t.exitedIds || []).indexOf(id) < 0;
+    });
+  }
   root.BattleSquadTransport = {
     version: '0.1-isolated',
     considerMission: considerMission,
     quoteMission: quoteMission,
     isPassenger: function (s) {
-      var t = s && s.squad && s.squad._transport;
-      return !!(t && (t.phase === 'boarding' || t.phase === 'embarked' || t.phase === 'disembarking'));
+      return !!passengerJourney(s);
     },
+    carrierId: carrierId,
+    seatedIds: seatedIds,
     step: step,
     finish: finish,
     summary: function (sim) {
