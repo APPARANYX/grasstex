@@ -1,0 +1,215 @@
+{
+  "checkedAtUTC": "2026-10-20T15:20:05.336718+00:00",
+  "mainSource": "fbf9cea3e54e46fe565d977cea3050da93f61048",
+  "auditBaseline": "f89939f2f6e8ff21063d1b24c28a8ab73fe9d2e9",
+  "openPRs": [
+    {
+      "headRefName": "work/truck-riders-contact-fix-20261020",
+      "number": 595,
+      "title": "Fix stuck truck riders, seated mesh detail and crew contact stops",
+      "url": "https://github.com/APPARANYX/grasstex/pull/595"
+    },
+    {
+      "headRefName": "work/star-commander-ideation-qa-20261019",
+      "number": 584,
+      "title": "chore(actions): star Commander Ideation Site QA",
+      "url": "https://github.com/APPARANYX/grasstex/pull/584"
+    },
+    {
+      "headRefName": "work/phase-c-natural-readiness-diagnostics",
+      "number": 527,
+      "title": "[PARKED \u2014 urban tactics] Phase C: natural readiness, firing-line continuity and covered-maneuver acceptance",
+      "url": "https://github.com/APPARANYX/grasstex/pull/527"
+    },
+    {
+      "headRefName": "feat/reported-contact-tactical-map",
+      "number": 499,
+      "title": "feat(ui): tactical map of squad-reported enemy positions and movement",
+      "url": "https://github.com/APPARANYX/grasstex/pull/499"
+    },
+    {
+      "headRefName": "work/tactics-campaign-v1-all",
+      "number": 299,
+      "title": "AI Tactics Campaign v1 \u2014 Phases A-J (all 28 sub-phases)",
+      "url": "https://github.com/APPARANYX/grasstex/pull/299"
+    }
+  ],
+  "inspectedPRs": [
+    {
+      "baseRefName": "main",
+      "body": "Physical truck collision blinded mounted soldiers with their own carrier envelope, so crew sightings could no longer stop a journey. Seated rendering also bypassed distance-based mesh updates, retaining simplified meshes in close-ups. A blocked driver door or rear assembly line could hold the entire dismount task.\n\nThis change exempts only an admitted observer\u2019s own truck from crew sight, updates seated mesh detail using the presentation seat, processes safe exits independently, and chooses reachable assembly space around a blocked rear line. Other vehicles, terrain, static cover and blocked exits retain their physical behavior.\n\nRegression controls: the new crew-vision and seated-detail assertions both fail against the original main sources and pass against this branch.\n\nValidation: perception (including own/other carrier and exited observer controls), transport lifecycle/collision and blocked-exit/assembly checks, transport-resume checks, truck visual contracts, truck-lite checks, clip-pack freshness and deploy coverage pass locally. Hosted Chromium crew validation passes on head ee6a79ba: both factions recover full meshes after forcing distant detail; original role models remain intact; no additional soldier skeletons/animation groups, no orphan weapons after restart, dismount restoration, axle motion and end-battle controls pass. Screenshots and the JSON report are in `closeups/truck-riders-contact-fix/` in the fix worktree.\n\nStandard benchmark [run #1040](https://github.com/APPARANYX/grasstex/actions/runs/39443719889) passed on gameplay-identical parent 64799fec: one strategic meeting seed, crewEyes=0 versus default crew eyes with physical trucks on, zero runtime errors in both arms, wall-time ratio 1.072. The arms first diverge at 232.05 simulated seconds. One seed establishes execution, not a performance/outcome claim.\n\n[Hosted preview](https://test.ivandpopov.com/grasstex/preview.php?ref=work/truck-riders-contact-fix-20261020). Head CI remains in progress. The preceding head's covered-bound browser fixture failed to find a standing fire line (`real map must provide a physical covered-route fixture`); it does not exercise truck boarding or rider rendering. Local deploy-safety validation cannot finish without the private audio overlay; CI owns that check. No production merge or deployment has been performed.\n",
+      "files": [
+        {
+          "path": ".github/workflows/strategic-diagnostics.yml",
+          "additions": 5,
+          "deletions": 3,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "battle/modules/52-fbx-render-lod.js",
+          "additions": 12,
+          "deletions": 12,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "battle/modules/58-strategic-abstract-transport.js",
+          "additions": 48,
+          "deletions": 24,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "battle/obstacle-field.js",
+          "additions": 2,
+          "deletions": 1,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "battle/squad-ai.js",
+          "additions": 13,
+          "deletions": 1,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "docs/agents/soldiers-weapons-animation.md",
+          "additions": 2,
+          "deletions": 0,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "scripts/probe_clip_pack.cjs",
+          "additions": 87,
+          "deletions": 25,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "scripts/probe_strategic_truck_visual.cjs",
+          "additions": 32,
+          "deletions": 1,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "scripts/probes/probe_covered_maneuver.cjs",
+          "additions": 2,
+          "deletions": 0,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "scripts/probes/probe_effective_fire.cjs",
+          "additions": 2,
+          "deletions": 0,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "scripts/probes/probe_structure_execution.cjs",
+          "additions": 2,
+          "deletions": 0,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "scripts/probes/probe_tactical_observation.cjs",
+          "additions": 2,
+          "deletions": 0,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "scripts/probes/probe_tactical_postures.cjs",
+          "additions": 3,
+          "deletions": 2,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "tools/ai-sim-harness/fbx-presentation-lod-check.js",
+          "additions": 26,
+          "deletions": 0,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "tools/ai-sim-harness/perception-check.js",
+          "additions": 44,
+          "deletions": 0,
+          "changeType": "MODIFIED"
+        },
+        {
+          "path": "tools/ai-sim-harness/strategic-transport-check.js",
+          "additions": 46,
+          "deletions": 13,
+          "changeType": "MODIFIED"
+        }
+      ],
+      "headRefOid": "2c658b9a4c2224c5dcb190de9dd9a95b777ccc13",
+      "number": 595,
+      "statusCheckRollup": [
+        {
+          "__typename": "CheckRun",
+          "completedAt": "0001-01-01T00:00:00Z",
+          "conclusion": "",
+          "detailsUrl": "https://github.com/APPARANYX/grasstex/actions/runs/39447027978/job/118711545826",
+          "name": "Player settings / Chromium",
+          "startedAt": "2026-10-20T15:17:26Z",
+          "status": "QUEUED",
+          "workflowName": "\u2b50 Player settings browser QA"
+        },
+        {
+          "__typename": "CheckRun",
+          "completedAt": "0001-01-01T00:00:00Z",
+          "conclusion": "",
+          "detailsUrl": "https://github.com/APPARANYX/grasstex/actions/runs/39447028116/job/118711546368",
+          "name": "Strategic 5km / Chromium",
+          "startedAt": "2026-10-20T15:17:26Z",
+          "status": "QUEUED",
+          "workflowName": "\u2b50 Strategic 5km browser QA"
+        }
+      ],
+      "title": "Fix stuck truck riders, seated mesh detail and crew contact stops",
+      "url": "https://github.com/APPARANYX/grasstex/pull/595"
+    },
+    {
+      "body": "## Purpose\nSalvage useful observer-only instrumentation from historical unmerged branches before cleanup, without porting any old gameplay implementation or creating temporary workflow YAML files.\n\n## Recovered probes\n- `contact-flicker`: detects stationary advancing squads repeatedly toggling `inContact`.\n- `hold-reason`: counts Engagement alert/suppress man-seconds by squad/firsthand/stale-contact reason.\n- `stale-threat`: classifies prolonged aim at stale last-seen points.\n- `loop-alerts`: records Loop Watch alerts with implicated man's stance trail and mind band.\n\nThe four files are copied from historical `claude/aged-known-threat` and `claude/project-thread-yde3s8`. Each probe is **opt-in via the existing `scripts/run_probe.cjs` runner** and never loaded in normal gameplay. No flags, runtime modules, new workflows, or AI state owners are introduced.\n\nAdds `observer-probe-recovery-check.js` to the existing CI harness (`*-check.js`) to verify registration, read-only input under deep freeze, no duplicate alerts and a deterministic stationary-contact-flicker report.\n\n## Safety / excluded behavior\nDo **not** cherry-pick old `woundRally`, `reconProbe`, `localMissionWake`, or 5 km-incompatible hard-coded off-map invariant checks. Those require separate feature decisions and present-day coverage.\n\n## Verification\nReview the PR's own final-head \u2b50 CI result before merging. For live replay, use e.g. `PROBE=contact-flicker,hold-reason,stale-threat,loop-alerts PROBE_CONTROL=1 node scripts/run_probe.cjs` with the documented browser prerequisites.",
+      "files": [
+        {
+          "path": "scripts/probes/contact-flicker.js",
+          "additions": 90,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "scripts/probes/hold-reason.js",
+          "additions": 49,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "scripts/probes/loop-alerts.js",
+          "additions": 44,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "scripts/probes/stale-threat.js",
+          "additions": 68,
+          "deletions": 0,
+          "changeType": "ADDED"
+        },
+        {
+          "path": "tools/ai-sim-harness/observer-probe-recovery-check.js",
+          "additions": 104,
+          "deletions": 0,
+          "changeType": "ADDED"
+        }
+      ],
+      "headRefOid": "64b804b76ebf784826bc9f56c1ad94f5daa9072b",
+      "number": 594,
+      "title": "test: recover four read-only combat-stall forensic probes",
+      "url": "https://github.com/APPARANYX/grasstex/pull/594"
+    }
+  ],
+  "reviewScope": "PR file lists and relevant diffs; current-main source comparison; PR 527 command-reception patch. No PR-head tests rerun and no remote changes.",
+  "coverage": {
+    "configurationContract": "not covered; 591 changes defaults, not preview allowlist",
+    "blockedDismount": "595 partially covers independent safe exits and alternate reachable assembly positions; all-exits-unsafe remains an explicit recovery-policy question",
+    "geometryFaultHandling": "not covered; 595 own-carrier sight exclusion is a different contract",
+    "lifecycleOwnerAndEssentialHooks": "not covered",
+    "commandSnapshotAllocation": "not covered; parked 527 adds bounded nested payload copying rather than record caching",
+    "diagnosticProbes": "594 restores observer-only probes; not a runtime architecture fix"
+  }
+}
