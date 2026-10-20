@@ -67,3 +67,39 @@ assert.equal(out.omitted, 0);
 probe.start(sim);
 assert.equal(probe.report(sim).recorded, 0, 'restart leaked old probe state');
 console.log('strategic per-tick route-stall probe contract PASS');
+
+// #583's assigned capture still has an authoritative nonterminal road leg.
+// Keep this population explicit; never turn a secured defender/final flag hold into a route failure.
+sq.targetObjective = 'flag-1';
+sq._missionExecution = { mission: sq._macroMission };
+root.BattleExecutionOutcome = {
+  man: () => ({ current: false, state: 'pending', why: 'reception', envelopeId: 'old', missionVersion: 0 })
+};
+probe.start(sim);
+for (let k = 0; k < 180; k++) {
+  sim.time = k * 0.15;
+  probe.sample(sim);
+}
+let capture = probe.report(sim);
+assert.equal(capture.recorded, 1);
+assert.equal(capture.events[0].population, 'assigned-capture-road-leg');
+assert.equal(capture.events[0].before[0].men[0].execution.current, false);
+sq._macroMission.intent = 'defend';
+probe.start(sim);
+for (let k = 0; k < 180; k++) {
+  sim.time = k * 0.15;
+  probe.sample(sim);
+}
+assert.equal(probe.report(sim).recorded, 0, 'secured defense is not capture transit');
+sq._macroMission.intent = 'capture';
+sq.routeIndex = 1;
+sq.objective = sq.route[1];
+probe.start(sim);
+for (let k = 0; k < 180; k++) {
+  sim.time = k * 0.15;
+  probe.sample(sim);
+}
+assert.equal(probe.report(sim).recorded, 0, 'final assigned flag belongs to capture-progress diagnostics');
+console.log(
+  'PASS assigned capture road-leg evidence, movement acknowledgement and defender/final-leg exclusions'
+);
