@@ -52,7 +52,7 @@ This is a **confirmed test-result coverage gap**, NOT definitive evidence the in
 - `tools/ai-sim-harness/state-ownership-check.js`: targeted mutation scanner for selected authoritative fields; catches direct and several indirect ownership violations, but is not a language-level type system.
 - `tools/ai-sim-harness/squad-phase-check.js`: verifies single phase writer, all permitted phase labels, same-phase idempotence and mutation-specific behaviors.
 - `tools/ai-sim-harness/start-wrapper-contract-check.js`: validates source shapes and wrapper order. Useful guard but not sufficient proof of actual start/restart semantics.
-- `tools/ai-sim-harness/strategic-transport-check.js`: detailed boarding/reservation/arrival/reuse behavior; core fixture's `BattleNavigation.movementClear` is a stub at lines 63–66, so the physical contract must ALSO be checked with shipping navigation and obstacle code.
+- `tools/ai-sim-harness/strategic-transport-check.js`: detailed boarding/reservation/arrival/reuse behavior; core fixture's `BattleNavigation.movementClear` is a stub at lines 63–66, so the physical contract must ALSO be checked with shipping navigation **and `39-navigation-physicality-debug.js` together**, which wraps the public routing and collision APIs.
 - `tools/ai-sim-harness/transport-resume-check.js`: verifies Meso anchor/route continuation for selected final phases, not a true browser physical interaction.
 - `tools/ai-sim-harness/sight-query-check.js`: compares pruned/unpruned wall and LOS queries, but does not by itself establish moving-truck navigation/ballistics consistency.
 - `tools/ai-sim-harness/benchmark-restart-isolation-check.js`, `fbx-restart-cleanup-check.js`, `player-restart-possession-check.js`, `module-unit-set-restart-check.js` cover diverse restart dimensions.
@@ -72,7 +72,7 @@ Representative references: [transport fixture](https://github.com/APPARANYX/gras
 | Pause mid-boarding / mid-drive / mid-exit | No simulation-state mutation while paused; after resume exactly one logical step is applied |
 | Manual end → restart → same seed | All generation-bound observers, caches, FX timers, meshes, occupancy and source-state reset; deterministic comparable outcome |
 | Two squads request same truck on same tick | Exactly one claimant wins; loser retains valid foot mission without leaking reservation |
-| Dynamic geometry off/on | Real collision, LOS, and ballistic query contract consistent within each declared profile; player and passenger exemptions explicit |
+| Dynamic geometry off/on | Exercise fully composed `BattleNavigationPhysicality` override and static/ballistic queries; assert effective route/step/LOS/shot behavior and passenger self-exclusion |
 | Commander report withheld/stale | No access to hostile ground truth or interception proposal from unavailable intel |
 | Launcher vs direct staged URL | Effective flags match requested profile, no silently dropped prerequisites |
 | Optional hook throws during restart | Observer failure visible but authoritative sim recovers; **critical hook** failure blocks invalid resume |
@@ -117,3 +117,7 @@ Use [`scripts/battle-hotpath-profiler.cjs`](https://github.com/APPARANYX/grasste
 | Source policy genome | Stashed by code-default configuration | POST remains active server-side unless separately disabled |
 
 No production security exploit was attempted. Sensitive GitHub Actions secrets were not requested or inspected; protect existing deployment and historical artifacts.
+
+## Physicality composition nuance
+
+The public collision query **is not** the unextended `battle-navigation.js` function. [`39-navigation-physicality-debug.js:871–935`](https://github.com/APPARANYX/grasstex/blob/f89939f2f6e8ff21063d1b24c28a8ab73fe9d2e9/battle/modules/39-navigation-physicality-debug.js#L871-L935) wraps exported `movementClear`, `findPath` and `nextWaypoint` and includes dynamic truck footprints via [`gatherStatic`](https://github.com/APPARANYX/grasstex/blob/f89939f2f6e8ff21063d1b24c28a8ab73fe9d2e9/battle/modules/39-navigation-physicality-debug.js#L198-L210). Thus collision regression tests must load the exact composed runtime, not merely call the base static-only `movementClear`. No live through-truck failure has been confirmed by this audit.
