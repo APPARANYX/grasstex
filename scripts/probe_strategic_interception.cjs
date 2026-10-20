@@ -45,7 +45,7 @@ const seeds = [
           base +
           (base.includes('?') ? '&' : '?') +
           'strategicInterception=1&motorTransport=1&aerialRecon=1' +
-          (enabled ? '&interception=1' : '') +
+          (enabled ? '&interception=1' : '&interception=0') +
           (spec.type === 'meeting' ? '' : '&defender=' + spec.type.split('-')[0]) +
           '&seed=' +
           encodeURIComponent(spec.seed) +
