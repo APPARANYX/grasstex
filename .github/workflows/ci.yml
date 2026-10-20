@@ -99,6 +99,15 @@ jobs:
       - name: Benchmark housekeeping safety tests
         run: python3 -m unittest discover -s scripts -p 'test_housekeeping_benchmark_launches.py'
 
+      - name: Housekeeping embedded Python syntax
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          s = Path("scripts/housekeeping-actions-runs.sh").read_text()
+          code = s.split("python3 - <<'PY'\\n", 1)[1].rsplit("\\nPY", 1)[0]
+          compile(code, "scripts/housekeeping-actions-runs.sh", "exec")
+          PY
+
       - name: Shell
         run: |
           set -euo pipefail
