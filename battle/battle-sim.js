@@ -517,6 +517,7 @@
     }
     this.spawnAll();
     if (root.BattleModules) root.BattleModules.runHook('afterBattleRosterReset', this, {});
+    if (root.BattleModules) root.BattleModules.runHook('afterBattleRestart', this, {});
   };
   BattleSim.prototype.setTimeScale = function (v) {
     this.timeScale = Math.max(0, +v || 0);
