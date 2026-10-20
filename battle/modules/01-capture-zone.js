@@ -55,7 +55,13 @@
       // A truck may cross a flag, but its passengers cannot seize or contest it.
       // Boarding squads have already relinquished the ground; dismounted squads count again.
       if (!f || unit.dead || !unit.root || !unit.root.position) return;
-      if (transport && (transport.phase === 'boarding' || transport.phase === 'embarked')) return;
+      if (
+        transport &&
+        (transport.phase === 'boarding' ||
+          transport.phase === 'embarked' ||
+          transport.phase === 'disembarking')
+      )
+        return;
       if (distance2(unit.root.position, def) > r2) return;
       var w = unit.captureWeight == null ? 1 : +unit.captureWeight;
       if (!(w > 0)) return;

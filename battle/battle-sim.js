@@ -624,7 +624,7 @@
   var BOARD_FACING = !/(?:^|[?&])boardFacing=0(?:&|$)/.test((root.location && root.location.search) || '');
   function moveTransportPassenger(sim, soldier, next, reason, speed) {
     if (!sim || !soldier || !soldier.root || !next || !isFinite(+next.x) || !isFinite(+next.z)) return false;
-    if (BOARD_FACING && reason === 'transport-boarding') {
+    if (BOARD_FACING && (reason === 'transport-boarding' || reason === 'transport-disembarking')) {
       // A man walking to his seat faces the way he walks and plays his walk (stepMovement).
       var dx = +next.x - soldier.root.position.x,
         dz = +next.z - soldier.root.position.z;

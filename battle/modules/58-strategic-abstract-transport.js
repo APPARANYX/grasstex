@@ -72,6 +72,12 @@
     });
   }
   function memberSeat(i, n, center, heading) {
+    if (accessOn()) {
+      var front = i === 0 || i === n - 1,
+        x = i === 0 ? -0.45 : i === n - 1 ? 0.4 : i <= 4 ? 0.8 : -0.8,
+        z = front ? 0.7 : -0.35 - ((i - 1) % 4) * 0.73;
+      return accessPoint({ position: center, heading: heading }, { x: x, z: z });
+    }
     var across = { x: -heading.z, z: heading.x },
       lateral = i % 2 ? 0.8 : -0.8,
       longitudinal = (Math.floor(i / 2) - (Math.ceil(n / 2) - 1) * 0.5) * 1.35;
@@ -79,6 +85,85 @@
       x: center.x + across.x * lateral + heading.x * longitudinal,
       z: center.z + across.z * lateral + heading.z * longitudinal
     };
+  }
+  function accessOn() {
+    return /(?:^|[?&])truckAccess=1(?:&|$)/.test((root.location && root.location.search) || '');
+  }
+  function accessPoint(t, p) {
+    return {
+      x: t.position.x + t.heading.z * p.x + t.heading.x * p.z,
+      z: t.position.z - t.heading.x * p.x + t.heading.z * p.z
+    };
+  }
+  function accessLocal(t, p) {
+    var x = p.x - t.position.x,
+      z = p.z - t.position.z;
+    return { x: x * t.heading.z - z * t.heading.x, z: x * t.heading.x + z * t.heading.z };
+  }
+  function accessDoor(rank) {
+    return rank === 0 ? { x: -1.85, z: 0.7 } : rank === 1 ? { x: 1.85, z: 0.7 } : { x: 0, z: -3.7 };
+  }
+  // Visibility graph around the 6.2m body. Walk around its footprint, never through it.
+  function bodyClear(a, b) {
+    var lo = 0,
+      hi = 1,
+      axes = [
+        ['x', 1.6],
+        ['z', 3.25]
+      ];
+    for (var k = 0; k < axes.length; k++) {
+      var key = axes[k][0],
+        half = axes[k][1],
+        d = b[key] - a[key];
+      if (Math.abs(d) < EPS) {
+        if (Math.abs(a[key]) >= half) return true;
+        continue;
+      }
+      var u = (-half - a[key]) / d,
+        v = (half - a[key]) / d;
+      lo = Math.max(lo, Math.min(u, v));
+      hi = Math.min(hi, Math.max(u, v));
+      if (lo >= hi - EPS) return true;
+    }
+    return hi <= EPS || lo >= 1 - EPS;
+  }
+  function accessWaypoint(sim, t, from, target) {
+    var a = accessLocal(t, from),
+      b = accessLocal(t, target);
+    if (Math.abs(a.x) < 1.6 && Math.abs(a.z) < 3.25) {
+      // A pre-existing spawn inside a parked truck first walks out to its nearest side.
+      return accessPoint(t, { x: a.x < 0 ? -1.85 : 1.85, z: a.z });
+    }
+    var nodes = [
+        a,
+        b,
+        { x: -1.85, z: -3.7 },
+        { x: 1.85, z: -3.7 },
+        { x: -1.85, z: 3.7 },
+        { x: 1.85, z: 3.7 }
+      ],
+      costs = [0, Infinity, Infinity, Infinity, Infinity, Infinity],
+      prev = [],
+      done = [];
+    for (var step = 0; step < nodes.length; step++) {
+      var u = -1;
+      for (var i = 0; i < nodes.length; i++) if (!done[i] && (u < 0 || costs[i] < costs[u])) u = i;
+      if (u < 0 || !isFinite(costs[u]) || u === 1) break;
+      done[u] = true;
+      for (var j = 0; j < nodes.length; j++) {
+        if (done[j] || !bodyClear(nodes[u], nodes[j])) continue;
+        if (!safe(sim, accessPoint(t, nodes[u]), accessPoint(t, nodes[j]))) continue;
+        var cost = costs[u] + dist(nodes[u], nodes[j]);
+        if (cost < costs[j] - EPS) {
+          costs[j] = cost;
+          prev[j] = u;
+        }
+      }
+    }
+    if (!isFinite(costs[1])) return null;
+    var next = 1;
+    while (prev[next] !== 0 && prev[next] != null) next = prev[next];
+    return accessPoint(t, nodes[next]);
   }
   function heading(a, b) {
     var dx = b.x - a.x,
@@ -406,6 +491,22 @@
   function finish(sim, sq, why) {
     var t = sq._transport;
     if (!t || (t.phase !== 'boarding' && t.phase !== 'embarked')) return;
+    if (t.access && t.boardedCount > 0) {
+      t.phase = 'disembarking';
+      t.endReason = why;
+      t.disembarkStartedAt = +sim.time || 0;
+      t.exitOrder = t.boardingOrder.slice(0, t.boardedCount);
+      t.exitCursor = 0;
+      t.exitedIds = [];
+      var truck = vehicleFor(sim, t.vehicleId);
+      if (truck) truck.phase = 'disembarking';
+      log(sim, sq, 'disembarking', { why: why, vehicleId: t.vehicleId });
+      return;
+    }
+    completeFinish(sim, sq, why);
+  }
+  function completeFinish(sim, sq, why) {
+    var t = sq._transport;
     t.phase = why === 'arrival' ? 'dismounted' : 'aborted';
     t.endedAt = +sim.time || 0;
     t.endReason = why;
@@ -501,7 +602,7 @@
             10,
             dist(center, vehicle.position) / BOARD_SPEED + 8 + Math.max(0, members.length - 1) * BOARD_STAGGER
           ),
-          dismountSeconds: trial.standoffMetres / 2,
+          dismountSeconds: trial.standoffMetres / 2 + (accessOn() ? 45 : 0),
           setupSeconds: 25
         };
     }
@@ -536,6 +637,10 @@
       boardingOrder: members.map(function (member) {
         return member.id;
       }),
+      access: accessOn(),
+      seatIds: members.map(function (member) {
+        return member.id;
+      }),
       boardedCount: 0,
       nextBoardAt: +sim.time || 0,
       // A 200m pickup takes longer than the old base-only 35s boarding cap.
@@ -556,6 +661,12 @@
       goal: route.goal,
       reusedTruck: reusedTruck
     };
+    if (sq._transport.access && members.length > 1)
+      sq._transport.boardingOrder = [members[0].id, members[members.length - 1].id].concat(
+        members.slice(1, -1).map(function (s) {
+          return s.id;
+        })
+      );
     members.forEach(function (s) {
       if (root.BattleNavigation && root.BattleNavigation.invalidateNavPath)
         root.BattleNavigation.invalidateNavPath(s);
@@ -571,7 +682,7 @@
     });
     return true;
   }
-  function advancePassenger(sim, s, point, dt) {
+  function advancePassenger(sim, s, point, dt, reason) {
     var from = position(s.root.position),
       d = dist(from, point),
       step = Math.min(d, BOARD_SPEED * dt),
@@ -592,8 +703,98 @@
     return !!(
       root.BattleSim &&
       root.BattleSim.moveTransportPassenger &&
-      root.BattleSim.moveTransportPassenger(sim, s, p, 'transport-boarding', dt > 0 ? step / dt : 0)
+      root.BattleSim.moveTransportPassenger(sim, s, p, reason || 'transport-boarding', dt > 0 ? step / dt : 0)
     );
+  }
+  function boardAccess(sim, sq, dt) {
+    var t = sq._transport,
+      members = alive(sq),
+      ids = t.boardingOrder;
+    for (var i = t.boardedCount; i < ids.length; i++) {
+      var s = members.find(function (s) {
+        return s.id === ids[i];
+      });
+      if (!s) {
+        finish(sim, sq, 'boarding-roster-changed');
+        return;
+      }
+      var local = accessDoor(i);
+      if (i >= 2) local.z -= Math.max(0, i - Math.max(2, t.boardedCount)) * 1.15;
+      var target = accessPoint(t, local),
+        next = accessWaypoint(sim, t, position(s.root.position), target);
+      if (!next || !advancePassenger(sim, s, next, dt)) {
+        finish(sim, sq, 'boarding-blocked');
+        return;
+      }
+    }
+    var passenger = members.find(function (s) {
+      return s.id === ids[t.boardedCount];
+    });
+    if (
+      passenger &&
+      dist(position(passenger.root.position), accessPoint(t, accessDoor(t.boardedCount))) <= SEAT_TOLERANCE
+    ) {
+      var index = t.seatIds.indexOf(passenger.id),
+        seat = memberSeat(index, t.seatIds.length, t.position, t.heading);
+      if (!safe(sim, seat, seat)) {
+        finish(sim, sq, 'seat-blocked');
+        return;
+      }
+      root.BattleSim.moveTransportPassenger(sim, passenger, seat, 'embarked-passenger');
+      t.boardedCount++;
+      log(sim, sq, 'seat-occupied', {
+        vehicleId: t.vehicleId,
+        soldierId: passenger.id,
+        seatIndex: index,
+        entry: t.boardedCount <= 2 ? (t.boardedCount === 1 ? 'driver-door' : 'passenger-door') : 'tailgate'
+      });
+    }
+    if (t.boardedCount >= ids.length) {
+      t.phase = 'embarked';
+      t.embarkedAt = +sim.time || 0;
+      log(sim, sq, 'embarked', { passengers: ids.length, vehicleId: t.vehicleId });
+    }
+  }
+  function disembark(sim, sq, dt) {
+    var t = sq._transport,
+      members = alive(sq);
+    if (t.exitCursor >= t.exitOrder.length) {
+      completeFinish(sim, sq, t.endReason);
+      return;
+    }
+    var id = t.exitOrder[t.exitCursor],
+      s = members.find(function (s) {
+        return s.id === id;
+      });
+    if (!s) {
+      t.exitCursor++;
+      return;
+    }
+    if (t.exitedIds.indexOf(id) < 0) {
+      var door = accessPoint(t, accessDoor(t.exitCursor));
+      if (!safe(sim, door, door)) {
+        if (!t.exitBlockedAt) {
+          t.exitBlockedAt = sim.time;
+          log(sim, sq, 'exit-blocked', { soldierId: id, vehicleId: t.vehicleId });
+        }
+        return;
+      }
+      root.BattleSim.moveTransportPassenger(sim, s, door, 'transport-disembarking');
+      t.exitedIds.push(id);
+      log(sim, sq, 'seat-vacated', {
+        soldierId: id,
+        vehicleId: t.vehicleId,
+        exit: t.exitCursor < 2 ? (t.exitCursor === 0 ? 'driver-door' : 'passenger-door') : 'tailgate'
+      });
+      return;
+    }
+    var target = accessPoint(t, {
+        x: (t.exitCursor % 2 ? 1 : -1) * 1.15,
+        z: -5.5 - Math.floor(t.exitCursor / 2) * 1.15
+      }),
+      next = accessWaypoint(sim, t, position(s.root.position), target);
+    if (!next || !advancePassenger(sim, s, next, dt, 'transport-disembarking')) return;
+    if (dist(position(s.root.position), target) <= SEAT_TOLERANCE) t.exitCursor++;
   }
   function board(sim, sq, dt) {
     var t = sq._transport,
@@ -601,6 +802,10 @@
       seats = t.boardingOrder;
     if (sim.time - t.requestedAt > (t.boardTimeoutSeconds || BOARD_TIMEOUT)) {
       finish(sim, sq, 'boarding-timeout');
+      return;
+    }
+    if (t.access) {
+      boardAccess(sim, sq, dt);
       return;
     }
     // Real actors can approach together, but driver then seats 1..9 enter
@@ -920,7 +1125,12 @@
       var force = sim.factions && sim.factions[faction];
       (force ? force.squads : []).forEach(function (sq) {
         var t = sq._transport;
-        if (!t || (t.phase !== 'boarding' && t.phase !== 'embarked')) return;
+        if (!t) return;
+        if (t.phase === 'disembarking') {
+          disembark(sim, sq, dt);
+          return;
+        }
+        if (t.phase !== 'boarding' && t.phase !== 'embarked') return;
         var m = sq._macroMission;
         if (
           !m ||
@@ -982,7 +1192,7 @@
     quoteMission: quoteMission,
     isPassenger: function (s) {
       var t = s && s.squad && s.squad._transport;
-      return !!(t && (t.phase === 'boarding' || t.phase === 'embarked'));
+      return !!(t && (t.phase === 'boarding' || t.phase === 'embarked' || t.phase === 'disembarking'));
     },
     step: step,
     finish: finish,

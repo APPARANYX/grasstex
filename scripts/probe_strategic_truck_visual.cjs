@@ -205,6 +205,45 @@ const out = path.resolve(process.env.STRATEGIC_TRUCK_QA_OUT || 'closeups/strateg
       [...Array(11).keys()],
       'German original rigs attach exactly one per seat in driver-first order'
     );
+    // Door admission uses identity, not a prefix of visual seat indices: the
+    // passenger at index 9 enters second, and dismount releases only that actor.
+    const accessIdentity = await page.evaluate(() => {
+      const qa = window.__truckQa,
+        b = window.__battle__,
+        api = window.BattleTransportVehicleVisual;
+      const rows = [];
+      for (const side of ['us', 'ge']) {
+        const sq = qa.squads[side],
+          t = sq._transport,
+          ids = sq.members.filter(s => !s.dead).map(s => s.id);
+        t.access = true;
+        t.seatIds = ids;
+        t.boardingOrder = [ids[0], ids[9], ...ids.slice(1, 9)];
+        t.exitedIds = [];
+        t.phase = 'boarding';
+        t.boardedCount = 2;
+        qa.system.onSimulationStep(b, { dt: 0 });
+        const seated = sq.members.filter(s => api.seatForSoldier(s)).map(s => s.id);
+        t.phase = 'disembarking';
+        t.exitedIds = [ids[0]];
+        qa.system.onSimulationStep(b, { dt: 0 });
+        const remaining = sq.members.filter(s => api.seatForSoldier(s)).map(s => s.id);
+        rows.push({ side, seated, remaining, expected: [ids[0], ids[9]], passenger: ids[9] });
+        t.access = false;
+        t.phase = 'embarked';
+        t.boardedCount = 10;
+        qa.system.onSimulationStep(b, { dt: 0 });
+      }
+      return rows;
+    });
+    for (const row of accessIdentity) {
+      assert.deepEqual(
+        row.seated,
+        row.expected,
+        row.side + ' driver and front passenger enter their own seats'
+      );
+      assert.deepEqual(row.remaining, [row.passenger], row.side + ' one dismount releases only the driver');
+    }
     // No additional soldier FBX model parse occurs at boarding.
     await page.waitForFunction(
       () => {

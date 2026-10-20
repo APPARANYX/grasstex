@@ -705,3 +705,80 @@ assert.equal(contact.api.considerMission(contact.sim, contact.squad, contact.bri
 console.log(
   'PASS six strategic depots with two persistent trucks each, exclusive allocation, real boarding/road travel, preserved parked/stopped trucks, collision-safe dismount and legacy isolation'
 );
+
+// Opt-in door/tailgate access: physical single-file queue, immediate serial seating,
+// then serial ground exits and an outside-body walk to the rear staging line.
+for (const endReason of ['arrival', 'crew-sighting']) {
+  const a = make('strategic', '?motorTransport=1&truckAccess=1');
+  if (endReason === 'crew-sighting')
+    a.sim._strategicTransportFleet.vehicles.forEach(v => {
+      v.heading = { x: 1, z: 0 };
+    });
+  const m = a.brief();
+  assert.ok(a.api.considerMission(a.sim, a.squad, m));
+  m.status = 'executing';
+  const t = a.squad._transport;
+  assert.deepEqual(t.boardingOrder, [0, 9, 1, 2, 3, 4, 5, 6, 7, 8]);
+  const local = p => {
+    const x = p.x - t.position.x,
+      z = p.z - t.position.z;
+    return { x: x * t.heading.z - z * t.heading.x, z: x * t.heading.x + z * t.heading.z };
+  };
+  // Begin outside the body. Approach can start from either side or behind it.
+  a.members.forEach((s, i) => {
+    s.root.position.x = t.position.x + t.heading.z * (i === 0 ? -4 : i === 9 ? 4 : 0) + t.heading.x * -12;
+    s.root.position.z = t.position.z - t.heading.x * (i === 0 ? -4 : i === 9 ? 4 : 0) + t.heading.z * -12;
+  });
+  let prevCount = 0;
+  while (t.phase === 'boarding' && a.sim.time < 90) {
+    a.run(0.15);
+    assert.ok(t.boardedCount - prevCount <= 1, 'one seat per fixed tick, never whole-squad placement');
+    for (const s of a.members) {
+      if (t.boardingOrder.indexOf(s.id) < t.boardedCount) continue;
+      const p = local(s.root.position);
+      assert.ok(
+        Math.abs(p.x) >= 1.59 || Math.abs(p.z) >= 3.24,
+        'waiting infantry cannot walk through the truck'
+      );
+    }
+    prevCount = t.boardedCount;
+  }
+  assert.equal(t.phase, 'embarked', 'door and tailgate queue converges');
+  const seated = a.events.filter(e => e.type === 'strategic-transport-seat-occupied');
+  assert.deepEqual(
+    seated.map(e => e.item.detail.entry),
+    ['driver-door', 'passenger-door', ...Array(8).fill('tailgate')]
+  );
+  // Stop exactly where the truck stands; all seats remain occupied until their own exit.
+  a.api.finish(a.sim, a.squad, endReason);
+  assert.equal(t.phase, 'disembarking');
+  const truck = a.api.fleetSummary(a.sim).find(v => v.id === t.vehicleId);
+  assert.equal(truck.squadId, a.squad.id, 'truck remains reserved while people exit');
+  let exited = 0;
+  while (t.phase === 'disembarking' && a.sim.time < 150) {
+    a.run(0.15);
+    assert.ok(t.exitedIds.length - exited <= 1, 'one soldier exits at a time');
+    for (const id of t.exitedIds) {
+      const p = local(a.members.find(s => s.id === id).root.position);
+      assert.ok(Math.abs(p.x) >= 1.59 || p.z <= -3.24, 'visible dismount is outside truck footprint');
+    }
+    exited = t.exitedIds.length;
+  }
+  assert.equal(t.phase, endReason === 'arrival' ? 'dismounted' : 'aborted');
+  assert.deepEqual(t.exitedIds, t.boardingOrder);
+  assert.ok(
+    a.members.every(s => local(s.root.position).z < -5.2),
+    'everyone assembles behind the truck'
+  );
+  assert.ok(
+    a.members.every(s => !a.api.isPassenger(s)),
+    'normal infantry ownership resumes'
+  );
+  assert.equal(a.api.fleetSummary(a.sim).find(v => v.id === t.vehicleId).squadId, null);
+  const releases = a.events.filter(e => e.type === 'strategic-transport-seat-vacated');
+  assert.deepEqual(
+    releases.map(e => e.item.detail.exit),
+    ['driver-door', 'passenger-door', ...Array(8).fill('tailgate')]
+  );
+}
+console.log('PASS truck access: door/tailgate queue, serial seats, outside-body exits and rear staging');

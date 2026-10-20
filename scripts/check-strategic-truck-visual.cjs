@@ -101,8 +101,8 @@ assert.ok(code.includes('delete fx._vehicleSeat'), 'Dismount must restore on-foo
 assert.ok(code.includes('restoreTransform(fx.holder'), 'Original rig must be reparented back after dismount');
 assert.ok(code.includes('seatIndex: member.index'), 'Seat association must be explicit');
 assert.ok(
-  code.includes("entry.phase !== 'boarding' && entry.phase !== 'embarked'"),
-  'Only genuine active boarding or seated passengers may be attached'
+  code.includes("['boarding', 'embarked', 'disembarking'].indexOf(entry.phase) < 0"),
+  'Only occupied seats in active transport phases may remain attached'
 );
 assert.ok(
   code.includes('member.index >= entry.boardedCount'),

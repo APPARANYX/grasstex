@@ -126,14 +126,18 @@
     );
   }
   function seatsFor(squad) {
-    return ((squad && squad.members) || [])
-      .filter(function (s) {
-        return !s.dead;
-      })
-      .slice(0, SEATS.length)
-      .map(function (s, i) {
-        return { soldier: s, seat: SEATS[i], index: i };
-      });
+    var task = squad && squad._transport,
+      live = ((squad && squad.members) || [])
+        .filter(function (s) {
+          return !s.dead;
+        })
+        .slice(0, SEATS.length);
+    return live.map(function (s, i) {
+      var index = task && task.access ? task.seatIds.indexOf(s.id) : i,
+        seat =
+          task && task.access && index === task.seatIds.length - 1 && index > 0 ? SEATS[9] : SEATS[index];
+      return { soldier: s, seat: seat, index: index };
+    });
   }
   function stateFor(sim) {
     if (!stores) {
@@ -669,16 +673,28 @@
       });
   }
   function updateRiders(sim, st, entry) {
-    if (entry.showcase || (entry.phase !== 'boarding' && entry.phase !== 'embarked')) {
+    if (entry.showcase || ['boarding', 'embarked', 'disembarking'].indexOf(entry.phase) < 0) {
       if (entry.riders.length) disposeRiders(entry);
       return;
     }
     if (!st.poseReady || !entry.root) return;
+    if (entry.seatedIds) {
+      entry.riders = entry.riders.filter(function (rider) {
+        if (entry.seatedIds.indexOf(rider.soldier.id) >= 0 && !rider.soldier.dead) return true;
+        releaseRider(rider);
+        return false;
+      });
+    }
     // Only the occupants already admitted by the transport controller can
     // switch into their ORIGINAL animated seat rig. Driver first, one seat
     // at a time; no ten-soldier pop-in when the final member is ready.
     entry.members.forEach(function (member) {
-      if (entry.phase === 'boarding' && member.index >= entry.boardedCount) return;
+      if (
+        entry.seatedIds
+          ? entry.seatedIds.indexOf(member.soldier.id) < 0
+          : entry.phase === 'boarding' && member.index >= entry.boardedCount
+      )
+        return;
       if (
         entry.riders.some(function (r) {
           return r.soldier === member.soldier;
@@ -729,7 +745,13 @@
       entry.squadId = task ? squad.id : null;
       entry.members = task ? seatsFor(squad) : [];
       entry.boardedCount = task ? task.boardedCount || 0 : 0;
-      if (entry.phase !== 'boarding' && entry.phase !== 'embarked' && entry.riders.length)
+      entry.seatedIds =
+        task && task.access
+          ? task.boardingOrder.slice(0, task.boardedCount).filter(function (id) {
+              return (task.exitedIds || []).indexOf(id) < 0;
+            })
+          : null;
+      if (['boarding', 'embarked', 'disembarking'].indexOf(entry.phase) < 0 && entry.riders.length)
         disposeRiders(entry);
       if (st.source && !entry.root) {
         try {
