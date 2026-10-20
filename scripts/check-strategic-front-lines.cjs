@@ -27,14 +27,14 @@ function segmentDistance(p, road) {
 }
 
 // Generator contract.
-const off = runtime('?strategicInterception=1');
+const off = runtime('?strategicInterception=1&frontLines=0');
 const on = runtime('?strategicInterception=1&frontLines=1');
 const G = on.BattleScenarioGenerator,
   routes = on.BattleCommanderRoutes;
 assert.equal(
   JSON.stringify(off.BattleScenarioGenerator.create('lines-0001', { profile: 'strategic' })),
   JSON.stringify(on.BattleScenarioGenerator.createStrategic('lines-0001', { profile: 'strategic' })),
-  'without ?frontLines=1 the 5 km layout is unchanged'
+  'explicit ?frontLines=0 preserves the classic 5 km layout'
 );
 assert.equal(
   off.BattleScenarioGenerator.create('lines-0001', { profile: 'strategic' }).frontLines,
