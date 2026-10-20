@@ -10,6 +10,7 @@ $repo = 'APPARANYX/grasstex';
 $pinRequested = isset($_GET['pin']) && $_GET['pin'] === '1';
 $requestedRef = ($pinRequested && isset($_GET['ref']) && $_GET['ref'] !== '') ? $_GET['ref'] : 'main';
 $root = dirname(__FILE__);
+require_once $root . '/runtime-contract.php';
 /* Build identity.
    The deploy workflow owns the build number: it reads the highest build-v<N> git tag, stamps N+1
    into battle/build-version.json, uploads that with the runtime, and only tags N+1 once the deploy
@@ -224,23 +225,8 @@ if (!$moduleFiles) {
 }
 if (!$moduleFiles) { $moduleFiles = $moduleFallback; $moduleSource = 'emergency'; }
 
-/* #456 R4: safe production/QA module split. Keep all gameplay, recorder,
-   navigation, order-provenance and strategic-stall modules in the shipping set.
-   Only the inert/stashed graph UI and strictly opt-in QA pages are lazy-tagged.
-   Every discovered module remains available through ?devModules=1. */
-$graphUiOnlyModules = array('30-ai-graph-editor.js'=>true,'31-ai-graph-logic.js'=>true,'33-ai-graph-usability.js'=>true,'34-ai-timing-map.js'=>true,'37-lease-panel.js'=>true,'38-ai-diagnostics-export.js'=>true);
-$allDevModules = isset($_GET['devModules']) && $_GET['devModules'] === '1';
-$graphUiRequested = $allDevModules || (isset($_GET['editor']) && $_GET['editor'] === 'ai');
-$deviceBenchRequested = $allDevModules || (isset($_GET['bench']) && $_GET['bench'] === '1');
-$damageRangeRequested = $allDevModules || (isset($_GET['damageRange']) && $_GET['damageRange'] === '1');
-$moduleAllowed = static function ($name) use ($graphUiOnlyModules, $graphUiRequested, $deviceBenchRequested, $damageRangeRequested) {
-    if (isset($graphUiOnlyModules[$name])) return $graphUiRequested;
-    if ($name === '97-device-benchmark.js') return $deviceBenchRequested;
-    if (in_array($name, array('97z-damage-range-lifetime.js','97z-damage-range-panel.js','97z-damage-range-session.js','97z-damage-range-view.js','98-damage-range.js'), true)) return $damageRangeRequested;
-    return true;
-};
-
-$activeModuleFiles = array_values(array_filter($moduleFiles, $moduleAllowed));
+/* The shared contract preserves gameplay modules and selects only opt-in tooling. */
+$activeModuleFiles = grasstex_runtime_modules($moduleFiles, $_GET);
 
 header('Content-Type: text/html; charset=utf-8');
 header('Cache-Control: no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');

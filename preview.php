@@ -20,6 +20,7 @@
 
 $repo = 'APPARANYX/grasstex';
 $root = dirname(__FILE__);
+require_once $root . '/runtime-contract.php';
 $previewRoot = $root . '/preview';
 $cacheFile = $previewRoot . '/.ref-cache.json';
 const KEEP = 12;
@@ -297,7 +298,10 @@ function stage_assets($sha, $treeEntries, $root, $tmp, $previewRoot) {
 /* Restage older soldier-only previews once so the shared asset base also serves vehicles. */
 function staged_current($dest) {
     $d = json_decode(@file_get_contents($dest . '/preview.json'), true);
-    return is_array($d) && isset($d['assetStagingVersion']) && $d['assetStagingVersion'] === 2;
+    return is_array($d) && isset($d['assetStagingVersion'], $d['runtimeContractSha'], $d['runtimeLoaderSha']) &&
+        $d['assetStagingVersion'] === 2 && is_file($dest . '/runtime-contract.php') &&
+        hash_file('sha256', $dest . '/runtime-contract.php') === $d['runtimeContractSha'] &&
+        is_file($dest . '/battle_sim.php') && hash_file('sha256', $dest . '/battle_sim.php') === $d['runtimeLoaderSha'];
 }
 
 /* Download the commit's runtime into preview/ref-<sha12>/ unless it is already there. */
@@ -307,6 +311,8 @@ function stage($branch, $sha, $root, $previewRoot, &$error) {
     if (is_file($dest . '/' . MARKER) && staged_current($dest)) { @touch($dest . '/' . MARKER); return $slug; }
     $loader = host_loader($root);
     if ($loader === null) { $error = 'the host has no preview-capable battle loader'; return null; }
+    $contract = @file_get_contents($root . '/runtime-contract.php');
+    if ($contract === false) { $error = 'the host runtime contract is missing'; return null; }
     if (!is_dir($previewRoot) && !@mkdir($previewRoot, 0775, true)) { $error = 'cannot create the preview directory'; return null; }
     $lock = fopen($previewRoot . '/.ref-lock', 'c');
     if ($lock) flock($lock, LOCK_EX);
@@ -315,11 +321,12 @@ function stage($branch, $sha, $root, $previewRoot, &$error) {
 
     $tree = gh_json('git/trees/' . $sha . '?recursive=1', $error);
     if (!$tree || !isset($tree['tree']) || !empty($tree['truncated'])) { $error = 'commit tree: ' . ($error ?: 'incomplete GitHub tree'); if ($lock) fclose($lock); return null; }
-    $files = array(); $assets = array(); $branchLoaderSha = null;
+    $files = array(); $assets = array(); $branchLoaderSha = null; $branchContractSha = null;
     foreach ($tree['tree'] as $e) {
         if (!isset($e['type'], $e['path'], $e['sha']) || $e['type'] !== 'blob') continue;
         $path = $e['path'];
         if ($path === 'battle_sim_local.php') $branchLoaderSha = $e['sha'];
+        if ($path === 'runtime-contract.php') $branchContractSha = $e['sha'];
         if (preg_match('#^battle/(battle_sim\.html|[A-Za-z0-9._-]+\.js|modules/[A-Za-z0-9._-]+\.js)$#', $path)) $files[$path] = $e;
         elseif (preg_match('#^Assets/((soldiers|animations|weapons|vehicles)/[^/]+\.fbx|(weapons|vehicles)/[^/]+\.glb|animations/[^/]+\.bin|effects/.+\.png)$#', $path)
             && strpos($path, '..') === false && strpos($path, '/.') === false && preg_match('#^[A-Za-z0-9 ._()/-]+$#', $path)) $assets[] = $e;
@@ -335,10 +342,18 @@ function stage($branch, $sha, $root, $previewRoot, &$error) {
     list($assetsStaged, $assetNote) = stage_assets($sha, $assets, $root, $tmp, $previewRoot);
 
     $hostLoaderSha = sha1('blob ' . strlen($loader) . "\0" . $loader);
+    $contractMatchesBranch = $branchContractSha === null || $branchContractSha === sha1('blob ' . strlen($contract) . "\0" . $contract);
     $meta = array('ref' => $branch, 'sha' => $sha, 'deployedAt' => gmdate('Y-m-d\TH:i:s\Z'), 'source' => 'preview.php',
-                  'files' => count($files), 'runtimeReused' => $runtimeReused, 'runtimeDownloaded' => count($files) - $runtimeReused, 'loaderMatchesBranch' => $branchLoaderSha === null || $branchLoaderSha === $hostLoaderSha,
+                  'files' => count($files), 'runtimeReused' => $runtimeReused, 'runtimeDownloaded' => count($files) - $runtimeReused, 'loaderMatchesBranch' => ($branchLoaderSha === null || $branchLoaderSha === $hostLoaderSha) && $contractMatchesBranch,
+                  'contractMatchesBranch' => $contractMatchesBranch, 'runtimeLoaderSha' => hash('sha256', $loader),
+                  'runtimeContractVersion' => grasstex_runtime_contract()['version'], 'runtimeContractSha' => hash('sha256', $contract),
                   'assetsStaged' => $assetsStaged, 'assetStagingVersion' => 2, 'assets' => $assetNote);
-    file_put_contents($tmp . '/battle_sim.php', $loader);
+    if (file_put_contents($tmp . '/runtime-contract.php', $contract) !== strlen($contract)) {
+        rrmdir($tmp); $error = 'could not stage the host runtime contract'; if ($lock) fclose($lock); return null;
+    }
+    if (file_put_contents($tmp . '/battle_sim.php', $loader) !== strlen($loader)) {
+        rrmdir($tmp); $error = 'could not stage the host runtime loader'; if ($lock) fclose($lock); return null;
+    }
     file_put_contents($tmp . '/preview.json', json_encode($meta));
     file_put_contents($tmp . '/' . MARKER, $sha);
     if (!@rename($tmp, $dest)) { rrmdir($tmp); if (!is_file($dest . '/' . MARKER)) { $error = 'could not publish the staged preview'; if ($lock) fclose($lock); return null; } }
@@ -375,11 +390,8 @@ function branch_list($cacheFile) {
     return $names;
 }
 
-/* Game flags passed through to the preview page (keep in step with the URL flags in AGENTS.md). */
-$pass = array();
-foreach (array('seed', 'defender', 'soldiers', 'smooth', 'stanceVis', 'fireControl', 'grass', 'grenades', 'animLod', 'soldierLod', 'clipPack', 'fastRetarget', 'farHz', 'boneTextures', 'fxPrewarm', 'weaponInstances', 'tracerPool', 'mergeWalls', 'perfTimings', 'bench', 'benchSeconds', 'benchWarmup', 'benchCam', 'benchAuto', 'benchHide', 'damageRange', 'rangeTarget', 'rangeZone', 'rangeExit', 'rangeAuto', 'rangeInterval', 'rangeOrbit', 'rangeDist', 'rangeUi', 'rangeFps', 'strategicInterception') as $k) {
-    if (isset($_GET[$k]) && $_GET[$k] !== '' && preg_match('/^[A-Za-z0-9_.-]{1,100}$/', $_GET[$k])) $pass[$k] = $_GET[$k];
-}
+/* Game flags: preserve explicit controls; pinned runtime JS owns defaults/dependencies. */
+$pass = grasstex_preview_options($_GET);
 
 $error = null;
 $refInput = isset($_GET['ref']) ? (string)$_GET['ref'] : '';

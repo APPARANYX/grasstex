@@ -24,5 +24,13 @@
   don't add `mirror --delete` or broaden the delete rule for production.
 - `Assets/terrain/{terrain.json,terrain.bin,splat.png,roaduv.png}` exist only on the host. **Don't
   add placeholders** with those names.
+- `runtime-contract.php` owns server-side optional-module selection and preview query forwarding.
+  Both loaders and the launcher require it; the deploy plan uploads this exact helper before
+  dependent loaders. Actions preview packaging copies it when present, preserving historical
+  refs whose loaders predate the helper.
+  Launcher previews copy the trusted host loader **and helper**, record the helper hash, and
+  never execute a branch-supplied PHP helper. Existing staged pairs remain immutable when
+  production changes. Missing/corrupt staged helpers force restaging; runtime JS from the pinned
+  ref retains its own gameplay defaults. Explicit strategic `=0` controls now survive redirects.
 - Hosted textures load only from `test.ivandpopov.com` (WebGL rejects them cross-origin).
 

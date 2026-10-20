@@ -52,7 +52,7 @@ jobs:
             exit 0
           fi
           python3 scripts/audio_tracker.py diff "$BASE_SHA" --github-output "$GITHUB_OUTPUT"
-          if git diff --name-only "$BASE_SHA" HEAD | grep -Eq '^(Assets/audio/|scripts/(recipes/|audio_tracker\\.py|normalize_audio\\.sh|build_voice_pitch_variants\\.sh|validate_voice_manifest\\.py|check_audio_manifest\\.py|check_weapon_clips\\.py|fetch_private_audio\\.sh|slice_weapon_shots\\.py|prepare_incremental_deploy\\.py|check_deploy_coverage\\.py|check_deploy_safety\\.py|build_version\\.py)|\\.github/workflows/(ci|deploy-50webs-php)\\.yml|battle/(battle_sim\\.html|module-registry\\.js))'; then
+          if git diff --name-only "$BASE_SHA" HEAD | grep -Eq '^(runtime-contract[.]php$|Assets/audio/|scripts/(recipes/|audio_tracker\\.py|normalize_audio\\.sh|build_voice_pitch_variants\\.sh|validate_voice_manifest\\.py|check_audio_manifest\\.py|check_weapon_clips\\.py|fetch_private_audio\\.sh|slice_weapon_shots\\.py|prepare_incremental_deploy\\.py|check_deploy_coverage\\.py|check_deploy_safety\\.py|build_version\\.py)|\\.github/workflows/(ci|deploy-50webs-php)\\.yml|battle/(battle_sim\\.html|module-registry\\.js))'; then
             echo "plan=true" >> "$GITHUB_OUTPUT"
           else
             echo "plan=false" >> "$GITHUB_OUTPUT"

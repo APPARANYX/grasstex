@@ -45,6 +45,20 @@ def loader_runtimes() -> list[str]:
 def main() -> None:
     plan = load_deploy_plan()
     listed = set(plan.BATTLE_FILES)
+    uploaded = {remote for _, remote in plan.STATIC_FILES}
+    local_order = {local: i for i, (local, _) in enumerate(plan.STATIC_FILES)}
+    preview_workflow = (REPO / '.github/workflows/deploy-50webs-preview.yml').read_text(encoding='utf-8')
+    for filename in ('battle_sim_local.php', 'battle_sim.php', 'preview.php'):
+        source = (REPO / filename).read_text(encoding='utf-8')
+        helpers = re.findall(r"require_once\s+\$root\s*\.\s*['\"]/([^'\"]+\.php)['\"]", source)
+        for helper in helpers:
+            if helper not in uploaded or not (REPO / helper).is_file():
+                raise SystemExit(f'{filename} requires {helper}, which the deploy plan does not provide')
+            if f'cp {helper} .preview/' not in preview_workflow:
+                raise SystemExit(f'branch-preview packaging omits required {helper}')
+            if filename in local_order and local_order[helper] >= local_order[filename]:
+                raise SystemExit(f'{helper} must upload before its dependent {filename}')
+
     required = sorted(set(page_core_tags()) | set(loader_runtimes()))
     missing = [name for name in required if name not in listed]
     if missing:

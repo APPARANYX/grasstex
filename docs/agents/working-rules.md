@@ -19,8 +19,8 @@
   `closeup_battle.cjs` for one in a fight), never leave it in `/tmp`.
 - **Browser probes run against the preview, not a local server.** Push the branch and point the
   script's URL variable (`CLOSEUP_URL`, `CULL_URL`, `BF_URL`, …) at
-  `https://test.ivandpopov.com/grasstex/preview.php?ref=<branch>` (only the flags listed in `preview.php`'s
-  `$pass` pass through, and it drops the rest silently: `morale`, `coa`, `mind`, `stats`, `perception`, `geScout`,
+  `https://test.ivandpopov.com/grasstex/preview.php?ref=<branch>` (only the preview options declared in `runtime-contract.php` pass through; strategic controls
+  including explicit `=0` values are preserved, while unsupported options still drop: `morale`, `coa`, `mind`, `stats`, `perception`, `geScout`,
   `groundSteps` and any probe flag are not among them, so three "flag" arms of the 3b/3c probes once ran flag-off,
   identical to the control in 60 of 60 battles; for those, open the staged page the launcher redirects to,
   `https://test.ivandpopov.com/grasstex/preview/ref-<sha12>/battle_sim.php?<flags>`, and check the flag arrived,
