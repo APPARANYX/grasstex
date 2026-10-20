@@ -7,20 +7,46 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const source = fs.readFileSync('scripts/probes/strategic-route-stall.js', 'utf8');
 const root = { location: { search: '' }, BattleProbes: {} };
-vm.runInNewContext(source, { window: root, URLSearchParams, Map, Math, Number, String, Array, Object, isFinite });
+vm.runInNewContext(source, {
+  window: root,
+  URLSearchParams,
+  Map,
+  Math,
+  Number,
+  String,
+  Array,
+  Object,
+  isFinite
+});
 const probe = root.BattleProbes['strategic-route-stall'];
 assert.equal(probe.every, 0, 'must sample every fixed simulation tick');
 const member = id => ({
-  id, dead: false, root: { position: { x: 0, z: 0 } },
-  destination: { x: 100, z: 0 }, _movementWaypoint: { x: 100, z: 0 },
-  moveSpeed: 0, moving: false, _movementStopReason: 'test-stationary',
+  id,
+  dead: false,
+  root: { position: { x: 0, z: 0 } },
+  destination: { x: 100, z: 0 },
+  _movementWaypoint: { x: 100, z: 0 },
+  moveSpeed: 0,
+  moving: false,
+  _movementStopReason: 'test-stationary',
   _movementResolver: { last: { owner: 'macro', kind: 'move', point: { x: 100, z: 0 } } }
 });
-const sq = { id: 'ge-1', faction: 'ge', members: [member(1), member(2)],
-  state: 'advance', commandPhase: 'approach', inContact: false,
-  targetObjective: null, objective: { x: 100, z: 0 },
-  route: [{ x: 100, z: 0 }, { x: 200, z: 0 }], routeIndex: 0,
-  _macroMission: { version: 1, intent: 'capture', status: 'executing' } };
+const sq = {
+  id: 'ge-1',
+  faction: 'ge',
+  members: [member(1), member(2)],
+  state: 'advance',
+  commandPhase: 'approach',
+  inContact: false,
+  targetObjective: null,
+  objective: { x: 100, z: 0 },
+  route: [
+    { x: 100, z: 0 },
+    { x: 200, z: 0 }
+  ],
+  routeIndex: 0,
+  _macroMission: { version: 1, intent: 'capture', status: 'executing' }
+};
 const sim = { time: 0, factions: { ge: { squads: [sq] }, us: { squads: [] } } };
 probe.start(sim);
 for (let k = 0; k < 180; k++) {
