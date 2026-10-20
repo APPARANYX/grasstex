@@ -57,6 +57,8 @@ jobs:
         run: |
           npm install --no-save --no-package-lock playwright@1.55.0
           npx playwright install --with-deps chromium
+      # Preserve the original 12-objective scenario used by the forensic assertions.
+      # The default front-line map has nine objectives and is covered by native interception QA.
       - name: Start isolated 5 km simulation server
         run: |
           set -euo pipefail
@@ -65,7 +67,7 @@ jobs:
           PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8765 \
             -t "$RUNNER_TEMP/strategic-diagnostics-site" >"$RUNNER_TEMP/strategic-diagnostics-php.log" 2>&1 &
           for i in $(seq 1 30); do
-            if curl -fsS 'http://127.0.0.1:8765/grasstex/battle_sim_local.php?strategicInterception=1&seed=healthcheck' -o /dev/null; then exit 0; fi
+            if curl -fsS 'http://127.0.0.1:8765/grasstex/battle_sim_local.php?strategicInterception=1&frontLines=0&seed=healthcheck' -o /dev/null; then exit 0; fi
             sleep 1
           done
           cat "$RUNNER_TEMP/strategic-diagnostics-php.log"
@@ -88,7 +90,7 @@ jobs:
             ge-defend) extra='&defender=ge' ;;
             *) exit 2 ;;
           esac
-          export BATTLE_BENCHMARK_URL="http://127.0.0.1:8765/grasstex/battle_sim_local.php?strategicInterception=1&motorTransport=1${extra}"
+          export BATTLE_BENCHMARK_URL="http://127.0.0.1:8765/grasstex/battle_sim_local.php?strategicInterception=1&frontLines=0&motorTransport=1${extra}"
           export BATTLE_BENCHMARK_SEED="${SEED_PREFIX}-${TYPE}"
           node scripts/run_battle_benchmark.mjs
       - name: Enforce seed coverage and the actual 12-objective strategic profile
@@ -146,7 +148,7 @@ jobs:
           PROBE_OUTPUT: reports/worst-seed-forensic.json
         run: |
           set -euo pipefail
-          export PROBE_URL="http://127.0.0.1:8765/grasstex/battle_sim_local.php?strategicInterception=1&motorTransport=1"
+          export PROBE_URL="http://127.0.0.1:8765/grasstex/battle_sim_local.php?strategicInterception=1&frontLines=0&motorTransport=1"
           export PROBE_BATTLES="${TYPE}:${FOCUS_SEED}"
           node scripts/run_probe.cjs > /dev/null
           node <<'NODE'
