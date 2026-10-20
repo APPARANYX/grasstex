@@ -312,6 +312,8 @@ test('mounted eyes ignore only their own carrier; foot soldiers and other trucks
   assert.equal(sight(), false, 'waiting outside does not exempt the truck');
   me.squad._transport.boardedIds.push(me.id);
   assert.equal(sight(), true, 'admitted crew can see out');
+  ctx.S.perceive(me, ctx.b);
+  assert.equal(me.target, foe, 'shipping passenger perception actually acquires the enemy');
   me.squad._transport.phase = 'embarked';
   assert.equal(sight(), true);
   ctx.b.obstacles.__dynamicFootprints.push({ ...truck, id: 'other-truck', z: 30 });

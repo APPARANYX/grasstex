@@ -357,7 +357,7 @@ const out = path.resolve(process.env.STRATEGIC_TRUCK_QA_OUT || 'closeups/strateg
           n => n.name === 'strategicTruck-' + side + '-' + window.__truckQa.vehicleIds[side]
         );
         const cam = b.scene.activeCamera;
-        cam.position.set(node.position.x + 14, node.position.y + 12, node.position.z + 17);
+        cam.position.set(node.position.x + 6, node.position.y + 5, node.position.z + 8);
         cam.setTarget(new BABYLON.Vector3(node.position.x, node.position.y + 2, node.position.z));
       }, faction);
       await page.waitForTimeout(800);
@@ -365,6 +365,11 @@ const out = path.resolve(process.env.STRATEGIC_TRUCK_QA_OUT || 'closeups/strateg
         side =>
           window.__truckQa.soldiers[side].map(s => ({
             id: s.id,
+            enabled: s._fbx.root.isEnabled(),
+            eye: window.__battle__.scene.activeCamera.globalPosition.asArray(),
+            anchor: s._fbx._vehicleSeat.anchor.getAbsolutePosition().asArray(),
+            threshold: window.BattleFbxSoldier.meshLod.far,
+            scale: window.BattleFbxSoldier.lod.screenScale,
             far: s._fbx._meshFar,
             full: s._fbx.meshLod.every(l => l.mesh.subMeshes === l.full)
           })),
