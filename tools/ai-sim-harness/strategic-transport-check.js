@@ -154,13 +154,15 @@ function make(scenario = 'strategic', flag = '?motorTransport=1', road = true) {
 // Flag and scenario isolation. A transport mission cannot be assumed authorized.
 for (const args of [
   ['tactical', '?motorTransport=1', true],
-  ['strategic', '', true],
+  ['strategic', '?motorTransport=0', true],
   ['strategic', '?motorTransport=1', false]
 ]) {
   const w = make(...args);
   assert.equal(w.api.considerMission(w.sim, w.squad, w.brief()), false);
   assert.equal(w.squad._transport, null);
 }
+const defaultTransport = make('strategic', '');
+assert.equal(defaultTransport.api.enabled(defaultTransport.sim), true, 'strategic transport is default-on');
 const w = make(undefined, '?motorTransport=1&truckPhysics=0'); // the exact constant-speed carrier contract; handling below
 const initialFleet = w.api.fleetSummary(w.sim);
 assert.equal(initialFleet.length, 12, 'all six bases own two parked trucks before the first mission');
