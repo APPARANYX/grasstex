@@ -143,6 +143,7 @@ def main():
                "refs/remotes/origin/work/benchmark-launch/").stdout.splitlines()
     now = dt.datetime.now(dt.timezone.utc).timestamp()
     deleted = 0
+    errors = 0
     emit(f"### Benchmark-launch housekeeping ({'dry run' if DRY_RUN else 'live'})")
     emit(f"Candidates: {len(refs)}; minimum age: {MIN_AGE_DAYS} days")
     for branch in refs:
@@ -205,8 +206,11 @@ def main():
                 break
         except Exception as exc:
             # One untrusted/malformed or racing branch must not endanger another.
+            errors += 1
             emit(f"- KEEP {branch}: ERROR {exc}")
-    emit(f"**Removed {deleted} branches.**")
+    emit(f"**Removed {deleted} branches; errors: {errors}.**")
+    if errors:
+        raise RuntimeError(f"{errors} launcher(s) could not be archived safely")
 
 
 if __name__ == "__main__":
