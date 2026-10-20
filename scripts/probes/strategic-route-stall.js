@@ -8,7 +8,7 @@
   var HISTORY = 120,
     FOLLOWUP = 40,
     LIMIT = 14;
-  var state, events, counts, active, omitted, tickCount;
+  var state, events, counts, populations, active, omitted, tickCount;
   var query = new URLSearchParams((root.location && root.location.search) || '');
   var selected = String(query.get('probeSquads') || '')
     .split(',')
@@ -37,11 +37,25 @@
     return p;
   }
   function routeActive(sq, p) {
-    if (sq.state === 'retreat' || sq.targetObjective || !p) return false;
+    if (sq.state === 'retreat' || !p) return false;
     var r = sq.route || [],
       i = Math.max(0, Math.min(r.length - 1, +sq.routeIndex || 0)),
       wp = r[i];
     if (!wp || !isFinite(+wp.x) || !isFinite(+wp.z) || distance(sq.objective, wp) > 3) return false;
+    if (sq.targetObjective) {
+      // Distinct forensic population: accepted capture brief still executing a
+      // nonterminal road leg. An assigned flag does not supersede that leg.
+      var m = sq._macroMission,
+        ex = sq._missionExecution;
+      return !!(
+        m &&
+        m.intent === 'capture' &&
+        m.status === 'executing' &&
+        ex &&
+        ex.mission === m &&
+        i < r.length - 1
+      );
+    }
     return i < r.length - 1 || distance(p, wp) > 32;
   }
   function sampleRow(sim, sq, men, p, i, wp) {
@@ -56,6 +70,10 @@
       routeLength: (sq.route || []).length,
       objective: point(sq.objective),
       phase: sq.commandPhase || null,
+      targetObjective: sq.targetObjective || null,
+      anchor: point(sq.orderAnchor),
+      orderGoal: point(sq._orderGoal),
+      missionHold: sq._missionHold || null,
       contact: !!sq.inContact,
       mission: m
         ? {
@@ -83,6 +101,8 @@
       men: men.map(function (s) {
         var r = s._movementResolver && s._movementResolver.last;
         var path = s._physicalPath;
+        var O = root.BattleExecutionOutcome,
+          outcome = O && O.man ? O.man(s, sim) : null;
         return {
           id: s.id,
           position: point(s.root.position),
@@ -91,6 +111,17 @@
           orderDestination: point(s.orderDestination),
           fireteamDestination: point(s._fireteamDestination),
           adoptedEnvelope: s._fireteamAdoptedEnvelope || null,
+          execution: outcome
+            ? {
+                current: !!outcome.current,
+                state: outcome.state,
+                why: outcome.why || null,
+                envelopeId: outcome.envelopeId || null,
+                missionVersion: outcome.missionVersion,
+                terminal: !!outcome.terminal,
+                progressing: !!outcome.progressing
+              }
+            : null,
           committedOrder:
             s._movementResolver && s._movementResolver.order
               ? {
@@ -170,7 +201,13 @@
     if (track.reported || gap <= 12 || sim.time - track.lastProgress < 20) return;
     track.reported = true;
     counts[faction] = (counts[faction] || 0) + 1;
-    if (events.length >= LIMIT) {
+    var population = sq.targetObjective ? 'assigned-capture-road-leg' : 'legacy-route-candidate';
+    populations[population] = (populations[population] || 0) + 1;
+    if (
+      events.filter(function (e) {
+        return e.population === population;
+      }).length >= LIMIT
+    ) {
       omitted++;
       return;
     }
@@ -181,6 +218,7 @@
       lastForwardProgressAt: round(track.lastProgress),
       routeIndex: i,
       distanceToWaypoint: round(gap),
+      population: population,
       bestDistance: round(track.best),
       before: track.before.slice(),
       after: []
@@ -194,6 +232,7 @@
       state = new Map();
       events = [];
       counts = {};
+      populations = {};
       active = [];
       omitted = 0;
       tickCount = 0;
@@ -217,6 +256,7 @@
         recorded: events.length,
         omitted: omitted,
         counts: counts,
+        countsByPopulation: populations,
         events: events
       };
     }

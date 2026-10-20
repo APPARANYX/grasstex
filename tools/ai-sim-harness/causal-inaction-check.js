@@ -271,7 +271,7 @@ console.log(
 );
 
 // Retain transport episodes, but never interpret suspended infantry orders as walking failures.
-for (const phase of ['boarding', 'embarked']) {
+for (const phase of ['boarding', 'embarked', 'disembarking']) {
   const w = fixture('?probeIds=76', 'executing');
   w.state.current = false;
   w.soldier.squad._transport = {

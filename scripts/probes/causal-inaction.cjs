@@ -78,7 +78,7 @@
   }
   function transportEvidence(s, sim) {
     var t = s.squad && s.squad._transport;
-    if (!t || (t.phase !== 'boarding' && t.phase !== 'embarked')) return null;
+    if (!t || ['boarding', 'embarked', 'disembarking'].indexOf(t.phase) < 0) return null;
     return {
       phase: t.phase,
       vehicleId: t.vehicleId || null,
@@ -86,6 +86,7 @@
       requestedAt: t.requestedAt == null ? null : round(t.requestedAt),
       elapsedSeconds: t.requestedAt == null ? null : round(sim.time - t.requestedAt),
       boardedCount: t.boardedCount == null ? null : t.boardedCount,
+      exitedCount: (t.exitedIds || []).length,
       boardTimeoutSeconds: t.boardTimeoutSeconds == null ? null : t.boardTimeoutSeconds,
       travelledMeters: round(t.travelled),
       carrierPosition: position(t.position)
@@ -242,7 +243,7 @@
         confidence: 'verified',
         scope: 'transport-ownership',
         interpretation:
-          'Transport owns movement during boarding/embarkation; infantry walking and order-version checks do not establish a failure. Inspect carrier travel, boarding progress and timeout evidence.'
+          'Transport owns movement during boarding, embarkation or serial exit; infantry order-version checks do not establish a failure. Inspect carrier travel, boarding/exit progress and timeout evidence.'
       };
     if (o.current === false && o.envelopeId)
       return {
