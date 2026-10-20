@@ -796,6 +796,16 @@ The same contract applies to both classes of currently synchronized behavior:
   orient/locate step when the reference is not already obvious; simple already-forward commands need not force a
   theatrical turn.
 
+Command Reception owns one immutable adopted read model per recipient/category/scope in
+`_commandReception.adoptedBySoldier`. Gameplay consumers use `BattleCommandReception.adoptedView`:
+repeated reads reuse the same frozen record (including its current scalar-only `data` and `point`),
+and a replacement becomes visible only when that recipient adopts it. Pending replacements retain
+the previous view; reset releases the slots. `adopted` and `snapshot` retain detached mutable copies
+for external/diagnostic callers. Adding nested payloads must extend the freeze boundary as well as
+`copyData`; callers must never mutate a shared view. The owner and timing rules remain unchanged.
+`command-read-model-check.js` covers identity, mutation isolation, replacement and reset;
+`scripts/profile_command_read_model.cjs` measures lookup copying separately from battle performance.
+
 Implement this in **small phases**, each with its own deterministic harness/probe and no combat-RNG draw:
 
 1. **Receipt telemetry, behavior-neutral — shipped in #212.** Versioned command envelopes and per-soldier

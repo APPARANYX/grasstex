@@ -304,7 +304,7 @@
             var C = root.BattleCommandReception,
               here = point(s.root && s.root.position),
               base = point(sq.baseHome),
-              previousRetreat = C && C.adopted && C.adopted(s, battle, 'movement', 'soldier:' + s.id),
+              previousRetreat = C && C.adoptedView && C.adoptedView(s, battle, 'movement', 'soldier:' + s.id),
               pendingRetreat = C && C.peek && C.peek(s, battle, 'movement', 'soldier:' + s.id),
               stranded =
                 urgent &&

@@ -104,7 +104,7 @@
     function fireControlOf(s, battle) {
       var CR = root.BattleCommandReception;
       if (CR && CR.postureEnabled && CR.postureEnabled()) {
-        var rec = CR.adopted && CR.adopted(s, battle, 'posture-fire', 'squad'),
+        var rec = CR.adoptedView && CR.adoptedView(s, battle, 'posture-fire', 'squad'),
           data = rec && rec.data;
         if (!data || data.state === 'clear') return null;
         /* A retreat voids posture orders adopted before it ended (engagement.js stamps retreatEndedAt). */
