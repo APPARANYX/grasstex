@@ -1,0 +1,277 @@
+{
+  "recordedAtUTC": "2026-10-20T18:59:55.584988+00:00",
+  "baseline": "b3beec121bc8eede2648268d225a85e68f197e43",
+  "head": "74254364ce9898a35f0c3dea9115d0133a2eb0d8",
+  "branch": "work/command-read-model-20261020",
+  "pr": "https://github.com/APPARANYX/grasstex/pull/597",
+  "harnessInvocations": 231,
+  "initialFailures": 1,
+  "resolution": "Source assertion now requires adoptedView for the same personal-adoption boundary; rerun passed. All other 230 invocations passed.",
+  "copiedCommandRegressionOutputMatchesBaseline": true,
+  "scope": "One immutable canonical record per adopted recipient/category/scope; copied external APIs retained. No end-to-end CPU saving claimed.",
+  "githubBaselineRun": 39478888748,
+  "githubCandidateRun": 39478892080,
+  "status": "draft; all applicable exact-head CI passed; both standard benchmark runs passed; no merge/deployment",
+  "githubBenchmarks": "Both completed successfully; 12 battle executions total, three unique seeds, 600s each, two repeated identical query arms per source.",
+  "crossCommitComparison": {
+    "off": {
+      "pairs": 3,
+      "unpaired": {
+        "a": 0,
+        "b": 0
+      },
+      "identicalBattles": 3,
+      "winners": {
+        "a": {
+          "us": 0,
+          "ge": 0
+        },
+        "b": {
+          "us": 0,
+          "ge": 0
+        },
+        "flips": 0,
+        "mcnemarUsWon": {
+          "aOnly": 0,
+          "bOnly": 0,
+          "discordant": 0,
+          "p": 1
+        }
+      },
+      "timeLimit": {
+        "a": 3,
+        "b": 3,
+        "mcnemar": {
+          "aOnly": 0,
+          "bOnly": 0,
+          "discordant": 0,
+          "p": 1
+        }
+      },
+      "noCapture": {
+        "a": 0,
+        "b": 0,
+        "mcnemar": {
+          "aOnly": 0,
+          "bOnly": 0,
+          "discordant": 0,
+          "p": 1
+        }
+      },
+      "captures": {
+        "a": 1.333,
+        "b": 1.333
+      },
+      "movementStalls": {
+        "a": 11,
+        "b": 11
+      },
+      "runtimeErrors": {
+        "a": 0,
+        "b": 0
+      },
+      "wallSeconds": {
+        "medianA": 22.75,
+        "medianB": 23.038,
+        "ratio": 1.013,
+        "gate": 1.25
+      },
+      "counters": {
+        "casualties": {
+          "a": 91,
+          "b": 91,
+          "meanDiff": 0,
+          "battlesChanged": 0,
+          "more": 0,
+          "fewer": 0,
+          "signP": 1
+        },
+        "fire.total": {
+          "a": 335,
+          "b": 335,
+          "meanDiff": 0,
+          "battlesChanged": 0,
+          "more": 0,
+          "fewer": 0,
+          "signP": 1
+        },
+        "movementStalls.length": {
+          "a": 11,
+          "b": 11,
+          "meanDiff": 0,
+          "battlesChanged": 0,
+          "more": 0,
+          "fewer": 0,
+          "signP": 1
+        }
+      },
+      "pass": true
+    },
+    "on": {
+      "pairs": 3,
+      "unpaired": {
+        "a": 0,
+        "b": 0
+      },
+      "identicalBattles": 3,
+      "winners": {
+        "a": {
+          "us": 0,
+          "ge": 0
+        },
+        "b": {
+          "us": 0,
+          "ge": 0
+        },
+        "flips": 0,
+        "mcnemarUsWon": {
+          "aOnly": 0,
+          "bOnly": 0,
+          "discordant": 0,
+          "p": 1
+        }
+      },
+      "timeLimit": {
+        "a": 3,
+        "b": 3,
+        "mcnemar": {
+          "aOnly": 0,
+          "bOnly": 0,
+          "discordant": 0,
+          "p": 1
+        }
+      },
+      "noCapture": {
+        "a": 0,
+        "b": 0,
+        "mcnemar": {
+          "aOnly": 0,
+          "bOnly": 0,
+          "discordant": 0,
+          "p": 1
+        }
+      },
+      "captures": {
+        "a": 1.333,
+        "b": 1.333
+      },
+      "movementStalls": {
+        "a": 11,
+        "b": 11
+      },
+      "runtimeErrors": {
+        "a": 0,
+        "b": 0
+      },
+      "wallSeconds": {
+        "medianA": 22.968,
+        "medianB": 23.459,
+        "ratio": 1.021,
+        "gate": 1.25
+      },
+      "counters": {
+        "casualties": {
+          "a": 91,
+          "b": 91,
+          "meanDiff": 0,
+          "battlesChanged": 0,
+          "more": 0,
+          "fewer": 0,
+          "signP": 1
+        },
+        "fire.total": {
+          "a": 335,
+          "b": 335,
+          "meanDiff": 0,
+          "battlesChanged": 0,
+          "more": 0,
+          "fewer": 0,
+          "signP": 1
+        },
+        "movementStalls.length": {
+          "a": 11,
+          "b": 11,
+          "meanDiff": 0,
+          "battlesChanged": 0,
+          "more": 0,
+          "fewer": 0,
+          "signP": 1
+        }
+      },
+      "pass": true
+    }
+  },
+  "performanceLimit": "No demonstrated whole-battle speedup: median candidate/baseline wall ratios 1.013 and 1.021 on separate runners. Lookup allocation reduction is demonstrated independently.",
+  "headCI": [
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-20T18:56:08Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/APPARANYX/grasstex/actions/runs/39478893004/job/118821971514",
+      "name": "Detect audio and deploy-plan changes",
+      "startedAt": "2026-10-20T18:54:55Z",
+      "status": "COMPLETED",
+      "workflowName": "\u2b50 CI"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-20T18:59:04Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/APPARANYX/grasstex/actions/runs/39478893138/job/118821972026",
+      "name": "observer",
+      "startedAt": "2026-10-20T18:54:55Z",
+      "status": "COMPLETED",
+      "workflowName": "\u2b50 Tactical Observation Browser QA"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-20T18:56:05Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/APPARANYX/grasstex/actions/runs/39478893004/job/118821971181",
+      "name": "Syntax",
+      "startedAt": "2026-10-20T18:54:55Z",
+      "status": "COMPLETED",
+      "workflowName": "\u2b50 CI"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-20T18:56:15Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/APPARANYX/grasstex/actions/runs/39478893138/job/118821971589",
+      "name": "covered-bound",
+      "startedAt": "2026-10-20T18:54:55Z",
+      "status": "COMPLETED",
+      "workflowName": "\u2b50 Tactical Observation Browser QA"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-20T18:57:08Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/APPARANYX/grasstex/actions/runs/39478893004/job/118821971208",
+      "name": "Sim regressions",
+      "startedAt": "2026-10-20T18:54:55Z",
+      "status": "COMPLETED",
+      "workflowName": "\u2b50 CI"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-20T18:56:08Z",
+      "conclusion": "SKIPPED",
+      "detailsUrl": "https://github.com/APPARANYX/grasstex/actions/runs/39478893004/job/118822603105",
+      "name": "Audio library",
+      "startedAt": "2026-10-20T18:56:08Z",
+      "status": "COMPLETED",
+      "workflowName": "\u2b50 CI"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-20T18:56:08Z",
+      "conclusion": "SKIPPED",
+      "detailsUrl": "https://github.com/APPARANYX/grasstex/actions/runs/39478893004/job/118822603148",
+      "name": "Deploy plan",
+      "startedAt": "2026-10-20T18:56:08Z",
+      "status": "COMPLETED",
+      "workflowName": "\u2b50 CI"
+    }
+  ]
+}

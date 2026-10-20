@@ -1,0 +1,74 @@
+{
+  "scope": "Single-order DTO lookup microprofile; no battle, rendering or end-to-end CPU claim",
+  "node": "v26.7.0",
+  "platform": "darwin",
+  "arch": "arm64",
+  "iterationsPerSample": 100000,
+  "copied": [
+    {
+      "milliseconds": 590.409416,
+      "recordChanges": 100000
+    },
+    {
+      "milliseconds": 579.3525830000001,
+      "recordChanges": 100000
+    },
+    {
+      "milliseconds": 567.1138329999999,
+      "recordChanges": 100000
+    },
+    {
+      "milliseconds": 575.626667,
+      "recordChanges": 100000
+    },
+    {
+      "milliseconds": 575.7097920000001,
+      "recordChanges": 100000
+    },
+    {
+      "milliseconds": 571.7005829999998,
+      "recordChanges": 100000
+    },
+    {
+      "milliseconds": 648.8979589999999,
+      "recordChanges": 100000
+    }
+  ],
+  "shared": [
+    {
+      "milliseconds": 44.30845899999986,
+      "recordChanges": 1
+    },
+    {
+      "milliseconds": 43.04333299999985,
+      "recordChanges": 1
+    },
+    {
+      "milliseconds": 43.648833000000195,
+      "recordChanges": 1
+    },
+    {
+      "milliseconds": 44.04045899999983,
+      "recordChanges": 1
+    },
+    {
+      "milliseconds": 42.745458000000326,
+      "recordChanges": 1
+    },
+    {
+      "milliseconds": 42.56279199999972,
+      "recordChanges": 1
+    },
+    {
+      "milliseconds": 43.3104170000006,
+      "recordChanges": 1
+    }
+  ],
+  "copiedMedianMs": 575.7097920000001,
+  "sharedMedianMs": 43.3104170000006,
+  "unchangedLookupRecordAllocations": {
+    "copied": 100000,
+    "shared": 0
+  },
+  "note": "Shared identity is created once at adoption before measurement; recordChanges=1 is first observation."
+}

@@ -1,0 +1,23 @@
+node:internal/assert/utils:146
+  throw error;
+  ^
+
+AssertionError [ERR_ASSERTION]: Meso reads personal movement adoption
+    at check (/Users/ivanpopov/Desktop/grasstex-lifecycle-20261020/tools/ai-sim-harness/command-adoption-ratchet-check.js:31:10)
+    at Object.<anonymous> (/Users/ivanpopov/Desktop/grasstex-lifecycle-20261020/tools/ai-sim-harness/command-adoption-ratchet-check.js:35:1)
+    at Module._compile (node:internal/modules/cjs/loader:1934:14)
+    at Object..js (node:internal/modules/cjs/loader:2074:10)
+    at Module.load (node:internal/modules/cjs/loader:1656:32)
+    at Module._load (node:internal/modules/cjs/loader:1448:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:261:19)
+    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)
+    at node:internal/main/run_main_module:33:47 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}
+
+Node.js v26.7.0

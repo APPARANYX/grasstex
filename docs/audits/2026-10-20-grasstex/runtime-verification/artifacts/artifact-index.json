@@ -315,6 +315,121 @@
     "sha256": "fc70dde5eb39bfdc59a77dc4d76e47d1b4ce1148ccc0d7b3e792549ca2b700ca"
   },
   {
+    "path": "command-read-model/adoption-ratchet-initial.log",
+    "bytes": 986,
+    "sha256": "a17d5a6d2e7ff54dc4bcc4671f1314bb0ffd3e955c8ed5fc3b3846efda2e9364"
+  },
+  {
+    "path": "command-read-model/adoption-ratchet-rerun.log",
+    "bytes": 77,
+    "sha256": "7d0b101f4628e9f03c05bb3f5c93ef3b2744b362f794d5520ce593142b4f82c7"
+  },
+  {
+    "path": "command-read-model/baseline-run.json",
+    "bytes": 170,
+    "sha256": "805ac5ba03ba029070f90c6fd0f5e094061a92ed14da85135738f8e3b14aea83"
+  },
+  {
+    "path": "command-read-model/candidate-run.json",
+    "bytes": 170,
+    "sha256": "fa39dcc2d437a1d420be3dfa4a126e9048b1d29a4c413c3a11d704b8e9eadab0"
+  },
+  {
+    "path": "command-read-model/cross-commit-off.json",
+    "bytes": 1377,
+    "sha256": "58c5ed115873caf5ed02b359110f7eef8784ed6d6bb1f8304c3aea1e65fc6542"
+  },
+  {
+    "path": "command-read-model/cross-commit-on.json",
+    "bytes": 1378,
+    "sha256": "f3f8bef4b07c9b92601466338ad4bdcdabded4144100b2022e514a9d996f3c8d"
+  },
+  {
+    "path": "command-read-model/harness-checks.json",
+    "bytes": 43553,
+    "sha256": "04dadf7047b76724deb09db0d7d81ca10f2f5a105d5f632cda4e9ffb9bcdcc07"
+  },
+  {
+    "path": "command-read-model/head-ci.json",
+    "bytes": 2167,
+    "sha256": "ad5051f13b6756f91fae39f33cfbd92d9fecdbd0d9116d2772fbe935da946a32"
+  },
+  {
+    "path": "command-read-model/lookup-profile.json",
+    "bytes": 1636,
+    "sha256": "49c2b7a9581973f7105bb6b5485f9aadf89498c0b037e0e8567671e00e85c1e9"
+  },
+  {
+    "path": "command-read-model/read-model-contract.log",
+    "bytes": 672,
+    "sha256": "0977b4e017816aa5ffd57989aa8d7897d51474a5fe382a7f72e812cc236631da"
+  },
+  {
+    "path": "command-read-model/standard-benchmark/baseline/seeds-1041-shard-1/off/battle-benchmark.json.gz",
+    "bytes": 76258,
+    "sha256": "e058dc7dfc870763d25f3592a25ef7a5175458233061661dc313ae63ca3081f9"
+  },
+  {
+    "path": "command-read-model/standard-benchmark/baseline/seeds-1041-shard-1/on/battle-benchmark.json.gz",
+    "bytes": 76256,
+    "sha256": "8708d3c6cd88e77d4f2174183ef45fc242008f6d28fd95f8385cf90408a4ddc6"
+  },
+  {
+    "path": "command-read-model/standard-benchmark/baseline/seeds-1041-shard-2/off/battle-benchmark.json.gz",
+    "bytes": 119844,
+    "sha256": "b745344f84f2eb26a36b1996932fff527c1ccfab2b7a20badbf7118e76b19e13"
+  },
+  {
+    "path": "command-read-model/standard-benchmark/baseline/seeds-1041-shard-2/on/battle-benchmark.json.gz",
+    "bytes": 119848,
+    "sha256": "ca510da0f4d171ea5929334906a6d315e5aee09618165c1dce47c5ffe2cb88a3"
+  },
+  {
+    "path": "command-read-model/standard-benchmark/baseline/seeds-1041-shard-3/off/battle-benchmark.json.gz",
+    "bytes": 147590,
+    "sha256": "03a52b47eb07c34d67427bcb8a53283fe8a48fbecd7dac4a11cc1d86c6ca076e"
+  },
+  {
+    "path": "command-read-model/standard-benchmark/baseline/seeds-1041-shard-3/on/battle-benchmark.json.gz",
+    "bytes": 147595,
+    "sha256": "b5103b6d5db09e3f7ed13832cc53d6aa5d50f4e228b40dee6a41484414030ea9"
+  },
+  {
+    "path": "command-read-model/standard-benchmark/candidate/seeds-1042-shard-1/off/battle-benchmark.json.gz",
+    "bytes": 76260,
+    "sha256": "78c5cfdd4121f5f9e64709dc5ba51d4284a708b336a089e40afd5e269e2f2b22"
+  },
+  {
+    "path": "command-read-model/standard-benchmark/candidate/seeds-1042-shard-1/on/battle-benchmark.json.gz",
+    "bytes": 76261,
+    "sha256": "9ad7cd18b261b659ae43d466608241c594a672569357f0a8802f6c8519138fdf"
+  },
+  {
+    "path": "command-read-model/standard-benchmark/candidate/seeds-1042-shard-2/off/battle-benchmark.json.gz",
+    "bytes": 119848,
+    "sha256": "22cecf1dc735cae7d3fc08bf4be8a77badf3edf33a116706754f61f93bd2f7fc"
+  },
+  {
+    "path": "command-read-model/standard-benchmark/candidate/seeds-1042-shard-2/on/battle-benchmark.json.gz",
+    "bytes": 119851,
+    "sha256": "c92e8404c3b6c7a64989cbc50256f646099fb1aeaf39c180c541b71313d24bbc"
+  },
+  {
+    "path": "command-read-model/standard-benchmark/candidate/seeds-1042-shard-3/off/battle-benchmark.json.gz",
+    "bytes": 147600,
+    "sha256": "ecca0ad6e9ccf21301731bf6186dc65b91d2a253ecc68e62ecf7c5ea28b8852c"
+  },
+  {
+    "path": "command-read-model/standard-benchmark/candidate/seeds-1042-shard-3/on/battle-benchmark.json.gz",
+    "bytes": 147601,
+    "sha256": "ceaccc9f561965ae2dc8108dc111d3ab1a77d701e54833dc6a5ce45058a7215c"
+  },
+  {
+    "path": "command-read-model/validation.json",
+    "bytes": 7389,
+    "sha256": "c8b46fb0aadfed7915f298627ad401f4074b2ad53b1384edcc3048b3f5252818"
+  },
+  {
     "path": "command-reception-check.log",
     "bytes": 1016,
     "sha256": "140c8160e54756342ede61ce3d2e9b81e560b7c9d8e07f7667bfd342efb25e2c"
