@@ -353,6 +353,21 @@ per-instance restart wrapper. Ordinary live render observers/cadence remain unch
 body with the real registry/clock and fixture spawning to verify reset order, repeated cycles,
 observer counts and battle isolation.
 
+The core restart sequence is `beforeBattleRestart` → roster replacement →
+`afterBattleRosterReset`. Commander registers its required initialization on the last hook,
+then emits the existing `onBattleRestart` notification after objective reset, force setup and
+General-state reset. Start and restart share one Commander initializer. A weak per-battle scenario
+context supplies both the reset and Commander scheduler, preserving the last valid scenario when
+metadata is absent. Commander adds no per-instance restart wrapper.
+
+Registry systems may declare `requiredHooks: [name]`: an exception is logged and rethrown unchanged,
+so later hooks and restart-complete notifications cannot claim success after required setup fails.
+Undeclared/observational hooks retain their existing log-and-continue policy. This does not make
+restart transactional; a failed initializer can follow roster replacement, as before.
+`commander-lifecycle-check.js` covers ordering, Macro modes, scenario replacement/fallback,
+independent sessions, repeated resets and both failure policies using the shipping registry,
+Commander and core restart body with controlled roster/objective/route fixtures.
+
 Battle restarts clear Perception-owned gunfire, aggregate contact, belief telemetry and per-man belief stores, and module 09
 clears its own pending/by-soldier/by-squad callout delivery state; this matters because simulated time returns to zero and
 old evidence would otherwise look fresh/future-dated. The grouped restart regression is guarded by

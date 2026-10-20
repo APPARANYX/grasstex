@@ -136,6 +136,8 @@
           fn(sim, payload || {});
         } catch (e) {
           console.error('[MODULE] ' + system.id + '.' + name + ' failed', e);
+          // Required initialization must retain the caller's failure semantics.
+          if (system.requiredHooks && system.requiredHooks.indexOf(name) >= 0) throw e;
         }
       }
     });
