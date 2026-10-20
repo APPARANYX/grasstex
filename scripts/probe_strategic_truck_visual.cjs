@@ -360,7 +360,17 @@ const out = path.resolve(process.env.STRATEGIC_TRUCK_QA_OUT || 'closeups/strateg
         cam.position.set(node.position.x + 6, node.position.y + 5, node.position.z + 8);
         cam.setTarget(new BABYLON.Vector3(node.position.x, node.position.y + 2, node.position.z));
       }, faction);
-      await page.waitForTimeout(800);
+      // SwiftShader may take longer than a fixed sleep to render the camera jump.
+      // Wait for the actual renderer-owned transition; an old seated early-return
+      // still times out here because it never replaces the forced far meshes.
+      await page.waitForFunction(
+        side =>
+          window.__truckQa.soldiers[side].every(
+            s => s._fbx._meshFar === false && s._fbx.meshLod.every(l => l.mesh.subMeshes === l.full)
+          ),
+        faction,
+        { timeout: 30000 }
+      );
       const detail = await page.evaluate(
         side =>
           window.__truckQa.soldiers[side].map(s => ({
