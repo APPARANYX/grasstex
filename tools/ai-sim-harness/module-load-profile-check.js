@@ -35,8 +35,16 @@ const remote = fs.readFileSync(path.join(repo, 'battle_sim.php'), 'utf8');
 const local = fs.readFileSync(path.join(repo, 'battle_sim_local.php'), 'utf8');
 const contract = fs.readFileSync(path.join(repo, 'runtime-contract.php'), 'utf8');
 for (const source of [remote, local]) {
-  assert.match(source, /require_once \$root \. '\/runtime-contract\.php'/, 'loader requires the shared server contract');
-  assert.match(source, /grasstex_runtime_modules\(\$moduleFiles, \$_GET\)/, 'loader delegates module selection to its owner');
+  assert.match(
+    source,
+    /require_once \$root \. '\/runtime-contract\.php'/,
+    'loader requires the shared server contract'
+  );
+  assert.match(
+    source,
+    /grasstex_runtime_modules\(\$moduleFiles, \$_GET\)/,
+    'loader delegates module selection to its owner'
+  );
 }
 for (const name of optional) {
   assert.ok(available.includes(name), 'optional module exists: ' + name);
