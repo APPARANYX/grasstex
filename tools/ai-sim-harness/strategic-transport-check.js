@@ -769,10 +769,39 @@ for (const [collision, endReason] of [
   assert.equal(t.phase, 'disembarking');
   const truck = a.api.fleetSummary(a.sim).find(v => v.id === t.vehicleId);
   assert.equal(truck.squadId, a.squad.id, 'truck remains reserved while people exit');
-  let exited = 0;
+  const blocker = {
+    id: 'exit-blocker',
+    root: {
+      position: {
+        x: t.position.x - t.heading.z * 1.85 + t.heading.x * 0.7,
+        z: t.position.z + t.heading.x * 1.85 + t.heading.z * 0.7
+      }
+    }
+  };
+  a.sim._roster.ge.push(blocker);
+  a.run(0.45);
+  assert.equal(t.exitedIds.length, 0, 'occupied exit keeps its occupant seated');
+  blocker.root.position = { x: 2000, z: 2000 };
+  a.run(0.15);
+  assert.equal(t.exitedIds.length, 1, 'free driver exit releases immediately');
+  a.run(0.15);
+  assert.equal(t.exitedIds.length, 2, 'independent passenger door releases on the next tick');
+  assert.ok(local(a.members[0].root.position).z > -5.2, 'next exit does not wait for rear staging');
+  const started = a.sim.time;
+  let exited = 2;
   while (t.phase === 'disembarking' && a.sim.time < 150) {
     a.run(0.15);
     assert.ok(t.exitedIds.length - exited <= 1, 'one soldier exits at a time');
+    if (t.exitedIds.length > exited) {
+      const newest = a.members.find(s => s.id === t.exitedIds.at(-1)).root.position;
+      for (const id of t.exitedIds.slice(0, -1)) {
+        const earlier = a.members.find(s => s.id === id).root.position;
+        assert.ok(
+          Math.hypot(newest.x - earlier.x, newest.z - earlier.z) >= 0.9 - 1e-8,
+          'next exit is body-clear'
+        );
+      }
+    }
     for (const id of t.exitedIds) {
       const p = local(a.members.find(s => s.id === id).root.position);
       assert.ok(Math.abs(p.x) >= 1.59 || p.z <= -3.24, 'visible dismount is outside truck footprint');
@@ -780,6 +809,7 @@ for (const [collision, endReason] of [
     exited = t.exitedIds.length;
   }
   assert.equal(t.phase, endReason === 'arrival' ? 'dismounted' : 'aborted');
+  assert.ok(a.sim.time - started < 20, 'parallel rear staging keeps the release bounded');
   assert.deepEqual(t.exitedIds, t.boardingOrder);
   assert.ok(
     a.members.every(s => local(s.root.position).z < -5.2),
