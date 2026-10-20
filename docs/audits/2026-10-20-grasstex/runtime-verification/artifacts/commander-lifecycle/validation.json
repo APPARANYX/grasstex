@@ -1,0 +1,377 @@
+{
+  "recordedAtUTC": "2026-10-20T21:42:04.135028+00:00",
+  "baseline": "f52de023af42ae3f9deb84ed1290a360b8a33051",
+  "head": "d5c2415d74ddbe0da1bf9da80f67887043d000e8",
+  "branch": "work/commander-lifecycle-20261020",
+  "pr": "https://github.com/APPARANYX/grasstex/pull/599",
+  "harnessInvocations": 234,
+  "harnessFailures": 0,
+  "additionalExistingCheck": "scripts/check-strategic-restart-end.cjs passed",
+  "scope": "Core afterBattleRosterReset stage; Commander shares start/reset initialization and removes restart wrapper. Required hook errors propagate unchanged; observational failures retain log-and-continue.",
+  "coverage": "Shipping core restart body, registry and Commander with controlled roster/objective/route fixtures: ordering, initial attach versus reset, Macro modes/toggle, repeated resets, scenario changes/fallback, scheduler scenario, independent/scenario-less battles, required/observational failure policy. No new gameplay defect claimed.",
+  "standardBaselineRun": 39499258088,
+  "standardCandidateRun": 39499261375,
+  "status": "draft; all applicable exact-head CI passed; standard comparisons passed on identical production sources; no merge/deployment of 599",
+  "benchmarkedHead": "921ee27301e57726f445cbe8dc7ad4be7f871a00",
+  "changesSinceBenchmarkedHead": [
+    "scripts/check-macro-mission-command.cjs",
+    "scripts/probe_camera_menu.cjs",
+    "scripts/run_command_lifecycle_audit.cjs"
+  ],
+  "productionSourcesUnchangedSinceBenchmarkedHead": true,
+  "standaloneCIChecks": 16,
+  "standaloneFinalFailures": 0,
+  "failureHistory": {
+    "sim": "Original command-audit victory extraction included neighbouring new registration and registered it twice. Narrowed to the victory declaration. Additional owner assertion now permits only the exact required lifecycle-only handler, retaining its ban on ad hoc squad-state hooks. Canonical 234 passed throughout; all 16 standalone checks passed after correction.",
+    "player": "Initial time-sensitive orbit assertion failed; unchanged candidate retry and main control both passed the full workflow. Screenshot preceded the assertion. Moved capture after the existing assertions to avoid capture-time advancing the live tour; no assertion relaxed."
+  },
+  "firstHeadPlayerSoak": {
+    "cycles": 8,
+    "errors": 0,
+    "run": 39499260602,
+    "attempt": 2
+  },
+  "crossCommitComparison": {
+    "off": {
+      "pairs": 3,
+      "unpaired": {
+        "a": 0,
+        "b": 0
+      },
+      "identicalBattles": 3,
+      "winners": {
+        "a": {
+          "us": 0,
+          "ge": 0
+        },
+        "b": {
+          "us": 0,
+          "ge": 0
+        },
+        "flips": 0,
+        "mcnemarUsWon": {
+          "aOnly": 0,
+          "bOnly": 0,
+          "discordant": 0,
+          "p": 1
+        }
+      },
+      "timeLimit": {
+        "a": 3,
+        "b": 3,
+        "mcnemar": {
+          "aOnly": 0,
+          "bOnly": 0,
+          "discordant": 0,
+          "p": 1
+        }
+      },
+      "noCapture": {
+        "a": 0,
+        "b": 0,
+        "mcnemar": {
+          "aOnly": 0,
+          "bOnly": 0,
+          "discordant": 0,
+          "p": 1
+        }
+      },
+      "captures": {
+        "a": 1.667,
+        "b": 1.667
+      },
+      "movementStalls": {
+        "a": 0,
+        "b": 0
+      },
+      "runtimeErrors": {
+        "a": 0,
+        "b": 0
+      },
+      "wallSeconds": {
+        "medianA": 18.867,
+        "medianB": 17.391,
+        "ratio": 0.922,
+        "gate": 1.25
+      },
+      "counters": {
+        "casualties": {
+          "a": 127,
+          "b": 127,
+          "meanDiff": 0,
+          "battlesChanged": 0,
+          "more": 0,
+          "fewer": 0,
+          "signP": 1
+        },
+        "fire.total": {
+          "a": 558,
+          "b": 558,
+          "meanDiff": 0,
+          "battlesChanged": 0,
+          "more": 0,
+          "fewer": 0,
+          "signP": 1
+        },
+        "movementStalls.length": {
+          "a": 0,
+          "b": 0,
+          "meanDiff": 0,
+          "battlesChanged": 0,
+          "more": 0,
+          "fewer": 0,
+          "signP": 1
+        }
+      },
+      "pass": true
+    },
+    "on": {
+      "pairs": 3,
+      "unpaired": {
+        "a": 0,
+        "b": 0
+      },
+      "identicalBattles": 3,
+      "winners": {
+        "a": {
+          "us": 0,
+          "ge": 0
+        },
+        "b": {
+          "us": 0,
+          "ge": 0
+        },
+        "flips": 0,
+        "mcnemarUsWon": {
+          "aOnly": 0,
+          "bOnly": 0,
+          "discordant": 0,
+          "p": 1
+        }
+      },
+      "timeLimit": {
+        "a": 3,
+        "b": 3,
+        "mcnemar": {
+          "aOnly": 0,
+          "bOnly": 0,
+          "discordant": 0,
+          "p": 1
+        }
+      },
+      "noCapture": {
+        "a": 0,
+        "b": 0,
+        "mcnemar": {
+          "aOnly": 0,
+          "bOnly": 0,
+          "discordant": 0,
+          "p": 1
+        }
+      },
+      "captures": {
+        "a": 1.667,
+        "b": 1.667
+      },
+      "movementStalls": {
+        "a": 0,
+        "b": 0
+      },
+      "runtimeErrors": {
+        "a": 0,
+        "b": 0
+      },
+      "wallSeconds": {
+        "medianA": 18.122,
+        "medianB": 16.639,
+        "ratio": 0.918,
+        "gate": 1.25
+      },
+      "counters": {
+        "casualties": {
+          "a": 127,
+          "b": 127,
+          "meanDiff": 0,
+          "battlesChanged": 0,
+          "more": 0,
+          "fewer": 0,
+          "signP": 1
+        },
+        "fire.total": {
+          "a": 558,
+          "b": 558,
+          "meanDiff": 0,
+          "battlesChanged": 0,
+          "more": 0,
+          "fewer": 0,
+          "signP": 1
+        },
+        "movementStalls.length": {
+          "a": 0,
+          "b": 0,
+          "meanDiff": 0,
+          "battlesChanged": 0,
+          "more": 0,
+          "fewer": 0,
+          "signP": 1
+        }
+      },
+      "pass": true
+    }
+  },
+  "performanceLimit": "Separate-runner wall ratios 0.922/0.918 are observations, not a causal CPU/speedup claim.",
+  "headCI": [
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-20T21:31:41Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/APPARANYX/grasstex/actions/runs/39501015278/job/118898208274",
+      "name": "Detect audio and deploy-plan changes",
+      "startedAt": "2026-10-20T21:31:13Z",
+      "status": "COMPLETED",
+      "workflowName": "\u2b50 CI"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-20T21:40:10Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/APPARANYX/grasstex/actions/runs/39501015371/job/118898208878",
+      "name": "Player settings / Chromium",
+      "startedAt": "2026-10-20T21:31:14Z",
+      "status": "COMPLETED",
+      "workflowName": "\u2b50 Player settings browser QA"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-20T21:33:36Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/APPARANYX/grasstex/actions/runs/39501015321/job/118898208219",
+      "name": "Strategic 5km / Chromium",
+      "startedAt": "2026-10-20T21:31:13Z",
+      "status": "COMPLETED",
+      "workflowName": "\u2b50 Strategic 5km browser QA"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-20T21:36:45Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/APPARANYX/grasstex/actions/runs/39501015393/job/118898207647",
+      "name": "Native 5km battle / interception ON-OFF",
+      "startedAt": "2026-10-20T21:31:13Z",
+      "status": "COMPLETED",
+      "workflowName": "\u2b50 Strategic Interception Native QA"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-20T21:35:10Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/APPARANYX/grasstex/actions/runs/39501015281/job/118898207532",
+      "name": "observer",
+      "startedAt": "2026-10-20T21:31:13Z",
+      "status": "COMPLETED",
+      "workflowName": "\u2b50 Tactical Observation Browser QA"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-20T21:36:33Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/APPARANYX/grasstex/actions/runs/39501015313/job/118898209216",
+      "name": "meeting \u00b7 1x/4x/8x at 20/30/60/120fps",
+      "startedAt": "2026-10-20T21:31:14Z",
+      "status": "COMPLETED",
+      "workflowName": "\u2b50 Timescale Parity Benchmark"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-20T21:36:57Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/APPARANYX/grasstex/actions/runs/39501015313/job/118898209795",
+      "name": "us-defend \u00b7 1x/4x/8x at 20/30/60/120fps",
+      "startedAt": "2026-10-20T21:31:14Z",
+      "status": "COMPLETED",
+      "workflowName": "\u2b50 Timescale Parity Benchmark"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-20T21:36:38Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/APPARANYX/grasstex/actions/runs/39501015313/job/118898209768",
+      "name": "ge-defend \u00b7 1x/4x/8x at 20/30/60/120fps",
+      "startedAt": "2026-10-20T21:31:13Z",
+      "status": "COMPLETED",
+      "workflowName": "\u2b50 Timescale Parity Benchmark"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-20T21:32:06Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/APPARANYX/grasstex/actions/runs/39501015278/job/118898208166",
+      "name": "Syntax",
+      "startedAt": "2026-10-20T21:31:13Z",
+      "status": "COMPLETED",
+      "workflowName": "\u2b50 CI"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-20T21:32:26Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/APPARANYX/grasstex/actions/runs/39501015281/job/118898207503",
+      "name": "covered-bound",
+      "startedAt": "2026-10-20T21:31:13Z",
+      "status": "COMPLETED",
+      "workflowName": "\u2b50 Tactical Observation Browser QA"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-20T21:33:49Z",
+      "conclusion": "SUCCESS",
+      "detailsUrl": "https://github.com/APPARANYX/grasstex/actions/runs/39501015278/job/118898208091",
+      "name": "Sim regressions",
+      "startedAt": "2026-10-20T21:31:13Z",
+      "status": "COMPLETED",
+      "workflowName": "\u2b50 CI"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-20T21:31:41Z",
+      "conclusion": "SKIPPED",
+      "detailsUrl": "https://github.com/APPARANYX/grasstex/actions/runs/39501015278/job/118898447632",
+      "name": "Audio library",
+      "startedAt": "2026-10-20T21:31:42Z",
+      "status": "COMPLETED",
+      "workflowName": "\u2b50 CI"
+    },
+    {
+      "__typename": "CheckRun",
+      "completedAt": "2026-10-20T21:31:41Z",
+      "conclusion": "SKIPPED",
+      "detailsUrl": "https://github.com/APPARANYX/grasstex/actions/runs/39501015278/job/118898447534",
+      "name": "Deploy plan",
+      "startedAt": "2026-10-20T21:31:42Z",
+      "status": "COMPLETED",
+      "workflowName": "\u2b50 CI"
+    }
+  ],
+  "finalBrowserCoverage": {
+    "timescale": {
+      "scenarios": 3,
+      "variantExecutions": 18,
+      "baselineExecutions": 3,
+      "secondsPerExecution": 600,
+      "allVariantsMatch": true
+    },
+    "nativeInterception": {
+      "executions": 6,
+      "secondsPerExecution": 900
+    },
+    "playerSoak": {
+      "restartCycles": 8,
+      "errors": 0
+    },
+    "strategicTruckRestart": {
+      "allSeatsCleared": true,
+      "oldActorRootsDisposed": true,
+      "ghostWeaponMeshes": 0
+    }
+  }
+}

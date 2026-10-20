@@ -1,0 +1,146 @@
+[
+  {
+    "command": [
+      "node",
+      "scripts/run_command_lifecycle_audit.cjs"
+    ],
+    "exitCode": 0,
+    "seconds": 5.544,
+    "log": "run_command_lifecycle_audit.log"
+  },
+  {
+    "command": [
+      "node",
+      "scripts/check-meso-formation-frame-stability.cjs"
+    ],
+    "exitCode": 0,
+    "seconds": 0.054,
+    "log": "check-meso-formation-frame-stability.log"
+  },
+  {
+    "command": [
+      "node",
+      "scripts/check-macro-mission-command.cjs"
+    ],
+    "exitCode": 1,
+    "seconds": 0.16,
+    "log": "check-macro-mission-command.log"
+  },
+  {
+    "command": [
+      "node",
+      "scripts/check-movement-order-ownership.cjs"
+    ],
+    "exitCode": 0,
+    "seconds": 0.051,
+    "log": "check-movement-order-ownership.log"
+  },
+  {
+    "command": [
+      "node",
+      "scripts/check-meso-micro-movement-ownership.cjs"
+    ],
+    "exitCode": 0,
+    "seconds": 0.06,
+    "log": "check-meso-micro-movement-ownership.log"
+  },
+  {
+    "command": [
+      "node",
+      "scripts/check-physical-waypoint-refill.cjs"
+    ],
+    "exitCode": 0,
+    "seconds": 0.041,
+    "log": "check-physical-waypoint-refill.log"
+  },
+  {
+    "command": [
+      "node",
+      "scripts/check-purposeful-contact-gait.cjs"
+    ],
+    "exitCode": 0,
+    "seconds": 0.04,
+    "log": "check-purposeful-contact-gait.log"
+  },
+  {
+    "command": [
+      "node",
+      "scripts/check-autonomous-contact-mobility.cjs"
+    ],
+    "exitCode": 0,
+    "seconds": 0.043,
+    "log": "check-autonomous-contact-mobility.log"
+  },
+  {
+    "command": [
+      "node",
+      "scripts/check-building-interior-ingress.cjs"
+    ],
+    "exitCode": 0,
+    "seconds": 0.043,
+    "log": "check-building-interior-ingress.log"
+  },
+  {
+    "command": [
+      "node",
+      "scripts/check-strategic-5km.cjs"
+    ],
+    "exitCode": 0,
+    "seconds": 0.423,
+    "log": "check-strategic-5km.log"
+  },
+  {
+    "command": [
+      "node",
+      "scripts/check-strategic-front-lines.cjs"
+    ],
+    "exitCode": 0,
+    "seconds": 0.105,
+    "log": "check-strategic-front-lines.log"
+  },
+  {
+    "command": [
+      "node",
+      "scripts/check-strategic-reinforcements.cjs"
+    ],
+    "exitCode": 0,
+    "seconds": 0.049,
+    "log": "check-strategic-reinforcements.log"
+  },
+  {
+    "command": [
+      "node",
+      "scripts/check_vehicle_lab.cjs"
+    ],
+    "exitCode": 0,
+    "seconds": 0.043,
+    "log": "check_vehicle_lab.log"
+  },
+  {
+    "command": [
+      "node",
+      "scripts/check-strategic-truck-visual.cjs"
+    ],
+    "exitCode": 0,
+    "seconds": 0.043,
+    "log": "check-strategic-truck-visual.log"
+  },
+  {
+    "command": [
+      "node",
+      "scripts/check-strategic-truck-lite.cjs"
+    ],
+    "exitCode": 0,
+    "seconds": 0.041,
+    "log": "check-strategic-truck-lite.log"
+  },
+  {
+    "command": [
+      "node",
+      "scripts/check-strategic-restart-end.cjs"
+    ],
+    "exitCode": 0,
+    "seconds": 0.041,
+    "log": "check-strategic-restart-end.log"
+  }
+]

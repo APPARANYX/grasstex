@@ -120,6 +120,31 @@
     "sha256": "da5970aa4941712bdd78919661b07f0c18ac06299543616aef1c8cdc9573adbe"
   },
   {
+    "path": "architecture-rollout/598-deploy-result.json",
+    "bytes": 170,
+    "sha256": "526c5c19ea2e12959ff01755f73aba4305630b7026e98dcc84a8dcdece843039"
+  },
+  {
+    "path": "architecture-rollout/598-housekeeping-result.json",
+    "bytes": 117,
+    "sha256": "4d1f0468bb43a6827707191a0002dedd6642e4df37cf4021196b9032eb745230"
+  },
+  {
+    "path": "architecture-rollout/598-live-clock.json",
+    "bytes": 224,
+    "sha256": "a87743c162a139fbaf8e6524f231a0c6485ca3396ac122fd3474d2ff40e320fa"
+  },
+  {
+    "path": "architecture-rollout/598-merge-ci.json",
+    "bytes": 2534,
+    "sha256": "a7f76a27228691ec21f6265b9352f15ff53fa22da50d3620d9698211fa9dbeb1"
+  },
+  {
+    "path": "architecture-rollout/rollout-598.json",
+    "bytes": 441,
+    "sha256": "9550c6dee2cf343998d47f825d256e4902fb9da1dfdd69c9cfbe99e19a019ccc"
+  },
+  {
     "path": "architecture-rollout/rollout.json",
     "bytes": 645,
     "sha256": "70fb1366fd54ed8e92be2bf74555ef30092d9162fd835993cb237a6426b10803"
@@ -603,6 +628,261 @@
     "path": "command-relay-check.log",
     "bytes": 1018,
     "sha256": "03fa8646e6dbd7bee88348a8fe673adc80575390a410e48a1f70978e24862a94"
+  },
+  {
+    "path": "commander-lifecycle/011-benchmark-restart-isolation-check.log",
+    "bytes": 66,
+    "sha256": "ab5b0e29638f1825a3b8881d91fc4df03e9c19fe0dcb85f36e762965ac5217d4"
+  },
+  {
+    "path": "commander-lifecycle/036-commander-lifecycle-check.log",
+    "bytes": 151,
+    "sha256": "b5b2c2ef824de26eb12568b563ffeba6822a8e60e1f2080def124764c5502e23"
+  },
+  {
+    "path": "commander-lifecycle/107-macro-command-toggle-check.log",
+    "bytes": 77,
+    "sha256": "41eff5a50222aaebbac9b1df5e44d9130341183c2e082d8a01a8dfde18635e71"
+  },
+  {
+    "path": "commander-lifecycle/109-macro-state-check.log",
+    "bytes": 371,
+    "sha256": "a659d62d6beca8741199931a5b6829d94675a2c2f017bbc5e5d4a5a494c9a871"
+  },
+  {
+    "path": "commander-lifecycle/baseline-run.json",
+    "bytes": 170,
+    "sha256": "1fdfccd0f209a9738351c977a4fde924809a8debdffec2c3b05be7379232e7a4"
+  },
+  {
+    "path": "commander-lifecycle/candidate-run.json",
+    "bytes": 170,
+    "sha256": "b8d25ea18668d826396b7093339b92ae82894ff426f9579684eb179a71206626"
+  },
+  {
+    "path": "commander-lifecycle/cross-commit-off.json",
+    "bytes": 1376,
+    "sha256": "9683b5e233b5551dffb2b4700ff479d7c8492438c147251071eb6a909264130a"
+  },
+  {
+    "path": "commander-lifecycle/cross-commit-on.json",
+    "bytes": 1376,
+    "sha256": "5280b9d8b6cdd3e083d3de41fb31ea7e37d3484bfc65bc6d69104fcd66db6d0a"
+  },
+  {
+    "path": "commander-lifecycle/first-head-player-camera-soak.json",
+    "bytes": 5683,
+    "sha256": "540e84a0f48a3b846dd00b6ff261bbbc524d6287b30a50cf2e51925ca1b662de"
+  },
+  {
+    "path": "commander-lifecycle/first-head-player-same-sim-restart.json",
+    "bytes": 1055,
+    "sha256": "90c9149f8e2fe5a44ffa12fb1d7e7bb2ba086043ff909b2f4813e6b4e3957ca4"
+  },
+  {
+    "path": "commander-lifecycle/first-head-player-strategic-report.json",
+    "bytes": 7050,
+    "sha256": "56c760b014f6cfd4b69ed53988bc32177677bcab6accc25e89db1b900bdd1783"
+  },
+  {
+    "path": "commander-lifecycle/first-head-player-summary.json",
+    "bytes": 1318,
+    "sha256": "a0ec7f773d0998ca7ce1720f8ca0dda20341fb965902f2ce0fdf13f779a03d76"
+  },
+  {
+    "path": "commander-lifecycle/first-head-player-touch-gamepad-lifecycle.json",
+    "bytes": 1551,
+    "sha256": "e2f8b361b7f4a52e8a0c80f84a36220da72c6362b025cb0ccd8a796228836af0"
+  },
+  {
+    "path": "commander-lifecycle/first-head-timescale-ge-defend.json",
+    "bytes": 3132,
+    "sha256": "01d84e6c95e5b73e1ca481fba470dbae400bb7b5acdf4b17556278fce630c325"
+  },
+  {
+    "path": "commander-lifecycle/first-head-timescale-meeting.json",
+    "bytes": 3130,
+    "sha256": "2f381e4683cb2461110c20e0c5b374e5b729f08e7349ed561b6baed44a0704ff"
+  },
+  {
+    "path": "commander-lifecycle/first-head-timescale-us-defend.json",
+    "bytes": 3132,
+    "sha256": "9145f4f5ed55599fd5fb6989541766e775103b204382d291b7be483039760c18"
+  },
+  {
+    "path": "commander-lifecycle/harness-checks.json",
+    "bytes": 44145,
+    "sha256": "7375085128cf12343b48c7ccdbf66c21884ee86c53df44d7380a061ffac60aa0"
+  },
+  {
+    "path": "commander-lifecycle/head-ci.json",
+    "bytes": 4148,
+    "sha256": "c9848ead2ca3a87a475b7bc3df0beb3ac9e3448464741b9ad4ef66e31b417ce7"
+  },
+  {
+    "path": "commander-lifecycle/macro-historical-control.log",
+    "bytes": 3286,
+    "sha256": "ca48d584c9fb94a06e94fd62aad2f40b6f804bd0c118e7de33ccf0a973953176"
+  },
+  {
+    "path": "commander-lifecycle/macro-mission-rerun.log",
+    "bytes": 3286,
+    "sha256": "ca48d584c9fb94a06e94fd62aad2f40b6f804bd0c118e7de33ccf0a973953176"
+  },
+  {
+    "path": "commander-lifecycle/native-final-native-interception-evidence.json",
+    "bytes": 41264,
+    "sha256": "0bec406972e8f68f5101e066452fb5a08042fc81122055182ea2bc7ed9d6684f"
+  },
+  {
+    "path": "commander-lifecycle/player-baseline-control.json",
+    "bytes": 170,
+    "sha256": "c8a0ac03c18c1a3369ea57830587de49a01983ece44ffa89f33fedc85c3b6eaa"
+  },
+  {
+    "path": "commander-lifecycle/player-final-camera-soak.json",
+    "bytes": 5678,
+    "sha256": "f229e0aa43cbf5c09c338ec0e421952c116246435ba074f64c9b7d05a3ba0319"
+  },
+  {
+    "path": "commander-lifecycle/player-final-same-sim-restart.json",
+    "bytes": 1055,
+    "sha256": "90c9149f8e2fe5a44ffa12fb1d7e7bb2ba086043ff909b2f4813e6b4e3957ca4"
+  },
+  {
+    "path": "commander-lifecycle/player-final-strategic-report.json",
+    "bytes": 7053,
+    "sha256": "88b87da181a6a55189aaa7879482465e564b77f8f4bd533a74c5ae58b639141f"
+  },
+  {
+    "path": "commander-lifecycle/player-final-summary.json",
+    "bytes": 1318,
+    "sha256": "a0ec7f773d0998ca7ce1720f8ca0dda20341fb965902f2ce0fdf13f779a03d76"
+  },
+  {
+    "path": "commander-lifecycle/player-final-touch-gamepad-lifecycle.json",
+    "bytes": 1551,
+    "sha256": "e2f8b361b7f4a52e8a0c80f84a36220da72c6362b025cb0ccd8a796228836af0"
+  },
+  {
+    "path": "commander-lifecycle/player-first-death-orbit.png",
+    "bytes": 432444,
+    "sha256": "d8fd27f4b97a9a2e54797f7dabed80bf25c44fceef6a1fa07f337c0916e5c67a"
+  },
+  {
+    "path": "commander-lifecycle/player-first-failure.log.gz",
+    "bytes": 8994,
+    "sha256": "bb5a95f01bd42a3638d3cf0f72ee7b1551729d63e0ec34cd06876e5850034bee"
+  },
+  {
+    "path": "commander-lifecycle/player-first-head-retry.json",
+    "bytes": 182,
+    "sha256": "0b977619ff9de90a8873348da0bde6e9ac21131bbb6e799b770e7a5ac0ef6cd8"
+  },
+  {
+    "path": "commander-lifecycle/sim-first-failure.log.gz",
+    "bytes": 100956,
+    "sha256": "d543bde36a6b1f3f4153727d4a77a75e32d084663e4c91f37bf8f169c06e2148"
+  },
+  {
+    "path": "commander-lifecycle/standalone-corrected.json",
+    "bytes": 3033,
+    "sha256": "86e1ef8712ef13ecd4a28929507cf0bfb962f4958147ddc763c9e6a647d8003f"
+  },
+  {
+    "path": "commander-lifecycle/standalone-initial.json",
+    "bytes": 2936,
+    "sha256": "262e8dc6ba13754c49f45642151bdd94e73d4257863d91f7c285092f7fa0beb8"
+  },
+  {
+    "path": "commander-lifecycle/standard-benchmark/baseline/seeds-1045-shard-1/off/battle-benchmark.json.gz",
+    "bytes": 138481,
+    "sha256": "f5e7af5ffc1560262b665207f6e31c7b046bee56683599a268a61aa469dfeb43"
+  },
+  {
+    "path": "commander-lifecycle/standard-benchmark/baseline/seeds-1045-shard-1/on/battle-benchmark.json.gz",
+    "bytes": 138480,
+    "sha256": "d15868f0c1a9f900a7ea7e6236f7159e7a77c7e3cefe3efb8420d310d6bfb2b1"
+  },
+  {
+    "path": "commander-lifecycle/standard-benchmark/baseline/seeds-1045-shard-2/off/battle-benchmark.json.gz",
+    "bytes": 111366,
+    "sha256": "9e393219040493054bf65692f21b98320dad80094537b93495af5c889da87c2c"
+  },
+  {
+    "path": "commander-lifecycle/standard-benchmark/baseline/seeds-1045-shard-2/on/battle-benchmark.json.gz",
+    "bytes": 111369,
+    "sha256": "afcfcfef5b4220215b5ec1e2513b41b2e6eba5c607e5b770efb06a4caa7dadf8"
+  },
+  {
+    "path": "commander-lifecycle/standard-benchmark/baseline/seeds-1045-shard-3/off/battle-benchmark.json.gz",
+    "bytes": 133746,
+    "sha256": "5dce2ede36392d7eb026de269eda7535737f4af8e428182f28f1567eb923b56a"
+  },
+  {
+    "path": "commander-lifecycle/standard-benchmark/baseline/seeds-1045-shard-3/on/battle-benchmark.json.gz",
+    "bytes": 133747,
+    "sha256": "271424d920498d8b1a471d50fd9fe2fb51b68713ec8e49c97b0ffafde58dbe00"
+  },
+  {
+    "path": "commander-lifecycle/standard-benchmark/candidate/seeds-1046-shard-1/off/battle-benchmark.json.gz",
+    "bytes": 138480,
+    "sha256": "3b38b18b6dd21057c27835d0a1db6f09e46af9b5ddae0159181804babf5918a0"
+  },
+  {
+    "path": "commander-lifecycle/standard-benchmark/candidate/seeds-1046-shard-1/on/battle-benchmark.json.gz",
+    "bytes": 138487,
+    "sha256": "f2d89cfa3019eeb0f0e212a6f007b8c85cefef10d39bfb9384c0b1336e339011"
+  },
+  {
+    "path": "commander-lifecycle/standard-benchmark/candidate/seeds-1046-shard-2/off/battle-benchmark.json.gz",
+    "bytes": 111366,
+    "sha256": "b73ec3a2e3f99be60549d1f20ac01b6a45136f2329b508319375817d9d5c58ed"
+  },
+  {
+    "path": "commander-lifecycle/standard-benchmark/candidate/seeds-1046-shard-2/on/battle-benchmark.json.gz",
+    "bytes": 111367,
+    "sha256": "836c4c7d1ea11c3f2f6395e13157ae8b42663c9def2ce0c651454dfa87102a85"
+  },
+  {
+    "path": "commander-lifecycle/standard-benchmark/candidate/seeds-1046-shard-3/off/battle-benchmark.json.gz",
+    "bytes": 133741,
+    "sha256": "713399a1f93b0c9ecd45aee1fb0c6441f4a9acc08701b40c4eb63abcf0451a79"
+  },
+  {
+    "path": "commander-lifecycle/standard-benchmark/candidate/seeds-1046-shard-3/on/battle-benchmark.json.gz",
+    "bytes": 133746,
+    "sha256": "94cd4afbc2346840ce7f29f42f4c6612a7eb23a57c67b780aaf4e024d5db5f9c"
+  },
+  {
+    "path": "commander-lifecycle/strategic-final-strategic-report.json",
+    "bytes": 7064,
+    "sha256": "260019b78498a2456084271367ddc81a5d08cd001c7552f2be3f667fdc237fed"
+  },
+  {
+    "path": "commander-lifecycle/strategic-final-truck-visual-report.json",
+    "bytes": 31558,
+    "sha256": "cc714a73cb7346a58aca1602a9fece3b2083a58cca7aef95d740a13ebd121669"
+  },
+  {
+    "path": "commander-lifecycle/timescale-final-ge-defend.json",
+    "bytes": 3132,
+    "sha256": "01d84e6c95e5b73e1ca481fba470dbae400bb7b5acdf4b17556278fce630c325"
+  },
+  {
+    "path": "commander-lifecycle/timescale-final-meeting.json",
+    "bytes": 3130,
+    "sha256": "2f381e4683cb2461110c20e0c5b374e5b729f08e7349ed561b6baed44a0704ff"
+  },
+  {
+    "path": "commander-lifecycle/timescale-final-us-defend.json",
+    "bytes": 3132,
+    "sha256": "9145f4f5ed55599fd5fb6989541766e775103b204382d291b7be483039760c18"
+  },
+  {
+    "path": "commander-lifecycle/validation.json",
+    "bytes": 11569,
+    "sha256": "62782f821b8386dbd1b91a079566b5a6ed5c940100b2edb5d007b3237bb6b6f7"
   },
   {
     "path": "control-scenario-rejection-check.log",
