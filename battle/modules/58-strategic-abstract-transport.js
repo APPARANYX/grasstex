@@ -396,7 +396,7 @@
     if (root.BattleSim && root.BattleSim.moveTransportPassenger)
       root.BattleSim.moveTransportPassenger(sim, s, position(s.root.position), 'transport-dismounted');
     if (root.BattleMovementResolver && root.BattleMovementResolver.restoreAfterTransport)
-      root.BattleMovementResolver.restoreAfterTransport(s);
+      root.BattleMovementResolver.restoreAfterTransport(s, sim);
   }
   /* ?truckStaysPut=0 restores sending a reused truck back to its base bay when the squad's trip
      ends before it moves (it vanished from the road and reappeared at base). */
