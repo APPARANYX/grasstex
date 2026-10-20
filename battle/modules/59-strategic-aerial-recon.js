@@ -32,15 +32,15 @@
       town &&
       town.profile === 'strategic' &&
       !root.PHASE_C_COMBAT_LAB &&
-      /(?:^|[?&])strategicInterception=1(?:&|$)/.test(search) &&
-      /(?:^|[?&])aerialRecon=1(?:&|$)/.test(search)
+      !/(?:^|[?&])strategicInterception=0(?:&|$)/.test(search) &&
+      !/(?:^|[?&])aerialRecon=0(?:&|$)/.test(search)
     );
   }
   function flagOff(name) {
     return new RegExp('(?:^|[?&])' + name + '=0(?:&|$)').test((root.location && root.location.search) || '');
   }
   function interceptionOn() {
-    return /(?:^|[?&])interception=1(?:&|$)/.test((root.location && root.location.search) || '');
+    return !/(?:^|[?&])interception=0(?:&|$)/.test((root.location && root.location.search) || '');
   }
   /* ?reconCorridors=0 restores reports without corridors (the General then
      projects roads itself); ?reconOverflight=0 restores the instant snapshot. */
@@ -450,7 +450,7 @@
        an opponent is still outbound. This is a clock/doctrine decision by
        our General, not a hostile-motion trigger or privileged enemy lookup.
        Standalone aerialRecon retains its original 120s behavior. */
-    var strategicEarly = /(?:^|[?&])interception=1(?:&|$)/.test(
+    var strategicEarly = !/(?:^|[?&])interception=0(?:&|$)/.test(
       (root.location && root.location.search) || ''
     );
     var playerOrdered = options && options.playerOrdered === true;

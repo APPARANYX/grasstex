@@ -17,7 +17,7 @@
   if (!root.BattleModules || root.BattleStrategicReinforcements) return;
 
   function flagOn() {
-    return /(?:^|[?&])reinforcements=1(?:&|$)/.test((root.location && root.location.search) || '');
+    return !/(?:^|[?&])reinforcements=0(?:&|$)/.test((root.location && root.location.search) || '');
   }
   function layout(sim) {
     var town = sim && sim.scene && sim.scene.metadata && sim.scene.metadata.battleScenario;
@@ -29,7 +29,7 @@
   /* Opt-in ?reinforcementSortie=1 (the owner chose to keep the trial as first built, 10-18): a
      fresh squad earns its General a sortie. Without it the squad is briefed at once. */
   function sortieOn() {
-    return /(?:^|[?&])reinforcementSortie=1(?:&|$)/.test((root.location && root.location.search) || '');
+    return !/(?:^|[?&])reinforcementSortie=0(?:&|$)/.test((root.location && root.location.search) || '');
   }
   /* Fresh squads this side has received, as the aerial-recon owner counts them for a new
      sortie (59-strategic-aerial-recon.js frontKey); 0 when the trial or the sortie is off. */

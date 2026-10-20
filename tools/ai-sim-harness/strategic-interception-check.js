@@ -118,6 +118,7 @@ function make(
 const w = make(),
   T = w.root.BattleSquadTransport,
   I = w.root.BattleStrategicInterception;
+assert.equal(make('').root.BattleStrategicInterception.enabled(w.sim), true, 'interception defaults on');
 assert.equal(
   I.reserveSquad(w.sim, w.us),
   false,
@@ -140,7 +141,7 @@ assert.ok(
   early.root.BattleAerialRecon.request(early.sim, 'us'),
   'opt-in General launches early enough to see outbound transports'
 );
-const standalone = make('?strategicInterception=1&aerialRecon=1&motorTransport=1');
+const standalone = make('?strategicInterception=1&aerialRecon=1&motorTransport=1&interception=0');
 standalone.sim.time = 40.5;
 assert.equal(
   standalone.root.BattleAerialRecon.request(standalone.sim, 'us'),
@@ -443,7 +444,7 @@ assert.equal(
   'superseded screen cannot repeat one-shot report'
 );
 
-const denied = make('?strategicInterception=1&motorTransport=1&aerialRecon=1');
+const denied = make('?strategicInterception=1&motorTransport=1&aerialRecon=1&interception=0');
 denied.root.BattleAerialRecon.request(denied.sim, 'us');
 assert.equal(
   denied.root.BattleStrategicInterception.maybeIssue(denied.sim, 'us', () => {

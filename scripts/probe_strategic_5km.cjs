@@ -50,7 +50,7 @@ const out = path.resolve(process.env.STRATEGIC_QA_OUT || 'closeups/strategic-5km
     const errors = [];
     page.on('pageerror', (e) => errors.push(String(e && e.stack || e).slice(0, 900)));
     const url = base + (base.includes('?') ? '&' : '?') +
-      'strategicInterception=1&seed=strategic-chromium-0001&log=0';
+      'strategicInterception=1&frontLines=0&seed=strategic-chromium-0001&log=0';
     const start = Date.now();
     await page.goto(url, { waitUntil: 'load', timeout: 180000 });
     await page.waitForFunction(() => !!(window.__battle__ && window.__scenario__), null, { timeout: 180000 });
@@ -243,7 +243,7 @@ const out = path.resolve(process.env.STRATEGIC_QA_OUT || 'closeups/strategic-5km
     legacy.on('pageerror', (e) => legacyErrors.push(String(e && e.stack || e).slice(0, 900)));
     const legacyStart = Date.now();
     await legacy.goto(base + (base.includes('?') ? '&' : '?') +
-      'seed=strategic-chromium-0001&log=0', { waitUntil: 'load', timeout: 180000 });
+      'strategicInterception=0&frontLines=0&seed=strategic-chromium-0001&log=0', { waitUntil: 'load', timeout: 180000 });
     await legacy.waitForFunction(() => !!(window.__battle__ && window.__scenario__), null, { timeout: 180000 });
     report.legacy = await legacy.evaluate(() => {
       const b = window.__battle__, s = window.__scenario__;

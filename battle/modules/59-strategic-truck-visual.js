@@ -120,8 +120,8 @@
     return !!(
       scenario &&
       scenario.profile === 'strategic' &&
-      /(?:^|[?&])strategicInterception=1(?:&|$)/.test(search) &&
-      /(?:^|[?&])motorTransport=1(?:&|$)/.test(search) &&
+      !/(?:^|[?&])strategicInterception=0(?:&|$)/.test(search) &&
+      !/(?:^|[?&])motorTransport=0(?:&|$)/.test(search) &&
       !/(?:^|[?&])truckVisual=0(?:&|$)/.test(search)
     );
   }

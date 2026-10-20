@@ -53,7 +53,8 @@ function load(root, rel) {
 /* The module banners are noise here; the checks below are the output that matters. */
 const quiet = { log() {}, warn() {}, error() {} };
 function bootstrap() {
-  const root = { console: quiet };
+  // Historical 2 km seed regressions require the legacy world explicitly.
+  const root = { console: quiet, location: { search: '?strategicInterception=0&frontLines=0' } };
   root.window = root;
   root.BABYLON = {
     Color3: function () {},

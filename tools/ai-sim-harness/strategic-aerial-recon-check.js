@@ -6,7 +6,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-function make(search = '?strategicInterception=1&aerialRecon=1', profile = 'strategic') {
+function make(search = '?strategicInterception=1&aerialRecon=1&interception=0', profile = 'strategic') {
   const hooks = {};
   const events = [];
   const root = {
@@ -59,6 +59,8 @@ function tick(w) {
   w.hooks['strategic-aerial-recon'].onCommanderTick(w.sim, { macroCommandEnabled: true });
 }
 
+const defaultEnabled = make('', 'strategic');
+assert.equal(defaultEnabled.root.BattleAerialRecon.status(defaultEnabled.sim, 'us').enabled, true);
 const w = make();
 const A = w.root.BattleAerialRecon;
 tick(w);
@@ -117,8 +119,8 @@ identical.sim.time = 120;
 tick(identical);
 assert.equal(JSON.stringify(identical.root.BattleAerialRecon.forGeneral(identical.sim, 'us')), snapshot);
 for (const [search, profile] of [
-  ['', 'strategic'],
-  ['?strategicInterception=1', 'strategic'],
+  ['?aerialRecon=0', 'strategic'],
+  ['?strategicInterception=0', 'strategic'],
   ['?strategicInterception=1&aerialRecon=1', 'tactical']
 ]) {
   const disabled = make(search, profile);
