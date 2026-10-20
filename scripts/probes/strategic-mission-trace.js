@@ -9,6 +9,7 @@
   var retreatHistory;
   var last;
   var flagged;
+  var authorizedGarrisons;
 
   function position(p) {
     if (!p || !Number.isFinite(+p.x) || !Number.isFinite(+p.z)) return null;
@@ -60,7 +61,9 @@
       missionVersion: mission.version == null ? null : mission.version,
       missionStatus: mission.status || null,
       objectiveId: mission.objectiveId || sq.targetObjective || null,
+      missionRequestKey: mission.requestKey || null,
       preparedGarrison: !!sq._preparedDefenseRequest,
+      preparedObjectiveId: sq._preparedDefenseRequest ? sq._preparedDefenseRequest.objectiveId : null,
       temporarySecurity: !!sq._captureZoneDefenseRequest,
       homeBaseId: sq.homeBaseId || null,
       centerToBaseM: distance(place, base),
@@ -88,7 +91,26 @@
     wrongRetreat = wrongRetreat && row.assembly === 'to-base';
     wrongRetreat = wrongRetreat && row.retreatGoalToBaseM != null;
     wrongRetreat = wrongRetreat && row.retreatGoalToBaseM > 12;
-    var garrison = row.isPreparedAttacker && row.preparedGarrison && row.t >= 45;
+    // The engineer may garrison an attacker after an explicit, unrequested
+    // General DEFEND brief (21-defender-engineers.garrisonable). Remember that
+    // authorization before the standing request replaces the original brief.
+    if (!row.preparedGarrison) delete authorizedGarrisons[row.squad];
+    else if (
+      prior &&
+      !prior.preparedGarrison &&
+      prior.intent === 'defend' &&
+      prior.missionStatus === 'executing' &&
+      !prior.missionRequestKey &&
+      !prior.temporarySecurity &&
+      prior.objectiveId === row.preparedObjectiveId &&
+      row.intent === 'defend' &&
+      row.missionStatus === 'executing' &&
+      !row.temporarySecurity &&
+      (!row.missionRequestKey || row.missionRequestKey.indexOf('prepared-defense|') === 0)
+    )
+      authorizedGarrisons[row.squad] = row.preparedObjectiveId;
+    var authorized = row.preparedObjectiveId && authorizedGarrisons[row.squad] === row.preparedObjectiveId;
+    var garrison = row.isPreparedAttacker && row.preparedGarrison && row.t >= 45 && !authorized;
     var code = wrongRetreat ? 'strategic-retreat-not-heading-to-base' : null;
     if (!code && garrison) code = 'attacker-prepared-garrison';
 
@@ -141,6 +163,7 @@
       retreatHistory = Object.create(null);
       last = Object.create(null);
       flagged = new Set();
+      authorizedGarrisons = Object.create(null);
     },
     sample: function (sim) {
       ['us', 'ge'].forEach(function (faction) {

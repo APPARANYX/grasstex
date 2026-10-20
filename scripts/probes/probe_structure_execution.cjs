@@ -29,6 +29,8 @@ const { requestPreview } = require('./preview_request.cjs');
       url.pathname.includes('ref-' + process.env.TACTICAL_SHA.slice(0, 12)),
       'exact final-head preview'
     );
+    // These seeded urban/cover fixtures belong to the original 2 km scenario.
+    url.searchParams.set('strategicInterception', '0');
     url.searchParams.set('seed', 'phase-c-building-security');
     for (const flag of [
       'localPlan',

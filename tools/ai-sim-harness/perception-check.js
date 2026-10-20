@@ -280,4 +280,48 @@ test('perception never draws from the combat RNG', () => {
   assert.equal(draws, 0);
 });
 
+test('mounted eyes ignore only their own carrier; foot soldiers and other trucks remain occluded', () => {
+  const ctx = setup([
+    { id: 'us-crew', faction: 'us', x: 0, z: 0 },
+    { id: 'ge-target', faction: 'ge', x: 0, z: 60 }
+  ]);
+  const me = lone(ctx.out[0]),
+    foe = lone(ctx.out[1]);
+  me.root.position.x = me.root.position.z = 0;
+  foe.root.position.x = 0;
+  foe.root.position.z = 60;
+  const truck = {
+    id: 'crew-truck',
+    type: 'truck',
+    shape: 'obb',
+    x: 0,
+    z: 0,
+    y: 0,
+    hx: 1.25,
+    hz: 3.1,
+    height: 2.8,
+    ux: 1,
+    uz: 0,
+    vx: 0,
+    vz: 1
+  };
+  ctx.b.obstacles.__dynamicFootprints = [truck];
+  const sight = () => ctx.S.hasLineOfSight(me, foe, ctx.b.heightAt, ctx.b.obstacles);
+  assert.equal(sight(), false, 'carrier blocks ordinary foot vision');
+  me.squad._transport = { phase: 'boarding', vehicleId: truck.id, boardedIds: [] };
+  assert.equal(sight(), false, 'waiting outside does not exempt the truck');
+  me.squad._transport.boardedIds.push(me.id);
+  assert.equal(sight(), true, 'admitted crew can see out');
+  ctx.S.perceive(me, ctx.b);
+  assert.equal(me.target, foe, 'shipping passenger perception actually acquires the enemy');
+  me.squad._transport.phase = 'embarked';
+  assert.equal(sight(), true);
+  ctx.b.obstacles.__dynamicFootprints.push({ ...truck, id: 'other-truck', z: 30 });
+  assert.equal(sight(), false, 'another truck still blocks the crew');
+  ctx.b.obstacles.__dynamicFootprints.pop();
+  me.squad._transport.phase = 'disembarking';
+  me.squad._transport.exitedIds = [me.id];
+  assert.equal(sight(), false, 'exit restores ordinary occlusion');
+});
+
 console.log(n + ' perception checks passed');

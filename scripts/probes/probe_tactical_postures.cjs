@@ -25,6 +25,8 @@ const { requestPreview } = require('./preview_request.cjs');
     assert.equal(res.status(), 302);
     const url = new URL(res.headers().location, process.env.TACTICAL_PREVIEW);
     assert.ok(url.pathname.includes('ref-' + process.env.TACTICAL_SHA.slice(0, 12)));
+    // These seeded urban/cover fixtures belong to the original 2 km scenario.
+    url.searchParams.set('strategicInterception', '0');
     url.searchParams.set('seed', 'phase-c-masked-ambush');
     url.searchParams.set('localPlan', '1');
     url.searchParams.set('localAmbush', '1');
@@ -235,8 +237,7 @@ const { requestPreview } = require('./preview_request.cjs');
         };
       });
       if (st.stage === 'hold' && holdAt == null) holdAt = st.time;
-      if (st.lastShot && !evidence.shots.some(e => e.at === st.lastShot.at))
-        evidence.shots.push(st.lastShot);
+      if (st.lastShot && !evidence.shots.some(e => e.at === st.lastShot.at)) evidence.shots.push(st.lastShot);
       evidence.last = st;
       assert.ok(
         st.ownShots === 0 || st.lastShot?.readyAt != null,

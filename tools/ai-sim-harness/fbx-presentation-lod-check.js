@@ -117,3 +117,29 @@ assert.equal(mesh.MESH_LOD.screenScale, 1);
 console.log(
   'PASS #456 R3 rendering LOD config, instance mesh far/full switching, ownership, duplicate hook protection'
 );
+
+// A seat owns animation, but must not freeze an actor's distant mesh selection.
+t.LOD.on = false;
+t.CULL.on = false;
+scene.activeCamera = { position: new Vector3(0, 2, 5) };
+let seatedPoses = 0;
+Object.assign(fx, {
+  holder: { isDisposed: () => false },
+  root: { isEnabled: () => true, position: new Vector3(500, 0, 500) },
+  poseRef: { serial: 0 },
+  _vehicleSeat: {
+    anchor: { getAbsolutePosition: () => new Vector3() },
+    applyPose: () => seatedPoses++
+  }
+});
+st.active.push(fx);
+mesh.meshLodApply(fx, true);
+observers[0]();
+assert.equal(fx._meshFar, false, 'near seated actor uses full detail even with a distant simulation root');
+assert.equal(inputMesh.subMeshes, sample[0].full);
+scene.activeCamera.position.z = 500;
+observers[0]();
+assert.equal(fx._meshFar, true, 'distant seated actor still simplifies');
+assert.equal(seatedPoses, 2, 'seat keeps pose authority during mesh updates');
+assert.equal(fx.poseRef.serial, 2, 'seated skeleton preparation follows both poses');
+console.log('PASS seated actors update near/far mesh detail at the presentation seat');

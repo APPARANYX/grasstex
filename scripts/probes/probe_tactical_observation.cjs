@@ -19,6 +19,8 @@ const { requestPreview } = require('./preview_request.cjs');
       url.pathname.includes('ref-' + process.env.TACTICAL_SHA.slice(0, 12)),
       'preview is final PR head'
     );
+    // These seeded urban/cover fixtures belong to the original 2 km scenario.
+    url.searchParams.set('strategicInterception', '0');
     url.searchParams.set('seed', 'phase-a-observer');
     url.searchParams.set('tacticalSituation', '1');
     url.searchParams.set('urbanPicture', '1');

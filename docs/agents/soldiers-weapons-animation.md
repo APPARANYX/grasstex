@@ -161,3 +161,5 @@ any more (removed in the repo-hygiene pass; recover one from git history with
 `git checkout <sha> -- <path>` when a re-export is needed, or re-download the generator
 pack); new generator packs in `Assets/soldiers/new/` are gitignored. Only the `.fbx` deploys.
 
+
+Mounted soldiers keep camera-distance mesh LOD updates while the seat owns their animation pose; approaching the truck restores the full mesh just as it does for infantry. Crew sight exempts only the boarded observer's own truck envelope. Other trucks and static cover still occlude sight. Dismount processes any free occupied exit independently and uses reachable flank/front assembly space when the usual rear line is obstructed. Fully blocked exits remain seated until safe space opens.
