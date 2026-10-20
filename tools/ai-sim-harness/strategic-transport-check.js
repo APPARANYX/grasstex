@@ -163,9 +163,17 @@ for (const args of [
 }
 const defaultTransport = make('strategic', '');
 assert.equal(defaultTransport.api.enabled(defaultTransport.sim), true, 'strategic transport is default-on');
-assert.equal(defaultTransport.sim.obstacles.__dynamicFootprints.length, 12, 'physical truck colliders are default-on');
+assert.equal(
+  defaultTransport.sim.obstacles.__dynamicFootprints.length,
+  12,
+  'physical truck colliders are default-on'
+);
 const noCollision = make('strategic', '?truckCollision=0');
-assert.equal(noCollision.sim.obstacles.__dynamicFootprints.length, 0, 'explicit opt-out removes dynamic truck footprints');
+assert.equal(
+  noCollision.sim.obstacles.__dynamicFootprints.length,
+  0,
+  'explicit opt-out removes dynamic truck footprints'
+);
 const w = make(undefined, '?motorTransport=1&truckPhysics=0'); // the exact constant-speed carrier contract; handling below
 const initialFleet = w.api.fleetSummary(w.sim);
 assert.equal(initialFleet.length, 12, 'all six bases own two parked trucks before the first mission');
