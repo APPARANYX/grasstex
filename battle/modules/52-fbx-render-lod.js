@@ -265,7 +265,7 @@
             if (fx.meshLod) {
               if (!MESH_LOD.on || !eye) meshLodApply(fx, false);
               else {
-                var mp = fx.root.position,
+                var mp = fx._vehicleSeat ? fx._vehicleSeat.anchor.getAbsolutePosition() : fx.root.position,
                   mx = eye.x - mp.x,
                   my = eye.y - mp.y - 0.9,
                   mz = eye.z - mp.z,
