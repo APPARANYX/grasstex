@@ -157,8 +157,10 @@ jobs:
           fetch-depth: 0
       - name: Fetch exact branch tips
         run: git fetch --prune origin '+refs/heads/*:refs/remotes/origin/*'
-      - name: Verify cleanup script
-        run: python3 -m py_compile scripts/housekeeping-benchmark-launches.py
+      - name: Verify cleanup script and safety contracts
+        run: |
+          python3 -m py_compile scripts/housekeeping-benchmark-launches.py
+          python3 -m unittest discover -s scripts -p 'test_housekeeping_benchmark_launches.py'
       - name: Archive verified benchmark launch requests before deleting their branches
         env:
           GH_TOKEN: ${{ github.token }}
