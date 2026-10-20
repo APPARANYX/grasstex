@@ -96,6 +96,9 @@ jobs:
           python3 -m py_compile "${files[@]}"
           echo "Compiled ${#files[@]} Python files."
 
+      - name: Benchmark housekeeping safety tests
+        run: python3 -m unittest discover -s scripts -p 'test_housekeeping_benchmark_launches.py'
+
       - name: Shell
         run: |
           set -euo pipefail
