@@ -46,7 +46,7 @@ class HousekeepingTests(unittest.TestCase):
 
     def test_unmerged_parent_is_pinned_before_deletion(self):
         sha = "b" * 40
-        tag = f"benchmark-source-archive/{sha}"
+        tag = f"archive/benchmark-source/{sha}"
         with patch.object(housekeeping, "run", return_value=SimpleNamespace(returncode=1)):
             with patch.object(housekeeping, "gh", side_effect=[
                     None, {}, {"object": {"sha": sha}}]) as api:
