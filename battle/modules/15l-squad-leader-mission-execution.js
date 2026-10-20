@@ -91,6 +91,7 @@
         }
       }
       ex.transportHandoff = true;
+      if (ctx.resumeTransportFormation) ctx.resumeTransportFormation(sq, pos);
       // A carrier routed on another corridor does not prove these legs passed.
       if (nearest > (+cfg(sim, sq).cohesionRadius || 34)) return;
       if (idx === from) return;

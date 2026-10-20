@@ -661,25 +661,21 @@
     else st.orderWins++;
     return st.last;
   }
-  /* Transport suspends physical execution, not the personally adopted Meso order.
-     Meso coalesces that envelope until a replacement arrives, so deleting it here
-     strands the man at dismount. Rebuild only the committed order through normal
-     goal legalization; discard combat proposals and the old physical route. */
-  function restoreAfterTransport(soldier, battle) {
+  /* The movement resolver, not the transport module, restores soldier foot
+     destinations when a vehicle dismounts or aborts. Releasing the stale
+     proposal ensures the first normal AI update can select a fresh route. */
+  function restoreAfterTransport(soldier) {
     if (!soldier || !soldier.root || !soldier.root.position) return;
     var pos = {
       x: +soldier.root.position.x,
       z: +soldier.root.position.z
     };
-    var order = soldier._movementResolver && soldier._movementResolver.order,
-      intent = order && point(order.intentPoint || order.point);
     resetSoldier(soldier);
     soldier.destination = { x: pos.x, z: pos.z };
     soldier.orderDestination = { x: pos.x, z: pos.z };
     soldier._destinationCommitUntil = 0;
     if (root.BattleNavigation && root.BattleNavigation.invalidateNavPath)
       root.BattleNavigation.invalidateNavPath(soldier);
-    if (intent) proposeOrder(soldier, intent, battle, order.urgent);
   }
   function resetSoldier(soldier) {
     if (soldier) {

@@ -1868,6 +1868,13 @@
      endRecon) so every dependency is in scope. The returned functions are attached as
      closure variables so the commander tick and the public API export see the same
      functions as before. */
+  function resumeTransportFormation(sq, pos) {
+    // Carrier travel invalidates the old formation frame. Meso owns the new
+    // anchor and personal orders; Reception must deliver those orders normally.
+    publishAnchor(sq, pos);
+    sq._fireteamOrders = {};
+    sq._orderGoal = null;
+  }
   var _me = root._squadLeaderMissionExecution
     ? root._squadLeaderMissionExecution({
         root: root,
@@ -1882,6 +1889,7 @@
         missionVersion: missionVersion,
         setPhase: setPhase,
         closePlan: closePlan,
+        resumeTransportFormation: resumeTransportFormation,
         reconCandidate: reconCandidate,
         startRecon: startRecon,
         endRecon: endRecon,
