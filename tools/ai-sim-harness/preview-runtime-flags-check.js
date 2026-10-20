@@ -35,6 +35,7 @@ for (const profile of ['strategic', 'legacy'])
         }
       }
     };
+    loadModule(root, 'battle/core-runtime.js');
     for (const name of [
       '58-strategic-abstract-transport',
       '59-strategic-aerial-recon',

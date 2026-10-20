@@ -87,7 +87,7 @@
     };
   }
   function accessOn() {
-    return !/(?:^|[?&])truckAccess=0(?:&|$)/.test((root.location && root.location.search) || '');
+    return root.BattleStrategicConfig.flag('truckAccess');
   }
   function accessPoint(t, p) {
     return {
@@ -246,13 +246,7 @@
       : null;
   }
   function enabled(sim) {
-    var scenario = sim && sim.scene && sim.scene.metadata && sim.scene.metadata.battleScenario,
-      params = root.location && root.location.search;
-    return !!(
-      scenario &&
-      scenario.profile === 'strategic' &&
-      !/(?:^|[?&])motorTransport=0(?:&|$)/.test(params || '')
-    );
+    return root.BattleStrategicConfig.enabled(sim, 'transport');
   }
   /* Vehicles belong to bases and exist at battle initialization, not at
      mission grant. The parking bays are future garage doors: replacing the
@@ -305,10 +299,7 @@
     sim._strategicTransportFleet = fleet;
     // Live, simulation-owned volumes; renderer readiness never controls collision.
     // Keep the tiny dynamic set separate from the terrain's static spatial index.
-    if (
-      sim.obstacles &&
-      !/(?:^|[?&])truckCollision=0(?:&|$)/.test((root.location && root.location.search) || '')
-    ) {
+    if (sim.obstacles && root.BattleStrategicConfig.flag('truckCollision')) {
       sim.obstacles.__dynamicFootprints = fleet.vehicles.map(function (v) {
         var fp = {
           id: v.id,

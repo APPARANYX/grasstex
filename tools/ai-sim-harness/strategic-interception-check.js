@@ -73,6 +73,7 @@ function make(
     },
     BattleMovementResolver: { restoreAfterTransport() {} }
   };
+  loadModule(root, 'battle/core-runtime.js');
   loadModule(root, 'battle/modules/58-strategic-abstract-transport.js');
   loadModule(root, 'battle/modules/59-strategic-aerial-recon.js');
   loadModule(root, 'battle/modules/59b-strategic-interception.js');

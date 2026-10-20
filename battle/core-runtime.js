@@ -52,6 +52,74 @@
     }
   };
 
+  /* Versioned strategic activation belongs to the pinned JS runtime. PHP only forwards
+     controls; it must not reinterpret historical gameplay defaults/dependencies. */
+  var strategicDefaults = Object.freeze({
+    strategicInterception: true,
+    frontLines: true,
+    motorTransport: true,
+    truckAccess: true,
+    truckCollision: true,
+    truckVisual: true,
+    aerialRecon: true,
+    interception: true,
+    reinforcements: true,
+    reinforcementSortie: true
+  });
+  var strategicFeatures = {
+    transport: { flags: ['motorTransport'] },
+    recon: { flags: ['strategicInterception', 'aerialRecon'], excludeCombatLab: true },
+    interception: {
+      flags: ['strategicInterception', 'motorTransport', 'aerialRecon', 'interception'],
+      excludeCombatLab: true
+    },
+    truckVisual: { flags: ['strategicInterception', 'motorTransport', 'truckVisual'] },
+    truckCollision: { flags: ['motorTransport', 'truckCollision'] }
+  };
+  var strategicPatterns = Object.create(null);
+  Object.keys(strategicDefaults).forEach(function (name) {
+    strategicPatterns[name] = new RegExp('(?:^|[?&])' + name + '=0(?:&|$)');
+  });
+  Object.keys(strategicFeatures).forEach(function (name) {
+    Object.freeze(strategicFeatures[name].flags);
+    Object.freeze(strategicFeatures[name]);
+  });
+  Object.freeze(strategicFeatures);
+  function strategicFlag(name) {
+    if (!Object.prototype.hasOwnProperty.call(strategicDefaults, name))
+      throw new Error('Unknown strategic flag: ' + name);
+    return (
+      strategicDefaults[name] && !strategicPatterns[name].test((root.location && root.location.search) || '')
+    );
+  }
+  function strategicEnabled(sim, name) {
+    var rule = strategicFeatures[name];
+    if (!rule) throw new Error('Unknown strategic feature: ' + name);
+    var town = sim && sim.scene && sim.scene.metadata && sim.scene.metadata.battleScenario;
+    if (!town || town.profile !== 'strategic' || (rule.excludeCombatLab && root.PHASE_C_COMBAT_LAB))
+      return false;
+    for (var i = 0; i < rule.flags.length; i++) if (!strategicFlag(rule.flags[i])) return false;
+    return true;
+  }
+  root.BattleStrategicConfig = Object.freeze({
+    version: 1,
+    defaults: strategicDefaults,
+    features: strategicFeatures,
+    flag: strategicFlag,
+    enabled: strategicEnabled,
+    snapshot: function (sim) {
+      var flags = {},
+        features = {};
+      Object.keys(strategicDefaults).forEach(function (name) {
+        flags[name] = strategicFlag(name);
+      });
+      Object.keys(strategicFeatures).forEach(function (name) {
+        features[name] = strategicEnabled(sim, name);
+      });
+      return { version: 1, flags: flags, features: features };
+    }
+  });
+
   /* Gated logging, repo flag convention (steerLeg/fxPrewarm/callouts): on by default,
      `?log=0` silences every GTLog site at once. Bound at load to whichever console this
      context was given (page console, or the harness/check stub). */

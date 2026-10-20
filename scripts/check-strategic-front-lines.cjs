@@ -130,6 +130,7 @@ function world(defender, search = '?strategicInterception=1&frontLines=1') {
       tick() {}
     }
   };
+  loadModule(root, 'battle/core-runtime.js', { console: quietConsole });
   loadModule(root, 'battle/modules/21b-strategic-front-lines.js');
   const squad = (f, x, z) => ({
     id: f + '-0',
@@ -484,6 +485,7 @@ function sortieWorld(search) {
 // Air-recon corridors: a watch point where the column leaves its trucks short of the next line.
 function corridors(search, layout) {
   const r = { location: { search }, GTLog() {}, BattleModules: { registerSystem() {} } };
+  loadModule(r, 'battle/core-runtime.js', { console: quietConsole });
   loadModule(r, 'battle/modules/58-strategic-abstract-transport.js', { console: quietConsole });
   loadModule(r, 'battle/modules/59-strategic-aerial-recon.js', { console: quietConsole });
   const road = layout.roads.find(

@@ -26,21 +26,13 @@
     OVERFLIGHT_FIXES = 3;
 
   function enabled(sim) {
-    var town = sim && sim.scene && sim.scene.metadata && sim.scene.metadata.battleScenario,
-      search = (root.location && root.location.search) || '';
-    return !!(
-      town &&
-      town.profile === 'strategic' &&
-      !root.PHASE_C_COMBAT_LAB &&
-      !/(?:^|[?&])strategicInterception=0(?:&|$)/.test(search) &&
-      !/(?:^|[?&])aerialRecon=0(?:&|$)/.test(search)
-    );
+    return root.BattleStrategicConfig.enabled(sim, 'recon');
   }
   function flagOff(name) {
     return new RegExp('(?:^|[?&])' + name + '=0(?:&|$)').test((root.location && root.location.search) || '');
   }
   function interceptionOn() {
-    return !/(?:^|[?&])interception=0(?:&|$)/.test((root.location && root.location.search) || '');
+    return root.BattleStrategicConfig.flag('interception');
   }
   /* ?reconCorridors=0 restores reports without corridors (the General then
      projects roads itself); ?reconOverflight=0 restores the instant snapshot. */
@@ -450,9 +442,7 @@
        an opponent is still outbound. This is a clock/doctrine decision by
        our General, not a hostile-motion trigger or privileged enemy lookup.
        Standalone aerialRecon retains its original 120s behavior. */
-    var strategicEarly = !/(?:^|[?&])interception=0(?:&|$)/.test(
-      (root.location && root.location.search) || ''
-    );
+    var strategicEarly = root.BattleStrategicConfig.flag('interception');
     var playerOrdered = options && options.playerOrdered === true;
     // A player may spend their single reconnaissance sortie early, after
     // deployment starts. AI doctrine still retains its conservative clock.

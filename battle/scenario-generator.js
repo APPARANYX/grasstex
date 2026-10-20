@@ -667,15 +667,14 @@
   /* Match battle-sim's early geometry gate regardless of module load order.
      Both 5 km and front-line objectives ship on; explicit =0 restores the
      previous scenario for A/B tests. Combat Lab always wins isolation. */
-  var query = (root.location && root.location.search) || '';
   root.STRATEGIC_INTERCEPTION_ENABLED =
     !root.PHASE_C_COMBAT_LAB &&
     root.STRATEGIC_INTERCEPTION_ENABLED !== false &&
-    !/(?:^|[?&])strategicInterception=0(?:&|$)/.test(query);
+    root.BattleStrategicConfig.flag('strategicInterception');
   root.STRATEGIC_FRONT_LINES =
     !root.PHASE_C_COMBAT_LAB &&
     root.STRATEGIC_FRONT_LINES !== false &&
-    !/(?:^|[?&])frontLines=0(?:&|$)/.test(query);
+    root.BattleStrategicConfig.flag('frontLines');
 
   function create(seed, opts) {
     opts = opts || {};

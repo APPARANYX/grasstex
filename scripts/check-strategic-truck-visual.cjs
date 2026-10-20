@@ -27,6 +27,7 @@ const window = {
   BattleFbxClipMixer: { create: () => ({ sampleLayer: () => 1 }) },
   GTLog: () => {}
 };
+vm.runInNewContext(fs.readFileSync('battle/core-runtime.js', 'utf8'), { window, console });
 vm.runInNewContext(
   code,
   { window, console, Set, Map, WeakMap, Math, Array, Promise, isFinite },

@@ -16,17 +16,7 @@
     FOOT_EXTRA = 25;
 
   function enabled(sim) {
-    var town = sim && sim.scene && sim.scene.metadata && sim.scene.metadata.battleScenario;
-    var search = (root.location && root.location.search) || '';
-    return !!(
-      town &&
-      town.profile === 'strategic' &&
-      !root.PHASE_C_COMBAT_LAB &&
-      !/(?:^|[?&])strategicInterception=0(?:&|$)/.test(search) &&
-      !/(?:^|[?&])motorTransport=0(?:&|$)/.test(search) &&
-      !/(?:^|[?&])aerialRecon=0(?:&|$)/.test(search) &&
-      !/(?:^|[?&])interception=0(?:&|$)/.test(search)
-    );
+    return root.BattleStrategicConfig.enabled(sim, 'interception');
   }
   /* ?reconCorridors=0 restores the General's own road projection. */
   function reportCorridorsOn() {
