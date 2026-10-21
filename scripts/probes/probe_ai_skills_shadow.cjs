@@ -100,6 +100,21 @@ const output = 'reports/ai-skills-shadow';
         cycles.push({ generation: diagnostics.generation, at: b.time, prepared: diagnostics.prepared,
           observers: observerCount(), receipts: diagnostics.receipts.length, chosen: diagnostics.receipts.filter(r => r.chosen).length });
       }
+      // Prove the selector evaluates legitimate natural contact, not only pre-contact guard denials.
+      let naturalSelection = null;
+      b.paused = false;
+      b._trainerStepActive = true;
+      try {
+        for (let step = 0; step < 4000 && !b.winner && !naturalSelection; step++) {
+          b.step(0.15);
+          if (step % 3 === 2) {
+            root.BattleCommanderAI.update(b, root.__scenario__, 0.45);
+            const d = api.diagnostics(b), selected = d.receipts.find(r => r.chosen);
+            if (selected) naturalSelection = { at: b.time, evaluated: d.evaluated, receipt: selected };
+          }
+        }
+      } finally { b._trainerStepActive = false; b.paused = true; }
+      check(naturalSelection && naturalSelection.evaluated > 0, 'No natural threat selection within 600 simulated seconds');
       api.configure({ mode: 'shadow', observer: false, skills: { 'soldier.observe-threat': { enabled: true } } });
       b.paused = false; b.step(0.15); b.paused = true;
       system.onCommanderTick(b);
@@ -110,7 +125,7 @@ const output = 'reports/ai-skills-shadow';
       const faults = root.BattleModules.hookFailures();
       check(!Object.keys(faults).some(key => key.startsWith('ai-skills-shadow.')), 'Skill hook fault');
       return { head: expectedHead, runtimeRef: root.BATTLE_REF, seed: 'ai-skills-v1-602',
-        preview: root.BATTLE_PREVIEW, activation, step: 0.15, commanderTick: 0.45, baselineObservers, cycles, faults };
+        preview: root.BATTLE_PREVIEW, activation, step: 0.15, commanderTick: 0.45, baselineObservers, cycles, naturalSelection, faults };
     }, head);
     assert.deepEqual(errors, [], 'Uncaught browser errors');
     await page.screenshot({ path: output + '/runtime.png' });
