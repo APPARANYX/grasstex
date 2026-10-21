@@ -126,7 +126,14 @@ assert.match(head || '', /^[a-f0-9]{40}$/);
       }
       b.scene.getEngine().stopRenderLoop(R.__battleRenderLoop__);
       const scenario = R.__scenario__,
-        events = [];
+        events = [],
+        decisionSamples = {
+          samples: 0,
+          selected: 0,
+          reasons: {},
+          selectedExamples: []
+        },
+        seenDecisions = new Set();
       let serial = 0,
         acc = 0;
       b.paused = false;
@@ -149,6 +156,34 @@ assert.match(head || '', /^[a-f0-9]{40}$/);
           check(event.serial === serial + 1, 'source journal contiguous');
           serial = event.serial;
           events.push(event);
+        }
+        // Collect bounded, read-only decision explanations throughout the battle.
+        // The end-of-battle ring alone drops early denials on longer replays.
+        if (step % 20 === 0) {
+          const snapshot = api.diagnostics(b);
+          for (const row of snapshot.receipts || []) {
+            if (row.scope !== 'squad') continue;
+            const key = [row.generation, row.at, row.faction, row.entity].join(':');
+            if (seenDecisions.has(key)) continue;
+            seenDecisions.add(key);
+            decisionSamples.samples++;
+            for (const choice of row.decisions || []) {
+              if (choice.skill !== 'squad.prepare-firing-line') continue;
+              const reason = choice.reason || 'unknown';
+              decisionSamples.reasons[reason] = (decisionSamples.reasons[reason] || 0) + 1;
+              if (choice.selected) {
+                decisionSamples.selected++;
+                if (decisionSamples.selectedExamples.length < 12)
+                  decisionSamples.selectedExamples.push({
+                    at: row.at,
+                    faction: row.faction,
+                    squad: row.entity,
+                    missionVersion: row.missionVersion,
+                    reason
+                  });
+              }
+            }
+          }
         }
         if (step % 200 === 0) await new Promise(r => setTimeout(r, 0));
       }
@@ -183,6 +218,7 @@ assert.match(head || '', /^[a-f0-9]{40}$/);
         activation,
         diagnostics,
         events,
+        decisionSamples,
         naturalAccepted: complete.length > 0
       };
       api.configure({ mode: 'legacy' });
@@ -204,6 +240,8 @@ assert.match(head || '', /^[a-f0-9]{40}$/);
         seconds: report.seconds,
         counts: report.diagnostics.squad?.counts,
         naturalAccepted: report.naturalAccepted,
+        decisionSamples: report.decisionSamples,
+        events: report.events.map(e => ({ kind: e.kind, reason: e.reason, at: e.at })),
         errors
       })
     );
