@@ -447,6 +447,7 @@ for (const [name, factory, reason, ticks] of [
   // lowering-posture adapter serves both skills.
   const w = world();
   w.a._beliefs.byKey.warning.baseConfidence = 0.96;
+  w.a._beliefs.byKey.warning.observedAt = 10;
   w.profile.skills['soldier.prone-on-fresh-warning'] = { enabled: true };
   w.api.configure(w.profile);
   let requests = 0;
