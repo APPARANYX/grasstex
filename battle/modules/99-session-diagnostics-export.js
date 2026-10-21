@@ -443,7 +443,12 @@
       activeStablePlans: [],
       blockedFireteams: [],
       activeDefenseRequests: [],
-      writerConflicts: conflictMetrics(conflicts)
+      writerConflicts: conflictMetrics(conflicts),
+      moduleHookFailures:
+        (root.BattleModules && root.BattleModules.hookFailures && root.BattleModules.hookFailures()) || null,
+      ballisticQueryErrors:
+        (root.BattleBallistics && root.BattleBallistics.queryErrors && root.BattleBallistics.queryErrors()) ||
+        null
     };
     ['us', 'ge'].forEach(function (f) {
       var squads = (sim && sim.factions && sim.factions[f] && sim.factions[f].squads) || [];

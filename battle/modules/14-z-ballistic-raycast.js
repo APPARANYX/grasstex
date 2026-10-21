@@ -268,23 +268,42 @@
     };
     return out;
   }
+  /* Obstruction query exceptions are counted and conservatively block an otherwise unverified ray.
+     Every failure is counted by source, the last message is kept, and the console hears of it on
+     the 1st, 10th, 100th... failure so a hot path cannot flood it. queryErrors() hands out counts. */
+  var queryFaults = { obstacleField: 0, navigation: 0, last: null };
+  function noteQueryFault(source, e) {
+    var n = ++queryFaults[source];
+    queryFaults.last = { source: source, message: String((e && e.message) || e) };
+    for (var m = 1; m < n; m *= 10);
+    if (m === n && typeof console !== 'undefined' && console.warn)
+      console.warn('[BALLISTICS] ' + source + ' query threw (segment read as clear), failure #' + n + ':', e);
+  }
   function segmentBlocked(o, d, t, battle) {
     var p = pointAt(o, d, t),
-      F = root.BattleObstacleField;
+      F = root.BattleObstacleField,
+      queryError = null;
     try {
       if (F) {
         var obs = ballisticObstacles(battle.obstacles),
           ob = (F.sightBlocker || F.sightBlocked).call(F, obs, o, p);
         if (ob) return { obstacle: ob };
       }
-    } catch (_) {}
+    } catch (e) {
+      noteQueryFault('obstacleField', e);
+      queryError = 'obstacleField';
+    }
     try {
       if (root.BattleNavigation && root.BattleNavigation.lineOfSightBlocked) {
         var wall = root.BattleNavigation.lineOfSightBlocked({ x: o.x, z: o.z }, { x: p.x, z: p.z }, o.y, p.y);
         if (wall) return { wall: wall };
       }
-    } catch (_) {}
-    return false;
+    } catch (e) {
+      noteQueryFault('navigation', e);
+      queryError = queryError || 'navigation';
+    }
+    // An unavailable geometry answer must never authorize an unobstructed shot.
+    return queryError ? { queryError: queryError } : false;
   }
   function obstacleStop(o, d, maxT, battle) {
     if (!segmentBlocked(o, d, maxT, battle)) return { travel: maxT };
@@ -454,7 +473,9 @@
         ? 'wall'
         : environment.obstacle
           ? 'obstacle'
-          : null;
+          : environment.queryError
+            ? 'geometry-error'
+            : null;
   }
   /* One round from the muzzle: through each body it passes (passes[], at most MAX_BODIES) to where
      it stops, in a body, the environment, or at the end of its range. */
@@ -889,6 +910,13 @@
     fireLineBlocked: fireLineBlocked,
     exposedAim: exposedAim,
     pointLineBlocked: pointLineBlocked,
+    queryErrors: function () {
+      return {
+        obstacleField: queryFaults.obstacleField,
+        navigation: queryFaults.navigation,
+        last: queryFaults.last && { source: queryFaults.last.source, message: queryFaults.last.message }
+      };
+    },
     groundSteps: function () {
       return GROUND_STEPS;
     }

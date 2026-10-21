@@ -128,6 +128,21 @@
     systemsCacheCount = keys.length;
     return systemsCache;
   }
+  /* Hook failures were only console.error'd, so an exported battle could not say a hook had failed.
+     Counted per 'system.hook' (capped at 40 keys), with the last message and whether the hook is
+     required (and so rethrown). Diagnostics only: continuation semantics are unchanged. */
+  var hookFaults = {},
+    hookFaultKeys = 0;
+  function noteHookFault(system, name, e, required) {
+    var key = system.id + '.' + name;
+    if (!hookFaults[key]) {
+      if (hookFaultKeys >= 40) key = 'other';
+      else hookFaultKeys++;
+    }
+    var f = hookFaults[key] || (hookFaults[key] = { count: 0, required: !!required, last: '' });
+    f.count++;
+    f.last = String((e && e.message) || e);
+  }
   function runHook(name, sim, payload) {
     systemsList().forEach(function (system) {
       var fn = system && system[name];
@@ -136,14 +151,19 @@
           fn(sim, payload || {});
         } catch (e) {
           console.error('[MODULE] ' + system.id + '.' + name + ' failed', e);
+          var required = !!(system.requiredHooks && system.requiredHooks.indexOf(name) >= 0);
+          noteHookFault(system, name, e, required);
           // Required initialization must retain the caller's failure semantics.
-          if (system.requiredHooks && system.requiredHooks.indexOf(name) >= 0) throw e;
+          if (required) throw e;
         }
       }
     });
   }
 
   root.BattleModules = {
+    hookFailures: function () {
+      return JSON.parse(JSON.stringify(hookFaults));
+    },
     registerUnitType: registerUnitType,
     registerObjectiveType: registerObjectiveType,
     registerSystem: registerSystem,
