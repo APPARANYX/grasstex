@@ -298,7 +298,7 @@
           keepoutZ: scenario.map.depth * 0.44
         },
         scenario.profile === 'strategic'
-          ? { clumpCount: 180, lowCoverCount: 580, hedgeRowGap: 700, hedgeColGap: 950 }
+          ? { clumpCount: 180, lowCoverCount: 5800, hedgeRowGap: 700, hedgeColGap: 950 }
           : {}
       )
     );
