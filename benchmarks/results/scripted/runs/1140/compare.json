@@ -51,13 +51,13 @@
     "b": 1
   },
   "runtimeErrors": {
-    "a": 0,
-    "b": 0
+    "a": 3,
+    "b": 3
   },
   "wallSeconds": {
-    "medianA": 18.415,
-    "medianB": 19.359,
-    "ratio": 1.051,
+    "medianA": 14.205,
+    "medianB": 15.1475,
+    "ratio": 1.066,
     "gate": 1.25
   },
   "counters": {
@@ -448,5 +448,5 @@
     "p90": 334.05,
     "max": 334.05
   },
-  "pass": true
+  "pass": false
 }

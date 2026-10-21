@@ -1,17 +1,18 @@
-# Benchmark run #1110 · 3 seeds from `phase-c-natural-20261012` (us-defend), windows `contact+60,every60`
+# Benchmark run #1140 · 3 seeds from `phase-c-natural-20261012` (us-defend), windows `contact+60,every60`
 
 - **OFF** flags: `none` · **ON** flags: `localPlan=1&localAmbush=1&localManeuver=1&coveredBounds=1`
-- work/issue-602-ai-skills-squad @ 816fbfd · [run](https://github.com/APPARANYX/grasstex/actions/runs/39597635618) · build v29-dev
+- work/issue-602-ai-skills-squad @ 48a5055 · [run](https://github.com/APPARANYX/grasstex/actions/runs/39602483072) · build v29-dev
 
 ## Verdict
 
 **WEAK: 20 of 20 pairs changed (median first part 334.05 s); 1 of 42 counters under p 0.05 (about 2.1 by chance); casualties +2.2% (p 1)**
 
 - Under 0.05 only: recon.cancelled 95 to 89 (-6.3%, p 0.0313).
+- Runtime errors: off 3, on 3.
 
 ## Paired comparison (off against on)
 
-- **20** pairs (unpaired: off 0, on 0) · identical in every field: **0** · runtime errors off 0 / on 0 · wall time on/off x1.051 (gate 1.25)
+- **20** pairs (unpaired: off 0, on 0) · identical in every field: **0** · runtime errors off 3 / on 3 · wall time on/off x1.066 (gate 1.25)
 - the 5 changed records first part at simulated second: min 334.05, p10 334.05, median 334.05, p90 334.05, max 334.05
 
 | counter | off | on | mean diff per pair | pairs changed | on more | on fewer | sign p |
@@ -67,7 +68,7 @@ phase-c-natural-20261012-0002 334.05 s (timeline)
 
 ## Viewer
 
-[Open both arms in the 3D map](https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=1110&view=brain3d) · [the same on this branch's viewer](https://test.ivandpopov.com/grasstex/preview/issue-602-ai-skills-squad/ai_flow_live.html?bench=1110&view=brain3d) (it has the change before it reaches main)
+[Open both arms in the 3D map](https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=1140&view=brain3d) · [the same on this branch's viewer](https://test.ivandpopov.com/grasstex/preview/issue-602-ai-skills-squad/ai_flow_live.html?bench=1140&view=brain3d) (it has the change before it reaches main)
 
-The viewer loads `off.json` and `on.json` from the `benchmark-results` branch (`?bench=1110`); it opens the seed that parts earliest, and the dropdowns choose another.
+The viewer loads `off.json` and `on.json` from the `benchmark-results` branch (`?bench=1140`); it opens the seed that parts earliest, and the dropdowns choose another.
 

@@ -1,12 +1,12 @@
 {
   "meta": {
     "mode": "seeds",
-    "run": "1110",
-    "runId": "39597635618",
+    "run": "1140",
+    "runId": "39602483072",
     "repo": "APPARANYX/grasstex",
     "ref": "work/issue-602-ai-skills-squad",
-    "sha": "816fbfdff5f5192913db1157ede5bc73c843e8d0",
-    "runUrl": "https://github.com/APPARANYX/grasstex/actions/runs/39597635618",
+    "sha": "48a5055143bad7440a81e7bade4312f2ee14deb6",
+    "runUrl": "https://github.com/APPARANYX/grasstex/actions/runs/39602483072",
     "seed": "phase-c-natural-20261012",
     "seeds": 3,
     "windows": "contact+60,every60",
@@ -19,7 +19,8 @@
     "kind": "weak",
     "headline": "WEAK: 20 of 20 pairs changed (median first part 334.05 s); 1 of 42 counters under p 0.05 (about 2.1 by chance); casualties +2.2% (p 1)",
     "lines": [
-      "Under 0.05 only: recon.cancelled 95 to 89 (-6.3%, p 0.0313)."
+      "Under 0.05 only: recon.cancelled 95 to 89 (-6.3%, p 0.0313).",
+      "Runtime errors: off 3, on 3."
     ]
   },
   "compare": {
@@ -75,13 +76,13 @@
       "b": 1
     },
     "runtimeErrors": {
-      "a": 0,
-      "b": 0
+      "a": 3,
+      "b": 3
     },
     "wallSeconds": {
-      "medianA": 18.415,
-      "medianB": 19.359,
-      "ratio": 1.051,
+      "medianA": 14.205,
+      "medianB": 15.1475,
+      "ratio": 1.066,
       "gate": 1.25
     },
     "counters": {
@@ -472,11 +473,11 @@
       "p90": 334.05,
       "max": 334.05
     },
-    "pass": true
+    "pass": false
   },
   "viewer": {
-    "url": "https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=1110&view=brain3d",
-    "previewUrl": "https://test.ivandpopov.com/grasstex/preview/issue-602-ai-skills-squad/ai_flow_live.html?bench=1110&view=brain3d",
+    "url": "https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=1140&view=brain3d",
+    "previewUrl": "https://test.ivandpopov.com/grasstex/preview/issue-602-ai-skills-squad/ai_flow_live.html?bench=1140&view=brain3d",
     "seeds": [
       {
         "seed": "phase-c-natural-20261012-0002",
