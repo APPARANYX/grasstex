@@ -1,8 +1,8 @@
 # AI Skills V1 contract (#602)
 
-Status: foundation only; gameplay remains legacy. PR A defines contracts; PR B may
-compute shadow decisions. Pilot execution (C), Phase C migration (D) and retirement
-(E) require further authorization. No merge is authorized by #602.
+Status: A/B foundation plus the explicitly authorized C soldier pilot. Gameplay
+default remains legacy. Phase C squad migration (D), retirement (E), and merges
+require separate authorization; #527 stays parked.
 
 ## Verified baseline and dependency graph
 
@@ -130,7 +130,7 @@ before roster replacement, handle multiple independent sims, and reject old snap
 Commander cadence is 0.45 simulated seconds after 0.15-s AI ticks, not render time.
 Deterministic ID ordering, fixed operation budgets and no wall clocks/RNG.
 
-Future C has one scheduler for resource acquisition, commitment, suspension,
+C has one scheduler for resource acquisition, commitment, suspension,
 preemption, timeout and release. It must integrate existing BattleLeases and personal
 adoption, not duplicate their commitments. The action lifecycle is
 `not-started → running → succeeded|failed|cancelled`; BT nodes return
@@ -138,11 +138,12 @@ adoption, not duplicate their commitments. The action lifecycle is
 `invalid-target`, `stale-intel`, `blocked-route`, `never-arrived`,
 `unsupported-action`, `no-authority`, `interrupted`. Death/safety, mission supersession
 and restart preempt utility. B acquires no resources and runs no BT, even if a
-factory is registered. C's exact lease/effector adapter remains a review gate.
+factory is registered. C's narrow posture adapter is described below; movement and other effectors remain unavailable.
 
 One validated profile controls mode `legacy|shadow|pilot` and per-skill enablement
-and typed parameters. Default is legacy. B rejects pilot. One `aiSkills` query may
-select legacy/shadow; no per-skill query parsers. Explicit disable overrides a
+and typed parameters. Default is legacy. One `aiSkills` query may
+select legacy/shadow/pilot; no per-skill query parsers. Pilot requires an explicit
+one-actor scope; the central URL declaration scopes it to US soldier 20. Explicit disable overrides a
 registered skill. Invalid/unknown config fails closed with a diagnostic. Changing
 profile clears shadow receipts; C must cancel/release/reconcile before falling back.
 Rollback B by selecting legacy; it prepares no facts/evaluations/plans and issues
@@ -226,8 +227,8 @@ Limits are 32 registered skills, 512 actors per Commander decision, 32 personal
 belief rows and a 128-row receipt ring per battle. Overflow is explicit (omitted
 actors or `guard-budget`); no wall-time scheduling or unbounded retries. Counters
 separate prepared snapshots from actual evaluator invocations. These are operation
-bounds, not measured p95/p99 CPU claims. C still needs the reviewed shared resource
-and effector adapters before any claimed resource can be acquired or action run.
+bounds, not measured p95/p99 CPU claims. C supplies only the guarded posture
+adapter below; other resource/action combinations still fail closed.
 
 The opt-in benchmark command-history collector runs only in the benchmark runner.
 It samples the existing Command Reception publication log after each 0.15-s step,
@@ -241,3 +242,83 @@ trace. Window records contain the cumulative history through their end, just as
 their timeline is cumulative. Standard exact-state comparison includes the full
 `commandHistory` field when capture is enabled in both arms. Capture defaults OFF;
 no gameplay hook, writer or always-running observer is introduced.
+
+## PR C scheduler, tree runtime and isolated pilot
+
+`60-ai-skills.js` retains the single lifecycle registration, facts and selector.
+`60a-ai-skills-runtime.js` supplies one private scheduler per battle session,
+data-only tree builders, validation, execution and the shared effector boundary.
+`60b-ai-skill-crouch-warning.js` is the complete new skill: one descriptor and
+pure evaluator/factory, tested by `ai-skills-pilot-check.js`, enabled by one central
+profile declaration in 60. No General, Squad Leader, Engagement, reception,
+resolver, navigation, transport or weapon source changes.
+
+Configure a different single actor through the existing profile API:
+
+```js
+BattleAISkills.configure({
+  mode: 'pilot', observer: true, pilot: { faction: 'us', entity: '20' },
+  skills: { 'soldier.crouch-on-warning': { enabled: true } }
+});
+```
+
+The candidate needs a current personally adopted Macro movement mission and a
+fresh personal threat fact above its typed confidence threshold. The scheduler
+claims only posture, and accepts only an unpossessed, alive, upright advancing
+soldier outside contact, suppression, reload, transport and Engagement reactions.
+Existing non-diagnostic BattleLeases always take precedence: inspect the existing
+owner's kinds/holds readers, never grant a second command lease. Unavailable
+resources are excluded before utility. Squad/command execution stays unsupported.
+Diagnostic-only descriptors cannot win pilot execution.
+
+One plan per actor commits for its lifetime; reversed or close utility scores do
+not replace it. There is one attempt per actor/mission, successful or failed, with
+no recurrent cooldown/reselection loop. Generation, exact roster identity and
+mission changes cancel; personal receipt, ROE and safety guards are rechecked
+before every advancement and effect. A newly acquired command lease suspends the
+pending tree and releases scheduler resource claims; resumption reacquires only
+when the owner releases it. Safety cancels rather than suspends. Suspended time
+counts toward the same deadline, preventing starvation. Cancellation does not
+write another owner's state.
+
+The pilot waits one Commander interval (0.45 simulated seconds), then makes one
+atomic `BattleEngagement.requestStance(actor, sim, 'crouch', 0.45)` request. That
+API can only lower a soldier, never stand him up or renew an existing stance.
+Acceptance completes the action immediately; Engagement owns the bounded hold
+and all subsequent reactions. Cancellation before the request issues nothing.
+Rollback never reverses an already accepted posture or forces a soldier upright;
+its existing Engagement hold expires within 0.45 simulated seconds. This is a
+small execution pilot, not a cover/navigation or squad maneuver implementation.
+
+Trees return `Success|Running|Failure`. The explicit plan/action lifecycle is
+`not-started → running → succeeded|failed|cancelled`. Sequence, selector, wait,
+timeout and bounded retry are data nodes, not callbacks receiving world state.
+Factories get immutable snapshots, builders and typed parameters only. Trees are
+validated, cloned and frozen: ≤32 nodes, ≤8 levels, ≤64 visits per advancement,
+≤3 retry attempts (on separate Commander ticks), and an unconditional ≤10-second
+plan deadline. The pilot itself has a two-second timeout. Unsupported effects
+fail with `unsupported-action`; missing owner permission uses `no-authority`,
+stale evidence `stale-intel`, timeout `never-arrived`, safety/invalidation
+`interrupted`. `invalid-target`/`blocked-route` are reserved for future target and
+route adapters, not synthetic checks pretending to provide those capabilities.
+
+Profile changes reconcile before execution/fallback on the next Commander tick,
+within 0.45 simulated seconds. No pending action can execute under the previous
+profile. Observer-only changes clear recording while preserving commitments and
+completed-attempt identity; observer reads never advance anything. Restart clears
+trees, claims, attempts and receipts through the existing lifecycle, without
+wrappers or render observers. Receipts are immutable, bounded to 128 rows, with
+actor/scope identity, mission, generation, skill/score, resource claims, lifecycle,
+reason, action and authoritative owner. Rollback retains cancellation diagnostics
+until restart; observer-off hides all recorded rows.
+
+The hosted browser probe additionally selects a naturally eligible US actor,
+records a completed scoped Engagement request and three more same-page restarts.
+That dynamic test scope is recorded explicitly; it does not claim that fixed US20
+acts in every scenario. Standard benchmark artifacts store pilot profile and
+source-owned execution diagnostics separately from battle records (`skillExecution`),
+so exact gameplay comparison remains independent of decision observations.
+Use the existing GitHub standard benchmark at the final head for legacy/shadow
+parity and scoped legacy/pilot deltas in meeting/us-defend/ge-defend, seed
+`ai-skills-v1-602`, 600 simulated seconds, explicit full-ON 5 km settings above.
+Record no-eligibility runs as such, never as executed pilot evidence.

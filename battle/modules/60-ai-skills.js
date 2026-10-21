@@ -1,5 +1,5 @@
-/* #602 PR B: pure utility shadow. No action/effector access and no plan execution.
-   Trusted skill modules register descriptors; only this system owns shadow sessions. */
+/* #602: shared immutable facts/selection and canonical lifecycle.
+   Pilot execution is delegated to the bounded scheduler, never to skill evaluators. */
 (function (root) {
   'use strict';
   var scopes = ['soldier', 'squad', 'command'],
@@ -96,9 +96,20 @@
     return skills[name];
   }
   function resolve(profile) {
-    keys(profile, ['mode', 'observer', 'skills']);
+    keys(profile, ['mode', 'observer', 'skills', 'pilot']);
     var mode = profile.mode === undefined ? 'legacy' : profile.mode;
-    if (mode !== 'legacy' && mode !== 'shadow') throw new Error('Pilot is not authorized');
+    if (['legacy', 'shadow', 'pilot'].indexOf(mode) < 0) throw new Error('Invalid mode');
+    var pilot = null;
+    if (mode === 'pilot') {
+      keys(profile.pilot, ['faction', 'entity']);
+      if (
+        ['us', 'ge'].indexOf(profile.pilot.faction) < 0 ||
+        typeof profile.pilot.entity !== 'string' ||
+        !/^[a-zA-Z0-9._-]{1,80}$/.test(profile.pilot.entity)
+      )
+        throw new Error('Pilot requires one explicit actor');
+      pilot = { faction: profile.pilot.faction, entity: profile.pilot.entity };
+    }
     if (profile.observer !== undefined && typeof profile.observer !== 'boolean')
       throw new Error('Invalid observer');
     var supplied = profile.skills === undefined ? {} : profile.skills;
@@ -127,7 +138,7 @@
         });
         resolved[name] = { enabled: row.enabled === true, parameters: params };
       });
-    return freeze({ mode: mode, observer: profile.observer !== false, skills: resolved });
+    return freeze({ mode: mode, observer: profile.observer !== false, skills: resolved, pilot: pilot });
   }
   // New descriptors default disabled until explicitly declared in the one profile.
   var requestedProfile = { mode: 'legacy', skills: {} },
@@ -160,6 +171,7 @@
     if (!state) {
       state = {
         identity: Object.freeze({}),
+        scheduler: null,
         generation: 0,
         revision: -1,
         active: false,
@@ -177,10 +189,22 @@
     if (profileDirty) configure(requestedProfile);
     var state = session(sim);
     state.generation++;
+    state.executionArchive = null;
     state.active = true;
     clear(state);
   }
-  function clear(state) {
+  function clear(state, preserve) {
+    if (!preserve && state.scheduler) {
+      state.scheduler.cancelAll('interrupted');
+      state.executionArchive = state.scheduler.diagnostics(config.observer);
+    }
+    if (!preserve) state.scheduler = null;
+    if (state.scheduler) state.scheduler.observe(config.observer);
+    state.executionProfile = JSON.stringify({
+      mode: config.mode,
+      skills: config.skills,
+      pilot: config.pilot
+    });
     state.revision = revision;
     state.lastAt = null;
     state.receipts = [];
@@ -282,7 +306,15 @@
         'adopted-movement': adopted,
         'reachable-cover': false
       },
-      availableResources: []
+      availableResources:
+        config &&
+        config.mode === 'pilot' &&
+        root.BattleAISkillRuntime &&
+        config.pilot.faction === actor.faction &&
+        config.pilot.entity === String(actor.id) &&
+        !root.BattleAISkillRuntime.blocker(sim, actor)
+          ? ['posture']
+          : []
     });
   }
   function denial(snap, context) {
@@ -318,7 +350,7 @@
       evaluations = 0,
       chosen = null,
       blocked = denial(snap, context);
-    if (!manifest || manifest.mode !== 'shadow')
+    if (!manifest || ['shadow', 'pilot'].indexOf(manifest.mode) < 0)
       return freeze({ chosen: null, decisions: [], evaluations: 0 });
     Object.keys(skills)
       .sort()
@@ -327,6 +359,7 @@
           setting = manifest.skills[name];
         if (!snap || skill.scope !== snap.scope) return;
         var reason = !setting || !setting.enabled ? 'disabled' : blocked;
+        if (!reason && manifest.mode === 'pilot' && !skill.createPlan) reason = 'diagnostic-only';
         if (
           !reason &&
           skill.requires.some(function (cap) {
@@ -385,10 +418,17 @@
   }
   function tick(sim) {
     if (profileDirty) configure(requestedProfile);
-    if (!config || config.mode !== 'shadow') return;
     var state = sessions.get(sim);
     if (!state || !state.active) return;
-    if (state.revision !== revision) clear(state);
+    if (state.revision !== revision)
+      clear(
+        state,
+        state.executionProfile ===
+          JSON.stringify({ mode: config.mode, skills: config.skills, pilot: config.pilot })
+      );
+    if (!config || config.mode === 'legacy') return;
+    if (config.mode === 'pilot' && !root.BattleAISkillRuntime) return;
+    if (config.mode === 'pilot' && !state.scheduler) state.scheduler = root.BattleAISkillRuntime.create();
     if (state.lastAt === sim.time) return;
     state.lastAt = sim.time;
     var active = Object.keys(config.skills).some(function (name) {
@@ -407,11 +447,18 @@
       return ak < bk ? -1 : ak > bk ? 1 : 0;
     });
     state.omitted += Math.max(0, actors.length - MAX_ACTORS);
+    if (state.scheduler) state.scheduler.reconcile(actors.slice(0, MAX_ACTORS), sim);
     actors.slice(0, MAX_ACTORS).forEach(function (actor) {
+      if (
+        config.mode === 'pilot' &&
+        (actor.faction !== config.pilot.faction || String(actor.id) !== config.pilot.entity)
+      )
+        return;
       var snap = prepareSnapshot(sim, actor, state),
         result = select(snap, snap, config);
       state.prepared++;
       state.evaluated += result.evaluations;
+      if (state.scheduler) state.scheduler.step(sim, actor, snap, result, skills, config);
       if (config.observer) {
         state.receipts.push(
           freeze({
@@ -454,6 +501,11 @@
         : null;
   initial = Object.assign({}, initial);
   if (query && query.has('aiSkills')) initial.mode = query.get('aiSkills');
+  // One central opt-in declaration. Scope is fixed for URL pilot runs; configure may name another actor.
+  if (initial.mode === 'pilot' && !root.BATTLE_AI_SKILLS) {
+    initial.pilot = { faction: 'us', entity: '20' };
+    initial.skills = { 'soldier.crouch-on-warning': { enabled: true } };
+  }
   configure(initial);
   if (root.BattleModules)
     root.BattleModules.registerSystem('ai-skills-shadow', {
@@ -488,6 +540,12 @@
         prepared: state.revision === revision ? state.prepared : 0,
         evaluated: state.revision === revision ? state.evaluated : 0,
         omitted: state.revision === revision ? state.omitted : 0,
+        execution:
+          state.revision === revision && state.scheduler
+            ? state.scheduler.diagnostics(config.observer)
+            : config.observer && state.executionArchive
+              ? state.executionArchive
+              : null,
         receipts: state.revision === revision ? state.receipts.slice() : []
       });
     },

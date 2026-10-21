@@ -2,7 +2,7 @@ name: AI Skills shadow browser QA
 on:
   pull_request:
     paths:
-      - battle/modules/60-ai-skills.js
+      - 'battle/modules/60*-ai-skill*.js'
       - runtime-contract.php
       - scripts/probes/probe_ai_skills_shadow.cjs
       - .github/workflows/ai-skills-shadow-qa.yml
@@ -24,6 +24,7 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Immutable preview lifecycle and read neutrality
         env:
+          AI_SKILLS_PILOT: '1'
           AI_SKILLS_REF: ${{ github.event.pull_request.head.ref || github.ref_name }}
           AI_SKILLS_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: node scripts/probes/probe_ai_skills_shadow.cjs
@@ -32,5 +33,7 @@ jobs:
         if: always()
         with:
           name: ai-skills-shadow-browser
-          path: reports/ai-skills-shadow/
+          path: |
+            reports/ai-skills-shadow/
+            reports/ai-skills-pilot/
           retention-days: 30
