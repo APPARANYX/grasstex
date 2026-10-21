@@ -300,7 +300,9 @@
         scenario.profile === 'strategic'
           ? { clumpCount: 180, lowCoverCount: 5800, hedgeRowGap: 700, hedgeColGap: 950 }
           : root.PHASE_C_COMBAT_LAB
-            ? { lowCoverCount: 180 } // 10x compact lab scatter attempts; other nonstrategic maps unchanged.
+            ? /[?&]labCover=1(?:&|$)/.test((root.location && root.location.search) || '')
+              ? {} // Original compact scatter count derived from area.
+              : { lowCoverCount: 180 } // Dense compact lab; strategic/standard maps unchanged.
             : {}
       )
     );
