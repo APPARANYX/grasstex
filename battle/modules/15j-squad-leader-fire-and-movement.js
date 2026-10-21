@@ -79,6 +79,10 @@
       if (r.fled && r.fled.length && sq.fledId == null) detachFled(sq, battle, r.fled);
       updateRecon(sq, battle, r);
       var localTask = localPlan && localPlan.on ? localPlan.update(battle, sq, r) : null;
+      var reactive =
+        root.BattleReactiveFireManeuver && root.BattleReactiveFireManeuver.on
+          ? root.BattleReactiveFireManeuver
+          : null;
       var pilot =
         root.BattleAISkills && root.BattleAISkills.advanceSquad
           ? root.BattleAISkills.advanceSquad(battle, sq, r)
