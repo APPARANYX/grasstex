@@ -1163,6 +1163,12 @@
     var e = s && s.eng;
     return !!(CONTACT_COVER_FIRST && e && e.state === 'bound' && e.moveReason === 'contact cover first');
   }
+  function settleAtBaseOfFire(s, battle, exposed) {
+    transition(s, battle, 'alert', ALERT_HOLD, 'base of fire: take position');
+    commitStance(s, battle, exposed ? 'prone' : 'crouch', LOW_GAP_HOLD, 'base of fire: take position');
+    alert(s, battle);
+    return true;
+  }
   function contactCoverFirst(s, battle) {
     var e = state(s),
       F = field();
@@ -1191,15 +1197,25 @@
       // Detached personal report only; never follow a report's hidden unit.
       target = { root: { position: { x: contact.x, z: contact.z } } };
     }
-    var p = posOf(s);
-    if (F.coverPotentialAt(battle.obstacles, p.x, p.z) <= USEFUL_COVER) return false;
+    var p = posOf(s),
+      R = root.BattleReactiveFireManeuver,
+      settleReport = !!(
+        !s.target &&
+        e.state === 'advance' &&
+        R &&
+        R.on &&
+        s.squad &&
+        R.supporters(battle, s.squad, { fireSupport: s.squad.members }, [s]).length >= 2
+      );
+    if (F.coverPotentialAt(battle.obstacles, p.x, p.z) <= USEFUL_COVER)
+      return settleReport ? settleAtBaseOfFire(s, battle, false) : false;
     var cover = findCover(s, battle, {
       maxRange:
         underFireNow(s, battle) || s.suppressedUntil > battle.time ? COVER_RANGE_UNDER_FIRE : COVER_RANGE,
       threat: target,
       evade: underFireNow(s, battle) || s.suppressedUntil > battle.time
     });
-    if (!cover) return false;
+    if (!cover) return settleReport ? settleAtBaseOfFire(s, battle, true) : false;
     e.cover = cover;
     s._faceHint = null;
     transition(
@@ -1722,7 +1738,14 @@
         ? 'prone'
         : 'crouch';
     if (!holdStance(s, battle))
-      commitStance(s, battle, seeingStance(s, battle, watch, aim && { root: { position: aim } }), 2.0);
+      commitStance(
+        s,
+        battle,
+        !e.suppressOrder && e.moveReason === 'base of fire: take position' && watch === 'prone'
+          ? 'prone'
+          : seeingStance(s, battle, watch, aim && { root: { position: aim } }),
+        2.0
+      );
     s._faceHint = aim && facingError(s, aim) > AIM_CONE ? aim : null;
     /* Phase 0G1: secondary threat orientation. If the man has a secondary threat (a belief in
        a different 20m sector from the primary) and the primary is either being suppressed,
@@ -2137,6 +2160,9 @@
     reserve: reserveCover,
     release: releaseCover,
     current: currentCover,
+    occupied: function (s, battle) {
+      return coverImpl().occupiedCover(s, battle);
+    },
     snapshot: coverSnapshot,
     boundThreats: function (s, battle) {
       return coverImpl().boundThreats(s, battle);

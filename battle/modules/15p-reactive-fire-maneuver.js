@@ -52,6 +52,44 @@
       );
     });
   }
+  /* A base of fire is not a whole-squad position acknowledgement. Read each
+     current body: everyone capable must finish individual cover ingress or
+     settle prone before a team leaves. Never command posture/movement here. */
+  function defensiveReadiness(battle, sq, committedMovers) {
+    var E = root.BattleEngagement,
+      F = root.BattleObstacleField,
+      C = root.BattleCoverPositions,
+      members = (sq && sq.members) || [],
+      pending = [],
+      count = 0;
+    members.forEach(function (s) {
+      if (!s || s.dead || s.hp <= 0 || s.incapacitated) return;
+      // During adoption, peers on THIS already-authorized lease may be moving.
+      if (committedMovers && committedMovers.indexOf(s) >= 0) return;
+      count++;
+      var e = s.eng,
+        p = s.root && s.root.position,
+        reason = null;
+      if (!e || ['orient', 'engage', 'alert', 'pinned', 'station'].indexOf(e.state) < 0)
+        reason = 'positioning';
+      else if (s.moving || s.crawling) reason = 'moving';
+      else if (!p || !Number.isFinite(p.x) || !Number.isFinite(p.z) || !E || !F) reason = 'unknown-position';
+      else if (!s.prone) {
+        // Native arrival has a positional tolerance. A live occupied slot is
+        // still cover when the broad field sample just outside it is weaker.
+        var occupied = C && C.occupied && C.occupied(s, battle);
+        if (!occupied && !(F.coverPotentialAt(battle.obstacles, p.x, p.z) <= E.tuning.USEFUL_COVER))
+          reason = 'exposed';
+      }
+      if (reason) pending.push({ id: s.id, reason: reason });
+    });
+    return {
+      ready: count > 0 && !pending.length,
+      members: count,
+      settled: count - pending.length,
+      pending: pending
+    };
+  }
   function canBoundTeam(battle, sq, movers, report) {
     return assessTeam(battle, sq, movers, report).eligible;
   }
@@ -76,6 +114,7 @@
       supporters(battle, sq, report, movers).length < 2
     )
       return { eligible: false, reason: 'no-independent-support-or-geometry' };
+    if (!defensiveReadiness(battle, sq).ready) return { eligible: false, reason: 'squad-not-settled' };
     var reason = 'no-usable-cover';
     var eligible = movers.every(function (s) {
       if (
@@ -137,13 +176,18 @@
     var movers = sq.members.filter(function (man) {
       return data.moverIds.indexOf(String(man.id)) >= 0;
     });
-    return movers.indexOf(s) >= 0 && supporters(battle, sq, { fireSupport: sq.members }, movers).length >= 2;
+    return (
+      movers.indexOf(s) >= 0 &&
+      defensiveReadiness(battle, sq, movers).ready &&
+      supporters(battle, sq, { fireSupport: sq.members }, movers).length >= 2
+    );
   }
   root.BattleReactiveFireManeuver = Object.freeze({
     on: on,
     canTask: canTask,
     taskReason: taskReason,
     supporters: supporters,
+    defensiveReadiness: defensiveReadiness,
     canBoundTeam: canBoundTeam,
     assessTeam: assessTeam,
     adoptionAllowed: adoptionAllowed

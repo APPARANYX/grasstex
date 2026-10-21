@@ -327,6 +327,27 @@
       }
       return e || null;
     }
+    // Read occupied native cover without creating, pruning or refreshing claims.
+    // Readiness/benchmark observers must not alter cover allocation.
+    function occupiedCover(s, battle) {
+      var c = coverClaims.get(battle),
+        obs = battle.obstacles || [],
+        N = root.BattleNavigation,
+        version = (obs.__physicalVersion || 0) + '|' + obs.length + '|' + ((N && N.version) || 0),
+        p = s && s.root && s.root.position,
+        e = c && c.bySoldier.get(s);
+      return !!(
+        c &&
+        c.source === obs &&
+        c.version === version &&
+        c.roster === battle._roster &&
+        battle.time >= c.lastTime &&
+        p &&
+        e &&
+        coverLive(e, battle) &&
+        dist(p.x, p.z, e.slot.x, e.slot.z) <= 0.45
+      );
+    }
     function releaseCover(s, battle, kind) {
       var c = coverRegistry(battle),
         e = c.bySoldier.get(s);
@@ -774,6 +795,7 @@
       coverRegistry: coverRegistry,
       buildCoverSlots: buildCoverSlots,
       currentCover: currentCover,
+      occupiedCover: occupiedCover,
       releaseCover: releaseCover,
       reserveCover: reserveCover,
       coverCandidates: coverCandidates,

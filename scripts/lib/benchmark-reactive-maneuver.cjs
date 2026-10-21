@@ -15,7 +15,10 @@
       completed: 0,
       interrupted: 0,
       supportShotsDuringMovement: 0,
-      adoptionRejected: 0
+      adoptionRejected: 0,
+      positionPendingSamples: 0,
+      positionReadySamples: 0,
+      positionedSupportSamples: 0
     };
     let nextDiagnostic = 0;
     function shot(s) {
@@ -37,6 +40,8 @@
               contactAt: null,
               supportAt: null,
               maxSupporters: 0,
+              positionReadyAt: null,
+              positionedSupportAt: null,
               completedLeases: new Set(),
               denials: {}
             };
@@ -77,6 +82,18 @@
               task = q._localTask;
             state.maxSupporters = Math.max(state.maxSupporters, support);
             if (q.inContact && support >= 2 && state.supportAt == null) state.supportAt = b.time;
+            const positions = P.defensiveReadiness(b, q);
+            state.positions = positions;
+            if (q.inContact) {
+              if (positions.ready) {
+                counts.positionReadySamples++;
+                if (state.positionReadyAt == null) state.positionReadyAt = b.time;
+                if (support >= 2) {
+                  counts.positionedSupportSamples++;
+                  if (state.positionedSupportAt == null) state.positionedSupportAt = b.time;
+                }
+              } else counts.positionPendingSamples++;
+            }
             let reason = !q.inContact
               ? 'no-contact'
               : !task
@@ -85,7 +102,9 @@
                   ? P.taskReason(q, task.inputs) + ':' + task.kind
                   : support < 2
                     ? 'no-effective-support'
-                    : 'eligible';
+                    : !positions.ready
+                      ? 'squad-not-settled'
+                      : 'eligible';
             state.denials[reason] = (state.denials[reason] || 0) + 1;
             if (reason === 'eligible') {
               const gate = !task.boundsAllowed

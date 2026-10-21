@@ -91,6 +91,7 @@ function world(withWall = true, extraRifle = false) {
     const e = r.BattleEngagement.stateOf(s);
     e.state = 'engage';
     e.fireReadyAt = 0;
+    r.BattleEngagement.commitStance(s, b, 'prone', 0, 'fixture:defensive-position');
   });
   q.state = 'engaged';
   q.inContact = true;
@@ -112,7 +113,30 @@ function world(withWall = true, extraRifle = false) {
   return { r, b, q, hostile, S, P, wall };
 }
 
-const { r, b, q, S } = world();
+// Actual low cover lets the holding element fire crouched without being
+// exposed; an engage label alone must not certify a defensive position.
+function protectHoldingElement(w) {
+  for (const s of w.q.members.slice(1)) {
+    const p = s.root.position;
+    w.b.obstacles.push({
+      ...w.wall,
+      id: 'holding-log-' + s.id,
+      physicalId: 'holding-log-' + s.id,
+      type: 'log',
+      x: p.x + 1,
+      z: p.z + 0.5,
+      hx: 0.3,
+      hz: 1,
+      radius: 1,
+      height: 0.62,
+      cover: 0.45
+    });
+  }
+  w.b.obstacles.__physicalVersion++;
+}
+const initial = world();
+protectHoldingElement(initial);
+const { r, b, q, S } = initial;
 const E = r.BattleEngagement,
   L = r.BattleLeases,
   R = r.BattleReactiveFireManeuver;
@@ -128,6 +152,52 @@ for (let i = 0; i < 20; i++) {
   }
 }
 assert.ok(R.supporters(b, q, E.updateSquad(q, b), [mover]).length >= 2, 'real independent shots');
+// A genuine base of fire cannot release a team before the remaining
+// member is defensively positioned, even if that member is not a shooter.
+assert.equal(R.defensiveReadiness(b, q).ready, true, JSON.stringify(R.defensiveReadiness(b, q)));
+const waiting = support[support.length - 1];
+const waitingX = waiting.root.position.x;
+waiting.root.position.x += 50;
+E.commitStance(waiting, b, 'stand', 0, 'fixture:unsettled');
+assert.equal(R.defensiveReadiness(b, q).ready, false, 'standing exposed is not defensible');
+const priorTarget = waiting.target;
+waiting.target = null;
+waiting.eng.state = 'advance';
+E.updateSoldier(waiting, b);
+r.BattleMovementResolver.resolve(waiting, b);
+assert.equal(waiting.target, null, 'delivered report never creates a direct target');
+assert.equal(waiting.eng.state, 'alert', 'real base of fire settles report-only members');
+assert.equal(waiting.eng.moveReason, 'base of fire: take position');
+assert.equal(waiting.prone, true, 'no cover settles report-only member prone');
+assert.equal(waiting.moving, false);
+waiting.target = priorTarget;
+waiting.eng.state = 'engage';
+E.commitStance(waiting, b, 'stand', 0, 'fixture:unsettled');
+
+assert.equal(R.assessTeam(b, q, [mover], E.updateSquad(q, b)).reason, 'squad-not-settled');
+waiting.dead = true;
+assert.equal(R.defensiveReadiness(b, q).ready, true, 'casualties do not hold a live squad forever');
+waiting.dead = false;
+waiting.incapacitated = true;
+assert.equal(R.defensiveReadiness(b, q).ready, true, 'incapacitated members are not a moving element');
+waiting.incapacitated = false;
+E.commitStance(waiting, b, 'prone', 0, 'fixture:no-cover-fallback');
+assert.equal(R.defensiveReadiness(b, q).ready, true, 'stationary prone fallback is defensible');
+waiting.eng.state = 'bound';
+assert.equal(R.defensiveReadiness(b, q).ready, false, 'individual cover ingress must finish');
+waiting.eng.state = 'engage';
+assert.equal(
+  R.defensiveReadiness(b, { members: [] }).ready,
+  false,
+  'empty squads cannot acknowledge positions'
+);
+waiting.root.position.x = waitingX;
+waiting.moving = true;
+S.fireAndMovement(q, b);
+assert.equal(L.holds(q, 'bound', b.time), false, 'two shooters do not release a still-moving squad member');
+waiting.moving = false;
+E.updateSoldier(waiting, b);
+assert.equal(R.defensiveReadiness(b, q).ready, true);
 const events = [];
 r.BattleTelemetry = {
   record(type, data) {
@@ -146,6 +216,14 @@ assert.equal(
   1,
   'duplicate supporter cannot supply two elements'
 );
+// Current holding positions are checked again at adoption, but already-
+// authorized moving peers do not invalidate the same team's remaining orders.
+waiting.moving = true;
+assert.equal(R.adoptionAllowed(mover, b, lease), false, 'holding member left defensive position');
+waiting.moving = false;
+mover.moving = true;
+assert.equal(R.adoptionAllowed(mover, b, lease), true, 'authorized mover may leave the starting position');
+mover.moving = false;
 support[0].dead = true;
 assert.equal(R.adoptionAllowed(mover, b, lease), false, 'support casualty invalidates unconsumed order');
 support[0].dead = false;
@@ -215,6 +293,7 @@ cq.members.slice(1).forEach(s => {
   s.destination.z = -8;
   s.orderDestination.z = -8;
 });
+protectHoldingElement(cycle);
 cq.members[3]._fireteamKey = 'charlie';
 cq.members[4]._fireteamKey = 'charlie';
 const picture = { x: 0, z: 60, confidence: 0.9, source: 'told' };
@@ -251,9 +330,40 @@ for (let i = 0; i < 220; i++) {
 }
 assert.ok(observations.length >= 2, JSON.stringify(observations));
 assert.ok(arrivedSupport, 'arrived mover establishes genuine support');
+assert.equal(
+  cr.BattleReactiveFireManeuver.defensiveReadiness(cb, cq).ready,
+  true,
+  'native occupied slots remain defensible within arrival tolerance'
+);
 assert.ok(new Set(observations.map(x => x.team)).size >= 2, 'native fireteam rotation survives the handoff');
 console.log('PASS successive native bounds and arrived-mover support', JSON.stringify(observations));
 
 assert.ok(observer.snapshot().completed >= 2, JSON.stringify(observer.snapshot()));
 assert.ok(observer.snapshot().successiveSquads >= 1, 'distinct leases physically complete');
 assert.ok(observer.snapshot().supportShotsDuringMovement > 0);
+
+const occupied = cq.members.find(s => cr.BattleCoverPositions.occupied(s, cb));
+assert.ok(occupied, 'native completed bounds retain an occupied claim');
+cb.obstacles.__physicalVersion++;
+assert.equal(cr.BattleCoverPositions.occupied(occupied, cb), false, 'stale obstacle provenance is not cover');
+cb.obstacles.__physicalVersion--;
+assert.equal(
+  cr.BattleCoverPositions.occupied(occupied, cb),
+  true,
+  'read-only occupancy did not prune or rebuild the claim'
+);
+const occupiedX = occupied.root.position.x;
+occupied.root.position.x += 5;
+assert.equal(
+  cr.BattleCoverPositions.occupied(occupied, cb),
+  false,
+  'a reservation without physical arrival is not occupancy'
+);
+occupied.root.position.x = occupiedX;
+
+const warningOnly = world(false);
+const warned = warningOnly.q.members[0];
+warned.target = null;
+warned.eng.state = 'advance';
+warningOnly.r.BattleEngagement.updateSoldier(warned, warningOnly.b);
+assert.equal(warned.eng.state, 'advance', 'a warning without real supporting shots retains native transit');

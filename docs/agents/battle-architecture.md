@@ -29,7 +29,14 @@ control. No fire/support capability is reported during contact-cover ingress.
 
 The experimental `reactiveFireManeuver=1&localPlan=1&coveredBounds=1` path uses
 `15p-reactive-fire-maneuver.js` only as a read-only policy. Local planning selects
-the task; native Meso selects/leases the fireteam; Engagement revalidates current
+the task. Before native Meso leases a fireteam, every living combat-capable
+member must finish individual cover ingress and settle at useful/occupied native
+cover or stationary prone. Two shooters alone do not acknowledge the whole
+squad. Individual cover seeking and defensive fire continue while this gate
+waits. After two real supporters establish fire, fresh personally reported
+contacts also stop report-only members in cover or prone rather than continuing
+a warning-only march; this creates no direct target. Adoption rechecks holding members; peers already on the same bound may
+leave their initial positions. Native Meso selects/leases the fireteam; Engagement revalidates current
 support capability, real discharge receipts and mission/task identity, then chooses
 physical cover; the existing resolver/executor moves. This opt-in path skips
 `15o` deliberate ambush preparation and the squad AI Skills adapter. It retains
