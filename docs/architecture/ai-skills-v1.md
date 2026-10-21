@@ -187,3 +187,34 @@ resource/task/degradation options require explicit recording, never implied ON.
 Future acceptance needs the real same-squad/plan chain through two independently
 effective supporters and actual covered arrival; a staged fixture cannot accept C.
 No navigation/ballistics/weapon/movement or Phase C changes in A/B.
+
+## PR B adapter and file boundary
+
+`battle/modules/60-ai-skills.js` is the only runtime addition: registry, profile
+resolver, personal fact projection, pure selector and one registered shadow system.
+`runtime-contract.php` only forwards the single `aiSkills` preview option; it does
+not interpret it. `tools/ai-sim-harness/ai-skills-shadow-check.js` exercises the
+negative/neutrality/budget contracts. `scripts/probes/probe_ai_skills_shadow.cjs`
+and `.github/workflows/ai-skills-shadow-qa.yml` exercise the immutable hosted preview,
+three same-page restarts, owner-read neutrality, full-ON configuration and rollback.
+These are the precise B changes; no AI owner file changes or wire-map exemptions.
+
+The built-in `soldier.observe-threat` is a diagnostic candidate with no resources,
+no actions and no plan; it scores the maximum valid perceived confidence against
+a typed threshold. New registered skills default disabled; the one initial central
+profile enables only this diagnostic candidate, with mode still legacy. Configure
+via `BattleAISkills.configure({mode:'shadow', skills:{'soldier.observe-threat':
+{enabled:true, parameters:{threshold:0.25}}}})`; `observer:false` disables recording.
+Invalid profiles return legacy and `diagnostics().error = 'invalid-profile'`.
+All other skills require explicit manifest entries. Registry supports all three
+scope declarations, but automatic B snapshots deliberately support soldiers only.
+Reachable-cover and action resources remain unavailable; B does not call mutating
+owner readers to invent availability. Evaluator modules are trusted code, not a
+JavaScript security sandbox; the runtime supplies no world/action references.
+
+Limits are 32 registered skills, 512 actors per Commander decision, 32 personal
+belief rows and a 128-row receipt ring per battle. Overflow is explicit (omitted
+actors or `guard-budget`); no wall-time scheduling or unbounded retries. Counters
+separate prepared snapshots from actual evaluator invocations. These are operation
+bounds, not measured p95/p99 CPU claims. C still needs the reviewed shared resource
+and effector adapters before any claimed resource can be acquired or action run.
