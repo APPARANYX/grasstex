@@ -1,0 +1,54 @@
+name: AI Skills compact 20v20 factorial
+on:
+  pull_request:
+    paths:
+      - battle/scenario-generator.js
+      - battle/town-objectives.js
+      - battle/modules/15o-squad-leader-tactical-postures.js
+      - battle/modules/19-engagement-cover-positions.js
+      - scripts/probes/probe_ai_skills_compact_factorial.cjs
+      - .github/workflows/ai-skills-compact-factorial.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ai-skills-compact-factorial-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  factorial:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - id: ge-defense
+            seed: phase-c-natural-20261012-0015
+            defender: ge
+          - id: meeting
+            seed: phase-c-natural-20261012-0001
+            defender: ''
+          - id: us-defense
+            seed: phase-c-natural-20261012-0017
+            defender: us
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install native browser harness
+        run: |
+          npm install --no-save --no-package-lock playwright@1.58.2
+          npx playwright install --with-deps chromium
+      - name: Replay every 20v20 quarter-range configuration
+        env:
+          AI_SKILLS_REF: ${{ github.event.pull_request.head.ref || github.ref_name }}
+          AI_SKILLS_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          AI_COMPACT_SEED: ${{ matrix.seed }}
+          AI_COMPACT_DEFENDER: ${{ matrix.defender }}
+          AI_COMPACT_SECONDS: '240'
+        run: node scripts/probes/probe_ai_skills_compact_factorial.cjs
+      - name: Preserve actual squad attempts and ranked combinations
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: compact-factorial-${{ matrix.id }}
+          path: reports/ai-skills-compact-factorial/
+          retention-days: 30
