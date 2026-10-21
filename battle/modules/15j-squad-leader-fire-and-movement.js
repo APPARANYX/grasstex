@@ -375,9 +375,12 @@
         holding = c.holding;
         buddy = c.buddy;
       }
-      if (!(
-        movers.length && holding >= (localPlan && localPlan.resourcesOn ? localPlan.tuning.minimumSupport : 2)
-      ))
+      if (
+        !(
+          movers.length &&
+          holding >= (localPlan && localPlan.resourcesOn ? localPlan.tuning.minimumSupport : 2)
+        )
+      )
         turn = first;
       sq._boundTurn = turn;
       if (

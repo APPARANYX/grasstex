@@ -138,6 +138,22 @@ assert.ok(L.holds(q, 'bound', b.time), JSON.stringify({ events, task: q._localTa
 const lease = L.get(q, 'bound');
 assert.equal(lease.data.reactiveFireManeuver, true);
 assert.equal(R.adoptionAllowed(mover, b, lease), true);
+assert.equal(
+  R.supporters(b, q, { fireSupport: [support[0], support[0]] }, [mover]).length,
+  1,
+  'duplicate supporter cannot supply two elements'
+);
+support[0].dead = true;
+assert.equal(R.adoptionAllowed(mover, b, lease), false, 'support casualty invalidates unconsumed order');
+support[0].dead = false;
+support[0].outOfAmmo = true;
+assert.equal(R.adoptionAllowed(mover, b, lease), false, 'empty supporter invalidates order');
+support[0].outOfAmmo = false;
+const clock = b.time;
+b.time = lease.until;
+assert.equal(R.adoptionAllowed(mover, b, lease), false, 'lease expires');
+b.time = clock;
+
 for (const s of support) s.reloading = true;
 assert.equal(R.adoptionAllowed(mover, b, lease), false, 'reload invalidates unconsumed authorization');
 for (const s of support) s.reloading = false;
