@@ -50,8 +50,7 @@
     posture: function (level) {
       // Shared Engagement effector; skills never write stance directly.
       var stance = level === undefined ? 'crouch' : level;
-      if (stance !== 'crouch' && stance !== 'prone')
-        throw new Error('Unsupported lowering posture');
+      if (stance !== 'crouch' && stance !== 'prone') throw new Error('Unsupported lowering posture');
       return immutable({ type: 'action', action: stance });
     }
   });
