@@ -87,7 +87,7 @@
         root.BattleAISkills && root.BattleAISkills.advanceSquad
           ? root.BattleAISkills.advanceSquad(battle, sq, r)
           : null;
-      if (!(pilot && pilot.handled) && tacticalPostures && tacticalPostures.on)
+      if (!reactive && !(pilot && pilot.handled) && tacticalPostures && tacticalPostures.on)
         tacticalPostures.update(battle, sq, r);
       if (localPlan && localPlan.tasksOn && sq.state === 'retreat') {
         L.end(sq, 'bound', battle.time, 'retreat owns recovery');
@@ -132,7 +132,7 @@
         L.end(sq, 'bound', t, 'contact started');
         L.grant(sq, 'bound-cycle', 'squad-leader', t, t + BOUND_CYCLE, 'contact started', 'cycle expiry');
       }
-      var posture = tacticalPostures && tacticalPostures.current(battle, sq);
+      var posture = !reactive && tacticalPostures && tacticalPostures.current(battle, sq);
       if (posture && posture.mode !== 'maneuver') {
         L.end(sq, 'bound', t, 'tactical posture holds');
         E.clearBoundOrders(sq);
@@ -201,6 +201,7 @@
       if (
         (pilot && pilot.handled && !pilot.allowBound) ||
         !sq._assaultAuthorized ||
+        (reactive && (!localTask || !reactive.canTask(sq, localTask.inputs))) ||
         L.holds(sq, 'bound-cycle', t) ||
         L.holds(sq, 'bound', t) ||
         r.effective < 2 ||
@@ -284,6 +285,20 @@
           movers.length &&
           holding >= (localPlan && localPlan.resourcesOn ? localPlan.tuning.minimumSupport : 2)
         ) {
+          if (reactive) {
+            var assessment = reactive.assessTeam(battle, sq, movers, r);
+            if (!assessment.eligible) {
+              telemetry(battle, 'decision-bound-held', {
+                faction: sq.faction,
+                squad: sq.id,
+                team: team,
+                reason: assessment.reason,
+                policy: 'reactive'
+              });
+              continue;
+            }
+            safeCoveredCandidateFound = true;
+          }
           /* The first team in rotation can have support yet lack a physically
              masked route. For the opt-in maneuver posture keep looking for a
              different eligible team; never discard a safe bound merely because
@@ -308,7 +323,7 @@
       }
       /* Every candidate has already failed the independent physical route gate.
          Retain the existing no-bound result; never fall back to an exposed rush. */
-      if (posture && posture.mode === 'maneuver' && !safeCoveredCandidateFound) {
+      if ((reactive || (posture && posture.mode === 'maneuver')) && !safeCoveredCandidateFound) {
         sq._boundTurn = first;
         telemetry(battle, 'decision-bound-held', {
           faction: sq.faction,
@@ -356,12 +371,9 @@
         holding = c.holding;
         buddy = c.buddy;
       }
-      if (
-        !(
-          movers.length &&
-          holding >= (localPlan && localPlan.resourcesOn ? localPlan.tuning.minimumSupport : 2)
-        )
-      )
+      if (!(
+        movers.length && holding >= (localPlan && localPlan.resourcesOn ? localPlan.tuning.minimumSupport : 2)
+      ))
         turn = first;
       sq._boundTurn = turn;
       if (
@@ -397,19 +409,29 @@
           t + BOUND_DURATION,
           'fireteam ' + team + ' bounds',
           'window expiry or contact broken',
-          pilot && pilot.handled
+          reactive
             ? {
                 team: team,
                 missionVersion: localTask.missionVersion,
                 localTaskSerial: localTask.serial,
+                reactiveFireManeuver: true,
                 moverIds: movers.map(function (s) {
                   return String(s.id);
-                }),
-                aiSkillEpisode: pilot.episode
+                })
               }
-            : localPlan && localPlan.degradationOn
-              ? { team: team, missionVersion: localTask.missionVersion, localTaskSerial: localTask.serial }
-              : { team: team }
+            : pilot && pilot.handled
+              ? {
+                  team: team,
+                  missionVersion: localTask.missionVersion,
+                  localTaskSerial: localTask.serial,
+                  moverIds: movers.map(function (s) {
+                    return String(s.id);
+                  }),
+                  aiSkillEpisode: pilot.episode
+                }
+              : localPlan && localPlan.degradationOn
+                ? { team: team, missionVersion: localTask.missionVersion, localTaskSerial: localTask.serial }
+                : { team: team }
         );
         L.grant(
           sq,

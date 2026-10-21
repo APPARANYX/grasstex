@@ -20,6 +20,7 @@
       mission &&
       mission.status === 'executing' &&
       inputs &&
+      !inputs.dispersed &&
       inputs.contact &&
       inputs.confidence >= 0.5 &&
       Number.isFinite(inputs.pressure) &&
@@ -55,9 +56,18 @@
     });
   }
   function canBoundTeam(battle, sq, movers, report) {
-    var C = root.BattleCoverPositions;
+    return assessTeam(battle, sq, movers, report).eligible;
+  }
+  function assessTeam(battle, sq, movers, report) {
+    var C = root.BattleCoverPositions,
+      N = root.BattleNavigation;
     if (
       !on ||
+      !N ||
+      N.scenario !==
+        (battle.scene &&
+          battle.scene.metadata &&
+          (battle.scene.metadata.battleScenario || battle.scene.metadata.battleTown)) ||
       !C ||
       !C.coveredBoundsOn ||
       !C.coveredBoundsOn() ||
@@ -68,10 +78,27 @@
       !movers.length ||
       supporters(battle, sq, report, movers).length < 2
     )
-      return false;
-    return movers.every(function (s) {
+      return { eligible: false, reason: 'no-independent-support-or-geometry' };
+    var reason = 'covered-team';
+    var eligible = movers.every(function (s) {
+      if (
+        !s ||
+        s.dead ||
+        s.isPlayer ||
+        s.moving ||
+        s.suppressedUntil > battle.time ||
+        s.reloading ||
+        s.clearingStoppage ||
+        s.outOfAmmo
+      ) {
+        reason = 'mover-unavailable';
+        return false;
+      }
       var threats = C.boundThreats(s, battle);
-      if (!threats.length) return false;
+      if (!threats.length) {
+        reason = 'unknown-contact';
+        return false;
+      }
       var possibilities = C.candidates(
         s,
         battle,
@@ -82,15 +109,41 @@
         Array.isArray(possibilities) &&
         possibilities.length <= 256 &&
         possibilities.slice(0, 48).some(function (p) {
-          return C.boundRoute(s, battle, p, threats, 'reactive').eligible;
+          var route = C.boundRoute(s, battle, p, threats, 'reactive');
+          reason = route.reason;
+          return route.eligible;
         })
       );
     });
+    return { eligible: eligible, reason: reason };
+  }
+  function adoptionAllowed(s, battle, lease) {
+    var sq = s.squad,
+      task = sq && sq._localTask,
+      data = lease && lease.data;
+    if (
+      !data ||
+      !data.reactiveFireManeuver ||
+      !task ||
+      task.kind !== 'maneuver' ||
+      task.missionVersion !== data.missionVersion ||
+      task.serial !== data.localTaskSerial ||
+      !sq._macroMission ||
+      sq._macroMission.version !== data.missionVersion ||
+      !canTask(sq, task.inputs)
+    )
+      return false;
+    var movers = sq.members.filter(function (man) {
+      return data.moverIds.indexOf(String(man.id)) >= 0;
+    });
+    return movers.indexOf(s) >= 0 && supporters(battle, sq, { fireSupport: sq.members }, movers).length >= 2;
   }
   root.BattleReactiveFireManeuver = Object.freeze({
     on: on,
     canTask: canTask,
     supporters: supporters,
-    canBoundTeam: canBoundTeam
+    canBoundTeam: canBoundTeam,
+    assessTeam: assessTeam,
+    adoptionAllowed: adoptionAllowed
   });
 })(typeof window !== 'undefined' ? window : globalThis);

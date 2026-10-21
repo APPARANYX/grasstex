@@ -1448,12 +1448,14 @@
       var reactive = root.BattleReactiveFireManeuver;
       var reactiveEligible = !!(reactive && reactive.on && reactive.canTask(sq, inputs));
       eligible.maneuver =
-        reactiveEligible ||
-        (inputs.contact &&
-          !pressured &&
-          inputs.supporting != null &&
-          inputs.supporting >= tuning.minimumSupport &&
-          (!resourcesOn || (inputs.resources.status !== 'over-budget' && inputs.resources.moverIds.length > 0)));
+        reactive && reactive.on
+          ? reactiveEligible
+          : inputs.contact &&
+            !pressured &&
+            inputs.supporting != null &&
+            inputs.supporting >= tuning.minimumSupport &&
+            (!resourcesOn ||
+              (inputs.resources.status !== 'over-budget' && inputs.resources.moverIds.length > 0));
       scores.maneuver = reactiveEligible
         ? 1.8 + 0.25 * inputs.confidence - inputs.pressure * 0.1
         : 0.6 + 0.25 * inputs.confidence - inputs.pressure;

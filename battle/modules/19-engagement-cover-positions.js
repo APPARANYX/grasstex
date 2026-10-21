@@ -44,6 +44,7 @@
       maxDistance: 12,
       sampleSpacing: 0.75,
       maxExposure: 1.5,
+      reactiveMaxExposure: 8,
       contactAge: 10,
       confidence: 0.5,
       maxThreats: 3
@@ -117,7 +118,9 @@
       var steps = Math.ceil(d / boundTuning.sampleSpacing),
         step = d / steps,
         exposed = 0,
-        maxExposure = stance === 'reactive' ? 8 : boundTuning.maxExposure,
+        reactive =
+          stance === 'reactive' && root.BattleReactiveFireManeuver && root.BattleReactiveFireManeuver.on,
+        maxExposure = reactive ? boundTuning.reactiveMaxExposure : boundTuning.maxExposure,
         boundEye = SA().eyeHeight(stance === 'stand' ? {} : { crouching: true }),
         threatEye = SA().eyeHeight({}); // Standing height from Perception, never a hidden unit's stance.
       for (var i = 0; i <= steps; i++) {
@@ -157,14 +160,14 @@
             break;
           }
         }
-        if (!concealed && (i === 0 || i === steps)) {
+        if (!concealed && ((!reactive && i === 0) || i === steps)) {
           result.reason = 'exposed-endpoint';
           return result;
         }
         // Include the closing interval: sampled gaps must not understate exposure length.
         exposed = !concealed || exposed > 0 ? exposed + step : 0;
         result.maxExposure = Math.max(result.maxExposure, exposed);
-        if (exposed > boundTuning.maxExposure) {
+        if (exposed > maxExposure) {
           result.reason = 'exposed-route';
           return result;
         }
@@ -696,7 +699,7 @@
           continue;
         }
         if (opts.coveredRoute) {
-          var assessment = boundRoute(s, battle, pt, opts.coveredRoute.threats);
+          var assessment = boundRoute(s, battle, pt, opts.coveredRoute.threats, opts.coveredRoute.policy);
           opts.coveredRoute.candidates++;
           opts.coveredRoute.samples += assessment.samples;
           opts.coveredRoute.reason = assessment.reason;

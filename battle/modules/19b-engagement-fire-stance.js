@@ -578,6 +578,14 @@
         s.suppressedUntil > battle.time
       )
         return false;
+      var lease = root.BattleLeases.get(sq, 'bound'),
+        reactive = lease && lease.data && lease.data.reactiveFireManeuver;
+      if (
+        reactive &&
+        (!root.BattleReactiveFireManeuver ||
+          !root.BattleReactiveFireManeuver.adoptionAllowed(s, battle, lease))
+      )
+        return false;
       /* A man who has been through it takes a moment before he goes. The order stands meanwhile: the wait
        is capped under the Squad Leader's bound window, so he still moves, later and raggedly, which is
        how a shaken fireteam bounds. A man frozen by what he just saw does not start one at all. */
@@ -607,6 +615,7 @@
         var threats = C.boundThreats(s, battle);
         audit = {
           threats: threats,
+          policy: reactive ? 'reactive' : undefined,
           candidates: 0,
           samples: 0,
           reason: threats.length ? 'no-viable-cover' : 'unknown-contact'

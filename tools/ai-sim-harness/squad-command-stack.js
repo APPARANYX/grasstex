@@ -19,6 +19,7 @@ const files = Object.freeze([
   'battle/modules/15m-squad-leader-cohesion-regroup.js',
   'battle/modules/15n-squad-leader-local-plan.js',
   'battle/modules/15o-squad-leader-tactical-postures.js',
+  'battle/modules/15p-reactive-fire-maneuver.js',
   'battle/modules/16-squad-plan-stability.js'
 ]);
 function loadSquadCommandStack(load, root) {
