@@ -82,7 +82,7 @@ const runs = [
         check(R.PHASE_C_COMBAT_LAB === true, 'compact lab not enabled');
         check(R.BattleSim.FIELD_W === 280 && R.BattleSim.FIELD_D === 240, 'not compact 280x240 map');
         check(scenario.map.width === 280 && scenario.map.depth === 240, 'scenario map mismatch');
-        check(b._roster.us.length === 20 && b._roster.ge.length === 10, 'lab roster mismatch');
+        check(b._roster.us.length === 20 && b._roster.ge.length === 20, 'lab roster mismatch');
         check(lab.preset === preset && lab.rangeScale === scale, 'lab preset/range mismatch');
         check(api.config().mode === 'pilot' && api.config().pilot.squad === '*',
           'squad pilot not activated');
