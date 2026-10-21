@@ -47,8 +47,12 @@
     owner: function (name) {
       return immutable({ type: 'action', action: name });
     },
-    posture: function () {
-      return immutable({ type: 'action', action: 'crouch' });
+    posture: function (level) {
+      // Shared Engagement effector; skills never write stance directly.
+      var stance = level === undefined ? 'crouch' : level;
+      if (stance !== 'crouch' && stance !== 'prone')
+        throw new Error('Unsupported lowering posture');
+      return immutable({ type: 'action', action: stance });
     }
   });
   function validate(tree, limit) {
@@ -238,14 +242,14 @@
           );
         return value;
       }
-      var owner = name === 'crouch' ? 'engagement' : 'ai-skills-scheduler';
+      var owner = name === 'crouch' || name === 'prone' ? 'engagement' : 'ai-skills-scheduler';
       record(plan, 'not-started', 'requested', name, owner);
       record(plan, 'running', 'requested', name, owner);
       function failed(reason) {
         record(plan, 'failed', reason, name, owner);
         return { status: 'Failure', reason: reason };
       }
-      if (name !== 'crouch') return failed('unsupported-action');
+      if (name !== 'crouch' && name !== 'prone') return failed('unsupported-action');
       if (plan.resources.indexOf('posture') < 0) return failed('no-authority');
       if (blocker(sim, actor)) return failed('interrupted');
       if (
@@ -259,7 +263,7 @@
       // Its ordinary upright march timer does not prevent a lower posture request.
       var accepted;
       try {
-        accepted = root.BattleEngagement.requestStance(actor, sim, 'crouch', 0.45);
+        accepted = root.BattleEngagement.requestStance(actor, sim, name, 0.45);
       } catch (error) {
         return failed('no-authority');
       }
