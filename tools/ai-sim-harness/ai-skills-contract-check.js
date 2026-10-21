@@ -57,10 +57,10 @@ battle._commandReception = {
         envelopeId: '602-order',
         phase: 'sent',
         unreachable: false,
-        receiveAt: 1,
-        attendAt: 2,
-        processAt: 3,
-        adoptAt: 4,
+        receivedAt: 1,
+        attendedAt: 2,
+        processedAt: 3,
+        adoptedAt: 4,
         data: { missionVersion: 7 },
         point: { x: 4, z: 6 }
       }
@@ -68,6 +68,9 @@ battle._commandReception = {
   }
 };
 const receiptBefore = JSON.stringify(battle._commandReception);
+battle.time = 0;
+assert.equal(root.BattleCommandReception.peek(soldier, battle, 'movement', 'soldier:602').phase, 'issued');
+battle.time = 10;
 const receipt = root.BattleCommandReception.peek(soldier, battle, 'movement', 'soldier:602');
 assert.equal(receipt.phase, 'adopted');
 assert.equal(receipt.data.missionVersion, 7);
