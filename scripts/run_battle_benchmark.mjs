@@ -130,6 +130,7 @@ try {
   await page.addScriptTag({ path: path.resolve('scripts/battle-benchmark-intent.cjs') });
   if (captureCommands) await page.addScriptTag({ path: path.resolve('scripts/lib/benchmark-command-history.cjs') });
   await page.addScriptTag({ path: path.resolve('scripts/lib/benchmark-reactive-maneuver.cjs') });
+  await page.addScriptTag({ path: path.resolve('scripts/lib/benchmark-contact-cover.cjs') });
   const result = await page.evaluate(async ({ count, seedPrefix, fixedDt, timeLimit, suppliedPolicy, windows, battleType, numbered, firstIndex, captureCommands }) => {
     const root = window, sim = root.__battle__, engine = sim.scene?.getEngine?.(), renderLoop = root.__battleRenderLoop__;
     if (engine && renderLoop) engine.stopRenderLoop(renderLoop);
@@ -154,7 +155,7 @@ try {
     }
 
     const skillExecution = [];
-    let reactiveObserver = null;
+    let reactiveObserver = null, contactCoverObserver = null;
     let activeCombat = null, activeAcquisition = null, activeCommandHistory = null;
     function stanceOf(s) { return String(s?.stance || s?.eng?.stance || 'unknown'); }
     function combatBucket(shooter) {
@@ -165,6 +166,7 @@ try {
     }
     sim.onFire = function(shooter){
       reactiveObserver?.shot(shooter);
+      contactCoverObserver?.shot(shooter);
       if (!activeCombat) return;
       activeCombat.total++;
       const bucket = combatBucket(shooter); if (bucket) bucket.total++;
@@ -655,6 +657,7 @@ try {
         const coveredBounds = root.BattleEngagement?.coveredBoundTelemetry?.(sim);
         if (coveredBounds) record.coveredBounds = coveredBounds;
         if (reactiveObserver) record.reactiveManeuver = reactiveObserver.snapshot();
+        if (contactCoverObserver) record.contactCover = contactCoverObserver.snapshot();
         if (root.BattleGrenades?.on?.()) {
           const current = root.BattleGrenades.summary(sim), start = diag.grenadeStart || {};
           record.grenades = Object.fromEntries(Object.entries(current).filter(([, v]) => typeof v === 'number').map(([k, v]) => [k, v - (start[k] || 0)]));
@@ -679,6 +682,7 @@ try {
         root.BattleSoldierModel?.setImportedEnabled?.(sim.scene, false); rawRestart();
         sim.manualEnded = false; sim.winner = null; sim.winReason = null; sim.paused = false; sim.timeScale = 1; sim.timeLimit = timeLimit;
 
+        contactCoverObserver = root.BattleEngagement.contactCoverFirstOn?.() ? root.BattleBenchmarkContactCover.create(root,sim) : null;
         reactiveObserver = root.BattleReactiveFireManeuver?.on ? root.BattleBenchmarkReactiveManeuver.create(root,sim) : null;
         activeCommandHistory = captureCommands ? root.BattleBenchmarkCommandHistory.create() : null;
         activeCommandHistory?.sample(sim);
@@ -692,6 +696,7 @@ try {
           steps++; commandAccum += fixedDt;
           while (commandAccum + 1e-9 >= commandTick && !sim.winner) { commandAccum -= commandTick; root.BattleCommanderAI.update(sim, scenario, commandTick); }
           reactiveObserver?.sample();
+          contactCoverObserver?.sample();
           activeCommandHistory?.sample(sim);
           if (captureSquadJournal) {
             for (const event of root.BattleAISquadAdapter.eventsSince(sim, squadSerial)) {

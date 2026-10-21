@@ -72,6 +72,12 @@ function world({ legacy = false, cover = true, reported = false } = {}) {
 }
 const w = world();
 const { r, b, q, s, E } = w;
+const observer = require('../../scripts/lib/benchmark-contact-cover.cjs').create(r, b);
+const fire = b.onFire;
+b.onFire = function (man) {
+  observer.shot(man);
+  return fire.apply(this, arguments);
+};
 E.updateSoldier(s, b);
 assert.equal(
   E.stateOf(s).state,
@@ -79,6 +85,7 @@ assert.equal(
   'first contact seeks physical cover before HOLD preparation/orientation'
 );
 assert.equal(E.stateOf(s).moveReason, 'contact cover first');
+observer.sample();
 assert.ok(E.stateOf(s).cover.slotId, 'real reserved physical cover');
 assert.equal(E.fireAllowed(s, b), false, 'no direct fire during contact ingress');
 let arrived = false;
@@ -87,6 +94,7 @@ for (let i = 0; i < 100; i++) {
   E.updateSoldier(s, b);
   r.BattleMovementResolver.resolve(s, b);
   H.stepMovement(b, s, 0.15);
+  observer.sample();
   assert.equal(b.events.fired, 0, 'HOLD never becomes a trigger pull during cover ingress');
   if (E.stateOf(s).state === 'orient') {
     arrived = true;
@@ -104,6 +112,7 @@ for (let i = 0; i < 35; i++) {
   E.updateSoldier(s, b);
   r.BattleMovementResolver.resolve(s, b);
   H.stepMovement(b, s, 0.15);
+  observer.sample();
 }
 assert.ok(b.events.fired > 0, 'native aiming and actual fire resume after cover arrival');
 const shared = world({ reported: true });
@@ -126,3 +135,8 @@ assert.equal(retreat.E.stateOf(retreat.s).state, 'withdraw', 'retreat retains pr
 console.log(
   'PASS contact cover first: native physical arrival -> orientation -> actual fire; HOLD, reported contact, stale report, no-cover, legacy and retreat gates'
 );
+
+assert.equal(observer.snapshot().arrived, 1);
+assert.equal(observer.snapshot().orientedAfterArrival, 1);
+assert.equal(observer.snapshot().shotsBeforeArrival, 0);
+console.log('CONTACT_COVER_CAUSAL', JSON.stringify(observer.snapshot()));
