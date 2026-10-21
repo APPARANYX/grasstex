@@ -23,6 +23,20 @@ $strategies = array('balanced','nearest','highest-value','weakest-pressure','seq
 $conditions = array('objectiveNeutral','objectiveEnemy','objectiveOwned','enemyNear','outnumbered','notOutnumbered','captainDead','supportRole','insideObjective','underPressure');
 $actions = array('assault','flank','defend','hold','regroup','support');
 
+/* A write needs the write key (X-Write-Key header) on top of the Origin check, which any script can fake.
+   Only its hash lives on the server, in state/write-key.php, placed by hand and never deployed:
+   `<?php return '<hash>';` where <hash> is the SHA-256 hex of the key or a password_hash() bcrypt string
+   (same scheme as state/lab-key.php). No key file means writes are off, never open. */
+function require_write_key($stateDir) {
+    $keyFile = $stateDir . '/write-key.php';
+    $hash = is_file($keyFile) ? (include $keyFile) : null;
+    if (!is_string($hash) || trim($hash) === '') { http_response_code(503); echo json_encode(array('ok'=>false,'error'=>'writes disabled: no write key is set on the server')); exit; }
+    $hash = trim($hash);
+    $given = isset($_SERVER['HTTP_X_WRITE_KEY']) ? (string)$_SERVER['HTTP_X_WRITE_KEY'] : '';
+    $ok = $given !== '' && (strlen($hash) === 64 && ctype_xdigit($hash) ? hash_equals(strtolower($hash), hash('sha256', $given)) : password_verify($given, $hash));
+    if (!$ok) { http_response_code(401); echo json_encode(array('ok'=>false,'error'=>'write key required')); exit; }
+}
+
 function read_policy_state($path) {
     if (!is_file($path) || !is_readable($path)) return null;
     $j = json_decode(@file_get_contents($path), true);
@@ -72,6 +86,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 }
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') { http_response_code(405); echo json_encode(array('ok'=>false,'error'=>'GET or POST required')); exit; }
 $origin=isset($_SERVER['HTTP_ORIGIN'])?$_SERVER['HTTP_ORIGIN']:'';if($origin===''||parse_url($origin,PHP_URL_HOST)!=='test.ivandpopov.com'){http_response_code(403);echo json_encode(array('ok'=>false,'error'=>'same-origin request required'));exit;}
+require_write_key($stateDir);
 $raw=file_get_contents('php://input');if($raw===false||strlen($raw)===0||strlen($raw)>131072)bad_request('invalid payload size');$data=json_decode($raw,true);if(!is_array($data))bad_request('invalid JSON');
 
 /* Prefer Genome v2. Old flat policy POST remains accepted for migration only. */

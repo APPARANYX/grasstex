@@ -17,6 +17,20 @@ function arrv($a, $k, $default = null) {
     return is_array($a) && isset($a[$k]) ? $a[$k] : $default;
 }
 
+/* A write needs the write key (X-Write-Key header) on top of the Origin check, which any script can fake.
+   Only its hash lives on the server, in state/write-key.php, placed by hand and never deployed:
+   `<?php return '<hash>';` where <hash> is the SHA-256 hex of the key or a password_hash() bcrypt string
+   (same scheme as state/lab-key.php). No key file means writes are off, never open. */
+function require_write_key($stateDir) {
+    $keyFile = $stateDir . '/write-key.php';
+    $hash = is_file($keyFile) ? (include $keyFile) : null;
+    if (!is_string($hash) || trim($hash) === '') { http_response_code(503); echo json_encode(array('ok'=>false,'error'=>'writes disabled: no write key is set on the server')); exit; }
+    $hash = trim($hash);
+    $given = isset($_SERVER['HTTP_X_WRITE_KEY']) ? (string)$_SERVER['HTTP_X_WRITE_KEY'] : '';
+    $ok = $given !== '' && (strlen($hash) === 64 && ctype_xdigit($hash) ? hash_equals(strtolower($hash), hash('sha256', $given)) : password_verify($given, $hash));
+    if (!$ok) { http_response_code(401); echo json_encode(array('ok'=>false,'error'=>'write key required')); exit; }
+}
+
 function read_json_file($path, $fallback) {
     if (!is_file($path) || !is_readable($path)) return $fallback;
     $j = json_decode(@file_get_contents($path), true);
@@ -140,6 +154,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         echo json_encode(array('ok' => false, 'error' => 'same-origin request required'));
         exit;
     }
+    require_write_key($stateDir);
 
     $raw = file_get_contents('php://input');
     if ($raw === false || strlen($raw) < 2 || strlen($raw) > 196608) {
