@@ -1,12 +1,12 @@
 {
   "meta": {
     "mode": "seeds",
-    "run": "1125",
-    "runId": "39598430669",
+    "run": "1155",
+    "runId": "39603986985",
     "repo": "APPARANYX/grasstex",
     "ref": "work/issue-602-ai-skills-squad",
-    "sha": "da518f147b1edd33b75a7628979bf7aa85940961",
-    "runUrl": "https://github.com/APPARANYX/grasstex/actions/runs/39598430669",
+    "sha": "db51225bf02daa09e3846cd96efa411946cbb0f0",
+    "runUrl": "https://github.com/APPARANYX/grasstex/actions/runs/39603986985",
     "seed": "phase-c-natural-20261012",
     "seeds": 3,
     "windows": "contact+60,every60",
@@ -80,9 +80,9 @@
       "b": 0
     },
     "wallSeconds": {
-      "medianA": 11.902,
-      "medianB": 12.644,
-      "ratio": 1.062,
+      "medianA": 16.158,
+      "medianB": 17.338,
+      "ratio": 1.073,
       "gate": 1.25
     },
     "counters": {
@@ -476,8 +476,8 @@
     "pass": true
   },
   "viewer": {
-    "url": "https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=1125&view=brain3d",
-    "previewUrl": "https://test.ivandpopov.com/grasstex/preview/issue-602-ai-skills-squad/ai_flow_live.html?bench=1125&view=brain3d",
+    "url": "https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=1155&view=brain3d",
+    "previewUrl": "https://test.ivandpopov.com/grasstex/preview/issue-602-ai-skills-squad/ai_flow_live.html?bench=1155&view=brain3d",
     "seeds": [
       {
         "seed": "phase-c-natural-20261012-0002",
