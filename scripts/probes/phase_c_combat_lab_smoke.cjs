@@ -60,7 +60,7 @@ const { chromium } = require('playwright');
             document.getElementById('phaseCLab') &&
             window.BattleDesktopCamera.current &&
             window.__battle__._roster.us.length === 20 &&
-            window.__battle__._roster.ge.length === 10), null, { timeout: 75000 });
+            window.__battle__._roster.ge.length === 20), null, { timeout: 75000 });
       } catch (e) {
         const boot = await page.evaluate(() => ({
           href: location.href, title: document.title,
@@ -165,7 +165,7 @@ const { chromium } = require('playwright');
       assert.equal(initial.metadataSize.width, 280);
       assert.equal(initial.metadataSize.depth, 240);
       assert.equal(initial.us, 20);
-      assert.equal(initial.ge, 10);
+      assert.equal(initial.ge, 20);
       assert.equal(initial.paused, true);
       assert.match(initial.camera, /phase-c-overhead/);
       assert.equal(initial.preview, true);
