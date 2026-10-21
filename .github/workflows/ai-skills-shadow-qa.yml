@@ -8,6 +8,7 @@ on:
       - runtime-contract.php
       - scripts/probes/probe_ai_skills_shadow.cjs
       - scripts/probes/probe_ai_skills_squad.cjs
+      - scripts/probes/probe_ai_skills_compact_lab.cjs
       - .github/workflows/ai-skills-shadow-qa.yml
   workflow_dispatch:
 permissions:
@@ -18,7 +19,7 @@ concurrency:
 jobs:
   browser:
     runs-on: ubuntu-latest
-    timeout-minutes: 18
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
       - name: Install Chromium harness
@@ -36,6 +37,11 @@ jobs:
           AI_SKILLS_REF: ${{ github.event.pull_request.head.ref || github.ref_name }}
           AI_SKILLS_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: node scripts/probes/probe_ai_skills_squad.cjs
+      - name: Native 280x240 combat lab quarter/full weapon and sight ranges
+        env:
+          AI_SKILLS_REF: ${{ github.event.pull_request.head.ref || github.ref_name }}
+          AI_SKILLS_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: node scripts/probes/probe_ai_skills_compact_lab.cjs
       - name: Preserve browser evidence
         uses: actions/upload-artifact@v4
         if: always()
@@ -45,4 +51,5 @@ jobs:
             reports/ai-skills-shadow/
             reports/ai-skills-pilot/
             reports/ai-skills-squad/
+            reports/ai-skills-compact-lab/
           retention-days: 30
