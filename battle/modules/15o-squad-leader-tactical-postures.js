@@ -491,7 +491,7 @@
           var s = a[i],
             here = point(s.root.position),
             candidate = null,
-            options = [here].concat(C.candidates(s, b, { root: { position: rs[0] } }, 6).slice(0, 16));
+            options = [here].concat(C.candidates(s, b, { root: { position: rs[0] } }, 20).slice(0, 16));
           for (var j = 0; j < options.length; j++) {
             var p = point(options[j]);
             if (
