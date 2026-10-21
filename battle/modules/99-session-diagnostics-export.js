@@ -444,6 +444,8 @@
       blockedFireteams: [],
       activeDefenseRequests: [],
       writerConflicts: conflictMetrics(conflicts),
+      moduleHookFailures:
+        (root.BattleModules && root.BattleModules.hookFailures && root.BattleModules.hookFailures()) || null,
       ballisticQueryErrors:
         (root.BattleBallistics && root.BattleBallistics.queryErrors && root.BattleBallistics.queryErrors()) ||
         null
