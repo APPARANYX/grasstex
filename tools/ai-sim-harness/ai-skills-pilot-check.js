@@ -17,7 +17,7 @@ function serialized(value) {
 function world(observer = true) {
   const root = H.bootstrap();
   loadModule(root, 'battle/module-registry.js');
-  for (const file of ['60-ai-skills.js', '60a-ai-skills-runtime.js', '60b-ai-skill-crouch-warning.js'])
+  for (const file of ['60-ai-skills.js', '60a-ai-skills-runtime.js', '60b-ai-skill-crouch-warning.js', '60g-ai-skill-prone-warning.js'])
     loadModule(root, 'battle/modules/' + file);
   const b = H.makeBattle(root, { seed: 602 });
   H.resetIds();
@@ -400,7 +400,7 @@ for (const [name, factory, reason, ticks] of [
 {
   const root = H.bootstrap({ search: '?aiSkills=pilot' });
   loadModule(root, 'battle/module-registry.js');
-  for (const file of ['60-ai-skills.js', '60a-ai-skills-runtime.js', '60b-ai-skill-crouch-warning.js'])
+  for (const file of ['60-ai-skills.js', '60a-ai-skills-runtime.js', '60b-ai-skill-crouch-warning.js', '60g-ai-skill-prone-warning.js'])
     loadModule(root, 'battle/modules/' + file);
   const b = H.makeBattle(root, { seed: 602 });
   root.BattleModules.runHook('onBattleStart', b, {});
@@ -441,7 +441,56 @@ for (const [name, factory, reason, ticks] of [
   assert.equal(w.a.tacticalCrouch, false);
   assert.equal(a2.tacticalCrouch, true, 'same-ID independent battle keeps its commitment');
 }
-for (const file of ['60-ai-skills.js', '60a-ai-skills-runtime.js', '60b-ai-skill-crouch-warning.js']) {
+{
+  // A fourth skill is added by registration alone, with no changes to
+  // Engagement, the Squad Leader or any legacy AI owner. The one common
+  // lowering-posture adapter serves both skills.
+  const w = world();
+  w.a._beliefs.byKey.warning.baseConfidence = 0.96;
+  w.profile.skills['soldier.prone-on-fresh-warning'] = { enabled: true };
+  w.api.configure(w.profile);
+  let requests = 0;
+  const request = w.root.BattleEngagement.requestStance;
+  w.root.BattleEngagement.requestStance = (...args) => {
+    requests++;
+    assert.equal(args[2], 'prone', 'new skill uses existing Engagement authority');
+    return request(...args);
+  };
+  w.tick();
+  assert.equal(w.e.stance, 'prone');
+  assert.equal(w.execution().active, 0);
+  assert.ok(
+    w.execution().receipts.some(
+      r =>
+        r.skill === 'soldier.prone-on-fresh-warning' &&
+        r.action === 'prone' &&
+        r.lifecycle === 'succeeded'
+    )
+  );
+  for (let i = 0; i < 4; i++) w.tick();
+  assert.equal(requests, 1, 'independent skill cannot repeat or renew posture');
+}
+{
+  const w = world();
+  w.a._beliefs.byKey.warning.baseConfidence = 0.96;
+  w.a._beliefs.byKey.warning.observedAt = 1;
+  w.profile.skills['soldier.prone-on-fresh-warning'] = { enabled: true };
+  w.api.configure(w.profile);
+  w.tick();
+  const fresh = w.api.diagnostics(w.b).receipts.slice(-1)[0];
+  assert.ok(
+    fresh.decisions.some(
+      d =>
+        d.skill === 'soldier.prone-on-fresh-warning' &&
+        !d.eligible &&
+        d.reason === 'no-fresh-critical-warning'
+    ),
+    'stale but unexpired report cannot authorize fresh-warning skill'
+  );
+  w.tick();
+  assert.equal(w.e.stance, 'crouch', 'legacy pilot skill remains independently available');
+}
+for (const file of ['60-ai-skills.js', '60a-ai-skills-runtime.js', '60b-ai-skill-crouch-warning.js', '60g-ai-skill-prone-warning.js']) {
   const source = fs.readFileSync('battle/modules/' + file, 'utf8');
   assert.doesNotMatch(
     source,
@@ -449,5 +498,5 @@ for (const file of ['60-ai-skills.js', '60a-ai-skills-runtime.js', '60b-ai-skill
   );
 }
 console.log(
-  'PASS pilot: real Engagement adapter, explicit lifecycle, owner priorities, commitment, lease suspension, bounded BTs, scoped rollback, restart and observer neutrality'
+  'PASS pilot: real Engagement adapter, explicit lifecycle, owner priorities, commitment, lease suspension, bounded BTs, fourth-skill isolation, scoped rollback, restart and observer neutrality'
 );
