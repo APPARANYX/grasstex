@@ -16,14 +16,12 @@ new Function('window', 'console', src)(root, root.console);
 const M = root.BattleModules;
 assert.equal(typeof M.hookFailures, 'function', 'BattleModules.hookFailures exists');
 let after = 0;
-M.registerSystem({
-  id: 'a-optional',
+M.registerSystem('a-optional', {
   onTick() {
     throw new Error('overlay broke');
   }
 });
-M.registerSystem({
-  id: 'b-required',
+M.registerSystem('b-required', {
   requiredHooks: ['onBattleStart'],
   onBattleStart() {
     throw new Error('reset broke');
