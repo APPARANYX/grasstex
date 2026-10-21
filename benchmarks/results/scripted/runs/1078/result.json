@@ -1,32 +1,32 @@
 {
   "meta": {
-    "mode": "seeds",
-    "run": "1048",
-    "runId": "39510659972",
+    "mode": "single",
+    "run": "1078",
+    "runId": "39588230924",
     "repo": "APPARANYX/grasstex",
-    "ref": "work/diagnostics-session-owner-20261020",
-    "sha": "9270fd3c549586220e92764e2896ecd259e9251b",
-    "runUrl": "https://github.com/APPARANYX/grasstex/actions/runs/39510659972",
-    "seed": "audit-diagnostics-session-20261020",
-    "seeds": 3,
+    "ref": "work/issue-602-ai-skills-pilot",
+    "sha": "85aab6797136a71d27f8d0399d0d04b75c0748f5",
+    "runUrl": "https://github.com/APPARANYX/grasstex/actions/runs/39588230924",
+    "seed": "ai-skills-v1-602",
+    "seeds": 1,
     "windows": "0+600",
-    "battleType": "meeting",
-    "queryOff": "",
-    "queryOn": "",
+    "battleType": "ge-defend",
+    "queryOff": "strategicInterception=1&frontLines=1&motorTransport=1&truckAccess=1&truckCollision=1&truckVisual=1&aerialRecon=1&interception=1&reinforcements=1&reinforcementSortie=1&aiSkills=legacy",
+    "queryOn": "strategicInterception=1&frontLines=1&motorTransport=1&truckAccess=1&truckCollision=1&truckVisual=1&aerialRecon=1&interception=1&reinforcements=1&reinforcementSortie=1&aiSkills=shadow",
     "build": "v29-dev"
   },
   "verdict": {
     "kind": "inert",
-    "headline": "INERT: all 3 pairs identical in every field",
+    "headline": "INERT: all 1 pairs identical in every field",
     "lines": []
   },
   "compare": {
-    "pairs": 3,
+    "pairs": 1,
     "unpaired": {
       "a": 0,
       "b": 0
     },
-    "identicalBattles": 3,
+    "identicalBattles": 1,
     "winners": {
       "a": {
         "us": 0,
@@ -45,8 +45,8 @@
       }
     },
     "timeLimit": {
-      "a": 3,
-      "b": 3,
+      "a": 1,
+      "b": 1,
       "mcnemar": {
         "aOnly": 0,
         "bOnly": 0,
@@ -69,23 +69,23 @@
       "b": 1
     },
     "movementStalls": {
-      "a": 6,
-      "b": 6
+      "a": 1,
+      "b": 1
     },
     "runtimeErrors": {
       "a": 0,
       "b": 0
     },
     "wallSeconds": {
-      "medianA": 26.402,
-      "medianB": 26.284,
-      "ratio": 0.996,
+      "medianA": 24.749,
+      "medianB": 25.849,
+      "ratio": 1.044,
       "gate": 1.25
     },
     "counters": {
       "casualties": {
-        "a": 109,
-        "b": 109,
+        "a": 12,
+        "b": 12,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -93,8 +93,8 @@
         "signP": 1
       },
       "usKills": {
-        "a": 27,
-        "b": 27,
+        "a": 2,
+        "b": 2,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -102,8 +102,8 @@
         "signP": 1
       },
       "geKills": {
-        "a": 82,
-        "b": 82,
+        "a": 10,
+        "b": 10,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -111,8 +111,8 @@
         "signP": 1
       },
       "fire.total": {
-        "a": 393,
-        "b": 393,
+        "a": 39,
+        "b": 39,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -120,8 +120,8 @@
         "signP": 1
       },
       "fire.hits": {
-        "a": 191,
-        "b": 191,
+        "a": 20,
+        "b": 20,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -129,8 +129,8 @@
         "signP": 1
       },
       "retreatSamples": {
-        "a": 2266,
-        "b": 2266,
+        "a": 295,
+        "b": 295,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -138,8 +138,8 @@
         "signP": 1
       },
       "movementResolver.changes": {
-        "a": 4341,
-        "b": 4341,
+        "a": 777,
+        "b": 777,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -219,8 +219,8 @@
         "signP": 1
       },
       "movementStalls.length": {
-        "a": 6,
-        "b": 6,
+        "a": 1,
+        "b": 1,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -228,8 +228,8 @@
         "signP": 1
       },
       "routeStalls.length": {
-        "a": 5,
-        "b": 5,
+        "a": 0,
+        "b": 0,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -237,8 +237,8 @@
         "signP": 1
       },
       "targetlessStalls.length": {
-        "a": 2,
-        "b": 2,
+        "a": 0,
+        "b": 0,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -246,8 +246,8 @@
         "signP": 1
       },
       "vacantObjectiveStalls.length": {
-        "a": 13,
-        "b": 13,
+        "a": 0,
+        "b": 0,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -255,8 +255,8 @@
         "signP": 1
       },
       "loopAlerts.length": {
-        "a": 37,
-        "b": 37,
+        "a": 4,
+        "b": 4,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -273,8 +273,8 @@
         "signP": 1
       },
       "regroups.entries": {
-        "a": 5,
-        "b": 5,
+        "a": 1,
+        "b": 1,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -300,8 +300,8 @@
         "signP": 1
       },
       "timeline.stalledOnsets": {
-        "a": 6,
-        "b": 6,
+        "a": 1,
+        "b": 1,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -309,8 +309,8 @@
         "signP": 1
       },
       "timeline.stalledSamples": {
-        "a": 60,
-        "b": 60,
+        "a": 5,
+        "b": 5,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -318,6 +318,51 @@
         "signP": 1
       },
       "timeline.stalledOnsetsRepeated": {
+        "a": 1,
+        "b": 1,
+        "meanDiff": 0,
+        "battlesChanged": 0,
+        "more": 0,
+        "fewer": 0,
+        "signP": 1
+      },
+      "timeline.stalledSamplesRepeated": {
+        "a": 5,
+        "b": 5,
+        "meanDiff": 0,
+        "battlesChanged": 0,
+        "more": 0,
+        "fewer": 0,
+        "signP": 1
+      },
+      "recon.orders": {
+        "a": 15,
+        "b": 15,
+        "meanDiff": 0,
+        "battlesChanged": 0,
+        "more": 0,
+        "fewer": 0,
+        "signP": 1
+      },
+      "recon.contacts": {
+        "a": 0,
+        "b": 0,
+        "meanDiff": 0,
+        "battlesChanged": 0,
+        "more": 0,
+        "fewer": 0,
+        "signP": 1
+      },
+      "recon.noContact": {
+        "a": 5,
+        "b": 5,
+        "meanDiff": 0,
+        "battlesChanged": 0,
+        "more": 0,
+        "fewer": 0,
+        "signP": 1
+      },
+      "recon.timeouts": {
         "a": 6,
         "b": 6,
         "meanDiff": 0,
@@ -326,25 +371,7 @@
         "fewer": 0,
         "signP": 1
       },
-      "timeline.stalledSamplesRepeated": {
-        "a": 60,
-        "b": 60,
-        "meanDiff": 0,
-        "battlesChanged": 0,
-        "more": 0,
-        "fewer": 0,
-        "signP": 1
-      },
-      "recon.orders": {
-        "a": 51,
-        "b": 51,
-        "meanDiff": 0,
-        "battlesChanged": 0,
-        "more": 0,
-        "fewer": 0,
-        "signP": 1
-      },
-      "recon.contacts": {
+      "recon.cancelled": {
         "a": 3,
         "b": 3,
         "meanDiff": 0,
@@ -353,36 +380,9 @@
         "fewer": 0,
         "signP": 1
       },
-      "recon.noContact": {
-        "a": 4,
-        "b": 4,
-        "meanDiff": 0,
-        "battlesChanged": 0,
-        "more": 0,
-        "fewer": 0,
-        "signP": 1
-      },
-      "recon.timeouts": {
-        "a": 19,
-        "b": 19,
-        "meanDiff": 0,
-        "battlesChanged": 0,
-        "more": 0,
-        "fewer": 0,
-        "signP": 1
-      },
-      "recon.cancelled": {
-        "a": 19,
-        "b": 19,
-        "meanDiff": 0,
-        "battlesChanged": 0,
-        "more": 0,
-        "fewer": 0,
-        "signP": 1
-      },
       "recon.reportsDelivered": {
-        "a": 18,
-        "b": 18,
+        "a": 0,
+        "b": 0,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -390,8 +390,8 @@
         "signP": 1
       },
       "recon.retriggerBlocked": {
-        "a": 22,
-        "b": 22,
+        "a": 12,
+        "b": 12,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -399,8 +399,8 @@
         "signP": 1
       },
       "squadPerformance.meanOverall": {
-        "a": 257.5,
-        "b": 257.5,
+        "a": 91.3,
+        "b": 91.3,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -408,8 +408,8 @@
         "signP": 1
       },
       "squadPerformance.p10Overall": {
-        "a": 228.3,
-        "b": 228.3,
+        "a": 85.8,
+        "b": 85.8,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -426,8 +426,8 @@
         "signP": 1
       },
       "squadPerformance.meanMission": {
-        "a": 221.9,
-        "b": 221.9,
+        "a": 87.4,
+        "b": 87.4,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -435,8 +435,8 @@
         "signP": 1
       },
       "squadPerformance.meanMovement": {
-        "a": 291,
-        "b": 291,
+        "a": 98,
+        "b": 98,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -444,8 +444,8 @@
         "signP": 1
       },
       "squadPerformance.meanControl": {
-        "a": 278.3,
-        "b": 278.3,
+        "a": 96.5,
+        "b": 96.5,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -453,8 +453,8 @@
         "signP": 1
       },
       "squadPerformance.meanCohesion": {
-        "a": 287.2,
-        "b": 287.2,
+        "a": 89.1,
+        "b": 89.1,
         "meanDiff": 0,
         "battlesChanged": 0,
         "more": 0,
@@ -465,21 +465,11 @@
     "pass": true
   },
   "viewer": {
-    "url": "https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=1048&view=brain3d",
-    "previewUrl": "https://test.ivandpopov.com/grasstex/preview/diagnostics-session-owner-20261020/ai_flow_live.html?bench=1048&view=brain3d",
+    "url": "https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=1078&pick=-end&view=brain3d",
+    "previewUrl": "https://test.ivandpopov.com/grasstex/preview/issue-602-ai-skills-pilot/ai_flow_live.html?bench=1078&pick=-end&view=brain3d",
     "seeds": [
       {
-        "seed": "audit-diagnostics-session-20261020-0001",
-        "firstDivergence": null,
-        "what": null
-      },
-      {
-        "seed": "audit-diagnostics-session-20261020-0002",
-        "firstDivergence": null,
-        "what": null
-      },
-      {
-        "seed": "audit-diagnostics-session-20261020-0003",
+        "seed": "ai-skills-v1-602",
         "firstDivergence": null,
         "what": null
       }
