@@ -1,17 +1,18 @@
-# Benchmark run #1111 · 3 seeds from `phase-c-natural-20261012` (meeting), windows `contact+60,every60`
+# Benchmark run #1141 · 3 seeds from `phase-c-natural-20261012` (meeting), windows `contact+60,every60`
 
 - **OFF** flags: `none` · **ON** flags: `localPlan=1&localAmbush=1&localManeuver=1&coveredBounds=1`
-- work/issue-602-ai-skills-squad @ 816fbfd · [run](https://github.com/APPARANYX/grasstex/actions/runs/39597635981) · build v29-dev
+- work/issue-602-ai-skills-squad @ 48a5055 · [run](https://github.com/APPARANYX/grasstex/actions/runs/39602563825) · build v29-dev
 
 ## Verdict
 
 **QUIET: 20 of 20 pairs changed (median first part 278.1 s); 0 of 42 counters under p 0.05 (about 2.1 by chance); casualties -0.5% (p 1)**
 
 - No counter has a sign test under 0.05: no detectable effect on these counters at this many seeds.
+- Runtime errors: off 3, on 3.
 
 ## Paired comparison (off against on)
 
-- **20** pairs (unpaired: off 0, on 0) · identical in every field: **0** · runtime errors off 0 / on 0 · wall time on/off x1.103 (gate 1.25)
+- **20** pairs (unpaired: off 0, on 0) · identical in every field: **0** · runtime errors off 3 / on 3 · wall time on/off x1.043 (gate 1.25)
 - the 11 changed records first part at simulated second: min 278.1, p10 278.1, median 278.1, p90 324, max 324
 
 | counter | off | on | mean diff per pair | pairs changed | on more | on fewer | sign p |
@@ -67,7 +68,7 @@ phase-c-natural-20261012-0002 278.1 s (timeline) · phase-c-natural-20261012-000
 
 ## Viewer
 
-[Open both arms in the 3D map](https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=1111&view=brain3d) · [the same on this branch's viewer](https://test.ivandpopov.com/grasstex/preview/issue-602-ai-skills-squad/ai_flow_live.html?bench=1111&view=brain3d) (it has the change before it reaches main)
+[Open both arms in the 3D map](https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=1141&view=brain3d) · [the same on this branch's viewer](https://test.ivandpopov.com/grasstex/preview/issue-602-ai-skills-squad/ai_flow_live.html?bench=1141&view=brain3d) (it has the change before it reaches main)
 
-The viewer loads `off.json` and `on.json` from the `benchmark-results` branch (`?bench=1111`); it opens the seed that parts earliest, and the dropdowns choose another.
+The viewer loads `off.json` and `on.json` from the `benchmark-results` branch (`?bench=1141`); it opens the seed that parts earliest, and the dropdowns choose another.
 

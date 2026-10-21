@@ -1,12 +1,12 @@
 {
   "meta": {
     "mode": "seeds",
-    "run": "1111",
-    "runId": "39597635981",
+    "run": "1141",
+    "runId": "39602563825",
     "repo": "APPARANYX/grasstex",
     "ref": "work/issue-602-ai-skills-squad",
-    "sha": "816fbfdff5f5192913db1157ede5bc73c843e8d0",
-    "runUrl": "https://github.com/APPARANYX/grasstex/actions/runs/39597635981",
+    "sha": "48a5055143bad7440a81e7bade4312f2ee14deb6",
+    "runUrl": "https://github.com/APPARANYX/grasstex/actions/runs/39602563825",
     "seed": "phase-c-natural-20261012",
     "seeds": 3,
     "windows": "contact+60,every60",
@@ -19,7 +19,8 @@
     "kind": "quiet",
     "headline": "QUIET: 20 of 20 pairs changed (median first part 278.1 s); 0 of 42 counters under p 0.05 (about 2.1 by chance); casualties -0.5% (p 1)",
     "lines": [
-      "No counter has a sign test under 0.05: no detectable effect on these counters at this many seeds."
+      "No counter has a sign test under 0.05: no detectable effect on these counters at this many seeds.",
+      "Runtime errors: off 3, on 3."
     ]
   },
   "compare": {
@@ -75,13 +76,13 @@
       "b": 0
     },
     "runtimeErrors": {
-      "a": 0,
-      "b": 0
+      "a": 3,
+      "b": 3
     },
     "wallSeconds": {
-      "medianA": 13.9815,
-      "medianB": 15.4265,
-      "ratio": 1.103,
+      "medianA": 17.0165,
+      "medianB": 17.7555,
+      "ratio": 1.043,
       "gate": 1.25
     },
     "counters": {
@@ -472,11 +473,11 @@
       "p90": 324,
       "max": 324
     },
-    "pass": true
+    "pass": false
   },
   "viewer": {
-    "url": "https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=1111&view=brain3d",
-    "previewUrl": "https://test.ivandpopov.com/grasstex/preview/issue-602-ai-skills-squad/ai_flow_live.html?bench=1111&view=brain3d",
+    "url": "https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=1141&view=brain3d",
+    "previewUrl": "https://test.ivandpopov.com/grasstex/preview/issue-602-ai-skills-squad/ai_flow_live.html?bench=1141&view=brain3d",
     "seeds": [
       {
         "seed": "phase-c-natural-20261012-0002",
