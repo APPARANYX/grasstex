@@ -117,6 +117,7 @@
       var steps = Math.ceil(d / boundTuning.sampleSpacing),
         step = d / steps,
         exposed = 0,
+        maxExposure = stance === 'reactive' ? 8 : boundTuning.maxExposure,
         boundEye = SA().eyeHeight(stance === 'stand' ? {} : { crouching: true }),
         threatEye = SA().eyeHeight({}); // Standing height from Perception, never a hidden unit's stance.
       for (var i = 0; i <= steps; i++) {
