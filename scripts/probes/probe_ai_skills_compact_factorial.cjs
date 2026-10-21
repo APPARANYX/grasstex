@@ -79,17 +79,17 @@ assert.equal(cases.length, 24, 'exact complete factorial');
       // reload so the original source module factories and world RNG reseed cleanly.
       // Preserve completed trials across transient preview-host TCP blips.
       // Retry only transport/navigation failures, never tactical assertions.
-      for (let retry = 0; retry < 5; retry++) {
+      for (let retry = 0; retry < 15; retry++) {
         try {
           await page.goto(url.href, { waitUntil: 'load', timeout: 180000 });
           break;
         } catch (error) {
-          if (retry === 4 || !/ERR_CONNECTION_REFUSED|ERR_CONNECTION_RESET|ERR_EMPTY_RESPONSE|ERR_TIMED_OUT|ECONNRESET|ETIMEDOUT/.test(String(error)))
+          if (retry === 14 || !/ERR_CONNECTION_REFUSED|ERR_CONNECTION_RESET|ERR_EMPTY_RESPONSE|ERR_TIMED_OUT|ECONNRESET|ETIMEDOUT/.test(String(error)))
             throw error;
           console.warn('COMPACT_NAV_RETRY ' + JSON.stringify({
             seed, caseIndex: i + 1, retry: retry + 1, cause: String(error).slice(0, 180)
           }));
-          await new Promise(resolve => setTimeout(resolve, (retry + 1) * 1200));
+          await new Promise(resolve => setTimeout(resolve, Math.min(5000, (retry + 1) * 1200)));
         }
       }
       await page.waitForFunction(
