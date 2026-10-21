@@ -38,7 +38,7 @@ const output = 'reports/ai-skills-shadow';
     errors.length = 0;
     await page.goto(url.href, { waitUntil: 'load', timeout: 180000 });
     await page.waitForFunction(() => window.__battle__ && window.BattleAISkills, null, { timeout: 180000 });
-    const report = await page.evaluate(expectedHead => {
+    const report = await page.evaluate(async expectedHead => {
       const root = window, b = root.__battle__, api = root.BattleAISkills;
       const check = (ok, why) => { if (!ok) throw new Error(why); };
       check(root.BATTLE_PREVIEW && root.BATTLE_PREVIEW.sha === expectedHead,
@@ -48,7 +48,15 @@ const output = 'reports/ai-skills-shadow';
       check(Object.values(activation.flags).every(Boolean) && Object.values(activation.features).every(Boolean),
         'Full-ON strategic configuration did not reach the owners');
       check(root.__scenario__.map.width === 5000, 'Expected 5km map');
-      const observerCount = () => b.scene.onBeforeRenderObservable.observers.length;
+      // Babylon defers removing disposed-mesh observers until render/timer cleanup.
+      // Pause simulation and flush that queue before comparing persistent observer counts.
+      const settleObservers = async () => {
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        await new Promise(resolve => setTimeout(resolve, 0));
+      };
+      b.paused = true;
+      await settleObservers();
+      const observerCount = () => b.scene.onBeforeRenderObservable.observers.filter(o => !o._willBeUnregistered).length;
       const baselineObservers = observerCount();
       const system = root.BattleModules.getSystem('ai-skills-shadow');
       check(!!system, 'No canonical skill lifecycle');
@@ -58,7 +66,10 @@ const output = 'reports/ai-skills-shadow';
         b.restart({ operator: false });
         check(api.diagnostics(b).generation === prior + 1, 'Generation did not advance once');
         check(api.diagnostics(b).receipts.length === 0, 'Restart leaked decisions');
-        check(observerCount() === baselineObservers, 'Restart leaked observers');
+        b.paused = true;
+        await settleObservers();
+        check(observerCount() === baselineObservers,
+          'Persistent observer count changed: baseline=' + baselineObservers + ', current=' + observerCount() + ', cycle=' + cycle);
         b.paused = false;
         b._trainerStepActive = true;
         try {
@@ -87,7 +98,7 @@ const output = 'reports/ai-skills-shadow';
         check(JSON.stringify(actor._beliefs, (key, value) => key === 'unit' ? undefined : value) === beliefsBefore,
           'Read changed belief lifecycle');
         cycles.push({ generation: diagnostics.generation, at: b.time, prepared: diagnostics.prepared,
-          receipts: diagnostics.receipts.length, chosen: diagnostics.receipts.filter(r => r.chosen).length });
+          observers: observerCount(), receipts: diagnostics.receipts.length, chosen: diagnostics.receipts.filter(r => r.chosen).length });
       }
       api.configure({ mode: 'shadow', observer: false, skills: { 'soldier.observe-threat': { enabled: true } } });
       b.paused = false; b.step(0.15); b.paused = true;
