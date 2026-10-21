@@ -221,9 +221,11 @@
         d = Math.hypot(p.x - point.x, p.z - point.z),
         labRadius = 20;
       if (root.BATTLE_PREVIEW && root.PHASE_C_COMBAT_LAB) {
-        var requestedRadius = new URLSearchParams((root.location && root.location.search) || '').get('labPostRange');
-        if (requestedRadius === '6' || requestedRadius === '20' || requestedRadius === '50')
+        var search = (root.location && root.location.search) || '';
+        var requestedRadius = new URLSearchParams(search).get('labPostRange');
+        if (['6', '20', '50'].includes(requestedRadius)) {
           labRadius = +requestedRadius;
+        }
       }
       if (!Number.isFinite(d) || d > labRadius || !N || !N.movementClear || !N.movementClear(p, point)) return false;
       var steps = Math.max(1, Math.ceil(d / 0.5));
