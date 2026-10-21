@@ -92,9 +92,21 @@ assert.match(head || '', /^[a-f0-9]{40}$/);
       // initialization before comparing restart retention.
       await R.BattleSoldierModel.preload(b.scene);
       await b.scene.whenReadyAsync();
-      b.restart({ operator: false });
-      b.paused = true;
-      await settle();
+      // The first full restart can retire one existing transient FBX/LOD observer
+      // after deferred Babylon disposal. Verify that the steady-state observer
+      // baseline is reached after two complete restarts, not during first boot.
+      const warmupObservers = [];
+      for (let i = 0; i < 3; i++) {
+        b.restart({ operator: false });
+        b.paused = true;
+        await settle();
+        warmupObservers.push(observers());
+      }
+      check(
+        warmupObservers[2] === warmupObservers[1] &&
+          warmupObservers.every(n => n <= warmupObservers[0]),
+        'restart observer warmup failed to settle: ' + JSON.stringify(warmupObservers)
+      );
       const baseline = observers(),
         cycles = [];
       for (let i = 0; i < 3; i++) {
@@ -167,6 +179,7 @@ assert.match(head || '', /^[a-f0-9]{40}$/);
         commanderDt: 0.45,
         wallSeconds: (performance.now() - started) / 1000,
         cycles,
+        warmupObservers,
         activation,
         diagnostics,
         events,
