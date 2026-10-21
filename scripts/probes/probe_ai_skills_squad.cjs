@@ -120,7 +120,8 @@ assert.match(head || '', /^[a-f0-9]{40}$/);
           samples: 0,
           selected: 0,
           reasons: {},
-          selectedExamples: []
+          selectedExamples: [],
+          denialExamples: []
         },
         seenDecisions = new Set();
       let serial = 0,
@@ -170,6 +171,14 @@ assert.match(head || '', /^[a-f0-9]{40}$/);
                     missionVersion: row.missionVersion,
                     reason
                   });
+              } else if (decisionSamples.denialExamples.filter(e => e.reason === reason).length < 2) {
+                decisionSamples.denialExamples.push({
+                  at: row.at,
+                  faction: row.faction,
+                  squad: row.entity,
+                  missionVersion: row.missionVersion,
+                  reason
+                });
               }
             }
           }
@@ -195,6 +204,45 @@ assert.match(head || '', /^[a-f0-9]{40}$/);
           'same identity full causal chain'
         );
       }
+      // Every attempted native episode has a complete, identity-scoped causal trace.
+      // A successful workflow is not a tactical acceptance; preserve failed stages
+      // and their authoritative posture rejections rather than only summary counts.
+      const attempts = events
+        .filter(e => e.kind === 'prepare')
+        .map(start => {
+          const trajectory = events.filter(
+            e =>
+              e.generation === start.generation &&
+              e.faction === start.faction &&
+              e.squad === start.squad &&
+              e.missionVersion === start.missionVersion &&
+              e.planSerial === start.planSerial
+          );
+          return {
+            seed: scenario.seed,
+            startedAt: start.at,
+            faction: start.faction,
+            squad: start.squad,
+            generation: start.generation,
+            missionVersion: start.missionVersion,
+            planSerial: start.planSerial,
+            maskedPostsIssued: trajectory.some(e => e.postureSerial != null),
+            physicallyPrepared: trajectory.some(e => e.kind === 'prepared'),
+            independentSupport: trajectory.some(e => e.kind === 'supported'),
+            physicalArrival: trajectory.some(e => e.kind === 'arrived'),
+            trace: trajectory.map(e => ({
+              at: e.at,
+              kind: e.kind,
+              reason: e.reason,
+              owner: e.nativePreparation ? 'tactical-postures' : 'ai-skills-scheduler',
+              nativePreparation: e.nativePreparation || null,
+              postureSerial: e.postureSerial,
+              postureStage: e.postureStage || null,
+              lastProgress: e.lastProgress || null
+            }))
+          };
+        });
+      check(attempts.length === diagnostics.squad.counts.attempts, 'all squad attempts captured');
       const result = {
         head: expected,
         seed: scenario.seed,
@@ -207,6 +255,7 @@ assert.match(head || '', /^[a-f0-9]{40}$/);
         activation,
         diagnostics,
         events,
+        attempts,
         decisionSamples,
         naturalAccepted: complete.length > 0
       };
@@ -230,7 +279,7 @@ assert.match(head || '', /^[a-f0-9]{40}$/);
         counts: report.diagnostics.squad?.counts,
         naturalAccepted: report.naturalAccepted,
         decisionSamples: report.decisionSamples,
-        events: report.events.map(e => ({ kind: e.kind, reason: e.reason, at: e.at })),
+        attempts: report.attempts,
         errors
       })
     );
