@@ -131,6 +131,7 @@ r.BattleTelemetry = {
     events.push({ type, ...data });
   }
 };
+q.inContact = false; // A genuinely new contact must not restart a blind startup timer after support is proven.
 S.fireAndMovement(q, b);
 assert.equal(q._localTask.kind, 'maneuver', 'native local arbiter selects reactive maneuver');
 assert.ok(L.holds(q, 'bound', b.time), JSON.stringify({ events, task: q._localTask }));

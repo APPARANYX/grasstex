@@ -38,6 +38,8 @@ for s in 12345 1 2 3 5 8 13 21; do HARNESS_SEED=$s node tools/ai-sim-harness/run
 | `wire-map-check.js` | Writer-file ratchet over every squad, soldier, Engagement-record (`soldier.eng`) and mind field (`wire-map.js`: a dependency-free scan of `battle/`; chains, `delete`, prefix `++`, indexed receivers and per-file aliases). Each field that more than one file writes is in `fixtures/wire-map-baseline.json` with a role per writer (owner, layer, setup, fallback, slot, body, debt) and a reason; debt names its phase or `unscheduled`. A new writer file, or a new field with two, fails until the baseline says why; a listed writer that stopped writing fails until its entry is removed, so the list only shrinks. Also: scanner fixtures (what it finds and what it ignores), real recall anchors, agreement with `state-ownership-check.js`, and an excluded file may write only what `EXCLUDED_WRITES` declares. |
 | `objective-nav-check.js` | Real worst-seed defects: a corner he stands on within 0.35 m is consumed (`?navCorner=0` holds it, the control), never permanently refused a step at a building, no all-squads-one-objective, a side attacks at most 2 objectives at once yet every objective is attacked once the efforts before it fall, capture progress survives an interrupted hold, door/window routing, `stepMovement` aim smoothing |
 | `tactical-positions-check.js` | Window/hardpoint reservation ownership, ingress routes, release reasons, diagnostics |
+| `reactive-fire-maneuver-check.js` | Opt-in native local arbitration, immediate support-to-maneuver handoff, real independent discharge receipts, first-contact readiness without a restarted startup timer, mission/reload denial, physical covered arrivals, supporting shots during movement and successive native fireteam rotation. Controlled fixtures explicitly provide reported contact and a rifle-equipped leader for the handoff case; natural acceptance remains separate. |
+| `covered-bounds-check.js` | Physical route and native adoption checks, including bounded reactive exposure, exposed starting point, concealed destination, long-gap/collision rejection and unchanged strict covered-route behavior. |
 | `cover-positions-check.js` | Cover-slot selection against obstacles and physical footprints; cover is for fighting from (a slot no stance sees the threat from is refused unless he is evading fire; `?coverFire=0` is the old choice), he rises to see over a low wall, reaching cover ends the run's crouch, and a suppressed man crawls only to cover he can crawl to inside the bound window from a standing start (`?crawlFit=0` is the old `d < 14`) |
 | `personal-space-check.js` | Physical endpoint allocation and body separation |
 | `fireteam-frontage-check.js` | Each fireteam holds its own ground: published fireteam anchors stay ≥5 m apart while squads march, deploy and fight |
@@ -342,3 +344,14 @@ bash scripts/normalize_audio.sh Assets/audio && git diff --quiet -- Assets/audio
 ```
 
 **Damage range lifetime (audit #456 R5):** `98-damage-range.js` keeps opt-in bootstrap and pure helpers; `97z-damage-range-session.js` owns lineup, shipped shot dispatch and presentation ticks, `97z-damage-range-view.js` owns cameras and pointer/gamepad aim, `97z-damage-range-panel.js` owns live DOM controls, and `97z-damage-range-lifetime.js` cancels timers, listeners, observers and resources on scene disposal. Both PHP loaders gate the whole group behind `damageRange=1` (or `devModules=1`). `damage-range-lifecycle-check.js` checks cancellation and control leases; `probe_damage_range.cjs` exercises actual canvas aiming, UV wounds, reload reset and scene teardown in Chromium.
+
+The read-only `scripts/lib/benchmark-reactive-maneuver.cjs` collector adds cumulative
+`reactiveManeuver` evidence to standard benchmark records when the reactive flag is
+on. Distinct native leases, physical arrivals (>0.75 m displacement and <0.45 m
+from the adopted slot), interruptions, covering shots and contact-to-support time
+are separate counts. Successive squads require completed movement under distinct
+leases. Window records are cumulative for this block; do not sum successive window
+snapshots. `scripts/probes/probe_reactive_fire_maneuver.cjs` runs one immutable hosted
+natural replay and writes JSON plus a screenshot under `reports/reactive-fire-maneuver`.
+It changes no positions, contacts, targets, cover or casualty outcomes. Paired or
+multi-seed outcome comparisons use the GitHub standard benchmark.

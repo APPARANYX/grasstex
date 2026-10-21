@@ -130,7 +130,11 @@
       if (!L.holds(sq, 'bound', t)) E.clearBoundOrders(sq);
       if (r.contactStarted) {
         L.end(sq, 'bound', t, 'contact started');
-        L.grant(sq, 'bound-cycle', 'squad-leader', t, t + BOUND_CYCLE, 'contact started', 'cycle expiry');
+        // Reactive startup is gated by independently verified real fire, rather
+        // than restarting a blind delay whenever target visibility flickers.
+        // The native after-bound cycle lease remains authoritative.
+        if (!reactive)
+          L.grant(sq, 'bound-cycle', 'squad-leader', t, t + BOUND_CYCLE, 'contact started', 'cycle expiry');
       }
       var posture = !reactive && tacticalPostures && tacticalPostures.current(battle, sq);
       if (posture && posture.mode !== 'maneuver') {

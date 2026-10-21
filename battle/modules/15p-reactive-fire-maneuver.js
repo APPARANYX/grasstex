@@ -76,10 +76,11 @@
       supporters(battle, sq, report, movers).length < 2
     )
       return { eligible: false, reason: 'no-independent-support-or-geometry' };
-    var reason = 'covered-team';
+    var reason = 'no-usable-cover';
     var eligible = movers.every(function (s) {
       if (
         !s ||
+        sq.members.indexOf(s) < 0 ||
         s.dead ||
         s.isPlayer ||
         s.moving ||
@@ -112,7 +113,7 @@
         })
       );
     });
-    return { eligible: eligible, reason: reason };
+    return { eligible: eligible, reason: eligible ? 'covered-team' : reason };
   }
   function adoptionAllowed(s, battle, lease) {
     var sq = s.squad,
@@ -121,6 +122,9 @@
     if (
       !data ||
       !data.reactiveFireManeuver ||
+      !Array.isArray(data.moverIds) ||
+      battle.time < lease.since ||
+      battle.time >= lease.until ||
       !task ||
       task.kind !== 'maneuver' ||
       task.missionVersion !== data.missionVersion ||

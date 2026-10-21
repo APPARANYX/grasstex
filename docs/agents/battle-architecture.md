@@ -10,6 +10,17 @@ file needs an entry there, which a reviewer sees; a fix that removes a writer mu
 `General (Macro) → Squad Leader (Meso) → Engagement → Movement Resolver → Movement Execution → Navigation`.
 Intent flows down and status flows up. No layer rewrites another's state.
 
+The experimental `reactiveFireManeuver=1&localPlan=1&coveredBounds=1` path uses
+`15p-reactive-fire-maneuver.js` only as a read-only policy. Local planning selects
+the task; native Meso selects/leases the fireteam; Engagement revalidates current
+support capability, real discharge receipts and mission/task identity, then chooses
+physical cover; the existing resolver/executor moves. This opt-in path skips
+`15o` deliberate ambush preparation and the squad AI Skills adapter. It retains
+native tactical safety gates and uses an explicit bounded-exposure route mode
+with a concealed destination. It is default OFF and has not been accepted as
+reliable natural-battle behavior. See Tunables and the reactive causal check.
+
+
 In the opt-in front-lines scenario, `BattleFrontLines.garrisonFor` is a read-only
 request for one present squad to secure the exposed held line; Force Command
 issues and releases the ordinary defense brief. Macro also considers nearby
