@@ -17,7 +17,12 @@ function serialized(value) {
 function world(observer = true) {
   const root = H.bootstrap();
   loadModule(root, 'battle/module-registry.js');
-  for (const file of ['60-ai-skills.js', '60a-ai-skills-runtime.js', '60b-ai-skill-crouch-warning.js', '60g-ai-skill-prone-warning.js'])
+  for (const file of [
+    '60-ai-skills.js',
+    '60a-ai-skills-runtime.js',
+    '60b-ai-skill-crouch-warning.js',
+    '60g-ai-skill-prone-warning.js'
+  ])
     loadModule(root, 'battle/modules/' + file);
   const b = H.makeBattle(root, { seed: 602 });
   H.resetIds();
@@ -400,7 +405,12 @@ for (const [name, factory, reason, ticks] of [
 {
   const root = H.bootstrap({ search: '?aiSkills=pilot' });
   loadModule(root, 'battle/module-registry.js');
-  for (const file of ['60-ai-skills.js', '60a-ai-skills-runtime.js', '60b-ai-skill-crouch-warning.js', '60g-ai-skill-prone-warning.js'])
+  for (const file of [
+    '60-ai-skills.js',
+    '60a-ai-skills-runtime.js',
+    '60b-ai-skill-crouch-warning.js',
+    '60g-ai-skill-prone-warning.js'
+  ])
     loadModule(root, 'battle/modules/' + file);
   const b = H.makeBattle(root, { seed: 602 });
   root.BattleModules.runHook('onBattleStart', b, {});
@@ -461,12 +471,12 @@ for (const [name, factory, reason, ticks] of [
   assert.equal(w.e.stance, 'prone');
   assert.equal(w.execution().active, 0);
   assert.ok(
-    w.execution().receipts.some(
-      r =>
-        r.skill === 'soldier.prone-on-fresh-warning' &&
-        r.action === 'prone' &&
-        r.lifecycle === 'succeeded'
-    )
+    w
+      .execution()
+      .receipts.some(
+        r =>
+          r.skill === 'soldier.prone-on-fresh-warning' && r.action === 'prone' && r.lifecycle === 'succeeded'
+      )
   );
   for (let i = 0; i < 4; i++) w.tick();
   assert.equal(requests, 1, 'independent skill cannot repeat or renew posture');
@@ -491,7 +501,12 @@ for (const [name, factory, reason, ticks] of [
   w.tick();
   assert.equal(w.e.stance, 'crouch', 'legacy pilot skill remains independently available');
 }
-for (const file of ['60-ai-skills.js', '60a-ai-skills-runtime.js', '60b-ai-skill-crouch-warning.js', '60g-ai-skill-prone-warning.js']) {
+for (const file of [
+  '60-ai-skills.js',
+  '60a-ai-skills-runtime.js',
+  '60b-ai-skill-crouch-warning.js',
+  '60g-ai-skill-prone-warning.js'
+]) {
   const source = fs.readFileSync('battle/modules/' + file, 'utf8');
   assert.doesNotMatch(
     source,
