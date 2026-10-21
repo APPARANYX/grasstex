@@ -79,7 +79,6 @@ assert.match(head || '', /^[a-f0-9]{40}$/);
           R.BattleCoverPositions.coveredBoundsOn(),
         'native owner dependencies'
       );
-      b.scene.getEngine().stopRenderLoop(R.__battleRenderLoop__);
       b.paused = true;
       const settle = async () => {
         await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
@@ -99,10 +98,14 @@ assert.match(head || '', /^[a-f0-9]{40}$/);
         check(api.diagnostics(b).generation === gen + 1, 'one generation per restart');
         check(api.diagnostics(b).squad === null, 'no retained squad episodes');
         check(api.snapshot(b, old) === null, 'old squad reference rejected');
-        check(observers() === baseline, 'persistent observer count');
+        check(
+          observers() === baseline,
+          'persistent observer count: baseline=' + baseline + ', current=' + observers() + ', cycle=' + i
+        );
         cycles.push({ generation: gen + 1, observers: observers() });
       }
-      const scenario = b.scene.metadata.battleScenario,
+      b.scene.getEngine().stopRenderLoop(R.__battleRenderLoop__);
+      const scenario = R.__scenario__,
         events = [];
       let serial = 0,
         acc = 0;

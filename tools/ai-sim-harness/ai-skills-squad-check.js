@@ -193,6 +193,54 @@ if (require.main === module) {
     w.r.BattleModules.getSystem('ai-skills-shadow').onBattleStart(w.b);
     assert.equal(w.api.diagnostics(w.b).squad, null, 'lifecycle drops episode references');
   }
+  {
+    const w = world();
+    H.run(w.r, w.b, 6, refresh(w));
+    const before = w.api.diagnostics(w.b).squad.counts.attempts;
+    w.api.configure({ ...w.api.config(), observer: false });
+    H.run(w.r, w.b, 6, refresh(w));
+    assert.equal(
+      w.api.diagnostics(w.b).squad.counts.attempts,
+      before,
+      'observer toggle preserves commitment'
+    );
+    assert.equal(
+      w.api.diagnostics(w.b).squad.counts.prepared,
+      1,
+      'observer off retains native physical hold completion'
+    );
+    assert.equal(w.api.diagnostics(w.b).squad.events.length, 0, 'observer off hides source journal');
+  }
+  {
+    const w = world();
+    H.run(w.r, w.b, 7.5, refresh(w));
+    H.run(w.r, w.b, 4, () => {
+      refresh(w)();
+      w.q.members.forEach(s => {
+        s._fireteamAdoptedEnvelope = 'unadopted';
+      });
+    });
+    assert.equal(
+      w.api.diagnostics(w.b).squad.counts.prepared,
+      0,
+      'unadopted physical posts cannot borrow hold time'
+    );
+  }
+  {
+    const w = world();
+    H.run(w.r, w.b, 2, refresh(w));
+    const profile = w.api.config();
+    w.api.configure({
+      ...profile,
+      skills: { ...profile.skills, 'squad.prepare-firing-line': { enabled: false } }
+    });
+    H.run(w.r, w.b, 0.6, refresh(w));
+    assert.equal(
+      w.r.BattleAISquadAdapter.owned(w.b, w.q),
+      false,
+      'disabled skill releases pending owned posture'
+    );
+  }
   // An isolated adapter fixture supplies explicit owner responses. It proves the
   // adapter rejects missing/partial evidence; only hosted replays can accept D.
   {
@@ -225,6 +273,7 @@ if (require.main === module) {
     let current = null,
       lease = null;
     const root = {
+      BattleAmmunition: { available: () => true },
       BattleAISkills: { config: () => ({ observer: true }) },
       SquadAI: { leaderOf: () => q.members[0], shotReceipt: s => s.shot },
       BattleCommandReception: { movementEnabled: () => true },

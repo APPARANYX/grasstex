@@ -46,6 +46,8 @@
       o.E &&
       typeof o.E.effectiveFireOn === 'function' &&
       o.E.effectiveFireOn() &&
+      root.BattleAmmunition &&
+      typeof root.BattleAmmunition.available === 'function' &&
       o.A &&
       typeof o.A.shotReceipt === 'function' &&
       root.BattleCommandReception &&
@@ -304,7 +306,7 @@
         ? result('Failure', 'blocked-route')
         : result('Running', 'finding-masked-posts');
     }
-    if (st.mode === 'hold') return result('Failure', 'interrupted');
+    if (st.mode === 'hold') return result('Failure', e.supported ? 'support-revoked' : 'interrupted');
     if (name === ids[0]) {
       if (
         st.readyAt != null &&
@@ -352,7 +354,11 @@
     var lease = o.L.get(q, 'bound'),
       expected = lease && lease.data && lease.data.aiSkillEpisode === e.identity ? lease.data.moverIds : null,
       movingIds = [];
-    if (Array.isArray(expected)) e.expected = expected.slice();
+    if (Array.isArray(expected) && !e.boundLease) {
+      e.boundLease = lease;
+      e.expected = expected.slice();
+    }
+    if (e.boundLease && lease && lease !== e.boundLease) return result('Failure', 'interrupted');
     q.members.forEach(function (s) {
       var eng = s.eng,
         p = point(s.root && s.root.position),
@@ -360,6 +366,7 @@
         key = String(s.id);
       if (
         eng &&
+        !s.dead &&
         eng.state === 'bound' &&
         goal &&
         lease &&
@@ -402,7 +409,13 @@
           )
             move.shots.add(String(man.id));
         });
-        if (move.max > 0.75 && distance(p, move.goal) <= 1.8 && eng.state !== 'bound' && move.shots.size >= 2)
+        if (
+          !s.dead &&
+          move.max > 0.75 &&
+          distance(p, move.goal) <= 1.8 &&
+          eng.state !== 'bound' &&
+          move.shots.size >= 2
+        )
           move.arrived = true;
       }
       e.positions.set(key, p);
@@ -438,7 +451,7 @@
       o.P.releasePilot(b, q, e.posture, 'skill physically arrived');
       return result('Success', 'arrived');
     }
-    context.allowBound = true;
+    context.allowBound = !e.boundLease;
     context.episode = e.identity;
     return result('Running', e.movers.size ? 'covered-movement' : 'awaiting-native-bound');
   }
