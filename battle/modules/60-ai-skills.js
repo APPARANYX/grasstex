@@ -66,6 +66,7 @@
       (spec.createPlan != null && typeof spec.createPlan !== 'function')
     )
       throw new Error('Invalid skill');
+    keys(spec.parameters === undefined ? {} : spec.parameters, Object.keys(spec.parameters || {}));
     var schema = {};
     Object.keys(spec.parameters || {})
       .sort()

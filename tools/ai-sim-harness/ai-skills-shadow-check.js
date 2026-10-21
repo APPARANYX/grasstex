@@ -83,6 +83,8 @@ function register(api, name, score, extra = {}) {
   assert.throws(() => register(api, 'a.test', 0.8));
   assert.throws(() => register(api, 'bad.scope', 1, { scope: 'enemy' }));
   assert.throws(() => register(api, 'bad.resource', 1, { resources: ['destination'] }));
+  for (const parameters of [null, 5, [], false])
+    assert.throws(() => register(api, 'bad.schema', 1, { parameters }));
   api.configure(enabled(['z.test', 'a.test']));
   const snap = api.snapshot(battle, actor);
   assert.ok(Object.isFrozen(snap) && Object.isFrozen(snap.facts[0].location));

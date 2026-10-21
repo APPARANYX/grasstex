@@ -3,6 +3,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const { chromium } = require('playwright');
+const { requestPreview } = require('./preview_request.cjs');
 const head = process.env.AI_SKILLS_SHA;
 if (!/^[a-f0-9]{40}$/.test(head || '')) throw new Error('AI_SKILLS_SHA must identify the immutable head');
 const output = 'reports/ai-skills-shadow';
@@ -26,11 +27,11 @@ const output = 'reports/ai-skills-shadow';
       route.fulfill({ status: 200, contentType: 'audio/wav', body: wav }));
     const launcher = 'https://test.ivandpopov.com/grasstex/preview.php?ref=' +
       encodeURIComponent(process.env.AI_SKILLS_REF || 'work/issue-602-ai-skills-shadow');
-    await page.goto(launcher, { waitUntil: 'domcontentloaded', timeout: 180000 });
-    if (!/\/preview\/ref-[a-f0-9]+\/battle_sim\.php/.test(page.url()))
-      throw new Error('Preview did not stage: ' + await page.locator('main').innerText());
-    // The launcher's deployed forwarding list may predate this PR; use the immutable staged page.
-    const url = new URL(page.url());
+    const response = await requestPreview(page.context(), launcher);
+    assert.equal(response.status(), 302, 'Launcher must resolve a staged preview');
+    const url = new URL(response.headers().location, launcher);
+    assert.ok(url.pathname.includes('ref-' + head.slice(0, 12)), 'Staged URL must match immutable head');
+    // Use the staged page directly; the deployed launcher may predate this PR's forwarding list.
     for (const [name, value] of new URLSearchParams(
       'aiSkills=shadow&seed=ai-skills-v1-602&log=0&strategicInterception=1&frontLines=1&motorTransport=1&truckAccess=1&truckCollision=1&truckVisual=1&aerialRecon=1&interception=1&reinforcements=1&reinforcementSortie=1'
     )) url.searchParams.set(name, value);
@@ -40,9 +41,12 @@ const output = 'reports/ai-skills-shadow';
     const report = await page.evaluate(expectedHead => {
       const root = window, b = root.__battle__, api = root.BattleAISkills;
       const check = (ok, why) => { if (!ok) throw new Error(why); };
-      check(root.BATTLE_REF === expectedHead, 'Preview head mismatch: ' + root.BATTLE_REF);
+      check(root.BATTLE_PREVIEW && root.BATTLE_PREVIEW.sha === expectedHead,
+        'Preview metadata head mismatch: ' + JSON.stringify(root.BATTLE_PREVIEW));
       check(api.config().mode === 'shadow', 'Shadow flag did not reach runtime');
       const activation = root.BattleStrategicConfig.snapshot(b);
+      check(Object.values(activation.flags).every(Boolean) && Object.values(activation.features).every(Boolean),
+        'Full-ON strategic configuration did not reach the owners');
       check(root.__scenario__.map.width === 5000, 'Expected 5km map');
       const observerCount = () => b.scene.onBeforeRenderObservable.observers.length;
       const baselineObservers = observerCount();
@@ -95,7 +99,7 @@ const output = 'reports/ai-skills-shadow';
       const faults = root.BattleModules.hookFailures();
       check(!Object.keys(faults).some(key => key.startsWith('ai-skills-shadow.')), 'Skill hook fault');
       return { head: expectedHead, runtimeRef: root.BATTLE_REF, seed: 'ai-skills-v1-602',
-        activation, step: 0.15, commanderTick: 0.45, baselineObservers, cycles, faults };
+        preview: root.BATTLE_PREVIEW, activation, step: 0.15, commanderTick: 0.45, baselineObservers, cycles, faults };
     }, head);
     assert.deepEqual(errors, [], 'Uncaught browser errors');
     await page.screenshot({ path: output + '/runtime.png' });
