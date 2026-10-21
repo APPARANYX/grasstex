@@ -817,11 +817,12 @@
       log(sim, sq, 'embarked', { passengers: ids.length, vehicleId: t.vehicleId });
     }
   }
-  function exitSpaceFree(sim, door, passenger) {
+  function exitSpaceFree(sim, door, passenger, ignoreIds) {
     var width = (root.BattleNavigationPhysicality && root.BattleNavigationPhysicality.bodyWidth) || 0.9;
     return ['us', 'ge'].every(function (f) {
       return ((sim._roster && sim._roster[f]) || []).every(function (other) {
         if (other === passenger || other.dead || !other.root) return true;
+        if (ignoreIds && ignoreIds.indexOf(other.id) >= 0) return true;
         var ride = other.squad && other.squad._transport;
         if (
           ride &&
@@ -857,6 +858,33 @@
     }
     return null;
   }
+  /* ?blockedExit=0 restores waiting on the seat's own door (and for a walkable assembly point)
+     for as long as something stands there. */
+  function blockedExitOn() {
+    return !/(?:^|[?&])blockedExit=0(?:&|$)/.test((root.location && root.location.search) || '');
+  }
+  var EXIT_NAMES = ['driver-door', 'passenger-door', 'tailgate'];
+  // The seat's own door first, then the other doors and the body's flanks. Same serial rule applies.
+  function exitCandidates(rank) {
+    var own = Math.min(rank, 2),
+      list = [own];
+    [0, 1, 2].forEach(function (i) {
+      if (i !== own) list.push(i);
+    });
+    var out = list.map(function (i) {
+      return { name: EXIT_NAMES[i], local: accessDoor(i) };
+    });
+    if (!blockedExitOn()) return out.slice(0, 1);
+    [
+      { x: -1.85, z: -1.5 },
+      { x: 1.85, z: -1.5 },
+      { x: -1.85, z: 2.2 },
+      { x: 1.85, z: 2.2 }
+    ].forEach(function (l) {
+      out.push({ name: 'flank', local: l });
+    });
+    return out;
+  }
   function disembark(sim, sq, dt) {
     var t = sq._transport,
       members = alive(sq),
@@ -867,7 +895,8 @@
       var index = t.exitOrder.indexOf(s.id),
         target = stagingTarget(sim, t, s, index);
       if (!target) {
-        allStaged = false;
+        // Nowhere reachable to assemble: the man stays where he got out and walks under his own squad.
+        if (!blockedExitOn()) allStaged = false;
         return;
       }
       if (dist(position(s.root.position), target) > SEAT_TOLERANCE) {
@@ -887,15 +916,23 @@
       if (!s || t.exitedIds.indexOf(id) >= 0) continue;
       waiting = true;
       var rank = t.boardingOrder.indexOf(id),
-        door = accessPoint(t, accessDoor(rank));
-      if (!safe(sim, door, door) || !exitSpaceFree(sim, door, s)) continue;
-      root.BattleSim.moveTransportPassenger(sim, s, door, 'transport-disembarking');
+        exits = exitCandidates(rank),
+        chosen = null;
+      for (var c = 0; c < exits.length && !chosen; c++) {
+        var door = accessPoint(t, exits[c].local);
+        if (safe(sim, door, door) && exitSpaceFree(sim, door, s))
+          chosen = { door: door, name: exits[c].name };
+        // Men of this ride still walking clear of the door will free it: keep the seat's own exit.
+        else if (c === 0 && safe(sim, door, door) && exitSpaceFree(sim, door, s, t.exitedIds)) break;
+      }
+      if (!chosen) continue;
+      root.BattleSim.moveTransportPassenger(sim, s, chosen.door, 'transport-disembarking');
       t.exitedIds.push(id);
       t.exitCursor++;
       log(sim, sq, 'seat-vacated', {
         soldierId: id,
         vehicleId: t.vehicleId,
-        exit: rank < 2 ? (rank === 0 ? 'driver-door' : 'passenger-door') : 'tailgate'
+        exit: chosen.name
       });
       return;
     }
