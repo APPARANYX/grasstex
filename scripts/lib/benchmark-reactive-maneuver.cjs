@@ -111,6 +111,30 @@
                 });
                 const key = 'team:' + gate.reason;
                 state.denials[key] = (state.denials[key] || 0) + 1;
+                if (
+                  !gate.eligible &&
+                  gate.reason === 'no-usable-cover' &&
+                  !(state.coverSurveys || []).some(x => x.team === team)
+                ) {
+                  const C = R.BattleCoverPositions;
+                  const survey = { team, at: b.time, men: [] };
+                  for (const man of movers) {
+                    const threats = C.boundThreats(man, b);
+                    const slots = threats.length
+                      ? C.candidates(man, b, { root: { position: threats[0] } }, 40)
+                      : [];
+                    survey.men.push({
+                      id: man.id,
+                      x: man.root.position.x,
+                      z: man.root.position.z,
+                      candidates12: slots.filter(c => c.distance <= 12).length,
+                      candidates20: slots.filter(c => c.distance <= 20).length,
+                      candidates40: slots.length,
+                      nearest: slots.length ? Math.min(...slots.map(c => c.distance)) : null
+                    });
+                  }
+                  (state.coverSurveys ||= []).push(survey);
+                }
               }
             }
           }
