@@ -68,7 +68,19 @@ const runs = [
       params.set('labRange', String(config.range));
       const target = new URL(base.href);
       for (const [key, value] of params) target.searchParams.set(key, value);
-      await page.goto(target.href, { waitUntil: 'load', timeout: 180000 });
+      // Preview host intermittently refuses TCP between consecutive reloads.
+      // Retry transport only; never forgive semantic assertions or tactical failure.
+      for (let retry = 0; retry < 5; retry++) {
+        try {
+          await page.goto(target.href, { waitUntil: 'load', timeout: 180000 });
+          break;
+        } catch (error) {
+          if (retry === 4 || !/ERR_CONNECTION_REFUSED|ERR_CONNECTION_RESET|ERR_EMPTY_RESPONSE|ERR_TIMED_OUT|ECONNRESET|ETIMEDOUT/.test(String(error)))
+            throw error;
+          console.warn('COMPACT_LAB_NAV_RETRY ' + (retry + 1) + ' ' + String(error).slice(0, 150));
+          await new Promise(resolve => setTimeout(resolve, (retry + 1) * 1200));
+        }
+      }
       await page.waitForFunction(
         () => !!(window.__battle__ && window.BattleAISkills &&
           window.BattleAISquadAdapter && window.PhaseCCombatLab),
