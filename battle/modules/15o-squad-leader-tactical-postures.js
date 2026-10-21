@@ -22,6 +22,15 @@
       cooldown = new WeakMap(),
       counters = new WeakMap(),
       rejections = new WeakMap(),
+      labArgs = root.BATTLE_PREVIEW && root.PHASE_C_COMBAT_LAB
+        ? new URLSearchParams(query)
+        : null,
+      labRadius = labArgs && [6, 20, 50].indexOf(+labArgs.get('labPostRange')) >= 0
+        ? +labArgs.get('labPostRange')
+        : 20,
+      labCandidateCount = labArgs && [16, 32, 64].indexOf(+labArgs.get('labCandidates')) >= 0
+        ? +labArgs.get('labCandidates')
+        : 16,
       tuning = {
         minimumHold: 4,
         preparationBudget: 12,
@@ -491,7 +500,7 @@
           var s = a[i],
             here = point(s.root.position),
             candidate = null,
-            options = [here].concat(C.candidates(s, b, { root: { position: rs[0] } }, 20).slice(0, 16));
+            options = [here].concat(C.candidates(s, b, { root: { position: rs[0] } }, labRadius).slice(0, labCandidateCount));
           for (var j = 0; j < options.length; j++) {
             var p = point(options[j]);
             if (
