@@ -15,8 +15,7 @@
     evaluate: function (snapshot, parameters) {
       var urgent = snapshot.facts.some(function (fact) {
         return (
-          fact.confidence >= parameters.confidence &&
-          snapshot.now - fact.observedAt <= parameters.maxage
+          fact.confidence >= parameters.confidence && snapshot.now - fact.observedAt <= parameters.maxage
         );
       });
       return {
