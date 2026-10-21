@@ -19,6 +19,8 @@ resumes its own route segment after either arrival or an interrupted ride.
 Capture zones count deployed infantry only: boarding/embarked passengers cannot
 capture, neutralize, or contest a flag while a truck crosses it. Screen transport
 keeps the secured objective as an explicit road junction before the forward post.
+`BattleSquadTransport` owns journey occupancy reads: `isPassenger(s)` is the active boarding/ride/dismount commitment used by movement and capture; `carrierId(s)` grants own-carrier LOS exclusion only to admitted, unexited occupants (or the legacy fully embarked task); `seatedIds(squad)` is a detached presentation projection of admitted minus exited IDs, retaining the historical boarding-prefix fallback. These queries read the current task without a cache. Fleet/journey mutation, positions and boarding policy retain their existing owner.
+
 Boarding requests an upright stance through Engagement before physically walking;
 Engagement retains HOLD/PRECISION preparation posture when another movement plan
 supersedes its hold proposal. Repeated fled detachments have distinct identities,

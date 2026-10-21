@@ -285,6 +285,7 @@ test('mounted eyes ignore only their own carrier; foot soldiers and other trucks
     { id: 'us-crew', faction: 'us', x: 0, z: 0 },
     { id: 'ge-target', faction: 'ge', x: 0, z: 60 }
   ]);
+  require('./module-loader').loadModule(ctx.r, 'battle/modules/58-strategic-abstract-transport.js');
   const me = lone(ctx.out[0]),
     foe = lone(ctx.out[1]);
   me.root.position.x = me.root.position.z = 0;

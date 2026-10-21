@@ -96,6 +96,7 @@ function bootstrap() {
   load(root, 'battle/battle-navigation.js');
   load(root, 'battle/objective-system.js');
   load(root, 'battle/modules/01-capture-zone.js');
+  load(root, 'battle/modules/58-strategic-abstract-transport.js');
   load(root, 'battle/commander-doctrine.js');
   return root;
 }
