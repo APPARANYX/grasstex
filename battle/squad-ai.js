@@ -2398,6 +2398,18 @@
     hearGunfireBelief: hearGunfireBelief,
     observeKnownNonThreats: observeKnownNonThreats,
     beliefSnapshot: beliefSnapshot,
+    // Detached own-trigger evidence. No pruning, cache, hostile transform or new shot writer.
+    shotReceipt: function (s, b) {
+      var roster = b && b._roster && s && b._roster[s.faction],
+        rows = b && b._gunfire;
+      if (!Array.isArray(roster) || roster.indexOf(s) < 0 || !Array.isArray(rows)) return null;
+      for (var i = rows.length - 1, stop = Math.max(0, rows.length - 256); i >= stop; i--) {
+        var row = rows[i];
+        if (row.unit === s && Number.isFinite(row.at) && row.at <= b.time && b.time - row.at <= 4.5)
+          return Object.freeze({ source: 'own-discharge', soldierId: String(s.id), at: row.at });
+      }
+      return null;
+    },
     beliefTelemetry: beliefTelemetry,
     secondaryThreatOn: function () {
       return SECONDARY_THREAT_ON;

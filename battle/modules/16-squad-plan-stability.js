@@ -2230,7 +2230,8 @@
            Boarding still runs this Meso loop to accept the Macro brief. */
         if (q._transport && q._transport.phase === 'embarked') continue;
         if (_lp && _lp.on) _lp.update(sim, q);
-        if (_postures && _postures.on) _postures.update(sim, q);
+        if (_postures && _postures.on && !(root.BattleAISkills && root.BattleAISkills.handlesSquad(sim, q)))
+          _postures.update(sim, q);
         updateCohesion(sim, q);
         if (LEASE_CONFLICTS_ON || (_lp && _lp.on)) resolveLeaseConflicts(sim, q);
         executeMission(sim, q, town);

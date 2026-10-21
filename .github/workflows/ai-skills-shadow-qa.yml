@@ -5,6 +5,7 @@ on:
       - 'battle/modules/60*-ai-skill*.js'
       - runtime-contract.php
       - scripts/probes/probe_ai_skills_shadow.cjs
+      - scripts/probes/probe_ai_skills_squad.cjs
       - .github/workflows/ai-skills-shadow-qa.yml
   workflow_dispatch:
 permissions:
@@ -28,6 +29,11 @@ jobs:
           AI_SKILLS_REF: ${{ github.event.pull_request.head.ref || github.ref_name }}
           AI_SKILLS_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: node scripts/probes/probe_ai_skills_shadow.cjs
+      - name: Immutable squad natural replay and lifecycle
+        env:
+          AI_SKILLS_REF: ${{ github.event.pull_request.head.ref || github.ref_name }}
+          AI_SKILLS_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: node scripts/probes/probe_ai_skills_squad.cjs
       - name: Preserve browser evidence
         uses: actions/upload-artifact@v4
         if: always()
@@ -36,4 +42,5 @@ jobs:
           path: |
             reports/ai-skills-shadow/
             reports/ai-skills-pilot/
+            reports/ai-skills-squad/
           retention-days: 30

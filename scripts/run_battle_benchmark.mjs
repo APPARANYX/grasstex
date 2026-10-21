@@ -677,6 +677,9 @@ try {
 
         activeCommandHistory = captureCommands ? root.BattleBenchmarkCommandHistory.create() : null;
         activeCommandHistory?.sample(sim);
+        const squadJournal = [], captureSquadJournal = root.BattleAISkills?.config?.().mode === 'pilot' &&
+          root.BattleAISkills.config().pilot?.squad != null && root.BattleAISkills.config().observer;
+        let squadSerial = 0, squadChars = 0;
         let commandAccum = 0, steps = 0, nextSample = 0;
         const live = () => !sim.winner && sim.time < timeLimit + 0.5 && steps < maxSteps;
         const stepOnce = () => {
@@ -684,6 +687,15 @@ try {
           steps++; commandAccum += fixedDt;
           while (commandAccum + 1e-9 >= commandTick && !sim.winner) { commandAccum -= commandTick; root.BattleCommanderAI.update(sim, scenario, commandTick); }
           activeCommandHistory?.sample(sim);
+          if (captureSquadJournal) {
+            for (const event of root.BattleAISquadAdapter.eventsSince(sim, squadSerial)) {
+              if (event.serial !== squadSerial + 1) throw new Error('Squad source journal gap');
+              squadSerial = event.serial;
+              squadChars += JSON.stringify(event).length;
+              if (squadSerial > 20000 || squadChars > 8 * 1024 * 1024) throw new Error('Squad journal budget exceeded');
+              squadJournal.push(event);
+            }
+          }
           sampleAcquisitions();
         };
         const wallStart = performance.now();
@@ -755,7 +767,7 @@ try {
           }
         }
         if (root.BattleAISkills?.config?.().mode === 'pilot')
-          skillExecution.push({ seed, at: sim.time, profile: root.BattleAISkills.config(), diagnostics: root.BattleAISkills.diagnostics(sim) });
+          skillExecution.push({ seed, at: sim.time, profile: root.BattleAISkills.config(), squadJournal, diagnostics: root.BattleAISkills.diagnostics(sim) });
         activeCombat = null; activeAcquisition = null; finishBattle(); if ((index + 1) % 5 === 0) await new Promise(resolve => setTimeout(resolve, 0));
       }
     } finally {

@@ -4,7 +4,15 @@
   'use strict';
   var scopes = ['soldier', 'squad', 'command'],
     resources = ['locomotion', 'posture', 'weapon', 'team', 'orders', 'communications'],
-    capabilities = ['perceived-threat', 'current-mission', 'adopted-movement', 'reachable-cover'],
+    capabilities = [
+      'perceived-threat',
+      'current-mission',
+      'adopted-movement',
+      'reachable-cover',
+      'masked-line',
+      'support-ready',
+      'covered-maneuver'
+    ],
     skills = Object.create(null),
     sessions = new WeakMap(),
     revision = 0,
@@ -100,15 +108,19 @@
     var mode = profile.mode === undefined ? 'legacy' : profile.mode;
     if (['legacy', 'shadow', 'pilot'].indexOf(mode) < 0) throw new Error('Invalid mode');
     var pilot = null;
-    if (mode === 'pilot') {
-      keys(profile.pilot, ['faction', 'entity']);
+    if (mode === 'pilot' || profile.pilot !== undefined) {
+      keys(profile.pilot, ['faction', 'entity', 'squad']);
+      var squadScope = Object.prototype.hasOwnProperty.call(profile.pilot, 'squad');
+      var target = squadScope ? profile.pilot.squad : profile.pilot.entity;
       if (
-        ['us', 'ge'].indexOf(profile.pilot.faction) < 0 ||
-        typeof profile.pilot.entity !== 'string' ||
-        !/^[a-zA-Z0-9._-]{1,80}$/.test(profile.pilot.entity)
+        (squadScope ? ['us', 'ge', 'both'] : ['us', 'ge']).indexOf(profile.pilot.faction) < 0 ||
+        typeof target !== 'string' ||
+        (!(squadScope && target === '*') && !/^[a-zA-Z0-9._-]{1,80}$/.test(target)) ||
+        (squadScope && profile.pilot.entity !== undefined)
       )
-        throw new Error('Pilot requires one explicit actor');
-      pilot = { faction: profile.pilot.faction, entity: profile.pilot.entity };
+        throw new Error('Pilot requires one explicit scope');
+      pilot = { faction: profile.pilot.faction };
+      pilot[squadScope ? 'squad' : 'entity'] = target;
     }
     if (profile.observer !== undefined && typeof profile.observer !== 'boolean')
       throw new Error('Invalid observer');
@@ -170,6 +182,7 @@
     var state = sessions.get(sim);
     if (!state) {
       state = {
+        sim: sim,
         identity: Object.freeze({}),
         scheduler: null,
         generation: 0,
@@ -198,7 +211,12 @@
       state.scheduler.cancelAll('interrupted', now);
       state.executionArchive = state.scheduler.diagnostics(config.observer);
     }
-    if (!preserve) state.scheduler = null;
+    if (!preserve) {
+      state.scheduler = null;
+      state.squadAt = new WeakMap();
+      state.squadDecidedAt = new WeakMap();
+      if (root.BattleAISquadAdapter) root.BattleAISquadAdapter.reset(state.sim);
+    } else if (root.BattleAISquadAdapter) root.BattleAISquadAdapter.observe(state.sim);
     if (state.scheduler) state.scheduler.observe(config.observer);
     state.executionProfile = JSON.stringify({
       mode: config.mode,
@@ -240,7 +258,125 @@
       location: { x: row.location.x, z: row.location.z }
     };
   }
+  function squadConfigured(sq) {
+    var p = config && config.pilot;
+    return !!(
+      p &&
+      p.squad &&
+      sq &&
+      (p.faction === 'both' || p.faction === sq.faction) &&
+      (p.squad === '*' || p.squad === String(sq.id))
+    );
+  }
+  function handlesSquad(sim, sq) {
+    return !!(
+      config &&
+      config.mode === 'pilot' &&
+      squadConfigured(sq) &&
+      root.BattleAISquadAdapter &&
+      root.BattleAISquadAdapter.enabled(sim, sq, config) &&
+      root.BattleAISquadAdapter.controls(sim, sq)
+    );
+  }
+  function prepareSquad(sim, sq, state) {
+    var value = root.BattleAISquadAdapter.project(sim, sq);
+    return freeze(
+      Object.assign(value, {
+        scope: 'squad',
+        entity: String(sq.id),
+        faction: sq.faction,
+        now: sim.time,
+        generation: state.generation,
+        battleToken: state.identity,
+        facts: value.facts.map(function (row) {
+          return Object.assign(row, { generation: state.generation });
+        })
+      })
+    );
+  }
+  function advanceSquad(sim, sq, report) {
+    if (profileDirty) configure(requestedProfile);
+    var state = sessions.get(sim);
+    if (!state || !state.active) return { handled: false };
+    if (state.revision !== revision)
+      clear(
+        state,
+        state.executionProfile ===
+          JSON.stringify({ mode: config.mode, skills: config.skills, pilot: config.pilot }),
+        sim.time
+      );
+    if (!squadConfigured(sq) || config.mode === 'legacy' || !root.BattleAISquadAdapter)
+      return { handled: false };
+    root.BattleAISquadAdapter.reconcile(sim, sq);
+    if (!root.BattleAISquadAdapter.enabled(sim, sq, config)) return { handled: false };
+    var prior = state.squadAt.get(sq);
+    if (prior === sim.time) return { handled: handlesSquad(sim, sq), allowBound: false };
+    state.squadAt.set(sq, sim.time);
+    var snap = prepareSquad(sim, sq, state),
+      last = state.squadDecidedAt.get(sq),
+      decide = last === undefined || sim.time < last || sim.time - last >= 0.45 - 1e-9,
+      result = decide ? select(snap, snap, config) : { chosen: null, decisions: [], evaluations: 0 };
+    state.prepared++;
+    state.evaluated += result.evaluations;
+    if (decide) state.squadDecidedAt.set(sq, sim.time);
+    if (config.mode === 'shadow') {
+      if (config.observer && decide) {
+        state.receipts.push(
+          freeze({
+            entity: snap.entity,
+            faction: snap.faction,
+            scope: 'squad',
+            generation: snap.generation,
+            missionVersion: snap.missionVersion,
+            at: snap.now,
+            chosen: result.chosen,
+            decisions: result.decisions
+          })
+        );
+        if (state.receipts.length > MAX_RECEIPTS) state.receipts.shift();
+      }
+      return { handled: false };
+    }
+    if (!state.scheduler) state.scheduler = root.BattleAISkillRuntime.create();
+    var context = { report: report, allowBound: false };
+    state.scheduler.step(sim, sq, snap, result, skills, config, context);
+    var status = state.scheduler.status(sq),
+      handled = !!(status && status.lifecycle === 'running');
+    if (config.observer && decide) {
+      state.receipts.push(
+        freeze({
+          entity: snap.entity,
+          faction: snap.faction,
+          scope: 'squad',
+          generation: snap.generation,
+          missionVersion: snap.missionVersion,
+          at: snap.now,
+          planSerial: snap.planSerial,
+          chosen: result.chosen,
+          decisions: result.decisions
+        })
+      );
+      if (state.receipts.length > MAX_RECEIPTS) state.receipts.shift();
+    }
+    // A succeeded phase retains its native posture until the next scoped phase is selected.
+    if (status && status.lifecycle === 'succeeded' && root.BattleAISquadAdapter.owned(sim, sq))
+      handled = true;
+    return { handled: handled, allowBound: handled && context.allowBound, episode: context.episode };
+  }
   function snapshot(sim, actor) {
+    if (actor && Array.isArray(actor.members)) {
+      var qstate = sessions.get(sim),
+        qs = sim.factions && sim.factions[actor.faction] && sim.factions[actor.faction].squads;
+      if (
+        !qstate ||
+        !qstate.active ||
+        !Array.isArray(qs) ||
+        qs.indexOf(actor) < 0 ||
+        !root.BattleAISquadAdapter
+      )
+        return null;
+      return prepareSquad(sim, actor, qstate);
+    }
     var state = sessions.get(sim),
       roster = actor && sim._roster && sim._roster[actor.faction];
     // Validate identity before touching beliefs: IDs can be reused after restart or in another battle.
@@ -448,7 +584,14 @@
       return ak < bk ? -1 : ak > bk ? 1 : 0;
     });
     state.omitted += Math.max(0, actors.length - MAX_ACTORS);
-    if (state.scheduler) state.scheduler.reconcile(actors.slice(0, MAX_ACTORS), sim);
+    if (state.scheduler) {
+      var squadActors = [];
+      if (config.pilot && config.pilot.squad)
+        ['us', 'ge'].forEach(function (f) {
+          squadActors = squadActors.concat((sim.factions && sim.factions[f] && sim.factions[f].squads) || []);
+        });
+      state.scheduler.reconcile(actors.slice(0, MAX_ACTORS).concat(squadActors.slice(0, 32)), sim);
+    }
     actors.slice(0, MAX_ACTORS).forEach(function (actor) {
       if (
         config.mode === 'pilot' &&
@@ -507,6 +650,15 @@
     initial.pilot = { faction: 'us', entity: '31' };
     initial.skills = { 'soldier.crouch-on-warning': { enabled: true } };
   }
+  if (initial.mode === 'squad' || initial.mode === 'squad-shadow') {
+    initial.mode = initial.mode === 'squad' ? 'pilot' : 'shadow';
+    initial.pilot = { faction: 'both', squad: '*' };
+    initial.skills = {
+      'squad.prepare-firing-line': { enabled: true },
+      'squad.coordinate-support-fire': { enabled: true },
+      'squad.execute-covered-bound': { enabled: true }
+    };
+  }
   configure(initial);
   if (root.BattleModules)
     root.BattleModules.registerSystem('ai-skills-shadow', {
@@ -529,6 +681,8 @@
       return config;
     },
     snapshot: snapshot,
+    handlesSquad: handlesSquad,
+    advanceSquad: advanceSquad,
     select: select,
     diagnostics: function (sim) {
       var state = sessions.get(sim);
@@ -547,6 +701,7 @@
             : config.observer && state.executionArchive
               ? state.executionArchive
               : null,
+        squad: root.BattleAISquadAdapter ? root.BattleAISquadAdapter.diagnostics(sim, config.observer) : null,
         receipts: state.revision === revision ? state.receipts.slice() : []
       });
     },

@@ -25,8 +25,8 @@
     }
     return value;
   }
-  function seconds(n) {
-    return Number.isFinite(n) && n >= 0 && n <= MAX_SECONDS;
+  function seconds(n, limit) {
+    return Number.isFinite(n) && n >= 0 && n <= limit;
   }
   var actions = Object.freeze({
     sequence: function () {
@@ -44,11 +44,14 @@
     retry: function (n, child) {
       return immutable({ type: 'retry', attempts: n, child: child });
     },
+    owner: function (name) {
+      return immutable({ type: 'action', action: name });
+    },
     posture: function () {
       return immutable({ type: 'action', action: 'crouch' });
     }
   });
-  function validate(tree) {
+  function validate(tree, limit) {
     var count = 0;
     function walk(node, depth) {
       if (
@@ -68,12 +71,12 @@
         });
       } else if (node.type === 'wait') {
         fields = ['type', 'seconds'];
-        if (!seconds(node.seconds)) throw new Error('Invalid wait');
+        if (!seconds(node.seconds, limit)) throw new Error('Invalid wait');
       } else if (node.type === 'timeout' || node.type === 'retry') {
         fields = ['type', node.type === 'timeout' ? 'seconds' : 'attempts', 'child'];
         if (
           node.type === 'timeout'
-            ? !seconds(node.seconds)
+            ? !seconds(node.seconds, limit)
             : !Number.isInteger(node.attempts) || node.attempts < 1 || node.attempts > 3
         )
           throw new Error('Invalid decorator');
@@ -93,7 +96,15 @@
     // Clone after validation; retained factory objects cannot alter a running plan.
     return immutable(JSON.parse(JSON.stringify(tree)));
   }
+  function scope(actor) {
+    return Array.isArray(actor.members) ? 'squad' : 'soldier';
+  }
+  function keyOf(actor) {
+    return scope(actor) + ':' + actor.faction + ':' + String(actor.id);
+  }
   function blocker(sim, actor) {
+    if (scope(actor) === 'squad')
+      return root.BattleAISquadAdapter ? root.BattleAISquadAdapter.blocker(sim, actor) : 'no-authority';
     var sq = actor && actor.squad,
       e = actor && actor.eng,
       transport = root.BattleSquadTransport,
@@ -139,8 +150,9 @@
       if (!plan.observer) return;
       rows.push(
         immutable({
-          scope: 'soldier',
+          scope: plan.scope,
           entity: plan.entity,
+          planSerial: plan.planSerial,
           faction: plan.faction,
           generation: plan.generation,
           missionVersion: plan.missionVersion,
@@ -159,6 +171,8 @@
     }
     function finish(plan, lifecycle, reason) {
       if (plan.lifecycle !== 'running' && plan.lifecycle !== 'not-started') return;
+      if (plan.scope === 'squad' && lifecycle !== 'succeeded' && root.BattleAISquadAdapter)
+        root.BattleAISquadAdapter.cancel(plan.sim, plan.actor, reason);
       plan.lifecycle = lifecycle;
       plan.nodes = Object.create(null);
       plan.resources = [];
@@ -175,19 +189,55 @@
     function reconcile(actors, sim) {
       var present = new Map();
       actors.forEach(function (a) {
-        present.set(a.faction + ':' + String(a.id), a);
+        present.set(keyOf(a), a);
       });
       plans.forEach(function (p, key) {
         var a = present.get(key),
-          mission = a && a.squad && a.squad._macroMission;
+          mission = a && (scope(a) === 'squad' ? a._macroMission : a.squad && a.squad._macroMission);
         p.now = sim.time;
-        if (!a || a !== p.actor || a.dead || !mission || mission.version !== p.missionVersion) {
+        if (
+          !a ||
+          a !== p.actor ||
+          a.dead ||
+          !mission ||
+          mission !== p.mission ||
+          mission.version !== p.missionVersion
+        ) {
           finish(p, 'cancelled', 'interrupted');
           plans.delete(key);
         }
       });
     }
-    function effect(plan, sim, actor, snap, name) {
+    function effect(plan, sim, actor, snap, name, context) {
+      if (snap.scope === 'squad') {
+        var value;
+        try {
+          value = root.BattleAISquadAdapter.perform(name, sim, actor, snap, plan, context);
+        } catch (error) {
+          finish(plan, 'failed', 'owner-error');
+          throw error;
+        }
+        if (
+          !value ||
+          ['Success', 'Running', 'Failure'].indexOf(value.status) < 0 ||
+          typeof value.reason !== 'string'
+        )
+          return { status: 'Failure', reason: 'unsupported-action' };
+        if (!plan.actionStarted) {
+          record(plan, 'not-started', 'requested', name, 'squad-leader');
+          record(plan, 'running', 'requested', name, 'squad-leader');
+          plan.actionStarted = true;
+        }
+        if (value.status !== 'Running')
+          record(
+            plan,
+            value.status === 'Success' ? 'succeeded' : 'failed',
+            value.reason,
+            name,
+            'squad-leader'
+          );
+        return value;
+      }
       var owner = name === 'crouch' ? 'engagement' : 'ai-skills-scheduler';
       record(plan, 'not-started', 'requested', name, owner);
       record(plan, 'running', 'requested', name, owner);
@@ -217,7 +267,7 @@
       record(plan, 'succeeded', 'accepted', name, owner);
       return { status: 'Success', reason: 'accepted' };
     }
-    function run(plan, sim, actor, snap) {
+    function run(plan, sim, actor, snap, context) {
       var ops = MAX_OPS;
       function visit(node, path) {
         if (--ops < 0) return { status: 'Failure', reason: 'unsupported-action' };
@@ -229,7 +279,7 @@
             status: sim.time - state.at + 1e-9 >= node.seconds ? 'Success' : 'Running',
             reason: 'waiting'
           };
-        else if (node.type === 'action') result = effect(plan, sim, actor, snap, node.action);
+        else if (node.type === 'action') result = effect(plan, sim, actor, snap, node.action, context);
         else if (node.type === 'timeout')
           result =
             sim.time - state.at + 1e-9 >= node.seconds
@@ -262,13 +312,29 @@
       }
       return visit(plan.tree, '0');
     }
-    function step(sim, actor, snap, selection, skills, config) {
-      var key = actor.faction + ':' + String(actor.id),
+    function step(sim, actor, snap, selection, skills, config, context) {
+      var key = keyOf(actor),
         plan = plans.get(key),
         chosen = selection.chosen && skills[selection.chosen],
         blocked = blocker(sim, actor);
-      if (plan && (plan.generation !== snap.generation || plan.missionVersion !== snap.missionVersion)) {
+      if (
+        plan &&
+        (plan.generation !== snap.generation ||
+          plan.missionVersion !== snap.missionVersion ||
+          plan.mission !==
+            (scope(actor) === 'squad' ? actor._macroMission : actor.squad && actor.squad._macroMission))
+      ) {
         finish(plan, 'cancelled', 'interrupted');
+        plans.delete(key);
+        plan = null;
+      }
+      if (
+        plan &&
+        plan.scope === 'squad' &&
+        plan.lifecycle === 'succeeded' &&
+        chosen &&
+        chosen.id !== plan.skill
+      ) {
         plans.delete(key);
         plan = null;
       }
@@ -297,7 +363,7 @@
           finish(plan, 'failed', 'stale-intel');
           return;
         }
-        if (sim.time < plan.startedAt || sim.time - plan.startedAt >= MAX_SECONDS) {
+        if (sim.time < plan.startedAt || sim.time - plan.startedAt >= plan.limit) {
           finish(plan, 'failed', 'never-arrived');
           return;
         }
@@ -319,10 +385,15 @@
         if (!chosen || !chosen.createPlan || blocked) return;
         plan = {
           actor: actor,
+          sim: sim,
+          scope: snap.scope,
+          planSerial: snap.planSerial || null,
+          limit: snap.scope === 'squad' ? 60 : MAX_SECONDS,
           entity: snap.entity,
           faction: snap.faction,
           generation: snap.generation,
           missionVersion: snap.missionVersion,
+          mission: snap.scope === 'squad' ? actor._macroMission : actor.squad && actor.squad._macroMission,
           skill: chosen.id,
           score: selection.decisions.find(function (d) {
             return d.selected;
@@ -337,7 +408,10 @@
         plans.set(key, plan);
         record(plan, 'not-started', 'selected');
         try {
-          plan.tree = validate(chosen.createPlan(snap, actions, config.skills[chosen.id].parameters));
+          plan.tree = validate(
+            chosen.createPlan(snap, actions, config.skills[chosen.id].parameters),
+            plan.limit
+          );
         } catch (error) {
           finish(plan, 'failed', 'unsupported-action');
           return;
@@ -345,7 +419,7 @@
         plan.lifecycle = 'running';
         record(plan, 'running', 'committed');
       }
-      var result = run(plan, sim, actor, snap);
+      var result = run(plan, sim, actor, snap, context);
       if (result.status !== 'Running')
         finish(plan, result.status === 'Success' ? 'succeeded' : 'failed', result.reason);
     }
@@ -353,6 +427,10 @@
       step: step,
       reconcile: reconcile,
       cancelAll: cancelAll,
+      status: function (actor) {
+        var p = plans.get(keyOf(actor));
+        return p ? immutable({ lifecycle: p.lifecycle, skill: p.skill }) : null;
+      },
       observe: function (enabled) {
         rows = [];
         plans.forEach(function (p) {

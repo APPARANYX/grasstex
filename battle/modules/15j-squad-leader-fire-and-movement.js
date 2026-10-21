@@ -79,7 +79,12 @@
       if (r.fled && r.fled.length && sq.fledId == null) detachFled(sq, battle, r.fled);
       updateRecon(sq, battle, r);
       var localTask = localPlan && localPlan.on ? localPlan.update(battle, sq, r) : null;
-      if (tacticalPostures && tacticalPostures.on) tacticalPostures.update(battle, sq, r);
+      var pilot =
+        root.BattleAISkills && root.BattleAISkills.advanceSquad
+          ? root.BattleAISkills.advanceSquad(battle, sq, r)
+          : null;
+      if (!(pilot && pilot.handled) && tacticalPostures && tacticalPostures.on)
+        tacticalPostures.update(battle, sq, r);
       if (localPlan && localPlan.tasksOn && sq.state === 'retreat') {
         L.end(sq, 'bound', battle.time, 'retreat owns recovery');
         E.clearBoundOrders(sq);
@@ -190,6 +195,7 @@
       if (COA_ON && sq.coa && COAS[sq.coa] && !COAS[sq.coa].bounds) sq._assaultAuthorized = false;
       /* A bound needs a base of fire: somebody has to be shooting while somebody else moves. */
       if (
+        (pilot && pilot.handled && !pilot.allowBound) ||
         !sq._assaultAuthorized ||
         L.holds(sq, 'bound-cycle', t) ||
         L.holds(sq, 'bound', t) ||
@@ -249,6 +255,12 @@
           if (s.dead || s.suppressedUntil > battle.time || s.reloading || s.clearingStoppage || s.outOfAmmo)
             continue;
           if (localPlan && localPlan.resourcesOn && !localPlan.moverEligible(s, sq, battle)) continue;
+          if (
+            pilot &&
+            pilot.handled &&
+            !root.BattleAISquadAdapter.moverAdopted(s, battle, localTask.missionVersion)
+          )
+            continue;
           // Down, on the run or charging (Engagement's report): not his to bound.
           if (r.reacting && r.reacting.indexOf(s) >= 0) continue;
           if (
@@ -381,9 +393,19 @@
           t + BOUND_DURATION,
           'fireteam ' + team + ' bounds',
           'window expiry or contact broken',
-          localPlan && localPlan.degradationOn
-            ? { team: team, missionVersion: localTask.missionVersion, localTaskSerial: localTask.serial }
-            : { team: team }
+          pilot && pilot.handled
+            ? {
+                team: team,
+                missionVersion: localTask.missionVersion,
+                localTaskSerial: localTask.serial,
+                moverIds: movers.map(function (s) {
+                  return String(s.id);
+                }),
+                aiSkillEpisode: pilot.episode
+              }
+            : localPlan && localPlan.degradationOn
+              ? { team: team, missionVersion: localTask.missionVersion, localTaskSerial: localTask.serial }
+              : { team: team }
         );
         L.grant(
           sq,

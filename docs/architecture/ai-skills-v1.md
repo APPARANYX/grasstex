@@ -1,8 +1,8 @@
 # AI Skills V1 contract (#602)
 
-Status: A/B foundation plus the explicitly authorized C soldier pilot. Gameplay
-default remains legacy. Phase C squad migration (D), retirement (E), and merges
-require separate authorization; #527 stays parked.
+Status: A/B foundation, C soldier pilot and explicitly authorized D squad pilot.
+Gameplay default remains legacy. Natural Phase C acceptance is pending evidence;
+retirement (E) and merges require separate authorization. #527 stays parked.
 
 ## Verified baseline and dependency graph
 
@@ -330,3 +330,74 @@ with the exact main SHA: OFF serves main, ON serves the C head, on one runner wi
 the same head-owned benchmark code and capture setting. Source SHAs are preserved
 in `reports/source-refs.json` and arm summaries. Separate-runner comparisons can
 be retained as diagnostic evidence but do not resolve a failed timing gate.
+
+
+## PR D squad composition and opt-in boundary
+
+`aiSkills=squad` selects the three squad descriptors in 60d–60f for both factions;
+`aiSkills=squad-shadow` evaluates the same manifest without executing. These are
+aliases in the existing central profile resolver, not extra tactical parsers.
+The explicit prerequisites are `localPlan=1&localResources=1&localAmbush=1&localManeuver=1&coveredBounds=1`,
+Command Reception movement, effective fire and existing ammunition owners. Missing
+prerequisites or a disabled descriptor return control to legacy Meso.
+
+The existing scheduler handles soldier and squad scope, with one plan per actor
+and exact mission object, a 32-squad/32-member budget, Commander-cadence selection
+and AI-tick guard/action advancement. Successful squad phases may hand off to a
+different skill in the same episode; failures remain one attempt per mission.
+Squad plans have a 60-second ceiling (preparation 28, support 24, bound 14).
+The soldier pilot retains its ten-second ceiling. No extra lifecycle system,
+render observer, decision RNG, destination or posture/fire writer is introduced.
+
+`60c-ai-skills-squad-adapter.js` holds private owner references. Descriptors get
+only detached own-squad reported facts and accepted mission availability. The
+single Meso seam requests existing tactical-posture updates; fire-control still
+publishes through 15a and only 15j grants native bound leases/orders. Commander
+posture updates defer only at a scoped eligible pilot opportunity or an owned
+posture. Ineligible/foreign postures continue through their existing path.
+
+Readiness in a pilot-owned line requires the same three actual adopted personal
+movement envelopes and Macro version, actual low stance, masked body positions,
+and a continuous four-second hold. Anchors tolerate at most 0.5 m actual drift;
+arrival must also meet the native 1.8 m receipt endpoint. Possession epoch, envelope
+or stance changes reset the hold. An already prepared core can retain its real
+posts while Micro changes movement labels and while independent fire develops.
+Losing preparation masking marks a ready line compromised; every proposed bound
+still rechecks the unchanged native concealed route and endpoint geometry.
+No unprepared or legacy posture gains these retention rules.
+
+A prepared pilot line can open with one independently ready rifle/carbine under
+native visual contact, ROE and ballistic checks; another weapon joins only when
+its own owner permits. The adapter requires two current independently qualified
+rifles with actual own-discharge receipts after readiness before requesting a
+bound. `SquadAI.shotReceipt` only reads the existing own gunfire log (last 256
+rows, at most 4.5 seconds old); it creates no shot/support state. Native phase,
+COA, resource, adoption, support, cover and route gates still decide whether any
+bound is published. Defender/security/recovery phases receive no override.
+
+Completion tracks every mover ID in the exact native lease, legal route,
+observed departure/displacement and physical endpoint arrival. Two qualified
+non-movers must discharge during that travel, and two independent supporters
+must remain effective on each advancement. Losing support returns
+`support-revoked`; timeout/route/mission/safety failure releases only this
+pending authorization and exact posture token, preserving adopted Micro ownership.
+Unexpected executor errors release pending claims, record `owner-error` and
+propagate instead of silently falling back.
+
+The bounded observer journal records generation, squad, mission, episode serial,
+posture serial, native phase, stage and deterministic progress/failure reasons.
+The standard benchmark samples contiguous event serials after each fixed step,
+archives the full journal outside gameplay records, and fails on a gap or budget
+overflow (20,000 events / 8 Mi serialized characters). Observer reads are pure;
+observer-off disables recording without changing execution.
+
+`ai-skills-squad-check.js` covers actual native preparation geometry/adoption,
+freshness, mission identity, possession, rollback/restart and detached reads.
+Its isolated owner-boundary support/whole-team-arrival fixture is explicitly
+synthetic, not natural acceptance. `probe_ai_skills_squad.cjs` runs one immutable
+hosted natural full-ON 5km battle for 600 actual simulated seconds at 0.15/0.45,
+three same-page lifecycle restarts and rollback. It reports natural acceptance
+separately from browser QA. Paired outcome evidence uses only the existing
+GitHub standard benchmark, the natural `phase-c-natural-20261012` seed prefix,
+meeting/US-defend/GE-defend, and command history. Phase C remains opt-in and
+unaccepted unless those source traces show the full same-identity chain.
