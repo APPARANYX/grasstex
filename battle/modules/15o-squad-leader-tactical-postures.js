@@ -387,7 +387,10 @@
                 ? 'unavailable-personnel'
                 : !rs.length
                   ? 'unusable-reported-threat'
-                  : !nav || nav.scenario !== (b.scene.metadata.battleScenario || b.scene.metadata.battleTown)
+                  : !nav ||
+                      !b.scene ||
+                      !b.scene.metadata ||
+                      nav.scenario !== (b.scene.metadata.battleScenario || b.scene.metadata.battleTown)
                     ? 'navigation-scene-mismatch'
                     : !point((sq.route || [])[+sq.routeIndex])
                       ? 'no-current-route-leg'

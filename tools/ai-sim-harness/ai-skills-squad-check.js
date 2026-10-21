@@ -241,6 +241,11 @@ if (require.main === module) {
       'disabled skill releases pending owned posture'
     );
   }
+  {
+    const w = world();
+    w.b.scene = null;
+    assert.equal(w.P.update(w.b, w.q, null), null, 'missing scene fails closed without querying geometry');
+  }
   // An isolated adapter fixture supplies explicit owner responses. It proves the
   // adapter rejects missing/partial evidence; only hosted replays can accept D.
   {
