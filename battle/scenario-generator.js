@@ -702,7 +702,7 @@
       settlement: { cx: round(cx, 1), cz: round(cz, 1), spanX: round(spanX, 1), spanZ: round(spanZ, 1) },
       spawnZones: {
         us: { z: -spawnZ, lanes: lanes.slice() },
-        ge: { z: spawnZ, lanes: lab ? [0] : lanes.slice() }
+        ge: { z: spawnZ, lanes: lanes.slice() }
       },
       roads: [
         { id: 'road-ns', ax: cx, az: cz - spanZ * 0.58, bx: cx, bz: cz + spanZ * 0.58, width: 10 },
