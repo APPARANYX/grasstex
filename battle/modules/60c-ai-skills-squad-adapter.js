@@ -218,6 +218,7 @@
             commandPhase: q.commandPhase || null,
             postureMode: e.posture && e.posture.mode,
             postureStage: e.posture && e.posture.stage,
+            nativePreparation: e.nativePreparation || null,
             kind: kind,
             reason: reason
           },
@@ -302,9 +303,10 @@
     if (st && e.posture !== st) return result('Failure', 'interrupted');
     if (!st) {
       if (e.posture) return result('Failure', 'interrupted');
+      e.nativePreparation = o.P.rejection ? o.P.rejection(b, q) : null;
       return b.time - e.startedAt >= o.P.tuning.preparationBudget
         ? result('Failure', 'blocked-route')
-        : result('Running', 'finding-masked-posts');
+        : result('Running', e.nativePreparation ? e.nativePreparation.reason : 'finding-masked-posts');
     }
     if (st.mode === 'hold') return result('Failure', e.supported ? 'support-revoked' : 'interrupted');
     if (name === ids[0]) {
@@ -460,6 +462,10 @@
     blocker: blocker,
     project: project,
     owned: owned,
+    requested: function (b, q) {
+      var e = episode(b, q);
+      return !!(e && !e.ended);
+    },
     perform: perform,
     cancel: cancel,
     observe: function (b) {

@@ -87,6 +87,14 @@ assert.match(head || '', /^[a-f0-9]{40}$/);
       await settle();
       const observers = () =>
         b.scene.onBeforeRenderObservable.observers.filter(o => !o._willBeUnregistered).length;
+      // A cold FBX library installs the existing LOD render observer only
+      // when its first imported body is created. Complete that normal
+      // initialization before comparing restart retention.
+      await R.BattleSoldierModel.preload(b.scene);
+      await b.scene.whenReadyAsync();
+      b.restart({ operator: false });
+      b.paused = true;
+      await settle();
       const baseline = observers(),
         cycles = [];
       for (let i = 0; i < 3; i++) {

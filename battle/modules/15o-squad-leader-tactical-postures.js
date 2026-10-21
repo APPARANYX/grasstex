@@ -21,6 +21,7 @@
       states = new WeakMap(),
       cooldown = new WeakMap(),
       counters = new WeakMap(),
+      rejections = new WeakMap(),
       tuning = {
         minimumHold: 4,
         preparationBudget: 12,
@@ -333,6 +334,14 @@
       states.delete(sq);
       return null;
     }
+    function reject(b, sq, reason, posts) {
+      if (root.BattleAISquadAdapter && root.BattleAISquadAdapter.requested(b, sq))
+        rejections.set(
+          sq,
+          Object.freeze({ at: b.time, reason: reason, maskedPosts: posts == null ? null : posts })
+        );
+      return null;
+    }
     function update(b, sq, report) {
       if (!on || !b || !sq) return null;
       var st = states.get(sq),
@@ -369,7 +378,21 @@
         !Number.isFinite(pressure) ||
         (ctx.localPlan.structureOrdersOn && ctx.localPlan.currentStructureOrders(b, sq))
       )
-        return end(b, sq, 'unknown evidence/override');
+        return st
+          ? end(b, sq, 'unknown evidence/override')
+          : reject(
+              b,
+              sq,
+              !a
+                ? 'unavailable-personnel'
+                : !rs.length
+                  ? 'unusable-reported-threat'
+                  : !nav || nav.scenario !== (b.scene.metadata.battleScenario || b.scene.metadata.battleTown)
+                    ? 'navigation-scene-mismatch'
+                    : !point((sq.route || [])[+sq.routeIndex])
+                      ? 'no-current-route-leg'
+                      : 'mission-or-owner-override'
+            );
       if (
         st &&
         st.mode === 'ambush' &&
@@ -451,7 +474,15 @@
           pressure > tuning.pressureExit ||
           (cd && cd.mission === m && now < cd.until)
         )
-          return null;
+          return reject(
+            b,
+            sq,
+            pressure > tuning.pressureExit
+              ? 'preparation-under-pressure'
+              : cd && cd.mission === m && now < cd.until
+                ? 'native-posture-cooldown'
+                : 'contact-owns-reaction'
+          );
         var orders = [];
         for (var i = 0; i < a.length; i++) {
           var s = a[i],
@@ -477,7 +508,7 @@
              no concealed post; that man remains under his existing orders. */
           if (candidate) orders.push({ soldierId: String(s.id), point: candidate, watchPoint: point(rs[0]) });
         }
-        if (orders.length < 3) return null; // Never publish an understrength ambush element.
+        if (orders.length < 3) return reject(b, sq, 'insufficient-masked-posts', orders.length); // Never publish an understrength ambush element.
         var counts = counters.get(sq) || {
           ambushes: 0,
           pressureHolds: 0,
@@ -603,6 +634,10 @@
       releasePilot: function (b, sq, expected, reason) {
         if (states.get(sq) === expected) return end(b, sq, reason || 'pilot cancelled');
         return null;
+      },
+      rejection: function (b, sq) {
+        var r = rejections.get(sq);
+        return r && r.at === b.time ? r : null;
       },
       update: update,
       current: current,
