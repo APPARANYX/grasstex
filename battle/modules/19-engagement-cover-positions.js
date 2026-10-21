@@ -218,7 +218,7 @@
       var p = posOf(s),
         N = root.BattleNavigation,
         d = Math.hypot(p.x - point.x, p.z - point.z);
-      if (!Number.isFinite(d) || d > 6 || !N || !N.movementClear || !N.movementClear(p, point)) return false;
+      if (!Number.isFinite(d) || d > 20 || !N || !N.movementClear || !N.movementClear(p, point)) return false;
       var steps = Math.max(1, Math.ceil(d / 0.5));
       for (var i = 0; i <= steps; i++) {
         var at = { x: p.x + ((point.x - p.x) * i) / steps, z: p.z + ((point.z - p.z) * i) / steps };
