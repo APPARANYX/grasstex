@@ -56,91 +56,23 @@ assert.match(head || '', /^[a-f0-9]{40}$/);
     await page.waitForFunction(() => window.__battle__ && window.BattleAISquadAdapter, null, {
       timeout: 180000
     });
+    await page.addScriptTag({
+      path: require('node:path').resolve('scripts/lib/benchmark-reactive-maneuver.cjs')
+    });
     const report = await page.evaluate(async expected => {
-      const b = __battle__,
-        E = BattleEngagement,
-        S = BattleSquadStability,
-        R = BattleReactiveFireManeuver;
-      if (BATTLE_PREVIEW.sha !== expected || !R.on) throw Error('preview SHA or activation mismatch');
-      b.paused = true;
+      const b = __battle__;
+      if (BATTLE_PREVIEW.sha !== expected || !BattleReactiveFireManeuver.on) throw Error('SHA/flag mismatch');
+      b.scene.getEngine().stopRenderLoop(window.__battleRenderLoop__);
+      const observer = BattleBenchmarkReactiveManeuver.create(window, b, { routes: true }),
+        fire = b.onFire;
+      b.onFire = function (s) {
+        observer.shot(s);
+        return fire.apply(this, arguments);
+      };
+      b.paused = false;
       b.timeScale = 1;
       b.timeLimit = 600;
-      const scenario = window.__scenario__;
-      const evidence = {
-        sha: expected,
-        url: location.href,
-        seed: b.seed,
-        authorized: 0,
-        adopted: 0,
-        completed: 0,
-        supportShotsDuringMovement: 0,
-        successiveSquads: 0,
-        denials: {},
-        holds: {},
-        bounds: [],
-        runtimeErrors: []
-      };
-      const active = new Map(),
-        leases = new WeakSet(),
-        completed = new Map();
-      let commandAcc = 0;
-      const original = b.onFire;
-      b.onFire = function (s) {
-        for (const [man, row] of active)
-          if (man.squad === s.squad && man !== s && man.moving && E.stateOf(man).state === 'bound') {
-            row.supportShots++;
-            evidence.supportShotsDuringMovement++;
-            break;
-          }
-        return original.apply(this, arguments);
-      };
-      const observe = () => {
-        for (const f of ['us', 'ge'])
-          for (const q of b.factions[f].squads) {
-            const lease = BattleLeases.get(q, 'bound');
-            if (lease && lease.data && lease.data.reactiveFireManeuver && !leases.has(lease)) {
-              leases.add(lease);
-              evidence.authorized++;
-            }
-            for (const man of q.members) {
-              const e = E.stateOf(man);
-              if (
-                e.state === 'bound' &&
-                e.moveReason === 'authorized fireteam bound: cover' &&
-                !active.has(man)
-              ) {
-                evidence.adopted++;
-                active.set(man, {
-                  id: man.id,
-                  squad: q.id,
-                  team: man._fireteamKey,
-                  leaseAt: lease && lease.since,
-                  at: b.time,
-                  start: { x: man.root.position.x, z: man.root.position.z },
-                  goal: e.cover && { x: e.cover.x, z: e.cover.z },
-                  supportShots: 0
-                });
-              }
-            }
-          }
-        for (const [man, row] of active) {
-          const e = E.stateOf(man),
-            d = row.goal && Math.hypot(man.root.position.x - row.goal.x, man.root.position.z - row.goal.z);
-          if (d < 0.45 || man.dead || e.state !== 'bound') {
-            row.end = b.time;
-            row.metres = Math.hypot(man.root.position.x - row.start.x, man.root.position.z - row.start.z);
-            row.arrived = d < 0.45 && row.metres > 0.75;
-            row.reason = man.dead ? 'casualty' : e.state;
-            if (row.arrived) {
-              evidence.completed++;
-              if (!completed.has(row.squad)) completed.set(row.squad, new Set());
-              completed.get(row.squad).add(row.leaseAt);
-            }
-            if (evidence.bounds.length < 500) evidence.bounds.push(row);
-            active.delete(man);
-          }
-        }
-      };
+      let acc = 0;
       try {
         for (let i = 0; i < 4000 && !b.winner; i++) {
           b._trainerStepActive = true;
@@ -149,49 +81,21 @@ assert.match(head || '', /^[a-f0-9]{40}$/);
           } finally {
             b._trainerStepActive = false;
           }
-          commandAcc += 0.15;
-          while (commandAcc >= 0.45 - 1e-9 && !b.winner) {
-            commandAcc -= 0.45;
-            BattleCommanderAI.update(b, scenario, 0.45);
+          acc += 0.15;
+          while (acc >= 0.45 - 1e-9 && !b.winner) {
+            acc -= 0.45;
+            BattleCommanderAI.update(b, window.__scenario__, 0.45);
           }
-          observe();
-          if (i % 10 === 0) {
-            for (const f of ['us', 'ge'])
-              for (const q of b.factions[f].squads) {
-                const report = { fireSupport: q.members.filter(s => E.supportReady(s, b)) },
-                  task = q._localTask;
-                // Report is the native Micro report; only read policy/route decisions.
-                let why = !q.inContact
-                  ? 'no-contact'
-                  : !task
-                    ? 'no-local-task'
-                    : !R.canTask(q, task.inputs)
-                      ? 'task:' + task.kind
-                      : R.supporters(b, q, report, []).length < 2
-                        ? 'no-effective-support'
-                        : 'eligible';
-                evidence.denials[why] = (evidence.denials[why] || 0) + 1;
-                if (why === 'eligible')
-                  for (const team of ['alpha', 'bravo', 'charlie']) {
-                    const movers = q.members.filter(
-                      s => s._fireteamKey === team && !SquadAI.isMachineGun(s) && !s.dead
-                    );
-                    const gate = R.assessTeam(b, q, movers, report);
-                    evidence.holds[gate.reason] = (evidence.holds[gate.reason] || 0) + 1;
-                  }
-              }
-          }
-          if (i % 100 === 0) await new Promise(resolve => setTimeout(resolve, 0));
+          observer.sample();
+          if (i % 100 === 0) await new Promise(r => setTimeout(r, 0));
         }
       } finally {
         b.paused = true;
-        b.onFire = original;
+        b.onFire = fire;
       }
-      evidence.time = b.time;
-      evidence.winner = b.winner;
-      evidence.successiveSquads = [...completed.values()].filter(n => n.size > 1).length;
-      return evidence;
+      return { sha: expected, url: location.href, time: b.time, winner: b.winner, ...observer.snapshot() };
     }, head);
+    assert.ok(report.time > 0, 'simulation clock advanced');
     report.errors = errors;
     fs.writeFileSync(`${out}/natural.json`, JSON.stringify(report, null, 2));
     await page.screenshot({ path: `${out}/natural.png` });

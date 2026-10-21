@@ -10,7 +10,7 @@ const H = require('./harness');
 const { loadModule, quietConsole } = require('./module-loader');
 const { loadSquadCommandStack } = require('./squad-command-stack');
 
-function world(withWall = true) {
+function world(withWall = true, allRifles = false) {
   H.resetIds();
   const r = H.bootstrap({
     modules: false,
@@ -59,7 +59,7 @@ function world(withWall = true) {
     x: 0,
     z: -4,
     objective: { x: 0, z: 50 },
-    composition: ['rifleman', 'rifleman', 'rifleman', 'sergeant']
+    composition: ['rifleman', 'rifleman', 'rifleman', allRifles ? 'rifleman' : 'sergeant']
   });
   const hostile = H.addSquad(r, b, {
     id: 'ge-0',
@@ -180,3 +180,59 @@ console.log(
     metres: Math.hypot(mover.root.position.x - start.x, mover.root.position.z - start.z)
   })
 );
+
+// A fresh controlled reported picture and nearby physical cover allow the
+// complete native cycle, including a newly arrived rifle becoming support.
+const cycle = world(true, true);
+const cr = cycle.r,
+  cb = cycle.b,
+  cq = cycle.q,
+  CE = cr.BattleEngagement,
+  CL = cr.BattleLeases;
+cq.members.slice(1).forEach(s => {
+  s.root.position.z = -8;
+  s.destination.z = -8;
+  s.orderDestination.z = -8;
+});
+cq.members[3]._fireteamKey = 'charlie';
+cq.members[3].role = 'sergeant';
+const picture = { x: 0, z: 60, confidence: 0.9, source: 'told' };
+cr.SquadAI.soldierContact = () => ({ ...picture, at: cb.time });
+cr.SquadAI.squadContactsMap = () => [{ ...picture, at: cb.time }];
+const observer = require('../../scripts/lib/benchmark-reactive-maneuver.cjs').create(cr, cb);
+const oldFire = cb.onFire;
+cb.onFire = function (s) {
+  observer.shot(s);
+  return oldFire.apply(this, arguments);
+};
+const observations = [];
+cr.BattleTelemetry = {
+  record(type, data) {
+    if (type === 'decision-bound') observations.push({ ...data, at: cb.time });
+  }
+};
+let arrivedSupport = false;
+for (let i = 0; i < 220; i++) {
+  cb.time += 0.15;
+  for (const s of cq.members) {
+    CE.updateSoldier(s, cb);
+    cr.BattleMovementResolver.resolve(s, cb);
+    H.stepMovement(cb, s, 0.15);
+  }
+  if (
+    CE.stateOf(cq.members[0]).cover &&
+    CE.supportReady(cq.members[0], cb) &&
+    cr.SquadAI.shotReceipt(cq.members[0], cb)
+  )
+    arrivedSupport = true;
+  cycle.S.fireAndMovement(cq, cb);
+  observer.sample();
+}
+assert.ok(observations.length >= 2, JSON.stringify(observations));
+assert.ok(arrivedSupport, 'arrived mover establishes genuine support');
+assert.ok(new Set(observations.map(x => x.team)).size >= 2, 'native fireteam rotation survives the handoff');
+console.log('PASS successive native bounds and arrived-mover support', JSON.stringify(observations));
+
+assert.ok(observer.snapshot().completed >= 2, JSON.stringify(observer.snapshot()));
+assert.ok(observer.snapshot().successiveSquads >= 1, 'distinct leases physically complete');
+assert.ok(observer.snapshot().supportShotsDuringMovement > 0);

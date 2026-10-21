@@ -10,24 +10,21 @@
     /[?&]localPlan=(?:1|on|true)(?:&|#|$)/i.test(query) &&
     /[?&]coveredBounds=(?:1|on|true)(?:&|#|$)/i.test(query);
   function canTask(sq, inputs) {
-    var mission = sq && sq._macroMission,
-      resources = inputs && inputs.resources;
-    return !!(
-      on &&
-      sq &&
-      sq.state !== 'retreat' &&
-      ['assault', 'capture', 'clear-town'].indexOf(sq.commandPhase) >= 0 &&
-      mission &&
-      mission.status === 'executing' &&
-      inputs &&
-      !inputs.dispersed &&
-      inputs.contact &&
-      inputs.confidence >= 0.5 &&
-      Number.isFinite(inputs.pressure) &&
-      inputs.pressure < 0.75 &&
-      inputs.supporting >= 2 &&
-      (!resources || (resources.status !== 'over-budget' && resources.moverIds.length > 0))
-    );
+    return taskReason(sq, inputs) === 'eligible';
+  }
+  function taskReason(sq, inputs) {
+    if (!on) return 'disabled';
+    if (!sq || sq.state === 'retreat') return 'retreat';
+    if (['assault', 'capture', 'clear-town'].indexOf(sq.commandPhase) < 0) return 'mission-phase';
+    if (!sq._macroMission || sq._macroMission.status !== 'executing') return 'mission-authority';
+    if (!inputs || !inputs.contact || !(inputs.confidence >= 0.5)) return 'credible-contact';
+    if (inputs.dispersed) return 'cohesion';
+    if (!Number.isFinite(inputs.pressure) || inputs.pressure >= 0.75) return 'pressure';
+    if (!(inputs.supporting >= 2)) return 'support-capability';
+    var resources = inputs.resources;
+    if (resources && (resources.status === 'over-budget' || !resources.moverIds.length))
+      return 'moving-element';
+    return 'eligible';
   }
   /* Engagement supplies this list; validate recent DISTINCT real shots and
      current live firing ability. Being armed or merely facing the enemy is not
@@ -141,6 +138,7 @@
   root.BattleReactiveFireManeuver = Object.freeze({
     on: on,
     canTask: canTask,
+    taskReason: taskReason,
     supporters: supporters,
     canBoundTeam: canBoundTeam,
     assessTeam: assessTeam,
