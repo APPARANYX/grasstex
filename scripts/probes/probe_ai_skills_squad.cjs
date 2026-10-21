@@ -128,9 +128,10 @@ assert.match(head || '', /^[a-f0-9]{40}$/);
         acc = 0;
       b.paused = false;
       b.timeScale = 1;
-      b.timeLimit = 600;
+      // Match extended 720-second experiments while preserving all gameplay controls.
+      b.timeLimit = 720;
       const started = performance.now();
-      for (let step = 0; step < 4000 && !b.winner; step++) {
+      for (let step = 0; step < 4800 && !b.winner; step++) {
         b._trainerStepActive = true;
         try {
           b.step(0.15);
