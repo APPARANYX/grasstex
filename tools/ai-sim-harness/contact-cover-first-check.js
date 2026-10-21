@@ -191,4 +191,8 @@ searching.s.eng.state = 'alert';
 searching.s.eng.until = searching.b.time + 5;
 searching.b.time += 0.15;
 searching.E.updateSoldier(searching.s, searching.b);
-assert.equal(searching.s.eng.stanceUntil, proneUntil, 'alert does not perpetually renew initial prone commitment');
+assert.equal(
+  searching.s.eng.stanceUntil,
+  proneUntil,
+  'alert does not perpetually renew initial prone commitment'
+);
