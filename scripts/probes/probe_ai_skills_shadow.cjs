@@ -87,7 +87,10 @@ const output = pilotRequested ? 'reports/ai-skills-pilot' : 'reports/ai-skills-s
         await settleObservers();
         const observerCount = () =>
           b.scene.onBeforeRenderObservable.observers.filter(o => !o._willBeUnregistered).length;
-        const baselineObservers = observerCount();
+        // Scene bootstrap may own one transient FBX/LOD observer that is
+        // disposed only on the first complete battle restart.
+        const bootObservers = observerCount();
+        let baselineObservers = bootObservers;
         const system = root.BattleModules.getSystem('ai-skills-shadow');
         check(!!system, 'No canonical skill lifecycle');
         const cycles = [];
@@ -106,6 +109,13 @@ const output = pilotRequested ? 'reports/ai-skills-pilot' : 'reports/ai-skills-s
           );
           b.paused = true;
           await settleObservers();
+          if (cycle === 0) {
+            check(
+              observerCount() <= bootObservers,
+              'First restart unexpectedly added a persistent observer'
+            );
+            baselineObservers = observerCount();
+          }
           check(
             observerCount() === baselineObservers,
             'Persistent observer count changed: baseline=' +
@@ -337,6 +347,7 @@ const output = pilotRequested ? 'reports/ai-skills-pilot' : 'reports/ai-skills-s
           activation,
           step: 0.15,
           commanderTick: 0.45,
+          bootObservers,
           baselineObservers,
           cycles,
           naturalSelection,
