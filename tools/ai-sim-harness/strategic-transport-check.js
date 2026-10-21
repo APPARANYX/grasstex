@@ -1006,6 +1006,48 @@ console.log(
     .find(e => e.item.detail.soldierId === t.boardingOrder[0]);
   assert.notEqual(driver.item.detail.exit, 'driver-door');
 }
+// An occupied exit must never cause an unsafe release. If every legal exit stays physically
+// blocked, retain seat claims; when the obstruction clears the same journey must resume.
+{
+  const a = make('strategic', '?motorTransport=1&truckAccess=1');
+  const mission = a.brief();
+  assert(a.api.considerMission(a.sim, a.squad, mission));
+  mission.status = 'executing';
+  for (let i = 0; i < 800 && a.squad._transport.phase === 'boarding'; i++) a.run(0.15);
+  const t = a.squad._transport;
+  assert.equal(t.phase, 'embarked');
+  a.api.finish(a.sim, a.squad, 'crew-sighting');
+  const positions = [
+    { x: -1.85, z: 0.7 },
+    { x: 1.85, z: 0.7 },
+    { x: 0, z: -3.7 },
+    { x: -1.85, z: -1.5 },
+    { x: 1.85, z: -1.5 },
+    { x: -1.85, z: 2.2 },
+    { x: 1.85, z: 2.2 }
+  ];
+  const blockers = positions.map((local, i) => ({
+    id: 'exit-blocker-' + i,
+    root: {
+      position: {
+        x: t.position.x + t.heading.z * local.x + t.heading.x * local.z,
+        z: t.position.z - t.heading.x * local.x + t.heading.z * local.z
+      }
+    }
+  }));
+  a.sim._roster.ge.push(...blockers);
+  a.run(30);
+  assert.equal(t.exitedIds.length, 0, 'all occupied exits must retain seated passengers');
+  assert.equal(t.phase, 'disembarking', 'fully blocked extraction remains explicitly unfinished');
+  assert.ok(t.exitBlockedAt != null, 'owner records physical blockage');
+  blockers.forEach(b => {
+    b.root.position = { x: 2000, z: 2000 };
+  });
+  a.run(40);
+  assert.equal(t.phase, 'aborted', 'once exits clear, all passengers complete the original dismount');
+  assert.equal(t.exitedIds.length, t.exitOrder.length);
+  assert(a.members.every(soldier => !a.api.isPassenger(soldier)));
+}
 // A parked vehicle behind the tailgate can block the usual assembly line.
 {
   const a = make('strategic', '?motorTransport=1&truckAccess=1');
