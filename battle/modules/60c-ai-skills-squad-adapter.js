@@ -56,6 +56,8 @@
     );
   }
   function enabled(b, q, profile) {
+    /* Reactive fire-and-maneuver uses native Meso, not masked ambush episodes. */
+    if (root.BattleReactiveFireManeuver && root.BattleReactiveFireManeuver.on) return false;
     var squads = b.factions && b.factions[q.faction] && b.factions[q.faction].squads;
     return (
       dependency() &&
