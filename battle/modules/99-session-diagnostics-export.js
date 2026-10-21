@@ -443,7 +443,10 @@
       activeStablePlans: [],
       blockedFireteams: [],
       activeDefenseRequests: [],
-      writerConflicts: conflictMetrics(conflicts)
+      writerConflicts: conflictMetrics(conflicts),
+      ballisticQueryErrors:
+        (root.BattleBallistics && root.BattleBallistics.queryErrors && root.BattleBallistics.queryErrors()) ||
+        null
     };
     ['us', 'ge'].forEach(function (f) {
       var squads = (sim && sim.factions && sim.factions[f] && sim.factions[f].squads) || [];

@@ -268,6 +268,18 @@
     };
     return out;
   }
+  /* A throw from either obstruction query used to be swallowed, and the segment then counted as clear: a
+     broken geometry contract read as "nothing in the way". The result is unchanged here (diagnostics only),
+     but every failure is now counted by source, the last message is kept, and the console hears of it on
+     the 1st, 10th, 100th... failure so a hot path cannot flood it. queryErrors() hands the counts out. */
+  var queryFaults = { obstacleField: 0, navigation: 0, last: null };
+  function noteQueryFault(source, e) {
+    var n = ++queryFaults[source];
+    queryFaults.last = { source: source, message: String((e && e.message) || e) };
+    for (var m = 1; m < n; m *= 10);
+    if (m === n && typeof console !== 'undefined' && console.warn)
+      console.warn('[BALLISTICS] ' + source + ' query threw (segment read as clear), failure #' + n + ':', e);
+  }
   function segmentBlocked(o, d, t, battle) {
     var p = pointAt(o, d, t),
       F = root.BattleObstacleField;
@@ -277,13 +289,17 @@
           ob = (F.sightBlocker || F.sightBlocked).call(F, obs, o, p);
         if (ob) return { obstacle: ob };
       }
-    } catch (_) {}
+    } catch (e) {
+      noteQueryFault('obstacleField', e);
+    }
     try {
       if (root.BattleNavigation && root.BattleNavigation.lineOfSightBlocked) {
         var wall = root.BattleNavigation.lineOfSightBlocked({ x: o.x, z: o.z }, { x: p.x, z: p.z }, o.y, p.y);
         if (wall) return { wall: wall };
       }
-    } catch (_) {}
+    } catch (e) {
+      noteQueryFault('navigation', e);
+    }
     return false;
   }
   function obstacleStop(o, d, maxT, battle) {
@@ -889,6 +905,13 @@
     fireLineBlocked: fireLineBlocked,
     exposedAim: exposedAim,
     pointLineBlocked: pointLineBlocked,
+    queryErrors: function () {
+      return {
+        obstacleField: queryFaults.obstacleField,
+        navigation: queryFaults.navigation,
+        last: queryFaults.last && { source: queryFaults.last.source, message: queryFaults.last.message }
+      };
+    },
     groundSteps: function () {
       return GROUND_STEPS;
     }
