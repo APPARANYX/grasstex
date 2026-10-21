@@ -171,7 +171,9 @@ assert.match(head || '', /^[a-f0-9]{40}$/);
                     missionVersion: row.missionVersion,
                     reason
                   });
-              } else if (decisionSamples.denialExamples.filter(e => e.reason === reason).length < 2) {
+              } else if (
+                decisionSamples.denialExamples.filter(e => e.reason === reason).length < 2
+              ) {
                 decisionSamples.denialExamples.push({
                   at: row.at,
                   faction: row.faction,
@@ -220,6 +222,7 @@ assert.match(head || '', /^[a-f0-9]{40}$/);
           );
           return {
             seed: scenario.seed,
+            scenario: scenario.type || scenario.scenario || null,
             startedAt: start.at,
             faction: start.faction,
             squad: start.squad,
@@ -234,7 +237,8 @@ assert.match(head || '', /^[a-f0-9]{40}$/);
               at: e.at,
               kind: e.kind,
               reason: e.reason,
-              owner: e.nativePreparation ? 'tactical-postures' : 'ai-skills-scheduler',
+              owner: 'ai-skills-squad-adapter',
+              nativeOwner: e.nativePreparation ? 'tactical-postures' : null,
               nativePreparation: e.nativePreparation || null,
               postureSerial: e.postureSerial,
               postureStage: e.postureStage || null,
@@ -242,7 +246,10 @@ assert.match(head || '', /^[a-f0-9]{40}$/);
             }))
           };
         });
-      check(attempts.length === diagnostics.squad.counts.attempts, 'all squad attempts captured');
+      check(
+        attempts.length === (diagnostics.squad ? diagnostics.squad.counts.attempts : 0),
+        'all squad attempts captured'
+      );
       const result = {
         head: expected,
         seed: scenario.seed,
