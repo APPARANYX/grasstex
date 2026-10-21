@@ -10,6 +10,17 @@ file needs an entry there, which a reviewer sees; a fix that removes a writer mu
 `General (Macro) → Squad Leader (Meso) → Engagement → Movement Resolver → Movement Execution → Navigation`.
 Intent flows down and status flows up. No layer rewrites another's state.
 
+**Contact reaction:** Engagement first seeks usable physical cover on a newly
+acquired personal target or a fresh credible delivered report. Native `bound`
+movement executes before HOLD/PRECISION preparation; arrival transitions to
+`orient`, then normal aiming/fire control. A soldier already in useful cover or
+without a valid nearby slot uses the existing low-posture/orientation response.
+Retreat, shock, stress reactions, committed grenades and tactical stations retain
+priority. This uses the native cover reservations and resolver; it does not
+require a squad supporting-fire lease. `contactCoverFirst=0` is the paired legacy
+control. No fire/support capability is reported during contact-cover ingress.
+
+
 The experimental `reactiveFireManeuver=1&localPlan=1&coveredBounds=1` path uses
 `15p-reactive-fire-maneuver.js` only as a read-only policy. Local planning selects
 the task; native Meso selects/leases the fireteam; Engagement revalidates current

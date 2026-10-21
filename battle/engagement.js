@@ -11,7 +11,7 @@
    them and alone writes soldier.destination; squad movement remains owned by the squad-command path.
 
    Sequence a soldier now runs on contact:
-     advance -> orient (halt, turn, weapon up) -> react
+     advance -> contact cover (when available) -> orient (turn, weapon up) -> react
               -> bound (crouch-run/crawl to cover) -> engage (committed stance, aimed fire)
               -> pinned (prone while suppressed) / assault (short rush) / alert (lost contact)
 
@@ -31,6 +31,10 @@
     typeof location !== 'undefined' &&
     /[?&]retreatPosture=(?:0|off|false)(?:&|#|$)/i.test(location.search || '')
   );
+  var CONTACT_COVER_FIRST = !(
+    root.location && /[?&]contactCoverFirst=(?:0|off|false)(?:&|#|$)/i.test(root.location.search || '')
+  );
+
   /* Seconds between acquiring a target and being allowed to shoot at it. This is recognition and
      weapon handling, not aiming accuracy - the aim cone below is a separate gate. */
   var REACT = { sergeant: 0.55, rifleman: 0.7, gunner: 0.85, scout: 0.45 };
@@ -601,9 +605,22 @@
     bound: {
       meaning: 'Move to chosen cover within its travel window',
       enteredBy: 'cover decision, authorised fireteam bound, urgent-cover request',
-      exits: 'arrival -> engage; missing/unreachable/overdue cover -> decide',
+      exits:
+        'contact-cover arrival/failure -> orient; other arrival -> engage; missing/unreachable/overdue cover -> decide',
       rate: '0.15 s',
-      next: ['bound', 'alert', 'pinned', 'engage', 'withdraw', 'station', 'cower', 'flee', 'freeze', 'rage']
+      next: [
+        'bound',
+        'orient',
+        'alert',
+        'pinned',
+        'engage',
+        'withdraw',
+        'station',
+        'cower',
+        'flee',
+        'freeze',
+        'rage'
+      ]
     },
     engage: {
       meaning: 'Hold position and stance, aim and fire',
@@ -1106,6 +1123,10 @@
       transition(s, battle, 'station', 0, 'firing station');
       return station(s, battle);
     }
+    // Personal contact first triggers the native cover executor, ahead of
+    // HOLD/PRECISION preparation. Retreat, shock and stations retain priority.
+    if (contactCoverFirst(s, battle)) return;
+
     /* A first contact is not automatically a trigger pull. While the Squad Leader is holding fire,
        everyone not specifically chosen for a precision shot gets low, faces the contact and creeps
        only far enough to establish a prone line over a crest. */
@@ -1136,6 +1157,66 @@
       default:
         return advance(s, battle);
     }
+  }
+
+  function contactCoverFirstActive(s) {
+    var e = s && s.eng;
+    return !!(CONTACT_COVER_FIRST && e && e.state === 'bound' && e.moveReason === 'contact cover first');
+  }
+  function contactCoverFirst(s, battle) {
+    var e = state(s),
+      F = field();
+    if (
+      !CONTACT_COVER_FIRST ||
+      s.isPlayer ||
+      (e.state !== 'advance' && e.state !== 'alert') ||
+      battle.time < shockUntil(s) ||
+      !F
+    )
+      return false;
+    var contact = squadContact(s, battle),
+      target = combatThreat(s.target) ? s.target : null;
+    if (!target) {
+      if (
+        !contact ||
+        contact.source === 'heard' ||
+        !Number.isFinite(contact.x) ||
+        !Number.isFinite(contact.z) ||
+        !Number.isFinite(contact.at) ||
+        battle.time < contact.at ||
+        battle.time - contact.at > 10 ||
+        !(contact.confidence >= 0.5)
+      )
+        return false;
+      // Detached personal report only; never follow a report's hidden unit.
+      target = { root: { position: { x: contact.x, z: contact.z } } };
+    }
+    var p = posOf(s);
+    if (F.coverPotentialAt(battle.obstacles, p.x, p.z) <= USEFUL_COVER) return false;
+    var cover = findCover(s, battle, {
+      maxRange:
+        underFireNow(s, battle) || s.suppressedUntil > battle.time ? COVER_RANGE_UNDER_FIRE : COVER_RANGE,
+      threat: target,
+      evade: underFireNow(s, battle) || s.suppressedUntil > battle.time
+    });
+    if (!cover) return false;
+    e.cover = cover;
+    s._faceHint = null;
+    transition(
+      s,
+      battle,
+      'bound',
+      Math.max(3, cover.distance / Math.max(0.6, s.speed * 0.6) + 2.5),
+      'contact cover first'
+    );
+    bound(s, battle);
+    return true;
+  }
+  function finishContactCover(s, battle, why) {
+    if (!contactCoverFirstActive(s)) return false;
+    transition(s, battle, 'orient', reactTime(s, battle), why);
+    orient(s, battle);
+    return true;
   }
 
   function advance(s, battle) {
@@ -1387,7 +1468,8 @@
     s.state = 'engage';
     s.setUp = false;
     if (!cover) {
-      decide(s, battle, 'bound without cover');
+      if (!finishContactCover(s, battle, 'contact cover unavailable'))
+        decide(s, battle, 'bound without cover');
       return;
     }
     /* Structured recovery consumed here: repeated no-progress against this cover flags it
@@ -1395,7 +1477,7 @@
        instead of cycling the same destination forever. */
     if (root.BattleMovementProgress && root.BattleMovementProgress.takeUnreachable(s)) {
       root.BattleMovementProgress.noteFailure(s, battle, cover, 'bound-unreachable');
-      decide(s, battle, 'bound unreachable');
+      if (!finishContactCover(s, battle, 'contact cover unreachable')) decide(s, battle, 'bound unreachable');
       return;
     }
     if (
@@ -1403,7 +1485,7 @@
       root.BattleMovementProgress &&
       !root.BattleMovementProgress.candidateAllowed(s, battle, cover)
     ) {
-      decide(s, battle, 'cover suppressed');
+      if (!finishContactCover(s, battle, 'contact cover suppressed')) decide(s, battle, 'cover suppressed');
       return;
     }
     var p = posOf(s),
@@ -1413,6 +1495,7 @@
       if (s.suppressedUntil > battle.time) relief('cover', s, battle, { seconds: battle.time - e.since });
       holdPosition(s, battle);
       e.stanceUntil = 0; // the run's crouch ends here; engage picks the stance he fights in
+      if (finishContactCover(s, battle, 'contact cover reached')) return;
       transition(s, battle, 'engage', 0, 'reached cover');
       return engage(s, battle);
     }
@@ -1424,7 +1507,7 @@
     if (battle.time >= e.until) {
       if (root.BattleMovementProgress)
         root.BattleMovementProgress.noteFailure(s, battle, cover, 'bound-overran');
-      decide(s, battle, 'bound overran');
+      if (!finishContactCover(s, battle, 'contact cover overran')) decide(s, battle, 'bound overran');
       return;
     }
     var suppressed = s.suppressedUntil > battle.time,
@@ -1872,6 +1955,7 @@
       reacting(s) ||
       fledPhase(s) ||
       battle.time < e.fireReadyAt ||
+      contactCoverFirstActive(s) ||
       !fireAuthorized(s, battle) ||
       battle.time < shockUntil(s) ||
       (ammo && !ammo.available(s))
@@ -2070,6 +2154,10 @@
 
   root.BattleEngagement = {
     states: STATES,
+    contactCoverFirstActive: contactCoverFirstActive,
+    contactCoverFirstOn: function () {
+      return CONTACT_COVER_FIRST;
+    },
     stateRequests: REQUESTS,
     requestState: requestState,
     extend: EXT.attach,

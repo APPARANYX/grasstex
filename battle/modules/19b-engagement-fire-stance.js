@@ -340,6 +340,8 @@
     }
     function fireAllowed(s, battle) {
       var e = state(s);
+      if (root.BattleEngagement.contactCoverFirstActive(s))
+        return reportFireDenial(s, battle, 'contact-cover-ingress');
       if (!combatThreat(s.target)) return reportFireDenial(s, battle, 'no-threat');
       if (s.reloading) return reportFireDenial(s, battle, 'reloading');
       if (battle.time < e.fireReadyAt) return reportFireDenial(s, battle, 'aim-settling');
@@ -369,6 +371,7 @@
      sector before he fires into it. */
     function suppress(s, battle, point) {
       var e = state(s);
+      if (root.BattleEngagement.contactCoverFirstActive(s)) return false;
       if (!point || s.reloading || movingTooFast(s) || s.crawling) return false;
       if (!fireAuthorized(s, battle)) return false;
       if (battle.time < e.burstPauseUntil || battle.time < e.fireReadyAt) return false;

@@ -90,6 +90,10 @@ constant; `RETREAT_CASUALTY_FRAC` below is `squad-ai.js`'s fallback for a squad 
 
 - `localPlan=1&localTasks=1` (both required, default OFF) — join mission execution to local route-transition (`0.55`), objective-security (`0.8`) and recover (`2`) choices. Uses the existing route progress lease, actual defend phase/public objective ownership/own presence, and retreat/rally recovery owners. Contact/pressure, real recon and regroup retain situational arbitration; security/recovery cannot authorize bounds. No new recovery timer, rearm or clearance claim.
 
+### Engagement — contact cover first
+
+- `contactCoverFirst` defaults ON; `contactCoverFirst=0/off/false` preserves the legacy contact-orient/hold-preparation sequence. Before orienting, a newly contacted advancing/alert soldier uses the existing native cover search (**26 m**, **42 m** under incoming fire/suppression). A delivered personal report requires confidence **0.5**, age at most **10 s**, finite coordinates/time, and a source other than raw `heard`. These thresholds do not create contact or authorize squad movement. Existing useful cover is retained; no usable slot falls back to the existing low-posture/orientation response. Arrival or failed ingress starts the native recognition window before combat resumes. Collision, reachability, claim spacing, route recovery and fire permission remain native.
+
 ### 15p-reactive-fire-maneuver.js — opt-in reactive coordination
 
 - `reactiveFireManeuver=1&localPlan=1&coveredBounds=1` (all required, default OFF) selects native reactive coordination instead of deliberate ambush preparation and the squad AI Skills adapter. Requires an executing offensive mission (`assault`, `capture`, `clear-town`), credible reported contact (confidence **0.5**), coherent own roster, pressure below **0.75**, and a viable moving element. Maneuver score is `1.8 + 0.25 * confidence - 0.1 * pressure`; a qualified maneuver releases an ordinary support commitment immediately. Recovery/security, COA, fire control, multi-contact, stress and lease-conflict gates remain native.
