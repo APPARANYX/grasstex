@@ -10,13 +10,13 @@
     resources: ['posture'],
     parameters: {
       confidence: { type: 'number', min: 0, max: 1, default: 0.9 },
-      maxAge: { type: 'number', min: 0, max: 10, default: 3 }
+      maxage: { type: 'number', min: 0, max: 10, default: 3 }
     },
     evaluate: function (snapshot, parameters) {
       var urgent = snapshot.facts.some(function (fact) {
         return (
           fact.confidence >= parameters.confidence &&
-          snapshot.now - fact.observedAt <= parameters.maxAge
+          snapshot.now - fact.observedAt <= parameters.maxage
         );
       });
       return {
