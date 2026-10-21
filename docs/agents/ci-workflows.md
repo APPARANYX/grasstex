@@ -25,6 +25,13 @@
 
 Strategic diagnostic replay may reuse completed same-branch battle collection when the simulation sources, collection/server workflow steps, seed prefix, count, duration, fixed step, 12-objective profile and diagnostic integrity match. `scripts/reuse_strategic_evidence.cjs` validates the source artifacts and records their original run/SHA. The selected forensic probes, their controls and aggregate acceptance always run on the current head. A runtime or collection-configuration change requires fresh battles; the optional `reuse_run` dispatch input requests a specific source and fails if it is ineligible.
 
+The standard benchmark accepts optional boolean `command_history` (default false),
+also forwarded by the Agent Benchmark Launcher. When enabled, both arms archive
+contiguous Command Reception publications plus Macro mission changes observed after
+every simulation step, and the normal exact-state comparison includes that history.
+It fails on source-log gaps, resets, clock rewinds or capture-budget overflow. This
+adds benchmark evidence only; the collector is not loaded by gameplay.
+
 Standard benchmark battles default to 600 simulated seconds at a fixed 0.15 s step. For endurance testing,
 `battle-benchmark-standard.yml` and the permanent Agent Benchmark Launcher accept `sim_seconds` (integer 60–10800).
 If `sim_seconds` is not 600 and `windows` is omitted, the entire match is measured as `0+sim_seconds` rather than

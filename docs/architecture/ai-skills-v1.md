@@ -83,7 +83,9 @@ registerSkill({
 ```
 
 IDs are unique, ordered by ASCII comparison, scopes/resources/capabilities and
-parameters validated at registration/config resolution. Registration never evaluates
+parameters validated at registration/config resolution. Registry/profile dictionaries
+use own keys, including valid names such as `constructor`; inherited Object properties
+never supply a default skill entry or parameter. Registration never evaluates
 or creates a plan. Evaluation gets one shared snapshot per actor/Commander tick;
 it returns finite [0,1] utility and bounded reason/evidence. Highest score wins;
 exact ties choose the smaller ID. No cross-scope ranking. Mission, ROE, safety,
@@ -116,7 +118,14 @@ Use `BattleModules.registerSystem` with `onBattleStart`, `beforeBattleRestart`,
 request → before → roster replacement → afterRosterReset (Commander emits nested
 onBattleRestart) → afterRestart → complete. Keep private per-sim WeakMap state;
 never stamp authoritative actors. A generation token changes at each start/restart;
-state identity also includes entity and Macro mission version. Drop old state
+state identity also includes entity and Macro mission version. Snapshots carry an
+opaque frozen battle token (no sim/entity reference) so equal numeric generations
+and IDs in independent sims cannot share a decision context. Public snapshot reads
+require the exact current roster object before accessing beliefs; an old or foreign
+actor returns null. The scheduled batch enumerates the roster once and invokes the
+private projector directly, avoiding a per-actor roster membership scan. These live
+snapshot tokens are process-local; persisted diagnostics contain detached receipts,
+not executable snapshot contexts. Drop old state
 before roster replacement, handle multiple independent sims, and reject old snapshots.
 Commander cadence is 0.45 simulated seconds after 0.15-s AI ticks, not render time.
 Deterministic ID ordering, fixed operation budgets and no wall clocks/RNG.
@@ -165,7 +174,8 @@ Baseline seed suite deliberately isolates Engagement: run.js uses
 `morale=0&coa=0&stressAct=0&fireControl=0&stanceVis=0&slStress=0&soldierBeliefs=0&incomingFireReveal=0&leaderlessIntent=0`;
 it does not prove complete runtime parity.
 
-For runtime B, use the existing GitHub standard paired benchmark, never local
+For runtime B, enable `command_history=true` in the existing GitHub standard paired
+benchmark (or `BATTLE_BENCHMARK_COMMAND_HISTORY=1` in its runner), never local
 fingerprint batches. Seed `ai-skills-v1-602`, one exact-seed pair per meeting,
 us-defend and ge-defend, 600 actual simulated seconds, 0.15 fixed step/0.45 Commander;
 legacy/shadow must have identical gameplay records/outcomes/command history.
@@ -218,3 +228,16 @@ actors or `guard-budget`); no wall-time scheduling or unbounded retries. Counter
 separate prepared snapshots from actual evaluator invocations. These are operation
 bounds, not measured p95/p99 CPU claims. C still needs the reviewed shared resource
 and effector adapters before any claimed resource can be acquired or action run.
+
+The opt-in benchmark command-history collector runs only in the benchmark runner.
+It samples the existing Command Reception publication log after each 0.15-s step,
+proves contiguous `cmd-1` through `cmd-N` serials, and archives detached publications
+with mission versions, recipients and provenance. Macro briefs/status changes are
+observed after each step; no claim is made about intermediate Macro states within
+a step. Sampling begins at t=0 for each seed and never calls settling telemetry.
+A source-log gap, reset/clock rewind, or 20,000-entry / 8 Mi serialized-character
+budget overflow aborts collection; a failed collector cannot export a complete
+trace. Window records contain the cumulative history through their end, just as
+their timeline is cumulative. Standard exact-state comparison includes the full
+`commandHistory` field when capture is enabled in both arms. Capture defaults OFF;
+no gameplay hook, writer or always-running observer is introduced.

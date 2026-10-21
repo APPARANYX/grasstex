@@ -63,9 +63,14 @@ const output = 'reports/ai-skills-shadow';
       const cycles = [];
       for (let cycle = 0; cycle < 3; cycle++) {
         const prior = api.diagnostics(b).generation;
+        const retainedActor = b._roster.us[0], retainedSnapshot = api.snapshot(b, retainedActor);
         b.restart({ operator: false });
         check(api.diagnostics(b).generation === prior + 1, 'Generation did not advance once');
         check(api.diagnostics(b).receipts.length === 0, 'Restart leaked decisions');
+        check(api.snapshot(b, retainedActor) === null, 'Old roster actor received fresh facts');
+        const replacementSnapshot = api.snapshot(b, b._roster.us[0]);
+        check(api.select(retainedSnapshot, replacementSnapshot, api.config()).chosen === null,
+          'Old-generation facts survived roster replacement');
         b.paused = true;
         await settleObservers();
         check(observerCount() === baselineObservers,
@@ -98,7 +103,7 @@ const output = 'reports/ai-skills-shadow';
         check(JSON.stringify(actor._beliefs, (key, value) => key === 'unit' ? undefined : value) === beliefsBefore,
           'Read changed belief lifecycle');
         cycles.push({ generation: diagnostics.generation, at: b.time, prepared: diagnostics.prepared,
-          observers: observerCount(), receipts: diagnostics.receipts.length, chosen: diagnostics.receipts.filter(r => r.chosen).length });
+          retainedActorDenied: true, observers: observerCount(), receipts: diagnostics.receipts.length, chosen: diagnostics.receipts.filter(r => r.chosen).length });
       }
       // Prove the selector evaluates legitimate natural contact, not only pre-contact guard denials.
       let naturalSelection = null;

@@ -13,6 +13,9 @@ const fixedDt = Math.max(0.05, Math.min(0.3, Number.parseFloat(process.env.BATTL
 const outputDir = path.resolve(process.env.BATTLE_BENCHMARK_OUTPUT || 'reports');
 const policyUrl = process.env.BATTLE_BENCHMARK_POLICY_URL || 'https://test.ivandpopov.com/grasstex/battle_policy.php';
 const commit = process.env.BATTLE_BENCHMARK_SOURCE_SHA || process.env.GITHUB_SHA || 'local';
+const historyOption = process.env.BATTLE_BENCHMARK_COMMAND_HISTORY || '';
+if (!['', '0', '1', 'false', 'true'].includes(historyOption)) throw new Error('Invalid BATTLE_BENCHMARK_COMMAND_HISTORY');
+const captureCommands = historyOption === '1' || historyOption === 'true';
 /* Scripted windows, `contact+60,every60`: measure 60 simulated seconds from first contact, then the rest of the battle in
    segments that close at every multiple of 60 simulated seconds and at the end. An entry is `<start>+<seconds>` (a start of
    `contact` or a simulated second, the battle stepped unmeasured up to it) or `every<seconds>` (last: to the end of the battle).
@@ -125,7 +128,8 @@ try {
   /* The page silences its console while a benchmark runs, so progress comes out through this instead. */
   await page.exposeFunction('__benchLog', text => console.log(text));
   await page.addScriptTag({ path: path.resolve('scripts/battle-benchmark-intent.cjs') });
-  const result = await page.evaluate(async ({ count, seedPrefix, fixedDt, timeLimit, suppliedPolicy, windows, battleType, numbered, firstIndex }) => {
+  if (captureCommands) await page.addScriptTag({ path: path.resolve('scripts/lib/benchmark-command-history.cjs') });
+  const result = await page.evaluate(async ({ count, seedPrefix, fixedDt, timeLimit, suppliedPolicy, windows, battleType, numbered, firstIndex, captureCommands }) => {
     const root = window, sim = root.__battle__, engine = sim.scene?.getEngine?.(), renderLoop = root.__battleRenderLoop__;
     if (engine && renderLoop) engine.stopRenderLoop(renderLoop);
     sim.pause();
@@ -148,7 +152,7 @@ try {
       telemetry.end = async function(){ return true; }; telemetry.checkpoint = async function(){ return true; }; telemetry.flush = async function(){ return true; };
     }
 
-    let activeCombat = null, activeAcquisition = null;
+    let activeCombat = null, activeAcquisition = null, activeCommandHistory = null;
     function stanceOf(s) { return String(s?.stance || s?.eng?.stance || 'unknown'); }
     function combatBucket(shooter) {
       const sq = shooter?.squad, faction = shooter?.faction || sq?.faction;
@@ -651,6 +655,7 @@ try {
           record.grenades = Object.fromEntries(Object.entries(current).filter(([, v]) => typeof v === 'number').map(([k, v]) => [k, v - (start[k] || 0)]));
           record.grenades.byFaction = Object.fromEntries(['us', 'ge'].map(f => [f, current.byFaction[f] - (start.byFaction?.[f] || 0)]));
         }
+        if (activeCommandHistory) { activeCommandHistory.sample(sim); record.commandHistory = activeCommandHistory.snapshot(); }
         if (extra) Object.assign(record, extra);
         return record;
     }
@@ -669,12 +674,15 @@ try {
         root.BattleSoldierModel?.setImportedEnabled?.(sim.scene, false); rawRestart();
         sim.manualEnded = false; sim.winner = null; sim.winReason = null; sim.paused = false; sim.timeScale = 1; sim.timeLimit = timeLimit;
 
+        activeCommandHistory = captureCommands ? root.BattleBenchmarkCommandHistory.create() : null;
+        activeCommandHistory?.sample(sim);
         let commandAccum = 0, steps = 0, nextSample = 0;
         const live = () => !sim.winner && sim.time < timeLimit + 0.5 && steps < maxSteps;
         const stepOnce = () => {
           sim._trainerStepActive = true; try { sim.step ? sim.step(fixedDt) : sim._frame(fixedDt); } finally { sim._trainerStepActive = false; }
           steps++; commandAccum += fixedDt;
           while (commandAccum + 1e-9 >= commandTick && !sim.winner) { commandAccum -= commandTick; root.BattleCommanderAI.update(sim, scenario, commandTick); }
+          activeCommandHistory?.sample(sim);
           sampleAcquisitions();
         };
         const wallStart = performance.now();
@@ -756,8 +764,8 @@ try {
       if (telemetry && telemetrySaved) Object.assign(telemetry, telemetrySaved);
       if (telemetryConsole !== null && telemetry?.setConsoleLogging) telemetry.setConsoleLogging(telemetryConsole);
     }
-    return { build: root.BATTLE_BUILD || null, policyRevision: root.BattleAIPolicy.stashed ? 0 : suppliedPolicy?.revision || root.BattleAIPolicy.revision || 0, policySource: root.BattleAIPolicy.stashed ? 'stashed-defaults' : suppliedPolicy?.source || 'runtime-default', fixedDt, timeLimit, sampleSeconds: SAMPLE_SECONDS, scripted, battles };
-  }, { count, seedPrefix, fixedDt, timeLimit, suppliedPolicy: policy, windows, battleType, numbered, firstIndex });
+    return { build: root.BATTLE_BUILD || null, policyRevision: root.BattleAIPolicy.stashed ? 0 : suppliedPolicy?.revision || root.BattleAIPolicy.revision || 0, policySource: root.BattleAIPolicy.stashed ? 'stashed-defaults' : suppliedPolicy?.source || 'runtime-default', fixedDt, timeLimit, sampleSeconds: SAMPLE_SECONDS, scripted, captureCommands, battles };
+  }, { count, seedPrefix, fixedDt, timeLimit, suppliedPolicy: policy, windows, battleType, numbered, firstIndex, captureCommands });
 
   const wallSeconds = (Date.now() - startedWall) / 1000, battles = result.battles || [];
   for (const b of battles) {

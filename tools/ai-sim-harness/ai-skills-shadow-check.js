@@ -111,7 +111,9 @@ function register(api, name, score, extra = {}) {
     ['missionVersion', 2],
     ['now', 11],
     ['entity', 'other'],
-    ['scope', 'squad']
+    ['scope', 'squad'],
+    ['faction', 'ge'],
+    ['battleToken', null]
   ]) {
     const result = api.select(snap, { ...snap, [field]: value }, api.config());
     assert.equal(result.chosen, null, field + ' context mismatch denied');
@@ -258,6 +260,83 @@ function register(api, name, score, extra = {}) {
   assert.equal(api.config().mode, 'shadow', 'resolve detached central profile after module registration');
   assert.ok(api.config().skills['late.skill'].enabled);
   assert.equal(api.diagnostics(battle).prepared, 1);
+}
+{
+  const { api, battle, actor, hook } = world('?aiSkills=shadow');
+  const retained = api.snapshot(battle, actor);
+  const replacement = { ...actor, _beliefs: { byKey: {}, history: [] } };
+  hook('beforeBattleRestart');
+  battle._roster.us = [replacement];
+  hook('onBattleRestart');
+  Object.defineProperty(actor, '_beliefs', {
+    get() {
+      throw new Error('Obsolete actor belief read after roster replacement');
+    }
+  });
+  assert.equal(api.snapshot(battle, actor), null, 'retained actor cannot acquire a fresh generation');
+  assert.ok(api.snapshot(battle, replacement), 'the replacement actor remains readable');
+  assert.equal(api.select(retained, api.snapshot(battle, replacement), api.config()).chosen, null);
+  assert.equal(api.snapshot(battle, null), null, 'missing actor is denied');
+}
+{
+  const { root, api, battle, actor } = world('?aiSkills=shadow');
+  const second = H.makeBattle(root, { seed: 602 });
+  second.time = battle.time;
+  const twin = {
+    ...actor,
+    _beliefs: { byKey: { b: { ...actor._beliefs.byKey.a, key: 'b', x: 40 } }, history: [] }
+  };
+  second._roster.us = [twin];
+  second._commandReception = JSON.parse(JSON.stringify(battle._commandReception));
+  root.BattleModules.runHook('onBattleStart', second, {});
+  const firstFacts = api.snapshot(battle, actor),
+    secondFacts = api.snapshot(second, twin);
+  assert.ok(Object.isFrozen(firstFacts.battleToken));
+  assert.deepEqual(Object.keys(firstFacts.battleToken), [], 'opaque identity has no world references');
+  assert.notEqual(firstFacts.battleToken, secondFacts.battleToken);
+  assert.equal(firstFacts.generation, secondFacts.generation);
+  assert.equal(firstFacts.entity, secondFacts.entity);
+  assert.equal(firstFacts.missionVersion, secondFacts.missionVersion);
+  assert.equal(api.select(firstFacts, firstFacts, api.config()).chosen, 'soldier.observe-threat');
+  assert.equal(api.select(secondFacts, secondFacts, api.config()).chosen, 'soldier.observe-threat');
+  assert.equal(
+    api.select(firstFacts, secondFacts, api.config()).chosen,
+    null,
+    'same-numbered generations and actor IDs do not cross battle identities'
+  );
+  assert.equal(api.snapshot(second, actor), null, 'foreign actor is denied before belief reads');
+}
+{
+  const { api, actor, battle } = world('?aiSkills=shadow');
+  register(api, 'constructor', 0.7, {
+    parameters: {
+      constructor: { type: 'number', min: 0, max: 1, default: 0.7 }
+    },
+    evaluate: (snap, parameters) => ({
+      eligible: true,
+      score: parameters.constructor,
+      reason: 'explicit-parameter',
+      evidence: []
+    })
+  });
+  assert.equal(
+    api.resolve({ mode: 'shadow' }).skills.constructor.enabled,
+    false,
+    'Object prototype properties never implicitly enable a valid skill ID'
+  );
+  api.configure({
+    mode: 'shadow',
+    skills: {
+      constructor: {
+        enabled: true,
+        parameters: { constructor: 0.8 }
+      }
+    }
+  });
+  const snap = api.snapshot(battle, actor);
+  const result = api.select(snap, snap, api.config());
+  assert.equal(result.chosen, 'constructor');
+  assert.equal(result.decisions.find(d => d.skill === 'constructor').score, 0.8);
 }
 const source = fs.readFileSync(path.join(__dirname, '../../battle/modules/60-ai-skills.js'), 'utf8');
 assert.doesNotMatch(source, /BattleSim\.(?:start|restart)\s*=|updateSoldier\s*=|\.destination\s*=/);

@@ -67,7 +67,7 @@
     )
       throw new Error('Invalid skill');
     keys(spec.parameters === undefined ? {} : spec.parameters, Object.keys(spec.parameters || {}));
-    var schema = {};
+    var schema = Object.create(null);
     Object.keys(spec.parameters || {})
       .sort()
       .forEach(function (key) {
@@ -103,17 +103,20 @@
       throw new Error('Invalid observer');
     var supplied = profile.skills === undefined ? {} : profile.skills;
     keys(supplied, Object.keys(skills));
-    var resolved = {};
+    var resolved = Object.create(null);
     Object.keys(skills)
       .sort()
       .forEach(function (name) {
-        var row = supplied[name] === undefined ? {} : supplied[name],
+        var row =
+            Object.prototype.hasOwnProperty.call(supplied, name) && supplied[name] !== undefined
+              ? supplied[name]
+              : {},
           schema = skills[name].parameters;
         keys(row, ['enabled', 'parameters']);
         if (row.enabled !== undefined && typeof row.enabled !== 'boolean')
           throw new Error('Invalid enablement');
         keys(row.parameters === undefined ? {} : row.parameters, Object.keys(schema));
-        var params = {};
+        var params = Object.create(null);
         Object.keys(schema).forEach(function (key) {
           params[key] = parameter(
             schema[key],
@@ -156,6 +159,7 @@
     var state = sessions.get(sim);
     if (!state) {
       state = {
+        identity: Object.freeze({}),
         generation: 0,
         revision: -1,
         active: false,
@@ -213,8 +217,14 @@
     };
   }
   function snapshot(sim, actor) {
-    var state = sessions.get(sim);
-    if (!state || !state.active) return null;
+    var state = sessions.get(sim),
+      roster = actor && sim._roster && sim._roster[actor.faction];
+    // Validate identity before touching beliefs: IDs can be reused after restart or in another battle.
+    if (!state || !state.active || !Array.isArray(roster) || roster.indexOf(actor) < 0) return null;
+    return prepareSnapshot(sim, actor, state);
+  }
+  // The scheduled batch already enumerated the current roster once; no per-actor roster scan/cache.
+  function prepareSnapshot(sim, actor, state) {
     var now = sim.time,
       sq = actor.squad,
       mission = sq && sq._macroMission,
@@ -250,6 +260,8 @@
       );
     return freeze({
       scope: 'soldier',
+      battleToken: state.identity,
+      faction: actor.faction,
       entity: String(actor.id),
       generation: state.generation,
       missionVersion: finite(version) ? version : 0,
@@ -277,6 +289,9 @@
     if (
       !snap ||
       !context ||
+      !snap.battleToken ||
+      snap.battleToken !== context.battleToken ||
+      snap.faction !== context.faction ||
       !finite(snap.now) ||
       !finite(context.now) ||
       snap.now !== context.now ||
@@ -393,7 +408,7 @@
     });
     state.omitted += Math.max(0, actors.length - MAX_ACTORS);
     actors.slice(0, MAX_ACTORS).forEach(function (actor) {
-      var snap = snapshot(sim, actor),
+      var snap = prepareSnapshot(sim, actor, state),
         result = select(snap, snap, config);
       state.prepared++;
       state.evaluated += result.evaluations;
@@ -401,6 +416,7 @@
         state.receipts.push(
           freeze({
             entity: snap.entity,
+            faction: snap.faction,
             scope: snap.scope,
             generation: snap.generation,
             missionVersion: snap.missionVersion,
