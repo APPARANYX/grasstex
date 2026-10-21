@@ -31,10 +31,11 @@ Module files load lexicographically before `battle/battle-control.js`. These sta
 1. `00-fixed-step-clock.js` wraps core start and installs the benchmark clock; live observer unchanged unless specifically opted in.
 2. `12-soldier-animation-events.js` wraps start to intercept fire/shot presentation and supply stripped-runtime fallback ammo events.
 3. `98-damage-range.js` registers **only with `?damageRange=1`**; its wrapper creates the QA range after calling the previously captured start.
-4. `99-session-diagnostics-export.js` wraps start for the session export owner (without gameplay control).
-5. `battle-control.js` wraps last to install operator restart/telemetry/UI controls after the underlying start chain.
+4. `battle-control.js` wraps last to install operator UI, telemetry and helpers after the underlying start chain.
 
-This order is fragile: changing file order or replacing `root.BattleSim.start` rather than wrapping can bypass reload animation, the fixed clock, damage range or operator restart. Any new wrapper must capture the preceding function once, call it exactly once, and return the same sim instance; never add a second physics step/movement writer. If the chain is redesigned, migrate all wrappers in one tested PR, not by reordering files.
+`99-session-diagnostics-export.js` is **not** a startup wrapper. It reads the published `window.__battle__` session directly, with explicit simulation arguments retained for offline exports (#600). Commander (#599), terrain relief (#601), and operator **restart** (#603) now use ordered required core restart hooks rather than replacing `sim.restart`. Battle Control still wraps initial `BattleSim.start` for UI/telemetry setup; fixed-step clock, animation events, and opt-in damage range also still wrap startup. Do not describe the *restart* consolidation as removal of every *start* wrapper.
+
+This remaining startup order is fragile: changing file order or replacing `root.BattleSim.start` rather than wrapping can bypass animation, fixed clock, damage range or initial operator setup. The core restart sequence separately owns operator preparation, roster/Commander/terrain reset, and operator completion. Any new startup wrapper must capture the preceding function once, call it exactly once, and return the same sim; never add a second physics step/movement writer. Replace remaining wrappers only with executable lifecycle parity tests, not by reordering files.
 
 ## Ownership and non-goals
 
