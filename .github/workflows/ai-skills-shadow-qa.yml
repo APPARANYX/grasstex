@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - 'battle/modules/60*-ai-skill*.js'
+      - battle/modules/15o-squad-leader-tactical-postures.js
+      - battle/modules/19-engagement-cover-positions.js
       - runtime-contract.php
       - scripts/probes/probe_ai_skills_shadow.cjs
       - scripts/probes/probe_ai_skills_squad.cjs
