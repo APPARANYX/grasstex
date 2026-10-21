@@ -1225,6 +1225,10 @@
     s.setUp = false;
     if (orderedBound(s, battle)) return;
     if (s.target) {
+      // One initial commitment, after existing preparation/station ownership.
+      // Alert ticks do not renew it; LOS and authorized transit can take over.
+      if (CONTACT_COVER_FIRST && !inCover(s, battle))
+        commitStance(s, battle, 'prone', LOW_GAP_HOLD, 'contact no cover: prone');
       transition(s, battle, 'orient', reactTime(s, battle), 'contact');
       return orient(s, battle);
     }
@@ -1356,7 +1360,7 @@
     commitStanceRespectHold(
       s,
       battle,
-      seeingStance(s, battle, 'crouch'),
+      seeingStance(s, battle, CONTACT_COVER_FIRST && !inCover(s, battle) ? 'prone' : 'crouch'),
       Math.max(0.8, e.until - battle.time),
       'orient'
     );
@@ -1712,8 +1716,11 @@
     /* His freshest personal contact/belief outranks his older Engagement last-seen point; the
        deliberate clearing order is the one exception because it is a Squad Leader destination. */
     var aim = clearing ? s.squad.clearContact : knownThreat(s, battle);
-    /* Hold the sector low; clearing moves crouched, otherwise open-ground riflemen go prone. */
-    var watch = !clearing && COVER_STANCE && PRONE_ROLES[s.role] && !inCover(s, battle) ? 'prone' : 'crouch';
+    /* Hold the sector low; clearing moves crouched, exposed stationary roles prefer prone. */
+    var watch =
+      !clearing && COVER_STANCE && (CONTACT_COVER_FIRST || PRONE_ROLES[s.role]) && !inCover(s, battle)
+        ? 'prone'
+        : 'crouch';
     if (!holdStance(s, battle))
       commitStance(s, battle, seeingStance(s, battle, watch, aim && { root: { position: aim } }), 2.0);
     s._faceHint = aim && facingError(s, aim) > AIM_CONE ? aim : null;

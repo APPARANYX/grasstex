@@ -13,8 +13,14 @@ Intent flows down and status flows up. No layer rewrites another's state.
 **Contact reaction:** Engagement first seeks usable physical cover on a newly
 acquired personal target or a fresh credible delivered report. Native `bound`
 movement executes before HOLD/PRECISION preparation; arrival transitions to
-`orient`, then normal aiming/fire control. A soldier already in useful cover or
-without a valid nearby slot uses the existing low-posture/orientation response.
+`orient`, then normal aiming/fire control. A soldier already in useful cover
+retains it. On first live contact without a valid nearby slot, every role goes
+prone before orientation and prefers prone fire from open ground. Remembered
+warnings retain native low transit; the initial prone lease is not renewed on
+every alert tick. Native
+stance/LOS checks may raise him enough to fire; posture alone never counts as
+support. Genuine prone shooters contribute to the existing base-of-fire report
+and native team-bound coordination.
 Retreat, shock, stress reactions, committed grenades and tactical stations retain
 priority. This uses the native cover reservations and resolver; it does not
 require a squad supporting-fire lease. `contactCoverFirst=0` is the paired legacy

@@ -140,3 +140,55 @@ assert.equal(observer.snapshot().arrived, 1);
 assert.equal(observer.snapshot().orientedAfterArrival, 1);
 assert.equal(observer.snapshot().shotsBeforeArrival, 0);
 console.log('CONTACT_COVER_CAUSAL', JSON.stringify(observer.snapshot()));
+
+// No physical cover: every role goes low and can become genuine support.
+for (const role of ['rifleman', 'gunner', 'sergeant', 'scout', 'engineer']) {
+  const x = world({ cover: false });
+  x.s.role = role;
+  x.q.fireControl = { state: 'open' };
+  x.E.updateSoldier(x.s, x.b);
+  assert.equal(x.E.stateOf(x.s).stance, 'prone', role + ' goes prone before orienting in open ground');
+}
+const proneSupport = world({ cover: false });
+proneSupport.q.fireControl = { state: 'open' };
+proneSupport.s.root.rotation.y = 0;
+for (let i = 0; i < 35; i++) {
+  proneSupport.b.time += 0.15;
+  proneSupport.E.updateSoldier(proneSupport.s, proneSupport.b);
+  proneSupport.r.BattleMovementResolver.resolve(proneSupport.s, proneSupport.b);
+  H.stepMovement(proneSupport.b, proneSupport.s, 0.15);
+}
+assert.equal(proneSupport.E.stateOf(proneSupport.s).stance, 'prone');
+assert.ok(proneSupport.b.events.fired > 0, 'prone in open ground produces actual support shots');
+assert.equal(
+  proneSupport.E.supportReady(proneSupport.s, proneSupport.b),
+  true,
+  'prone shooting capability is native support'
+);
+assert.ok(
+  proneSupport.r.SquadAI.shotReceipt(proneSupport.s, proneSupport.b),
+  'own discharge receipt verifies prone fire'
+);
+assert.ok(
+  proneSupport.E.updateSquad(proneSupport.q, proneSupport.b).fireSupport.includes(proneSupport.s),
+  'native Meso report includes the prone shooter'
+);
+proneSupport.s.reloading = true;
+assert.equal(
+  proneSupport.E.supportReady(proneSupport.s, proneSupport.b),
+  false,
+  'prone posture alone is not support'
+);
+console.log('PASS no-cover prone fallback for all roles and independently verified native support');
+
+// An exposed contact must not refresh its initial prone lease every alert tick.
+const searching = world({ cover: false });
+searching.q.fireControl = { state: 'open' };
+searching.E.updateSoldier(searching.s, searching.b);
+const proneUntil = searching.s.eng.stanceUntil;
+searching.s.target = null;
+searching.s.eng.state = 'alert';
+searching.s.eng.until = searching.b.time + 5;
+searching.b.time += 0.15;
+searching.E.updateSoldier(searching.s, searching.b);
+assert.equal(searching.s.eng.stanceUntil, proneUntil, 'alert does not perpetually renew initial prone commitment');

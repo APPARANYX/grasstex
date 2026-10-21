@@ -314,6 +314,7 @@
     }
     function fightingStance(s, battle, distanceToTarget, coverValue) {
       var suppressed = s.suppressedUntil > battle.time;
+      if (root.BattleEngagement.contactCoverFirstOn() && coverValue > USEFUL_COVER) return 'prone';
       if (!PRONE_ROLES[s.role]) return 'crouch';
       if (COVER_STANCE && coverValue <= USEFUL_COVER)
         return suppressed && crouchCover(s, battle) > USEFUL_COVER ? 'prone' : 'crouch';

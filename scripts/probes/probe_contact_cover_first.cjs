@@ -107,7 +107,7 @@ assert.match(head || '', /^[a-f0-9]{40}$/);
     );
     const proof = report.rows.find(row => row.orientedAt != null && row.firstShotAt != null);
     if (proof) {
-      await page.evaluate(row => {
+      report.coverEvidence = await page.evaluate(row => {
         const b = __battle__,
           s = b._roster[row.faction].find(man => man.id === row.id),
           cam = b.scene.activeCamera;
@@ -120,6 +120,26 @@ assert.match(head || '', /^[a-f0-9]{40}$/);
         if (cam.setPosition) cam.setPosition(eye);
         else cam.position.copyFrom(eye);
         b.scene.render();
+        const cover = s.eng && s.eng.cover,
+          o = cover && cover.obstacle;
+        return {
+          soldierId: s.id,
+          slotId: cover && cover.slotId,
+          coverType: cover && cover.type,
+          quality: cover && cover.quality,
+          position: { x: p.x, y: p.y, z: p.z },
+          obstacle: o && {
+            type: o.type,
+            shape: o.shape,
+            x: o.x,
+            z: o.z,
+            y: o.y,
+            height: o.height,
+            radius: o.radius,
+            hx: o.hx,
+            hz: o.hz
+          }
+        };
       }, proof);
     }
     assert.ok(report.time > 0, 'simulation clock advanced');
