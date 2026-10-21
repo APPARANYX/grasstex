@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 'use strict';
-/* Ballistic obstruction queries that throw are counted, not swallowed.
+/* Ballistic obstruction queries that throw are counted and conservatively block the ray.
 
    `segmentBlocked` (14-z) asks BattleObstacleField and BattleNavigation whether a round's segment is
-   blocked. A throw from either used to vanish and the segment read as clear. Behaviour is unchanged
-   (still clear), but each failure is now counted by source, the last message is kept, and the console
+   blocked. A throw from either used to vanish and the segment read as clear. Now an unknown obstruction
+   result blocks the shot, while failures are counted by source, the last message is kept, and the console
    hears of it only on the 1st, 10th, 100th... failure.
 
      node tools/ai-sim-harness/ballistic-query-errors-check.js */
@@ -53,7 +53,9 @@ assert.equal(
 console.log('PASS healthy queries record no errors');
 
 const bad = load(true, true);
-for (let i = 0; i < 120; i++) bad.r.BattleBallistics.environmentLineBlocked(o, p, battle);
+for (let i = 0; i < 120; i++)
+  assert.equal(bad.r.BattleBallistics.environmentLineBlocked(o, p, battle), true,
+    'a thrown obstacle and navigation query must not authorize a clear ray');
 const q = bad.r.BattleBallistics.queryErrors();
 assert.ok(q.obstacleField >= 120 && q.navigation >= 120, 'every failure is counted: ' + JSON.stringify(q));
 assert.equal(q.last.message.length > 0, true);
@@ -61,7 +63,14 @@ assert.ok(bad.warns.length > 0 && bad.warns.length <= 8, 'console warnings are b
 console.log('PASS thrown queries are counted by source and the console stays bounded: ' + JSON.stringify(q));
 
 const nav = load(false, true);
-nav.r.BattleBallistics.environmentLineBlocked(o, p, battle);
+assert.equal(nav.r.BattleBallistics.environmentLineBlocked(o, p, battle), true,
+  'navigation-only query failure is blocked');
 assert.equal(nav.r.BattleBallistics.queryErrors().navigation >= 1, true);
 assert.equal(nav.r.BattleBallistics.queryErrors().obstacleField, 0);
 console.log('PASS the failing source is the one named');
+
+const field = load(true, false);
+assert.equal(field.r.BattleBallistics.environmentLineBlocked(o, p, battle), true,
+  'obstacle-field-only query failure is blocked');
+assert.equal(field.r.BattleBallistics.queryErrors().navigation, 0);
+console.log('PASS error policy fails closed without changing healthy rays');
