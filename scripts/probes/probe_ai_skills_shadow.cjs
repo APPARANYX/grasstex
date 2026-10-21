@@ -11,6 +11,8 @@ const output = pilotRequested ? 'reports/ai-skills-pilot' : 'reports/ai-skills-s
 (async () => {
   fs.mkdirSync(output, { recursive: true });
   const browser = await chromium.launch({
+    executablePath: process.env.AI_SKILLS_CHROMIUM,
+    proxy: process.env.AI_SKILLS_PROXY ? { server: process.env.AI_SKILLS_PROXY } : undefined,
     args: [
       '--use-gl=angle',
       '--use-angle=swiftshader',
@@ -208,7 +210,9 @@ const output = pilotRequested ? 'reports/ai-skills-pilot' : 'reports/ai-skills-s
         let pilot = null;
         if (pilotRequested) {
           const candidates = new Set(),
-            attempts = [];
+            attempts = [],
+            blockers = {},
+            eligibleFacts = [];
           let target = null,
             completed = null;
           b.restart({ operator: false });
@@ -238,8 +242,39 @@ const output = pilotRequested ? 'reports/ai-skills-pilot' : 'reports/ai-skills-s
                 const actor = b._roster.us.find(a => {
                   const key =
                     a.id + ':' + (a.squad && a.squad._macroMission && a.squad._macroMission.version);
-                  if (candidates.has(key) || root.BattleAISkillRuntime.blocker(b, a)) return false;
                   const snap = api.snapshot(b, a);
+                  if (
+                    snap &&
+                    snap.facts.some(f => f.confidence >= 0.25) &&
+                    Object.values(snap.guards).every(Boolean)
+                  ) {
+                    const e = a.eng || {},
+                      q = a.squad || {},
+                      L = root.BattleLeases;
+                    const why =
+                      [
+                        a.dead && 'dead',
+                        a.reloading && 'reload',
+                        q.inContact && 'contact',
+                        q.clearContact && 'clear-contact',
+                        q.state !== 'advance' && 'squad-' + q.state,
+                        e.state !== 'advance' && 'eng-' + e.state,
+                        e.stance !== 'stand' && 'stance-' + e.stance,
+                        b.time < e.stanceUntil && 'stance-hold',
+                        e.boundOrder && 'bound-order',
+                        e.suppressOrder && 'suppress-order',
+                        root.BattleEngagement.underFireNow(a, b) && 'incoming',
+                        root.BattleSquadTransport.isPassenger(a) && 'passenger',
+                        ...Object.keys(L.kinds())
+                          .filter(k => !L.kinds()[k].diagnostic && L.holds(q, k, b.time))
+                          .map(k => 'lease-' + k)
+                      ]
+                        .filter(Boolean)
+                        .join(',') || 'available';
+                    blockers[why] = (blockers[why] || 0) + 1;
+                    if (eligibleFacts.length < 10) eligibleFacts.push({ at: b.time, entity: a.id, why });
+                  }
+                  if (candidates.has(key) || root.BattleAISkillRuntime.blocker(b, a)) return false;
                   return (
                     snap &&
                     Object.values(snap.guards).every(Boolean) &&
@@ -264,7 +299,8 @@ const output = pilotRequested ? 'reports/ai-skills-pilot' : 'reports/ai-skills-s
           }
           check(
             completed,
-            'No naturally eligible scoped pilot completed in 600s: ' + JSON.stringify(attempts)
+            'No naturally eligible scoped pilot completed in 600s: ' +
+              JSON.stringify({ attempts, blockers, eligibleFacts })
           );
           check(
             completed.receipts.filter(r => r.action === 'crouch' && r.lifecycle === 'succeeded').length === 1,

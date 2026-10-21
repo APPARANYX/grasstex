@@ -266,6 +266,8 @@ The candidate needs a current personally adopted Macro movement mission and a
 fresh personal threat fact above its typed confidence threshold. The scheduler
 claims only posture, and accepts only an unpossessed, alive, upright advancing
 soldier outside contact, suppression, reload, transport and Engagement reactions.
+The ordinary upright march timer does not forbid lowering: the existing
+Engagement request API explicitly permits that transition.
 Existing non-diagnostic BattleLeases always take precedence: inspect the existing
 owner's kinds/holds readers, never grant a second command lease. Unavailable
 resources are excluded before utility. Squad/command execution stays unsupported.

@@ -261,6 +261,17 @@ for (const [name, change] of [
   w.tick();
   assert.equal(w.a.tacticalCrouch, false);
 }
+{
+  const w = world();
+  w.e.stanceUntil = w.b.time + 1;
+  w.tick();
+  w.tick();
+  assert.equal(
+    w.a.tacticalCrouch,
+    true,
+    'Engagement permits lowering during its ordinary upright march timer'
+  );
+}
 function alternate(w, factory, score = 0.9, id = 'test.alternate') {
   w.api.registerSkill({
     id,
@@ -303,6 +314,30 @@ function alternate(w, factory, score = 0.9, id = 'test.alternate') {
 for (const [name, factory, reason, ticks] of [
   ['unknown-action', () => ({ type: 'action', action: 'move' }), 'unsupported-action', 1],
   ['invalid-tree', () => ({ type: 'wait', seconds: Infinity }), 'unsupported-action', 1],
+  [
+    'node-budget',
+    (s, a) => a.sequence(...Array.from({ length: 33 }, () => a.wait(0))),
+    'unsupported-action',
+    1
+  ],
+  [
+    'depth-budget',
+    (s, a) => Array.from({ length: 9 }).reduce(n => a.timeout(1, n), a.wait(0)),
+    'unsupported-action',
+    1
+  ],
+  [
+    'node-budget',
+    (s, a) => a.sequence(...Array.from({ length: 33 }, () => a.wait(0))),
+    'unsupported-action',
+    1
+  ],
+  [
+    'depth-budget',
+    (s, a) => Array.from({ length: 9 }).reduce(n => a.timeout(1, n), a.wait(0)),
+    'unsupported-action',
+    1
+  ],
   [
     'factory-throw',
     () => {

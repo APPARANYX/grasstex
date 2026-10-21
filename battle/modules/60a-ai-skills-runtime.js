@@ -115,7 +115,6 @@
       e.stance !== 'stand' ||
       e.boundOrder ||
       e.suppressOrder ||
-      sim.time < e.stanceUntil ||
       (actor.suppressedUntil || 0) > sim.time ||
       (transport && transport.isPassenger(actor)) ||
       (E && E.underFireNow && E.underFireNow(actor, sim))
@@ -165,8 +164,9 @@
       plan.tree = null;
       record(plan, lifecycle, reason);
     }
-    function cancelAll(reason) {
+    function cancelAll(reason, now) {
       plans.forEach(function (p) {
+        if (Number.isFinite(now)) p.now = now;
         finish(p, 'cancelled', reason);
       });
       plans.clear();
@@ -187,35 +187,34 @@
       });
     }
     function effect(plan, sim, actor, snap, name) {
-      if (name !== 'crouch') return { status: 'Failure', reason: 'unsupported-action' };
-      if (plan.resources.indexOf('posture') < 0) return { status: 'Failure', reason: 'no-authority' };
-      if (blocker(sim, actor)) return { status: 'Failure', reason: 'interrupted' };
+      var owner = name === 'crouch' ? 'engagement' : 'ai-skills-scheduler';
+      record(plan, 'not-started', 'requested', name, owner);
+      record(plan, 'running', 'requested', name, owner);
+      function failed(reason) {
+        record(plan, 'failed', reason, name, owner);
+        return { status: 'Failure', reason: reason };
+      }
+      if (name !== 'crouch') return failed('unsupported-action');
+      if (plan.resources.indexOf('posture') < 0) return failed('no-authority');
+      if (blocker(sim, actor)) return failed('interrupted');
       if (
         !snap.guards.receipt ||
         !snap.guards.mission ||
         !snap.guards.roe ||
         snap.missionVersion !== plan.missionVersion
       )
-        return { status: 'Failure', reason: 'no-authority' };
+        return failed('no-authority');
       // Atomic, lowering-only request. Engagement owns its 0.45s hold and all subsequent reactions.
-      // No destination, fire, stance field or command envelope is written here.
-      record(plan, 'not-started', 'requested', name, 'engagement');
-      record(plan, 'running', 'requested', name, 'engagement');
+      // Its ordinary upright march timer does not prevent a lower posture request.
       var accepted;
       try {
         accepted = root.BattleEngagement.requestStance(actor, sim, 'crouch', 0.45);
       } catch (error) {
-        record(plan, 'failed', 'no-authority', name, 'engagement');
-        return { status: 'Failure', reason: 'no-authority' };
+        return failed('no-authority');
       }
-      record(
-        plan,
-        accepted ? 'succeeded' : 'failed',
-        accepted ? 'accepted' : 'no-authority',
-        name,
-        'engagement'
-      );
-      return { status: accepted ? 'Success' : 'Failure', reason: accepted ? 'accepted' : 'no-authority' };
+      if (!accepted) return failed('no-authority');
+      record(plan, 'succeeded', 'accepted', name, owner);
+      return { status: 'Success', reason: 'accepted' };
     }
     function run(plan, sim, actor, snap) {
       var ops = MAX_OPS;
@@ -302,9 +301,9 @@
           return;
         }
         if (blocked === 'no-authority') {
+          plan.resources = [];
           if (!plan.suspended) record(plan, 'running', 'suspended');
           plan.suspended = true;
-          plan.resources = [];
           return;
         }
         if (plan.suspended) {

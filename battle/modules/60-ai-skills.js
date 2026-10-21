@@ -191,11 +191,11 @@
     state.generation++;
     state.executionArchive = null;
     state.active = true;
-    clear(state);
+    clear(state, false, sim.time);
   }
-  function clear(state, preserve) {
+  function clear(state, preserve, now) {
     if (!preserve && state.scheduler) {
-      state.scheduler.cancelAll('interrupted');
+      state.scheduler.cancelAll('interrupted', now);
       state.executionArchive = state.scheduler.diagnostics(config.observer);
     }
     if (!preserve) state.scheduler = null;
@@ -424,7 +424,8 @@
       clear(
         state,
         state.executionProfile ===
-          JSON.stringify({ mode: config.mode, skills: config.skills, pilot: config.pilot })
+          JSON.stringify({ mode: config.mode, skills: config.skills, pilot: config.pilot }),
+        sim.time
       );
     if (!config || config.mode === 'legacy') return;
     if (config.mode === 'pilot' && !root.BattleAISkillRuntime) return;
@@ -513,7 +514,7 @@
       beforeBattleRestart: function (sim) {
         var state = sessions.get(sim);
         if (state) {
-          clear(state);
+          clear(state, false, sim.time);
           state.active = false;
         }
       },
