@@ -1502,6 +1502,7 @@
         !pressured &&
         eligible[old.kind] &&
         now - old.since < ctx.BOUND_DURATION &&
+        !(reactiveEligible && eligible.maneuver && old.kind === 'support') &&
         !(continuityOn && old.kind === 'approach' && eligible['structure-handoff']) &&
         !(old.inputs.contact && old.inputs.supporting == null && inputs.supporting != null)
       )

@@ -256,6 +256,7 @@ obstacles(reactiveGap, [
   Object.assign(hedge('far-right', 6, 0), { hx: 0.7 })
 ]);
 reactiveGap.s.root.position.x = -6;
+reactiveGap.s.root.position.z = -4;
 assert.equal(route({ x: 6, z: -4 }, 'reactive').reason, 'exposed-route', 'long exposure remains unsafe');
 assert.equal(
   route({ x: 6, z: 4 }, 'reactive').eligible,

@@ -87,6 +87,20 @@
                     ? 'no-effective-support'
                     : 'eligible';
             state.denials[reason] = (state.denials[reason] || 0) + 1;
+            if (reason === 'eligible') {
+              const gate = !task.boundsAllowed
+                ? 'local-commitment'
+                : !q._assaultAuthorized
+                  ? 'assault-authority'
+                  : R.BattleLeases.holds(q, 'bound-cycle', b.time)
+                    ? 'bound-cycle'
+                    : R.BattleLeases.holds(q, 'bound', b.time)
+                      ? 'bound-active'
+                      : 'team-selection';
+              const g = 'native:' + gate;
+              state.denials[g] = (state.denials[g] || 0) + 1;
+            }
+
             if (options.routes && reason === 'eligible') {
               for (const team of ['alpha', 'bravo', 'charlie']) {
                 const movers = q.members.filter(

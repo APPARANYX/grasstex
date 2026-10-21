@@ -115,6 +115,7 @@ const E = r.BattleEngagement,
   R = r.BattleReactiveFireManeuver;
 const mover = q.members[0],
   support = q.members.slice(1);
+assert.equal(S.localPlan.update(b, q, { fireSupport: [], underFire: 0 }).kind, 'support');
 for (let i = 0; i < 20; i++) {
   b.time += 0.15;
   for (const s of support) {
