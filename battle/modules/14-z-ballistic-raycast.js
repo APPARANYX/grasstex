@@ -268,10 +268,9 @@
     };
     return out;
   }
-  /* A throw from either obstruction query used to be swallowed, and the segment then counted as clear: a
-     broken geometry contract read as "nothing in the way". The result is unchanged here (diagnostics only),
-     but every failure is now counted by source, the last message is kept, and the console hears of it on
-     the 1st, 10th, 100th... failure so a hot path cannot flood it. queryErrors() hands the counts out. */
+  /* Obstruction query exceptions are counted and conservatively block an otherwise unverified ray.
+     Every failure is counted by source, the last message is kept, and the console hears of it on
+     the 1st, 10th, 100th... failure so a hot path cannot flood it. queryErrors() hands out counts. */
   var queryFaults = { obstacleField: 0, navigation: 0, last: null };
   function noteQueryFault(source, e) {
     var n = ++queryFaults[source];
@@ -282,7 +281,8 @@
   }
   function segmentBlocked(o, d, t, battle) {
     var p = pointAt(o, d, t),
-      F = root.BattleObstacleField;
+      F = root.BattleObstacleField,
+      queryError = null;
     try {
       if (F) {
         var obs = ballisticObstacles(battle.obstacles),
@@ -291,6 +291,7 @@
       }
     } catch (e) {
       noteQueryFault('obstacleField', e);
+      queryError = 'obstacleField';
     }
     try {
       if (root.BattleNavigation && root.BattleNavigation.lineOfSightBlocked) {
@@ -299,8 +300,10 @@
       }
     } catch (e) {
       noteQueryFault('navigation', e);
+      queryError = queryError || 'navigation';
     }
-    return false;
+    // An unavailable geometry answer must never authorize an unobstructed shot.
+    return queryError ? { queryError: queryError } : false;
   }
   function obstacleStop(o, d, maxT, battle) {
     if (!segmentBlocked(o, d, maxT, battle)) return { travel: maxT };
@@ -470,7 +473,9 @@
         ? 'wall'
         : environment.obstacle
           ? 'obstacle'
-          : null;
+          : environment.queryError
+            ? 'geometry-error'
+            : null;
   }
   /* One round from the muzzle: through each body it passes (passes[], at most MAX_BODIES) to where
      it stops, in a body, the environment, or at the end of its range. */
