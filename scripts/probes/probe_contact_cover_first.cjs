@@ -52,6 +52,7 @@ assert.match(head || '', /^[a-f0-9]{40}$/);
       'seed=phase-c-natural-20261012-0002&log=0&localPlan=1&localResources=1&localAmbush=1&localManeuver=1&coveredBounds=1&reactiveFireManeuver=1'
     ))
       url.searchParams.set(k, v);
+    if (process.env.CONTACT_COVER_SEED) url.searchParams.set('seed', process.env.CONTACT_COVER_SEED);
     await page.goto(url.href, { waitUntil: 'load', timeout: 180000 });
     await page.waitForFunction(() => window.__battle__ && window.BattleAISquadAdapter, null, {
       timeout: 180000
@@ -59,42 +60,68 @@ assert.match(head || '', /^[a-f0-9]{40}$/);
     await page.addScriptTag({
       path: require('node:path').resolve('scripts/lib/benchmark-contact-cover.cjs')
     });
-    const report = await page.evaluate(async expected => {
-      const b = __battle__;
-      if (BATTLE_PREVIEW.sha !== expected || !BattleReactiveFireManeuver.on) throw Error('SHA/flag mismatch');
-      b.scene.getEngine().stopRenderLoop(window.__battleRenderLoop__);
-      const observer = BattleBenchmarkContactCover.create(window, b),
-        fire = b.onFire;
-      b.onFire = function (s) {
-        observer.shot(s);
-        return fire.apply(this, arguments);
-      };
-      b.paused = false;
-      b.timeScale = 1;
-      b.timeLimit = 600;
-      let acc = 0;
-      try {
-        for (let i = 0; i < 4000 && !b.winner; i++) {
-          b._trainerStepActive = true;
-          try {
-            b.step(0.15);
-          } finally {
-            b._trainerStepActive = false;
+    const report = await page.evaluate(
+      async ({ expected, stopOnProof }) => {
+        const b = __battle__;
+        if (BATTLE_PREVIEW.sha !== expected || !BattleReactiveFireManeuver.on)
+          throw Error('SHA/flag mismatch');
+        b.scene.getEngine().stopRenderLoop(window.__battleRenderLoop__);
+        const observer = BattleBenchmarkContactCover.create(window, b),
+          fire = b.onFire;
+        b.onFire = function (s) {
+          observer.shot(s);
+          return fire.apply(this, arguments);
+        };
+        b.paused = false;
+        b.timeScale = 1;
+        b.timeLimit = 600;
+        let acc = 0;
+        try {
+          for (let i = 0; i < 4000 && !b.winner; i++) {
+            b._trainerStepActive = true;
+            try {
+              b.step(0.15);
+            } finally {
+              b._trainerStepActive = false;
+            }
+            acc += 0.15;
+            while (acc >= 0.45 - 1e-9 && !b.winner) {
+              acc -= 0.45;
+              BattleCommanderAI.update(b, window.__scenario__, 0.45);
+            }
+            observer.sample();
+            if (
+              stopOnProof &&
+              observer.snapshot().rows.some(row => row.orientedAt != null && row.firstShotAt != null)
+            )
+              break;
+            if (i % 100 === 0) await new Promise(r => setTimeout(r, 0));
           }
-          acc += 0.15;
-          while (acc >= 0.45 - 1e-9 && !b.winner) {
-            acc -= 0.45;
-            BattleCommanderAI.update(b, window.__scenario__, 0.45);
-          }
-          observer.sample();
-          if (i % 100 === 0) await new Promise(r => setTimeout(r, 0));
+        } finally {
+          b.paused = true;
+          b.onFire = fire;
         }
-      } finally {
-        b.paused = true;
-        b.onFire = fire;
-      }
-      return { sha: expected, url: location.href, time: b.time, winner: b.winner, ...observer.snapshot() };
-    }, head);
+        return { sha: expected, url: location.href, time: b.time, winner: b.winner, ...observer.snapshot() };
+      },
+      { expected: head, stopOnProof: process.env.CONTACT_COVER_STOP_ON_PROOF === '1' }
+    );
+    const proof = report.rows.find(row => row.orientedAt != null && row.firstShotAt != null);
+    if (proof) {
+      await page.evaluate(row => {
+        const b = __battle__,
+          s = b._roster[row.faction].find(man => man.id === row.id),
+          cam = b.scene.activeCamera;
+        if (!s || !cam) return;
+        if (window.BattleTacticalMap) BattleTacticalMap.setOpen(false);
+        const p = s.root.position,
+          c = new BABYLON.Vector3(p.x, p.y + 1, p.z),
+          eye = new BABYLON.Vector3(p.x + 9, p.y + 7, p.z + 9);
+        cam.setTarget(c);
+        if (cam.setPosition) cam.setPosition(eye);
+        else cam.position.copyFrom(eye);
+        b.scene.render();
+      }, proof);
+    }
     assert.ok(report.time > 0, 'simulation clock advanced');
     report.errors = errors;
     fs.writeFileSync(`${out}/natural.json`, JSON.stringify(report, null, 2));
