@@ -1,7 +1,7 @@
-# Benchmark run #1064 · scripted scenario `ai-skills-v1-602` (ge-defend), windows `0+600`
+# Benchmark run #1093 · scripted scenario `ai-skills-v1-602` (ge-defend), windows `0+600`
 
-- **OFF** flags: `strategicInterception=1&frontLines=1&motorTransport=1&truckAccess=1&truckCollision=1&truckVisual=1&aerialRecon=1&interception=1&reinforcements=1&reinforcementSortie=1&aiSkills=legacy` · **ON** flags: `strategicInterception=1&frontLines=1&motorTransport=1&truckAccess=1&truckCollision=1&truckVisual=1&aerialRecon=1&interception=1&reinforcements=1&reinforcementSortie=1&aiSkills=shadow`
-- work/issue-602-ai-skills-shadow @ 6fd3795 · [run](https://github.com/APPARANYX/grasstex/actions/runs/39537107147) · build v29-dev
+- **OFF** flags: `strategicInterception=1&frontLines=1&motorTransport=1&truckAccess=1&truckCollision=1&truckVisual=1&aerialRecon=1&interception=1&reinforcements=1&reinforcementSortie=1&aiSkills=legacy` · **ON** flags: `strategicInterception=1&frontLines=1&motorTransport=1&truckAccess=1&truckCollision=1&truckVisual=1&aerialRecon=1&interception=1&reinforcements=1&reinforcementSortie=1&aiSkills=legacy`
+- work/issue-602-ai-skills-pilot @ 7eab496 · [run](https://github.com/APPARANYX/grasstex/actions/runs/39590675970) · build v29-dev
 
 ## Verdict
 
@@ -10,7 +10,7 @@
 
 ## Paired comparison (off against on)
 
-- **1** pairs (unpaired: off 0, on 0) · identical in every field: **1** · runtime errors off 0 / on 0 · wall time on/off x1.067 (gate 1.25)
+- **1** pairs (unpaired: off 0, on 0) · identical in every field: **1** · runtime errors off 0 / on 0 · wall time on/off x1.006 (gate 1.25)
 - no record has a timeline or stress series that parts
 
 | counter | off | on | mean diff per pair | pairs changed | on more | on fewer | sign p |
@@ -66,7 +66,7 @@ ai-skills-v1-602 (identical)
 
 ## Viewer
 
-[Open both arms in the 3D map](https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=1064&pick=-end&view=brain3d) · [the same on this branch's viewer](https://test.ivandpopov.com/grasstex/preview/issue-602-ai-skills-shadow/ai_flow_live.html?bench=1064&pick=-end&view=brain3d) (it has the change before it reaches main)
+[Open both arms in the 3D map](https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=1093&pick=-end&view=brain3d) · [the same on this branch's viewer](https://test.ivandpopov.com/grasstex/preview/issue-602-ai-skills-pilot/ai_flow_live.html?bench=1093&pick=-end&view=brain3d) (it has the change before it reaches main)
 
-The viewer loads `off.json` and `on.json` from the `benchmark-results` branch (`?bench=1064`); it opens the full-length record (`pick=-end`), and the dropdowns choose another.
+The viewer loads `off.json` and `on.json` from the `benchmark-results` branch (`?bench=1093`); it opens the full-length record (`pick=-end`), and the dropdowns choose another.
 

@@ -1,18 +1,18 @@
 {
   "meta": {
     "mode": "single",
-    "run": "1064",
-    "runId": "39537107147",
+    "run": "1093",
+    "runId": "39590675970",
     "repo": "APPARANYX/grasstex",
-    "ref": "work/issue-602-ai-skills-shadow",
-    "sha": "6fd3795a4eb1da9ce05992413913c1452c3e6d7d",
-    "runUrl": "https://github.com/APPARANYX/grasstex/actions/runs/39537107147",
+    "ref": "work/issue-602-ai-skills-pilot",
+    "sha": "7eab49608a6c9e4aa27eea55f62693117cfc93d9",
+    "runUrl": "https://github.com/APPARANYX/grasstex/actions/runs/39590675970",
     "seed": "ai-skills-v1-602",
     "seeds": 1,
     "windows": "0+600",
     "battleType": "ge-defend",
     "queryOff": "strategicInterception=1&frontLines=1&motorTransport=1&truckAccess=1&truckCollision=1&truckVisual=1&aerialRecon=1&interception=1&reinforcements=1&reinforcementSortie=1&aiSkills=legacy",
-    "queryOn": "strategicInterception=1&frontLines=1&motorTransport=1&truckAccess=1&truckCollision=1&truckVisual=1&aerialRecon=1&interception=1&reinforcements=1&reinforcementSortie=1&aiSkills=shadow",
+    "queryOn": "strategicInterception=1&frontLines=1&motorTransport=1&truckAccess=1&truckCollision=1&truckVisual=1&aerialRecon=1&interception=1&reinforcements=1&reinforcementSortie=1&aiSkills=legacy",
     "build": "v29-dev"
   },
   "verdict": {
@@ -77,9 +77,9 @@
       "b": 0
     },
     "wallSeconds": {
-      "medianA": 22.804,
-      "medianB": 24.341,
-      "ratio": 1.067,
+      "medianA": 24.263,
+      "medianB": 24.414,
+      "ratio": 1.006,
       "gate": 1.25
     },
     "counters": {
@@ -465,8 +465,8 @@
     "pass": true
   },
   "viewer": {
-    "url": "https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=1064&pick=-end&view=brain3d",
-    "previewUrl": "https://test.ivandpopov.com/grasstex/preview/issue-602-ai-skills-shadow/ai_flow_live.html?bench=1064&pick=-end&view=brain3d",
+    "url": "https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=1093&pick=-end&view=brain3d",
+    "previewUrl": "https://test.ivandpopov.com/grasstex/preview/issue-602-ai-skills-pilot/ai_flow_live.html?bench=1093&pick=-end&view=brain3d",
     "seeds": [
       {
         "seed": "ai-skills-v1-602",
