@@ -128,9 +128,10 @@ assert.match(head || '', /^[a-f0-9]{40}$/);
         acc = 0;
       b.paused = false;
       b.timeScale = 1;
-      b.timeLimit = 600;
+      // Extended only on the 20 m experiment to follow a line first issued at t=598 s.
+      b.timeLimit = 720;
       const started = performance.now();
-      for (let step = 0; step < 4000 && !b.winner; step++) {
+      for (let step = 0; step < 4800 && !b.winner; step++) {
         b._trainerStepActive = true;
         try {
           b.step(0.15);
