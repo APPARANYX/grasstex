@@ -10,7 +10,7 @@ const H = require('./harness');
 const { loadModule, quietConsole } = require('./module-loader');
 const { loadSquadCommandStack } = require('./squad-command-stack');
 
-function world(withWall = true, allRifles = false) {
+function world(withWall = true, extraRifle = false) {
   H.resetIds();
   const r = H.bootstrap({
     modules: false,
@@ -59,7 +59,9 @@ function world(withWall = true, allRifles = false) {
     x: 0,
     z: -4,
     objective: { x: 0, z: 50 },
-    composition: ['rifleman', 'rifleman', 'rifleman', allRifles ? 'rifleman' : 'sergeant']
+    composition: extraRifle
+      ? ['rifleman', 'rifleman', 'rifleman', 'rifleman', 'sergeant']
+      : ['rifleman', 'rifleman', 'rifleman', 'sergeant']
   });
   const hostile = H.addSquad(r, b, {
     id: 'ge-0',
@@ -76,7 +78,8 @@ function world(withWall = true, allRifles = false) {
     { x: 0, z: -4 },
     { x: -4, z: -36 },
     { x: 0, z: -36 },
-    { x: 4, z: -36 }
+    { x: 4, z: -36 },
+    { x: 8, z: -36 }
   ];
   q.members.forEach((s, i) => {
     s.root.position.set(positions[i].x, 0, positions[i].z);
@@ -213,7 +216,7 @@ cq.members.slice(1).forEach(s => {
   s.orderDestination.z = -8;
 });
 cq.members[3]._fireteamKey = 'charlie';
-cq.members[3].role = 'sergeant';
+cq.members[4]._fireteamKey = 'charlie';
 const picture = { x: 0, z: 60, confidence: 0.9, source: 'told' };
 cr.SquadAI.soldierContact = () => ({ ...picture, at: cb.time });
 cr.SquadAI.squadContactsMap = () => [{ ...picture, at: cb.time }];
