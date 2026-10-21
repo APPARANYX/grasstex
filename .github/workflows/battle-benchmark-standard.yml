@@ -48,6 +48,10 @@ on:
         description: Simulated battle duration (60-10800 seconds, default 600). For complete battles set windows=0+<sim_seconds>.
         required: false
         default: '600'
+      baseline_ref:
+        description: Optional OFF runtime git ref on the same runner (single seed only). ON uses this workflow ref; both use the same benchmark code.
+        required: false
+        default: ''
       command_history:
         description: Archive complete command publications and per-step Macro mission transitions; fail on source gaps or budget overflow
         type: boolean
@@ -104,6 +108,7 @@ jobs:
       BATTLE_BENCHMARK_WINDOWS: ${{ github.event.inputs.windows || (github.event.inputs.sim_seconds && github.event.inputs.sim_seconds != '600' && format('0+{0}', github.event.inputs.sim_seconds)) || 'contact+60,every60' }}
       BATTLE_BENCHMARK_SEED: ${{ github.event.inputs.seed || 'scripted-scout-0003' }}
       BATTLE_TYPE: ${{ github.event.inputs.battle_type || 'meeting' }}
+      BASELINE_REF: ${{ github.event.inputs.baseline_ref || '' }}
       QUERY_OFF: ${{ github.event.inputs.query_off || '' }}
       QUERY_ON: ${{ github.event.inputs.query_on || '' }}
 
@@ -117,6 +122,24 @@ jobs:
             echo 'sim_seconds must be an integer between 60 and 10800' >&2
             exit 2
           fi
+
+      - name: Checkout optional OFF runtime
+        if: ${{ github.event.inputs.baseline_ref != '' }}
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.baseline_ref }}
+          path: .benchmark-baseline
+
+      - name: Record runtime and runner sources
+        run: |
+          mkdir -p reports
+          python3 - <<'PYCODE'
+          import json, os, subprocess
+          head = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
+          baseline = subprocess.check_output(['git', '-C', '.benchmark-baseline', 'rev-parse', 'HEAD'], text=True).strip() if os.environ['BASELINE_REF'] else head
+          with open('reports/source-refs.json', 'w') as f:
+              json.dump({'runner': head, 'off': baseline, 'on': head, 'baselineRef': os.environ['BASELINE_REF']}, f, indent=2)
+          PYCODE
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -143,6 +166,19 @@ jobs:
           cat /tmp/battle-php.log
           exit 1
 
+      - name: Start optional OFF runtime server
+        if: ${{ github.event.inputs.baseline_ref != '' }}
+        run: |
+          mkdir -p /tmp/battle-baseline-www
+          ln -s "$GITHUB_WORKSPACE/.benchmark-baseline" /tmp/battle-baseline-www/grasstex
+          PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8766 -t /tmp/battle-baseline-www >/tmp/battle-baseline-php.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS "http://127.0.0.1:8766/grasstex/battle_sim_local.php?seed=healthcheck" >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/battle-baseline-php.log
+          exit 1
+
       - name: Run both arms
         run: |
           set -euo pipefail
@@ -157,7 +193,14 @@ jobs:
             extra="${extra#[?&]}"
             query="$defender_query"
             if [ -n "$extra" ]; then if [ -n "$query" ]; then query="${query}&${extra}"; else query="$extra"; fi; fi
-            export BATTLE_BENCHMARK_URL="http://127.0.0.1:8765/grasstex/battle_sim_local.php${query:+?$query}"
+            port=8765
+            runtime_sha="$GITHUB_SHA"
+            if [ "$arm" = off ] && [ -n "$BASELINE_REF" ]; then
+              port=8766
+              runtime_sha="$(git -C .benchmark-baseline rev-parse HEAD)"
+            fi
+            export BATTLE_BENCHMARK_SOURCE_SHA="$runtime_sha"
+            export BATTLE_BENCHMARK_URL="http://127.0.0.1:${port}/grasstex/battle_sim_local.php${query:+?$query}"
             export BATTLE_BENCHMARK_OUTPUT="reports/$arm"
             echo "::group::arm ${arm} (${query:-no flags}), seed ${BATTLE_BENCHMARK_SEED}, windows ${BATTLE_BENCHMARK_WINDOWS}"
             node scripts/run_battle_benchmark.mjs
@@ -267,6 +310,11 @@ jobs:
       matrix: ${{ steps.plan.outputs.matrix }}
       windows: ${{ steps.plan.outputs.windows }}
     steps:
+      - name: Reject multi-seed baseline override
+        if: ${{ github.event.inputs.baseline_ref != '' }}
+        run: |
+          echo 'baseline_ref is supported for single-seed scripted comparisons only' >&2
+          exit 2
       - name: Checkout the planner
         uses: actions/checkout@v4
         with:

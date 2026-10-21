@@ -324,3 +324,9 @@ Use the existing GitHub standard benchmark at the final head for legacy/shadow
 parity and scoped legacy/pilot deltas in meeting/us-defend/ge-defend, seed
 `ai-skills-v1-602`, 600 simulated seconds, explicit full-ON 5 km settings above.
 Record no-eligibility runs as such, never as executed pilot evidence.
+
+Default-versus-main timing uses the standard benchmark's optional `baseline_ref`
+with the exact main SHA: OFF serves main, ON serves the C head, on one runner with
+the same head-owned benchmark code and capture setting. Source SHAs are preserved
+in `reports/source-refs.json` and arm summaries. Separate-runner comparisons can
+be retained as diagnostic evidence but do not resolve a failed timing gate.

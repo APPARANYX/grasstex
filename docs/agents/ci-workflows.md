@@ -84,3 +84,12 @@ Request examples (JSON file content):
 Other selectors: `targeted-fire` (seeds, seconds, side, role, ids, squads), `timescale` (seed, seconds), `matrix-smoke` (no inputs), and `matrix-full` (seed, battles_per_worker, worker_minutes_cutoff). **Full matrix** always runs on main and requires `"confirm_full_matrix": true` to avoid accidental 300-battle workloads. Every request may specify `"ref": "main"` (default) or an approved feature branch, except full matrix. Standard also accepts `query_off`, `query_on`, `windows`, `purpose`; causal accepts `query`, `seeds`, `role`. An exact causal seed executes once **per each of three scenarios**; review meeting/us-defend/ge-defend separately.
 
 After launching, inspect the **launcher** Actions run for successful dispatch, then locate the **child workflow** named in the request and verify its source ref, inputs, conclusion and artifact evidence. Launcher success does not mean benchmark success. For another request, use a fresh unique launch branch (do not rewrite/merge the previous branch). The manual Actions `workflow_dispatch` buttons remain usable. This permanent mechanism supersedes the temporary per-topic workflow workaround described earlier in this document.
+
+For single-seed standard comparisons, optional `baseline_ref` checks out the OFF
+runtime separately and serves it on a second port on the **same runner** as ON.
+Both arms use the selected workflow head's benchmark code, capture settings and
+browser version; ON serves that head. `reports/source-refs.json` records runner,
+OFF and ON SHAs, and each arm's summary identifies its actual runtime SHA.
+This supports controlled cross-commit timing without comparing separate runners.
+The Agent Benchmark Launcher forwards `baseline_ref`; multi-seed runs reject it
+until shard-level baseline checkout is supported. Omit it for ordinary flag pairs.
