@@ -4,7 +4,7 @@
     "a": 0,
     "b": 0
   },
-  "identicalBattles": 1,
+  "identicalBattles": 0,
   "winners": {
     "a": {
       "us": 0,
@@ -55,9 +55,9 @@
     "b": 0
   },
   "wallSeconds": {
-    "medianA": 30.515,
-    "medianB": 30.034,
-    "ratio": 0.984,
+    "medianA": 28.034,
+    "medianB": 29.361,
+    "ratio": 1.047,
     "gate": 1.25
   },
   "counters": {
@@ -117,11 +117,11 @@
     },
     "movementResolver.changes": {
       "a": 854,
-      "b": 854,
-      "meanDiff": 0,
-      "battlesChanged": 0,
+      "b": 846,
+      "meanDiff": -8,
+      "battlesChanged": 1,
       "more": 0,
-      "fewer": 0,
+      "fewer": 1,
       "signP": 1
     },
     "grenades.throws": {
@@ -439,6 +439,14 @@
       "fewer": 0,
       "signP": 1
     }
+  },
+  "firstDivergence": {
+    "battles": 1,
+    "min": 558,
+    "p10": 558,
+    "median": 558,
+    "p90": 558,
+    "max": 558
   },
   "pass": true
 }

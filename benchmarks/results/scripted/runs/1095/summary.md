@@ -1,17 +1,18 @@
-# Benchmark run #1068 · scripted scenario `ai-skills-v1-602` (meeting), windows `0+600`
+# Benchmark run #1095 · scripted scenario `ai-skills-v1-602` (meeting), windows `0+600`
 
-- **OFF** flags: `strategicInterception=1&frontLines=1&motorTransport=1&truckAccess=1&truckCollision=1&truckVisual=1&aerialRecon=1&interception=1&reinforcements=1&reinforcementSortie=1&aiSkills=legacy` · **ON** flags: `strategicInterception=1&frontLines=1&motorTransport=1&truckAccess=1&truckCollision=1&truckVisual=1&aerialRecon=1&interception=1&reinforcements=1&reinforcementSortie=1&aiSkills=legacy`
-- main @ eba6c71 · [run](https://github.com/APPARANYX/grasstex/actions/runs/39577918119) · build v29-dev
+- **OFF** flags: `strategicInterception=1&frontLines=1&motorTransport=1&truckAccess=1&truckCollision=1&truckVisual=1&aerialRecon=1&interception=1&reinforcements=1&reinforcementSortie=1&aiSkills=legacy` · **ON** flags: `strategicInterception=1&frontLines=1&motorTransport=1&truckAccess=1&truckCollision=1&truckVisual=1&aerialRecon=1&interception=1&reinforcements=1&reinforcementSortie=1&aiSkills=pilot`
+- work/issue-602-ai-skills-pilot @ 7eab496 · [run](https://github.com/APPARANYX/grasstex/actions/runs/39590752988) · build v29-dev
 
 ## Verdict
 
-**INERT: all 1 pairs identical in every field**
+**one battle per arm, 1 of 1 records changed, first part at 558 s, casualties 16 to 16: sizes, not findings**
 
+- The pairs are checkpoints of one battle, so the sign tests in the table are not independent: read the sizes and where the arms part, not the p values.
 
 ## Paired comparison (off against on)
 
-- **1** pairs (unpaired: off 0, on 0) · identical in every field: **1** · runtime errors off 0 / on 0 · wall time on/off x0.984 (gate 1.25)
-- no record has a timeline or stress series that parts
+- **1** pairs (unpaired: off 0, on 0) · identical in every field: **0** · runtime errors off 0 / on 0 · wall time on/off x1.047 (gate 1.25)
+- the 1 changed records first part at simulated second: min 558, p10 558, median 558, p90 558, max 558
 
 | counter | off | on | mean diff per pair | pairs changed | on more | on fewer | sign p |
 |---|---:|---:|---:|---:|---:|---:|---:|
@@ -21,7 +22,7 @@
 | `fire.total` | 82 | 82 | 0 | 0 | 0 | 0 | 1 |
 | `fire.hits` | 34 | 34 | 0 | 0 | 0 | 0 | 1 |
 | `retreatSamples` | 431 | 431 | 0 | 0 | 0 | 0 | 1 |
-| `movementResolver.changes` | 854 | 854 | 0 | 0 | 0 | 0 | 1 |
+| `movementResolver.changes` | 854 | 846 | -8 | 1 | 0 | 1 | 1 |
 | `grenades.throws` | 0 | 0 | 0 | 0 | 0 | 0 | 1 |
 | `grenades.bursts` | 0 | 0 | 0 | 0 | 0 | 0 | 1 |
 | `grenades.wounded` | 0 | 0 | 0 | 0 | 0 | 0 | 1 |
@@ -62,11 +63,11 @@ With this many counters a p of 0.05 is expected by chance in about one of twenty
 
 ## Where the arms part (simulated seconds)
 
-ai-skills-v1-602 (identical)
+ai-skills-v1-602 558 s (timeline)
 
 ## Viewer
 
-[Open both arms in the 3D map](https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=1068&pick=-end&view=brain3d)
+[Open both arms in the 3D map](https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=1095&pick=-end&view=brain3d) · [the same on this branch's viewer](https://test.ivandpopov.com/grasstex/preview/issue-602-ai-skills-pilot/ai_flow_live.html?bench=1095&pick=-end&view=brain3d) (it has the change before it reaches main)
 
-The viewer loads `off.json` and `on.json` from the `benchmark-results` branch (`?bench=1068`); it opens the full-length record (`pick=-end`), and the dropdowns choose another.
+The viewer loads `off.json` and `on.json` from the `benchmark-results` branch (`?bench=1095`); it opens the full-length record (`pick=-end`), and the dropdowns choose another.
 
