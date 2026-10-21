@@ -143,7 +143,7 @@ factory is registered. C's narrow posture adapter is described below; movement a
 One validated profile controls mode `legacy|shadow|pilot` and per-skill enablement
 and typed parameters. Default is legacy. One `aiSkills` query may
 select legacy/shadow/pilot; no per-skill query parsers. Pilot requires an explicit
-one-actor scope; the central URL declaration scopes it to US soldier 20. Explicit disable overrides a
+one-actor scope; the central URL declaration scopes it to US soldier 31. Explicit disable overrides a
 registered skill. Invalid/unknown config fails closed with a diagnostic. Changing
 profile clears shadow receipts; C must cancel/release/reconcile before falling back.
 Rollback B by selecting legacy; it prepares no facts/evaluations/plans and issues
@@ -257,7 +257,7 @@ Configure a different single actor through the existing profile API:
 
 ```js
 BattleAISkills.configure({
-  mode: 'pilot', observer: true, pilot: { faction: 'us', entity: '20' },
+  mode: 'pilot', observer: true, pilot: { faction: 'us', entity: '31' },
   skills: { 'soldier.crouch-on-warning': { enabled: true } }
 });
 ```
@@ -316,7 +316,7 @@ until restart; observer-off hides all recorded rows.
 
 The hosted browser probe additionally selects a naturally eligible US actor,
 records a completed scoped Engagement request and three more same-page restarts.
-That dynamic test scope is recorded explicitly; it does not claim that fixed US20
+That dynamic test scope is recorded explicitly; it does not claim that fixed US31
 acts in every scenario. Standard benchmark artifacts store pilot profile and
 source-owned execution diagnostics separately from battle records (`skillExecution`),
 so exact gameplay comparison remains independent of decision observations.

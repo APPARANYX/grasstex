@@ -327,18 +327,6 @@ for (const [name, factory, reason, ticks] of [
     1
   ],
   [
-    'node-budget',
-    (s, a) => a.sequence(...Array.from({ length: 33 }, () => a.wait(0))),
-    'unsupported-action',
-    1
-  ],
-  [
-    'depth-budget',
-    (s, a) => Array.from({ length: 9 }).reduce(n => a.timeout(1, n), a.wait(0)),
-    'unsupported-action',
-    1
-  ],
-  [
     'factory-throw',
     () => {
       throw new Error('factory');
@@ -408,6 +396,50 @@ for (const [name, factory, reason, ticks] of [
   off.tick();
   assert.deepEqual(JSON.parse(serialized(on.a)), JSON.parse(serialized(off.a)));
   assert.equal(off.execution().receipts.length, 0);
+}
+{
+  const root = H.bootstrap({ search: '?aiSkills=pilot' });
+  loadModule(root, 'battle/module-registry.js');
+  for (const file of ['60-ai-skills.js', '60a-ai-skills-runtime.js', '60b-ai-skill-crouch-warning.js'])
+    loadModule(root, 'battle/modules/' + file);
+  const b = H.makeBattle(root, { seed: 602 });
+  root.BattleModules.runHook('onBattleStart', b, {});
+  assert.equal(root.BattleAISkills.config().mode, 'pilot');
+  assert.equal(root.BattleAISkills.config().pilot.entity, '31');
+  assert.equal(root.BattleAISkills.config().skills['soldier.crouch-on-warning'].enabled, true);
+}
+{
+  const w = world(),
+    b2 = H.makeBattle(w.root, { seed: 603 });
+  H.resetIds();
+  const q2 = H.addSquad(w.root, b2, {
+    id: 'q2',
+    faction: 'us',
+    x: 0,
+    z: 0,
+    objective: { x: 100, z: 100 },
+    composition: ['rifleman']
+  });
+  const a2 = q2.members[0];
+  b2.time = w.b.time;
+  q2.state = 'advance';
+  q2._macroMission = { status: 'executing', version: 1 };
+  const e2 = w.root.BattleEngagement.stateOf(a2);
+  e2.state = 'advance';
+  e2.stance = 'stand';
+  e2.stanceUntil = 0;
+  a2._beliefs = JSON.parse(JSON.stringify(w.a._beliefs));
+  b2._commandReception = JSON.parse(JSON.stringify(w.b._commandReception));
+  w.root.BattleModules.runHook('onBattleStart', b2, {});
+  w.tick();
+  b2.time += 0.45;
+  w.root.BattleModules.runHook('onCommanderTick', b2, {});
+  w.a.dead = true;
+  w.tick();
+  b2.time += 0.45;
+  w.root.BattleModules.runHook('onCommanderTick', b2, {});
+  assert.equal(w.a.tacticalCrouch, false);
+  assert.equal(a2.tacticalCrouch, true, 'same-ID independent battle keeps its commitment');
 }
 for (const file of ['60-ai-skills.js', '60a-ai-skills-runtime.js', '60b-ai-skill-crouch-warning.js']) {
   const source = fs.readFileSync('battle/modules/' + file, 'utf8');

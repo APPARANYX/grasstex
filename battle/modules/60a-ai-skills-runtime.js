@@ -139,6 +139,7 @@
       if (!plan.observer) return;
       rows.push(
         immutable({
+          scope: 'soldier',
           entity: plan.entity,
           faction: plan.faction,
           generation: plan.generation,

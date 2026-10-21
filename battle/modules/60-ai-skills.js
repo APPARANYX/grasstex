@@ -504,7 +504,7 @@
   if (query && query.has('aiSkills')) initial.mode = query.get('aiSkills');
   // One central opt-in declaration. Scope is fixed for URL pilot runs; configure may name another actor.
   if (initial.mode === 'pilot' && !root.BATTLE_AI_SKILLS) {
-    initial.pilot = { faction: 'us', entity: '20' };
+    initial.pilot = { faction: 'us', entity: '31' };
     initial.skills = { 'soldier.crouch-on-warning': { enabled: true } };
   }
   configure(initial);
