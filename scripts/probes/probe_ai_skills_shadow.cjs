@@ -24,9 +24,11 @@ const output = 'reports/ai-skills-shadow';
     wav.writeUInt16LE(2, 32); wav.writeUInt16LE(16, 34); wav.write('data', 36); wav.writeUInt32LE(2, 40);
     await page.route(/\/Assets\/audio\/.*\.mp3(?:\?.*)?$/, route =>
       route.fulfill({ status: 200, contentType: 'audio/wav', body: wav }));
-    const launcher = 'https://test.ivandpopov.com/grasstex/preview.php?ref=' + head;
+    const launcher = 'https://test.ivandpopov.com/grasstex/preview.php?ref=' +
+      encodeURIComponent(process.env.AI_SKILLS_REF || 'work/issue-602-ai-skills-shadow');
     await page.goto(launcher, { waitUntil: 'domcontentloaded', timeout: 180000 });
-    await page.waitForURL(/\/preview\/ref-[a-f0-9]+\/battle_sim\.php/, { timeout: 180000 });
+    if (!/\/preview\/ref-[a-f0-9]+\/battle_sim\.php/.test(page.url()))
+      throw new Error('Preview did not stage: ' + await page.locator('main').innerText());
     // The launcher's deployed forwarding list may predate this PR; use the immutable staged page.
     const url = new URL(page.url());
     for (const [name, value] of new URLSearchParams(

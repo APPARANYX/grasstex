@@ -24,6 +24,7 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Immutable preview lifecycle and read neutrality
         env:
+          AI_SKILLS_REF: ${{ github.event.pull_request.head.ref || github.ref_name }}
           AI_SKILLS_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: node scripts/probes/probe_ai_skills_shadow.cjs
       - name: Preserve browser evidence
