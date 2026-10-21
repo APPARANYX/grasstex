@@ -33,7 +33,7 @@
         : 16,
       tuning = {
         minimumHold: 4,
-        preparationBudget: 12,
+        preparationBudget: labArgs && +labArgs.get('labPrepBudget') === 24 ? 24 : 12,
         observationBudget: 12,
         pressureEnter: 0.25,
         pressureExit: 0.1,
