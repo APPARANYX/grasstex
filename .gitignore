@@ -27,6 +27,9 @@ Assets/weapons/*.zip
 
 # Lab save password hash (placed by hand on the server; see labs/save-calibration.php)
 state/lab-key.php
+
+# Write key hash for battle_policy.php and battle_learning.php POSTs (placed by hand on the server; see the header of require_write_key)
+state/write-key.php
 closeups/
 decal-sheets.png
 
