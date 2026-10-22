@@ -502,20 +502,19 @@
         var men = D.aliveMembers(sq),
           living = men.length;
         if (!living || living > RECON_POOL_MAX) return;
-        var reason =
-          sq._reconGroup
-            ? 'already-grouped'
-            : sq.state !== 'retreat'
-              ? 'not-retreating'
-              : FLED_WAIT_EXCLUDED_ON && waitingFled(sq)
-                ? 'fled-waiting-at-refuge'
-                : sq.inContact
-                  ? 'in-contact'
-                  : !sq._assembly
-                    ? 'no-assembly'
-                    : sq._assembly.phase !== 'at-base'
-                      ? 'extracting-to-home'
-                      : null;
+        var reason = sq._reconGroup
+          ? 'already-grouped'
+          : sq.state !== 'retreat'
+            ? 'not-retreating'
+            : FLED_WAIT_EXCLUDED_ON && waitingFled(sq)
+              ? 'fled-waiting-at-refuge'
+              : sq.inContact
+                ? 'in-contact'
+                : !sq._assembly
+                  ? 'no-assembly'
+                  : sq._assembly.phase !== 'at-base'
+                    ? 'extracting-to-home'
+                    : null;
         if (!reason) return;
         var p = D.avgPos(sq),
           man = men[0],
