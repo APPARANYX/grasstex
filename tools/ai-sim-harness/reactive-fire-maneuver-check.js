@@ -710,6 +710,67 @@ console.log('PASS the firing slot is judged on cover at the stance that sees, no
     'a lost line fails the arrival: ' + JSON.stringify(w.events.receipts)
   );
 }
+{
+  // A report that goes stale during the move is named as such, not as a blocked line.
+  const w = positionWorld({ slot: 'none' });
+  let gone = false;
+  for (let i = 0; i < 220 && !w.events.receipts.length; i++) {
+    w.tick();
+    const lease = w.fr.BattleLeases.get(w.fq, 'bound'),
+      q = lease && lease.data && lease.data.point;
+    // The report lapses just as he gets there, so the arrival is what finds it gone.
+    if (
+      !gone &&
+      q &&
+      w.fr.BattleEngagement.firingPositionActive(w.lone) &&
+      Math.hypot(w.lone.root.position.x - q.x, w.lone.root.position.z - q.z) < 0.6
+    ) {
+      const C = w.fr.BattleCoverPositions,
+        was = C.boundThreats;
+      C.boundThreats = (m, b2) =>
+        m === w.lone && w.fr.BattleEngagement.firingPositionActive(m) ? [] : was(m, b2);
+      gone = true;
+    }
+  }
+  const r = w.events.receipts[0];
+  assert.ok(gone && r && r.type === 'firing-position-failed', 'a stale report fails the arrival');
+  assert.match(String(r.reason), /report stale/, 'and says so: ' + (r && r.reason));
+}
+{
+  // A man who hesitates before going keeps his lease, and its execution deadline restarts when he
+  // accepts the order, so the wait does not eat his move.
+  const run = search => {
+    const w = positionWorld({ slot: 'none', search });
+    // Only the hesitation matters here; every other mind query reads as neutral.
+    w.fr.BattleSoldierMind = new Proxy(
+      { hesitation: () => 2 },
+      { get: (t, k) => (k in t ? t[k] : /Scale$/.test(String(k)) ? () => 1 : () => 0) }
+    );
+    let issued = 0,
+      adopted = null;
+    for (let i = 0; i < 400 && !w.events.receipts.length; i++) {
+      w.tick();
+      const lease = w.fr.BattleLeases.get(w.fq, 'bound');
+      if (lease && lease.data && lease.data.firingPosition) {
+        issued = issued || lease.until;
+        if (!adopted && w.fr.BattleEngagement.firingPositionActive(w.lone))
+          adopted = { at: w.fb.time, until: lease.until };
+      }
+    }
+    return { receipt: w.events.receipts[0], issued, adopted };
+  };
+  const on = run('');
+  assert.ok(
+    on.receipt && on.receipt.type === 'firing-position-arrived',
+    'the hesitating man arrives: ' + JSON.stringify(on.receipt)
+  );
+  assert.ok(on.adopted && on.adopted.until >= on.issued, 'adoption never shortens the lease');
+  const old = run('&leaseClock=0');
+  assert.ok(
+    old.adopted && old.adopted.until <= old.issued + 1e-9,
+    '?leaseClock=0 leaves the lease as issued'
+  );
+}
 console.log(
   'PASS verify contact: a prone firing point when no cover slot is in reach, line re-measured at arrival, a report is not support'
 );

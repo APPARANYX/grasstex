@@ -53,7 +53,13 @@ man has a slot, the nearest of a fixed ring of points within the same 12 m reach
 ballistic line inside weapon range, a legal straight route and the same exposure
 limit becomes a point-only lease (`slotId` null, `verify` true). It exists
 because 97% of measured stuck men sat in open ground with no cover slot in reach,
-most holding a reported, not seen, enemy. The report only says where to look:
+most holding a reported, not seen, enemy. The firing-position lease clock
+(`?leaseClock=0` restores the old one) times the move at the man's bounding pace,
+not the gait he stands in, allows up to 2 s of hesitation before he accepts, and
+restarts the execution deadline when Engagement adopts the order. The Squad
+Leader also reads a late receipt on an expired but not yet pruned lease, and a
+failed arrival says whether the report went stale or the line was blocked.
+The report only says where to look:
 the line is re-measured where he actually stops (a lost line is a failed receipt)
 and nothing counts as supporting fire until Perception sees the enemy and he
 fires. The observer counts `firingVerifyAssigned/Arrived/Seen/Unseen/Shots`. The step ends on the executor's receipt, not on a timer: Engagement

@@ -169,16 +169,19 @@
           activePosition &&
           activePosition.data &&
           activePosition.data.firingPosition &&
-          L.holds(sq, 'bound', t)
+          (L.holds(sq, 'bound', t) || reactive.leaseClock)
         ) {
           /* Arrival, a failed move or a casualty ends the step now, not when the window runs out.
              An arrival also ends the pause after it so the next gate is judged this tick; a
              failure keeps the pause, so a refused slot is not retried at once. */
           var receipt = reactive.firingPositionReceipt(battle, sq, activePosition);
-          if (!receipt) {
+          /* An expired lease still reads a receipt that came in late; with none it lapses as before. */
+          if (!receipt && L.holds(sq, 'bound', t)) {
             sq._assaultAuthorized = false;
             return;
           }
+        }
+        if (receipt) {
           L.end(sq, 'bound', t, 'firing position ' + receipt.outcome);
           E.clearBoundOrders(sq);
           var pause = L.get(sq, 'bound-cycle');

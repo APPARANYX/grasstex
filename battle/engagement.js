@@ -1501,8 +1501,8 @@
 
   /* How long a bound order gives its mover: distance at a bounding pace, plus slack. A lease that
      commands the move must outlast this, or the mover's receipt arrives after it has expired. */
-  function boundWindow(s, distance) {
-    return Math.max(3, distance / Math.max(0.6, s.speed * 0.6) + 2);
+  function boundWindow(s, distance, pace) {
+    return Math.max(3, distance / Math.max(0.6, (pace || s.speed) * 0.6) + 2);
   }
   function bound(s, battle) {
     var e = state(s),
@@ -1542,8 +1542,10 @@
          to use it. A lost line is a failed arrival, which keeps the Squad Leader's pause. */
       if (cover.verify && firingPositionActive(s)) {
         var vt = (root.BattleCoverPositions.boundThreats(s, battle) || [])[0];
+        // The report going stale is not the line being blocked: say which one ended the move.
         if (!vt || !firingLineClear(s, { root: { position: vt } }, p, 'prone', battle))
-          if (finishContactCover(s, battle, 'contact cover no line')) return;
+          if (finishContactCover(s, battle, vt ? 'contact cover no line' : 'contact cover report stale'))
+            return;
         commitStance(s, battle, 'prone', LOW_GAP_HOLD, 'verify contact: prone');
       }
       if (finishContactCover(s, battle, 'contact cover reached')) return;

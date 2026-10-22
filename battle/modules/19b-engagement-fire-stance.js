@@ -692,13 +692,27 @@
       }
       if (cover) {
         e.cover = cover;
+        var RFM = root.BattleReactiveFireManeuver,
+          pace = positioning && RFM && RFM.leaseClock ? RFM.movePace(s) : 0;
         transition(
           s,
           battle,
           'bound',
-          root.BattleEngagement.boundWindow(s, cover.distance),
+          root.BattleEngagement.boundWindow(s, cover.distance, pace),
           positioning ? 'assigned firing position: cover' : 'authorized fireteam bound: cover'
         );
+        /* The order was accepted now: its execution time starts here, not when it was issued, so a
+           hesitation does not eat the move. Only ever pushes the lease out. */
+        if (pace)
+          root.BattleLeases.extend(
+            sq,
+            'bound',
+            lease.owner,
+            lease.since,
+            battle.time + root.BattleEngagement.boundWindow(s, cover.distance, pace) + 1,
+            lease.reason,
+            lease.release
+          );
         bound(s, battle);
         return true;
       }

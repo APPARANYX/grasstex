@@ -25,6 +25,9 @@
      enemy has no cover slot to move to (measured: 97% have none within the 12 m bound reach). He is
      offered a short move to a nearby prone firing point instead, so Perception can acquire the enemy
      the report only describes. `?verifyContact=0` restores the slot-only step. */
+  /* ?leaseClock=0 restores the old firing-position clock: window sized at the man's current gait and
+     counted from issue, receipts read only while the lease is live. */
+  var LEASE_CLOCK = !/[?&]leaseClock=(?:0|off|false)(?:&|#|$)/i.test(query);
   var VERIFY_CONTACT = !/[?&]verifyContact=(?:0|off|false)(?:&|#|$)/i.test(query);
   var VERIFY_STEP = 2,
     VERIFY_BEARINGS = [8, 8, 8, 16, 16, 16];
@@ -165,6 +168,18 @@
   }
   /* Read-only local firing-line setup, not an objective advance. Meso commits
      one non-shooter at a time; native Engagement reselects/reserves this slot. */
+  /* Seconds the lease must outlast before the man starts: the longest wait stress makes him take
+     (module 17 caps hesitation at 2 s). The execution deadline restarts at adoption (Engagement),
+     so this is only the acceptance part. */
+  var ACCEPT_SLACK = 2;
+  function acceptSlack() {
+    return LEASE_CLOCK ? ACCEPT_SLACK : 0;
+  }
+  /* A short move is timed at the pace he will bound at, not at the gait he happens to stand in:
+     a prone, stationary man's current speed is the slowest he has. */
+  function movePace(s) {
+    return LEASE_CLOCK ? s.runSpeed || 0 : 0;
+  }
   function firingPositionPlan(battle, sq, report) {
     var task = sq && sq._localTask,
       C = root.BattleCoverPositions,
@@ -244,7 +259,7 @@
             z: p.z,
             slotId: p.slotId,
             distance: p.distance,
-            window: E.boundWindow(s, p.distance) + RECEIPT_SLACK
+            window: E.boundWindow(s, p.distance, movePace(s)) + RECEIPT_SLACK + acceptSlack()
           };
         }
       }
@@ -261,7 +276,10 @@
             slotId: null,
             verify: true,
             distance: found.distance,
-            window: E.boundWindow(stuck[m].man, found.distance) + RECEIPT_SLACK
+            window:
+              E.boundWindow(stuck[m].man, found.distance, movePace(stuck[m].man)) +
+              RECEIPT_SLACK +
+              acceptSlack()
           };
         }
       }
@@ -449,6 +467,8 @@
     defensiveReadiness: defensiveReadiness,
     firingPositionPlan: firingPositionPlan,
     verifyContact: VERIFY_CONTACT,
+    leaseClock: LEASE_CLOCK,
+    movePace: movePace,
     firingPositionReceipt: firingPositionReceipt,
     squadStage: squadStage,
     firingTaskReason: firingTaskReason,
