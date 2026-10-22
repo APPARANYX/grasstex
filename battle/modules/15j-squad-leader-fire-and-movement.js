@@ -56,7 +56,7 @@
       var fc = sq.fireControl,
         A = root.SquadAI,
         c = GAP_HOLD && fc && fc.state === 'open' && A && A.squadContact ? A.squadContact(sq, battle) : null;
-      return !!(c && !c.heard);
+      return !!(c && !c.heard && (A.hasFirstHandMemory ? A.hasFirstHandMemory(c, battle) : !c.relayedFrom));
     }
     function teamStress(men) {
       var M = root.BattleSoldierMind;
