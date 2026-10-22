@@ -12,13 +12,13 @@ const expected = fs
   .filter(name => /^15[a-o]-squad-leader-.*\.js$/.test(name))
   .sort()
   .map(name => 'battle/modules/' + name)
-  .concat('battle/modules/16-squad-plan-stability.js');
+  .concat('battle/modules/15p-reactive-fire-maneuver.js', 'battle/modules/16-squad-plan-stability.js');
 assert.deepEqual(files, expected, 'shared stack must load every shipping Squad Leader module in name order');
-assert.equal(files.length, 16);
+assert.equal(files.length, 17);
 const received = [];
 loadSquadCommandStack((_, file) => received.push(file), {});
 assert.deepEqual(received, files, 'loader preserves exactly the source ordering');
 const live = H.bootstrap();
 assert.ok(live.BattleSquadStability, 'bootstrap still loads shipping squad-command owner');
 assert.ok(live.BattleLeases, 'lease authority survives the extracted module list');
-console.log('PASS shared 16-module Squad Leader fixture loader and shipping harness bootstrap');
+console.log('PASS shared 17-module Squad Leader fixture loader and shipping harness bootstrap');

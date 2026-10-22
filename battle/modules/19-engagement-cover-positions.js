@@ -44,6 +44,7 @@
       maxDistance: 12,
       sampleSpacing: 0.75,
       maxExposure: 1.5,
+      reactiveMaxExposure: 8,
       contactAge: 10,
       confidence: 0.5,
       maxThreats: 3
@@ -117,6 +118,14 @@
       var steps = Math.ceil(d / boundTuning.sampleSpacing),
         step = d / steps,
         exposed = 0,
+        /* 'firing' is the reactive policy for a firing-position slot: the same bounded exposure,
+           but the destination need not be concealed, because a man who must see the reported
+           position cannot be hidden from it. Its cover is judged by the caller at the firing stance. */
+        reactive =
+          (stance === 'reactive' || stance === 'firing') &&
+          root.BattleReactiveFireManeuver &&
+          root.BattleReactiveFireManeuver.on,
+        maxExposure = reactive ? boundTuning.reactiveMaxExposure : boundTuning.maxExposure,
         boundEye = SA().eyeHeight(stance === 'stand' ? {} : { crouching: true }),
         threatEye = SA().eyeHeight({}); // Standing height from Perception, never a hidden unit's stance.
       for (var i = 0; i <= steps; i++) {
@@ -156,14 +165,14 @@
             break;
           }
         }
-        if (!concealed && (i === 0 || i === steps)) {
+        if (!concealed && ((!reactive && i === 0) || (i === steps && stance !== 'firing'))) {
           result.reason = 'exposed-endpoint';
           return result;
         }
         // Include the closing interval: sampled gaps must not understate exposure length.
         exposed = !concealed || exposed > 0 ? exposed + step : 0;
         result.maxExposure = Math.max(result.maxExposure, exposed);
-        if (exposed > boundTuning.maxExposure) {
+        if (exposed > maxExposure) {
           result.reason = 'exposed-route';
           return result;
         }
@@ -322,6 +331,27 @@
         return null;
       }
       return e || null;
+    }
+    // Read occupied native cover without creating, pruning or refreshing claims.
+    // Readiness/benchmark observers must not alter cover allocation.
+    function occupiedCover(s, battle) {
+      var c = coverClaims.get(battle),
+        obs = battle.obstacles || [],
+        N = root.BattleNavigation,
+        version = (obs.__physicalVersion || 0) + '|' + obs.length + '|' + ((N && N.version) || 0),
+        p = s && s.root && s.root.position,
+        e = c && c.bySoldier.get(s);
+      return !!(
+        c &&
+        c.source === obs &&
+        c.version === version &&
+        c.roster === battle._roster &&
+        battle.time >= c.lastTime &&
+        p &&
+        e &&
+        coverLive(e, battle) &&
+        dist(p.x, p.z, e.slot.x, e.slot.z) <= 0.45
+      );
     }
     function releaseCover(s, battle, kind) {
       var c = coverRegistry(battle),
@@ -686,7 +716,16 @@
       for (var i = 0; i < candidates.length; i++) {
         var pt = candidates[i],
           moveD = pt.distance;
-        if (root.BattleAssaultForwardGuard && !root.BattleAssaultForwardGuard.allowCover(s, battle, pt)) {
+        if (opts.slotId && pt.slotId !== opts.slotId) continue;
+        if (opts.firingPosition && !root.BattleReactiveFireManeuver.firingSlotAt(s, battle, pt).ok) {
+          rejected('firing-slot');
+          continue;
+        }
+        if (
+          !opts.firingPosition &&
+          root.BattleAssaultForwardGuard &&
+          !root.BattleAssaultForwardGuard.allowCover(s, battle, pt)
+        ) {
           rejected('forward-guard');
           continue;
         }
@@ -695,7 +734,7 @@
           continue;
         }
         if (opts.coveredRoute) {
-          var assessment = boundRoute(s, battle, pt, opts.coveredRoute.threats);
+          var assessment = boundRoute(s, battle, pt, opts.coveredRoute.threats, opts.coveredRoute.policy);
           opts.coveredRoute.candidates++;
           opts.coveredRoute.samples += assessment.samples;
           opts.coveredRoute.reason = assessment.reason;
@@ -770,6 +809,7 @@
       coverRegistry: coverRegistry,
       buildCoverSlots: buildCoverSlots,
       currentCover: currentCover,
+      occupiedCover: occupiedCover,
       releaseCover: releaseCover,
       reserveCover: reserveCover,
       coverCandidates: coverCandidates,

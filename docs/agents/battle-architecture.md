@@ -10,6 +10,75 @@ file needs an entry there, which a reviewer sees; a fix that removes a writer mu
 `General (Macro) → Squad Leader (Meso) → Engagement → Movement Resolver → Movement Execution → Navigation`.
 Intent flows down and status flows up. No layer rewrites another's state.
 
+**Contact reaction:** Engagement first seeks usable physical cover on a newly
+acquired personal target or a fresh credible delivered report. Native `bound`
+movement executes before HOLD/PRECISION preparation; arrival transitions to
+`orient`, then normal aiming/fire control. A soldier already in useful cover
+retains it. On first live contact without a valid nearby slot, every role goes
+prone before orientation and prefers prone fire from open ground. Remembered
+warnings retain native low transit; the initial prone lease is not renewed on
+every alert tick. Native
+stance/LOS checks may raise him enough to fire; posture alone never counts as
+support. Genuine prone shooters contribute to the existing base-of-fire report
+and native team-bound coordination.
+Retreat, shock, stress reactions, committed grenades and tactical stations retain
+priority. This uses the native cover reservations and resolver; it does not
+require a squad supporting-fire lease. `contactCoverFirst=0` is the paired legacy
+control. No fire/support capability is reported during contact-cover ingress.
+
+
+The experimental `reactiveFireManeuver=1&localPlan=1&coveredBounds=1` path uses
+`15p-reactive-fire-maneuver.js` only as a read-only policy. Local planning selects
+the task. Before native Meso leases a fireteam, every living combat-capable
+member must finish individual cover ingress and settle at useful/occupied native
+cover or stationary prone. Two shooters alone do not acknowledge the whole
+squad. Individual cover seeking and defensive fire continue while this gate
+waits. After two real supporters establish fire, fresh personally reported
+contacts also stop report-only members in cover or prone rather than continuing
+a warning-only march; this creates no direct target. Once the squad is settled
+with two real supporters, the Squad Leader may lease a one-man `firingPosition`
+bound to a settled member who lacks a firing line (range, sight and ballistic
+clearance from his own position): a covered slot within bound distance that has
+a line, gives at least `firingCover` (default 25%) cover at the lowest stance that
+has that line, and passes the reactive route policy's bounded-exposure rule. The
+destination need not be concealed from the reported position: a man who must see
+it cannot be hidden from it, and the stance that sees over low cover gives less
+than the one that does not. Engagement reserves that exact slot
+and moves him; supporters and men with a usable line stay put, no objective
+bound is authorized while the lease holds, and `decision-firing-position` is
+recorded. With no safe slot nothing is assigned and the ordinary reactive path
+continues, except for verify contact (`?verifyContact=0` turns it off): when no
+man has a slot, the nearest of a fixed ring of points within the same 12 m reach
+(the bearing toward the report first, then 2 m steps) that has a prone sight and
+ballistic line inside weapon range, a legal straight route and the same exposure
+limit becomes a point-only lease (`slotId` null, `verify` true). It exists
+because 97% of measured stuck men sat in open ground with no cover slot in reach,
+most holding a reported, not seen, enemy. The firing-position lease clock
+(`?leaseClock=0` restores the old one) times the move at the man's bounding pace,
+not the gait he stands in, allows up to 2 s of hesitation before he accepts, and
+restarts the execution deadline when Engagement adopts the order. The Squad
+Leader also reads a late receipt on an expired but not yet pruned lease, and a
+failed arrival says whether the report went stale or the line was blocked.
+The report only says where to look:
+the line is re-measured where he actually stops (a lost line is a failed receipt)
+and nothing counts as supporting fire until Perception sees the enemy and he
+fires. The observer counts `firingVerifyAssigned/Arrived/Seen/Unseen/Shots`. The step ends on the executor's receipt, not on a timer: Engagement
+records `arrived` or `failed` (reached, unreachable, suppressed, overran) and the
+Squad Leader reads it, ends the lease and, on arrival, the pause after it so the
+next gate is judged that tick. A casualty also ends it; a failure keeps the pause.
+The lease window outlasts the mover's own bound window (`BattleEngagement.boundWindow`)
+so the receipt lands inside it, and stays the backstop for any other abandonment.
+`BattleReactiveFireManeuver.squadStage` derives which step a squad is in (cover,
+support, positions, advance, or gated) for diagnostics only; it is never a gate. Adoption rechecks holding members; peers already on the same bound may
+leave their initial positions. Native Meso selects/leases the fireteam; Engagement revalidates current
+support capability, real discharge receipts and mission/task identity, then chooses
+physical cover; the existing resolver/executor moves. This opt-in path skips
+`15o` deliberate ambush preparation and the squad AI Skills adapter. It retains
+native tactical safety gates and uses an explicit bounded-exposure route mode
+with a concealed destination. It is default OFF and has not been accepted as
+reliable natural-battle behavior. See Tunables and the reactive causal check.
+
+
 In the opt-in front-lines scenario, `BattleFrontLines.garrisonFor` is a read-only
 request for one present squad to secure the exposed held line; Force Command
 issues and releases the ordinary defense brief. Macro also considers nearby

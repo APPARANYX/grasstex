@@ -13,6 +13,9 @@ const fixedDt = Math.max(0.05, Math.min(0.3, Number.parseFloat(process.env.BATTL
 const outputDir = path.resolve(process.env.BATTLE_BENCHMARK_OUTPUT || 'reports');
 const policyUrl = process.env.BATTLE_BENCHMARK_POLICY_URL || 'https://test.ivandpopov.com/grasstex/battle_policy.php';
 const commit = process.env.BATTLE_BENCHMARK_SOURCE_SHA || process.env.GITHUB_SHA || 'local';
+const historyOption = process.env.BATTLE_BENCHMARK_COMMAND_HISTORY || '';
+if (!['', '0', '1', 'false', 'true'].includes(historyOption)) throw new Error('Invalid BATTLE_BENCHMARK_COMMAND_HISTORY');
+const captureCommands = historyOption === '1' || historyOption === 'true';
 /* Scripted windows, `contact+60,every60`: measure 60 simulated seconds from first contact, then the rest of the battle in
    segments that close at every multiple of 60 simulated seconds and at the end. An entry is `<start>+<seconds>` (a start of
    `contact` or a simulated second, the battle stepped unmeasured up to it) or `every<seconds>` (last: to the end of the battle).
@@ -125,7 +128,10 @@ try {
   /* The page silences its console while a benchmark runs, so progress comes out through this instead. */
   await page.exposeFunction('__benchLog', text => console.log(text));
   await page.addScriptTag({ path: path.resolve('scripts/battle-benchmark-intent.cjs') });
-  const result = await page.evaluate(async ({ count, seedPrefix, fixedDt, timeLimit, suppliedPolicy, windows, battleType, numbered, firstIndex }) => {
+  if (captureCommands) await page.addScriptTag({ path: path.resolve('scripts/lib/benchmark-command-history.cjs') });
+  await page.addScriptTag({ path: path.resolve('scripts/lib/benchmark-reactive-maneuver.cjs') });
+  await page.addScriptTag({ path: path.resolve('scripts/lib/benchmark-contact-cover.cjs') });
+  const result = await page.evaluate(async ({ count, seedPrefix, fixedDt, timeLimit, suppliedPolicy, windows, battleType, numbered, firstIndex, captureCommands }) => {
     const root = window, sim = root.__battle__, engine = sim.scene?.getEngine?.(), renderLoop = root.__battleRenderLoop__;
     if (engine && renderLoop) engine.stopRenderLoop(renderLoop);
     sim.pause();
@@ -148,7 +154,9 @@ try {
       telemetry.end = async function(){ return true; }; telemetry.checkpoint = async function(){ return true; }; telemetry.flush = async function(){ return true; };
     }
 
-    let activeCombat = null, activeAcquisition = null;
+    const skillExecution = [];
+    let reactiveObserver = null, contactCoverObserver = null;
+    let activeCombat = null, activeAcquisition = null, activeCommandHistory = null;
     function stanceOf(s) { return String(s?.stance || s?.eng?.stance || 'unknown'); }
     function combatBucket(shooter) {
       const sq = shooter?.squad, faction = shooter?.faction || sq?.faction;
@@ -157,6 +165,8 @@ try {
       return activeCombat.bySquad[key] || (activeCombat.bySquad[key] = { total: 0, direct: 0, hits: 0, suppressive: 0, suppressedTargets: 0 });
     }
     sim.onFire = function(shooter){
+      reactiveObserver?.shot(shooter);
+      contactCoverObserver?.shot(shooter);
       if (!activeCombat) return;
       activeCombat.total++;
       const bucket = combatBucket(shooter); if (bucket) bucket.total++;
@@ -646,11 +656,14 @@ try {
         if (localPlanning) record.localPlanning = localPlanning;
         const coveredBounds = root.BattleEngagement?.coveredBoundTelemetry?.(sim);
         if (coveredBounds) record.coveredBounds = coveredBounds;
+        if (reactiveObserver) record.reactiveManeuver = reactiveObserver.snapshot();
+        if (contactCoverObserver) record.contactCover = contactCoverObserver.snapshot();
         if (root.BattleGrenades?.on?.()) {
           const current = root.BattleGrenades.summary(sim), start = diag.grenadeStart || {};
           record.grenades = Object.fromEntries(Object.entries(current).filter(([, v]) => typeof v === 'number').map(([k, v]) => [k, v - (start[k] || 0)]));
           record.grenades.byFaction = Object.fromEntries(['us', 'ge'].map(f => [f, current.byFaction[f] - (start.byFaction?.[f] || 0)]));
         }
+        if (activeCommandHistory) { activeCommandHistory.sample(sim); record.commandHistory = activeCommandHistory.snapshot(); }
         if (extra) Object.assign(record, extra);
         return record;
     }
@@ -669,12 +682,31 @@ try {
         root.BattleSoldierModel?.setImportedEnabled?.(sim.scene, false); rawRestart();
         sim.manualEnded = false; sim.winner = null; sim.winReason = null; sim.paused = false; sim.timeScale = 1; sim.timeLimit = timeLimit;
 
+        contactCoverObserver = root.BattleEngagement.contactCoverFirstOn?.() ? root.BattleBenchmarkContactCover.create(root,sim) : null;
+        reactiveObserver = root.BattleReactiveFireManeuver?.on ? root.BattleBenchmarkReactiveManeuver.create(root,sim) : null;
+        activeCommandHistory = captureCommands ? root.BattleBenchmarkCommandHistory.create() : null;
+        activeCommandHistory?.sample(sim);
+        const squadJournal = [], captureSquadJournal = root.BattleAISkills?.config?.().mode === 'pilot' &&
+          root.BattleAISkills.config().pilot?.squad != null && root.BattleAISkills.config().observer;
+        let squadSerial = 0, squadChars = 0;
         let commandAccum = 0, steps = 0, nextSample = 0;
         const live = () => !sim.winner && sim.time < timeLimit + 0.5 && steps < maxSteps;
         const stepOnce = () => {
           sim._trainerStepActive = true; try { sim.step ? sim.step(fixedDt) : sim._frame(fixedDt); } finally { sim._trainerStepActive = false; }
           steps++; commandAccum += fixedDt;
           while (commandAccum + 1e-9 >= commandTick && !sim.winner) { commandAccum -= commandTick; root.BattleCommanderAI.update(sim, scenario, commandTick); }
+          reactiveObserver?.sample();
+          contactCoverObserver?.sample();
+          activeCommandHistory?.sample(sim);
+          if (captureSquadJournal) {
+            for (const event of root.BattleAISquadAdapter.eventsSince(sim, squadSerial)) {
+              if (event.serial !== squadSerial + 1) throw new Error('Squad source journal gap');
+              squadSerial = event.serial;
+              squadChars += JSON.stringify(event).length;
+              if (squadSerial > 20000 || squadChars > 8 * 1024 * 1024) throw new Error('Squad journal budget exceeded');
+              squadJournal.push(event);
+            }
+          }
           sampleAcquisitions();
         };
         const wallStart = performance.now();
@@ -745,6 +777,8 @@ try {
             measure(() => label, spec, openedAt => sim.time + 1e-9 >= openedAt + spec.seconds);
           }
         }
+        if (root.BattleAISkills?.config?.().mode === 'pilot')
+          skillExecution.push({ seed, at: sim.time, profile: root.BattleAISkills.config(), squadJournal, diagnostics: root.BattleAISkills.diagnostics(sim) });
         activeCombat = null; activeAcquisition = null; finishBattle(); if ((index + 1) % 5 === 0) await new Promise(resolve => setTimeout(resolve, 0));
       }
     } finally {
@@ -756,8 +790,8 @@ try {
       if (telemetry && telemetrySaved) Object.assign(telemetry, telemetrySaved);
       if (telemetryConsole !== null && telemetry?.setConsoleLogging) telemetry.setConsoleLogging(telemetryConsole);
     }
-    return { build: root.BATTLE_BUILD || null, policyRevision: root.BattleAIPolicy.stashed ? 0 : suppliedPolicy?.revision || root.BattleAIPolicy.revision || 0, policySource: root.BattleAIPolicy.stashed ? 'stashed-defaults' : suppliedPolicy?.source || 'runtime-default', fixedDt, timeLimit, sampleSeconds: SAMPLE_SECONDS, scripted, battles };
-  }, { count, seedPrefix, fixedDt, timeLimit, suppliedPolicy: policy, windows, battleType, numbered, firstIndex });
+    return { build: root.BATTLE_BUILD || null, policyRevision: root.BattleAIPolicy.stashed ? 0 : suppliedPolicy?.revision || root.BattleAIPolicy.revision || 0, policySource: root.BattleAIPolicy.stashed ? 'stashed-defaults' : suppliedPolicy?.source || 'runtime-default', fixedDt, timeLimit, sampleSeconds: SAMPLE_SECONDS, scripted, captureCommands, skillExecution, battles };
+  }, { count, seedPrefix, fixedDt, timeLimit, suppliedPolicy: policy, windows, battleType, numbered, firstIndex, captureCommands });
 
   const wallSeconds = (Date.now() - startedWall) / 1000, battles = result.battles || [];
   for (const b of battles) {
@@ -828,7 +862,7 @@ try {
 
   const score = b => (100 - b.health.overall) * 10 + (b.strategicWriterConflicts || 0) * 80 + (b.routeStalls?.length || 0) * 45 + (b.targetlessStalls?.length || 0) * 40 + (b.vacantObjectiveStalls?.length || 0) * 50 + (b.longRegroups?.length || 0) * 35 + (b.loopAlerts?.length || 0) * 25 + (b.captures === 0 ? 80 : 0) + (b.objectivesNeverOwned || 0) * 60 + (b.maxNoObjectiveProgressSeconds || 0) * .25;
   const problematic = [...battles].sort((a, b) => score(b) - score(a)).slice(0, 20);
-  const payload = { summary, policy, runtimeErrors: dedupe(runtimeErrors), assetLoadNoiseExamples: dedupe(browserErrors.filter(e => assetNoisePattern.test(String(e))), 20), browserWarnings: dedupe(browserWarnings, 100), battles };
+  const payload = { summary, policy, skillExecution: result.skillExecution, runtimeErrors: dedupe(runtimeErrors), assetLoadNoiseExamples: dedupe(browserErrors.filter(e => assetNoisePattern.test(String(e))), 20), browserWarnings: dedupe(browserWarnings, 100), battles };
   fs.writeFileSync(path.join(outputDir, 'battle-benchmark.json'), JSON.stringify(payload, null, 2));
 
   const headers = [...(result.scripted ? ['window', 'windowOpenedAt', 'windowClosedAt'] : []), 'index','seed','winner','winReason','simulatedSeconds','timeoutReached','usAlive','geAlive','captures','neutralizations','objectiveCount','objectivesNeverOwned','objectivesNeverContested','usSquadSpread','geSquadSpread','healthOverall','squadScoreMean','squadScoreP10','lowScoreSquads','firstContactSeconds','firstFireSeconds','firstCaptureSeconds','maxNoObjectiveProgressSeconds','vacantObjectiveStalls','movementStalls','routeStalls','targetlessStalls','longRegroups','writerConflicts','strategicWriterConflicts','loopAlerts','stallWakes','stallRepeats','stallSwitches','idleUnderOrdersRate','overCohesionRate','shots','hits','hitRate','losBlockedFireAttempts','crestBlockedFireAttempts','movementResolverChanges'];

@@ -215,3 +215,52 @@ assert.equal(w.C.boundThreats(w.s, w.b).length, 0);
 console.log(
   'covered-bounds-check: PASS (safe shipping adoption, no-safe-route, exposed hedge/gap, observed-only geometry, OFF and restart)'
 );
+
+// Reactive movement accepts a short exposed approach, with a physical concealed
+// destination. The same geometry retains strict ambush/legacy covered limits.
+const reactiveGap = world('?reactiveFireManeuver=1&localPlan=1&coveredBounds=1');
+loadModule(reactiveGap.r, 'battle/modules/15p-reactive-fire-maneuver.js', {
+  console: quietConsole,
+  location: reactiveGap.r.location
+});
+obstacles(reactiveGap, [
+  Object.assign(hedge('left', -4, 0), { hx: 2 }),
+  Object.assign(hedge('right', 4, 0), { hx: 2 })
+]);
+reactiveGap.s.root.position.x = -4;
+const route = (point, policy) =>
+  reactiveGap.C.boundRoute(
+    reactiveGap.s,
+    reactiveGap.b,
+    point,
+    reactiveGap.C.boundThreats(reactiveGap.s, reactiveGap.b),
+    policy
+  );
+assert.equal(route({ x: 4, z: -4 }).reason, 'exposed-route');
+assert.equal(route({ x: 4, z: -4 }, 'reactive').eligible, true, 'bounded gap under covering fire');
+reactiveGap.s.root.position.x = 0;
+assert.equal(route({ x: 4, z: -4 }, 'reactive').eligible, true, 'reactive start may be exposed');
+assert.equal(
+  route({ x: 4, z: -4 }).reason,
+  'exposed-endpoint',
+  'ordinary covered approach remains concealed'
+);
+reactiveGap.s.root.position.x = -4;
+assert.equal(
+  route({ x: 0, z: -4 }, 'reactive').reason,
+  'exposed-endpoint',
+  'reactive destination must be concealed'
+);
+obstacles(reactiveGap, [
+  Object.assign(hedge('far-left', -6, 0), { hx: 0.7 }),
+  Object.assign(hedge('far-right', 6, 0), { hx: 0.7 })
+]);
+reactiveGap.s.root.position.x = -6;
+reactiveGap.s.root.position.z = -4;
+assert.equal(route({ x: 6, z: -4 }, 'reactive').reason, 'exposed-route', 'long exposure remains unsafe');
+assert.equal(
+  route({ x: 6, z: 4 }, 'reactive').eligible,
+  false,
+  'physical collision or excessive distance stays forbidden'
+);
+console.log('PASS bounded reactive exposure, exposed-start, concealed-end and unchanged strict route policy');

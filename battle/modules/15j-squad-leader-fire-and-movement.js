@@ -79,7 +79,16 @@
       if (r.fled && r.fled.length && sq.fledId == null) detachFled(sq, battle, r.fled);
       updateRecon(sq, battle, r);
       var localTask = localPlan && localPlan.on ? localPlan.update(battle, sq, r) : null;
-      if (tacticalPostures && tacticalPostures.on) tacticalPostures.update(battle, sq, r);
+      var reactive =
+        root.BattleReactiveFireManeuver && root.BattleReactiveFireManeuver.on
+          ? root.BattleReactiveFireManeuver
+          : null;
+      var pilot =
+        root.BattleAISkills && root.BattleAISkills.advanceSquad
+          ? root.BattleAISkills.advanceSquad(battle, sq, r)
+          : null;
+      if (!reactive && !(pilot && pilot.handled) && tacticalPostures && tacticalPostures.on)
+        tacticalPostures.update(battle, sq, r);
       if (localPlan && localPlan.tasksOn && sq.state === 'retreat') {
         L.end(sq, 'bound', battle.time, 'retreat owns recovery');
         E.clearBoundOrders(sq);
@@ -121,9 +130,13 @@
       if (!L.holds(sq, 'bound', t)) E.clearBoundOrders(sq);
       if (r.contactStarted) {
         L.end(sq, 'bound', t, 'contact started');
-        L.grant(sq, 'bound-cycle', 'squad-leader', t, t + BOUND_CYCLE, 'contact started', 'cycle expiry');
+        // Reactive startup is gated by independently verified real fire, rather
+        // than restarting a blind delay whenever target visibility flickers.
+        // The native after-bound cycle lease remains authoritative.
+        if (!reactive)
+          L.grant(sq, 'bound-cycle', 'squad-leader', t, t + BOUND_CYCLE, 'contact started', 'cycle expiry');
       }
-      var posture = tacticalPostures && tacticalPostures.current(battle, sq);
+      var posture = !reactive && tacticalPostures && tacticalPostures.current(battle, sq);
       if (posture && posture.mode !== 'maneuver') {
         L.end(sq, 'bound', t, 'tactical posture holds');
         E.clearBoundOrders(sq);
@@ -149,6 +162,102 @@
       if (fireControl && (fireControl.state === 'hold' || fireControl.state === 'precision')) {
         sq._assaultAuthorized = false;
         return;
+      }
+      if (reactive) {
+        var activePosition = L.get(sq, 'bound');
+        if (
+          activePosition &&
+          activePosition.data &&
+          activePosition.data.firingPosition &&
+          (L.holds(sq, 'bound', t) || reactive.leaseClock)
+        ) {
+          /* Arrival, a failed move or a casualty ends the step now, not when the window runs out.
+             An arrival also ends the pause after it so the next gate is judged this tick; a
+             failure keeps the pause, so a refused slot is not retried at once. */
+          var receipt = reactive.firingPositionReceipt(battle, sq, activePosition);
+          /* An expired lease still reads a receipt that came in late; with none it lapses as before. */
+          if (!receipt && L.holds(sq, 'bound', t)) {
+            sq._assaultAuthorized = false;
+            return;
+          }
+        }
+        if (receipt) {
+          L.end(sq, 'bound', t, 'firing position ' + receipt.outcome);
+          E.clearBoundOrders(sq);
+          var pause = L.get(sq, 'bound-cycle');
+          if (receipt.outcome === 'arrived') {
+            if (pause && pause.reason === 'after firing position')
+              L.end(sq, 'bound-cycle', t, 'firing position arrived');
+          } else
+            L.extend(
+              sq,
+              'bound-cycle',
+              'squad-leader',
+              t,
+              t + BOUND_CYCLE,
+              'after failed firing position',
+              'cycle expiry'
+            );
+          telemetry(battle, 'firing-position-' + receipt.outcome, {
+            faction: sq.faction,
+            squad: sq.id,
+            soldier: receipt.soldier,
+            reason: receipt.reason,
+            seconds: +(t - activePosition.since).toFixed(2)
+          });
+        }
+        /* Only an actual assignment takes over: a man who lacks a line but has no safe covered
+           slot (out of weapon range, no cover in reach) must not stall the ordinary reactive path. */
+        var blocker = boundLeaseBlocker(sq),
+          setup =
+            localTask &&
+            !localTask.emergency &&
+            r.effective >= 2 &&
+            r.pinned < r.effective &&
+            !L.holds(sq, 'bound', t) &&
+            !L.holds(sq, 'bound-cycle', t) &&
+            (!blocker || blocker === 'local-support') &&
+            reactive.firingPositionPlan(battle, sq, r);
+        if (setup && setup.soldier) {
+          sq._assaultAuthorized = false;
+          L.grant(
+            sq,
+            'bound',
+            'squad-leader',
+            t,
+            t + Math.max(BOUND_DURATION, setup.point.window),
+            setup.point.verify ? 'verify contact' : 'establish firing position',
+            'window expiry or contact broken',
+            {
+              missionVersion: localTask.missionVersion,
+              localTaskSerial: localTask.serial,
+              reactiveFireManeuver: true,
+              firingPosition: true,
+              moverIds: [String(setup.soldier.id)],
+              point: setup.point
+            }
+          );
+          L.grant(
+            sq,
+            'bound-cycle',
+            'squad-leader',
+            t,
+            t + BOUND_CYCLE,
+            'after firing position',
+            'cycle expiry'
+          );
+          E.orderBound([setup.soldier]);
+          telemetry(battle, 'decision-firing-position', {
+            faction: sq.faction,
+            squad: sq.id,
+            soldier: setup.soldier.id,
+            x: setup.point.x,
+            z: setup.point.z,
+            slotId: setup.point.slotId,
+            verify: !!setup.point.verify
+          });
+          return;
+        }
       }
       if (COA_ON) updateCOA(sq);
       sq._assaultAuthorized = !!ASSAULT_PHASES[sq.commandPhase || ''];
@@ -190,7 +299,9 @@
       if (COA_ON && sq.coa && COAS[sq.coa] && !COAS[sq.coa].bounds) sq._assaultAuthorized = false;
       /* A bound needs a base of fire: somebody has to be shooting while somebody else moves. */
       if (
+        (pilot && pilot.handled && !pilot.allowBound) ||
         !sq._assaultAuthorized ||
+        (reactive && (!localTask || !reactive.canTask(sq, localTask.inputs))) ||
         L.holds(sq, 'bound-cycle', t) ||
         L.holds(sq, 'bound', t) ||
         r.effective < 2 ||
@@ -249,6 +360,12 @@
           if (s.dead || s.suppressedUntil > battle.time || s.reloading || s.clearingStoppage || s.outOfAmmo)
             continue;
           if (localPlan && localPlan.resourcesOn && !localPlan.moverEligible(s, sq, battle)) continue;
+          if (
+            pilot &&
+            pilot.handled &&
+            !root.BattleAISquadAdapter.moverAdopted(s, battle, localTask.missionVersion)
+          )
+            continue;
           // Down, on the run or charging (Engagement's report): not his to bound.
           if (r.reacting && r.reacting.indexOf(s) >= 0) continue;
           if (
@@ -268,6 +385,20 @@
           movers.length &&
           holding >= (localPlan && localPlan.resourcesOn ? localPlan.tuning.minimumSupport : 2)
         ) {
+          if (reactive) {
+            var assessment = reactive.assessTeam(battle, sq, movers, r);
+            if (!assessment.eligible) {
+              telemetry(battle, 'decision-bound-held', {
+                faction: sq.faction,
+                squad: sq.id,
+                team: team,
+                reason: assessment.reason,
+                policy: 'reactive'
+              });
+              continue;
+            }
+            safeCoveredCandidateFound = true;
+          }
           /* The first team in rotation can have support yet lack a physically
              masked route. For the opt-in maneuver posture keep looking for a
              different eligible team; never discard a safe bound merely because
@@ -292,7 +423,7 @@
       }
       /* Every candidate has already failed the independent physical route gate.
          Retain the existing no-bound result; never fall back to an exposed rush. */
-      if (posture && posture.mode === 'maneuver' && !safeCoveredCandidateFound) {
+      if ((reactive || (posture && posture.mode === 'maneuver')) && !safeCoveredCandidateFound) {
         sq._boundTurn = first;
         telemetry(battle, 'decision-bound-held', {
           faction: sq.faction,
@@ -381,9 +512,29 @@
           t + BOUND_DURATION,
           'fireteam ' + team + ' bounds',
           'window expiry or contact broken',
-          localPlan && localPlan.degradationOn
-            ? { team: team, missionVersion: localTask.missionVersion, localTaskSerial: localTask.serial }
-            : { team: team }
+          reactive
+            ? {
+                team: team,
+                missionVersion: localTask.missionVersion,
+                localTaskSerial: localTask.serial,
+                reactiveFireManeuver: true,
+                moverIds: movers.map(function (s) {
+                  return String(s.id);
+                })
+              }
+            : pilot && pilot.handled
+              ? {
+                  team: team,
+                  missionVersion: localTask.missionVersion,
+                  localTaskSerial: localTask.serial,
+                  moverIds: movers.map(function (s) {
+                    return String(s.id);
+                  }),
+                  aiSkillEpisode: pilot.episode
+                }
+              : localPlan && localPlan.degradationOn
+                ? { team: team, missionVersion: localTask.missionVersion, localTaskSerial: localTask.serial }
+                : { team: team }
         );
         L.grant(
           sq,

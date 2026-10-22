@@ -314,6 +314,7 @@
     }
     function fightingStance(s, battle, distanceToTarget, coverValue) {
       var suppressed = s.suppressedUntil > battle.time;
+      if (root.BattleEngagement.contactCoverFirstOn() && coverValue > USEFUL_COVER) return 'prone';
       if (!PRONE_ROLES[s.role]) return 'crouch';
       if (COVER_STANCE && coverValue <= USEFUL_COVER)
         return suppressed && crouchCover(s, battle) > USEFUL_COVER ? 'prone' : 'crouch';
@@ -340,6 +341,8 @@
     }
     function fireAllowed(s, battle) {
       var e = state(s);
+      if (root.BattleEngagement.contactCoverFirstActive(s) || root.BattleEngagement.firingPositionActive(s))
+        return reportFireDenial(s, battle, 'contact-cover-ingress');
       if (!combatThreat(s.target)) return reportFireDenial(s, battle, 'no-threat');
       if (s.reloading) return reportFireDenial(s, battle, 'reloading');
       if (battle.time < e.fireReadyAt) return reportFireDenial(s, battle, 'aim-settling');
@@ -369,6 +372,8 @@
      sector before he fires into it. */
     function suppress(s, battle, point) {
       var e = state(s);
+      if (root.BattleEngagement.contactCoverFirstActive(s) || root.BattleEngagement.firingPositionActive(s))
+        return false;
       if (!point || s.reloading || movingTooFast(s) || s.crawling) return false;
       if (!fireAuthorized(s, battle)) return false;
       if (battle.time < e.burstPauseUntil || battle.time < e.fireReadyAt) return false;
@@ -558,15 +563,45 @@
       return squadForward(s);
     }
 
+    /* A leased verify-contact point (no cover slot): re-establish at adoption what the plan saw. The
+       executor re-checks its own route, exposure and prone line to the reported enemy rather than trust
+       the lease; any failure consumes the order and he keeps fighting where he is. */
+    function verifyCover(s, battle, pt, audit) {
+      var C = root.BattleCoverPositions,
+        p = posOf(s),
+        d = dist(p.x, p.z, pt.x, pt.z),
+        threat = audit.threats[0],
+        goal = { x: pt.x, z: pt.z, distance: d };
+      if (root.BattleMovementProgress && !root.BattleMovementProgress.candidateAllowed(s, battle, goal)) {
+        audit.reason = 'unreachable-memory';
+        return null;
+      }
+      if (dist(threat.x, threat.z, pt.x, pt.z) > SA().engageRange(s)) {
+        audit.reason = 'out-of-range';
+        return null;
+      }
+      audit.candidates++;
+      var route = C.boundRoute(s, battle, goal, audit.threats, 'firing');
+      audit.samples += route.samples;
+      audit.reason = route.reason;
+      if (!route.eligible) return null;
+      if (!firingLineClear(s, { root: { position: threat } }, goal, 'prone', battle)) {
+        audit.reason = 'no-prone-line';
+        return null;
+      }
+      return { x: goal.x, z: goal.z, slotId: null, quality: 1, distance: d, type: 'terrain', verify: true };
+    }
     /* One Squad Leader permission produces one displacement. Cover and a no-cover rush use the same
      engagement lifecycle, so target flicker cannot create a second, invisible movement drill. */
     function orderedBound(s, battle) {
       var e = state(s),
         sq = s.squad;
+      var activeLease = sq && root.BattleLeases.get(sq, 'bound'),
+        positioning = activeLease && activeLease.data && activeLease.data.firingPosition;
       if (
         !e.boundOrder ||
         !sq ||
-        !sq._assaultAuthorized ||
+        (!sq._assaultAuthorized && !positioning) ||
         !root.BattleLeases.holds(sq, 'bound', battle.time)
       )
         return false;
@@ -576,6 +611,14 @@
         s.clearingStoppage ||
         s.outOfAmmo ||
         s.suppressedUntil > battle.time
+      )
+        return false;
+      var lease = root.BattleLeases.get(sq, 'bound'),
+        reactive = lease && lease.data && lease.data.reactiveFireManeuver;
+      if (
+        reactive &&
+        (!root.BattleReactiveFireManeuver ||
+          !root.BattleReactiveFireManeuver.adoptionAllowed(s, battle, lease))
       )
         return false;
       /* A man who has been through it takes a moment before he goes. The order stands meanwhile: the wait
@@ -607,6 +650,7 @@
         var threats = C.boundThreats(s, battle);
         audit = {
           threats: threats,
+          policy: positioning ? 'firing' : reactive ? 'reactive' : undefined,
           candidates: 0,
           samples: 0,
           reason: threats.length ? 'no-viable-cover' : 'unknown-contact'
@@ -617,18 +661,22 @@
        but never walk him back behind where he is. 44's forward guard only covers the `assault`
        phase, and bounds are also ordered in `capture` and `clear-town` (backward-orders probe: most
        backward authorized bounds). With no cover ahead he rushes toward the objective instead. */
-      var fwd = boundForward(s),
+      var fwd = positioning ? null : boundForward(s),
         cover =
           covered && !audit.threats.length
             ? null
-            : findCover(s, battle, {
-                maxRange: covered ? C.boundTuning().maxDistance : COVER_RANGE_UNDER_FIRE,
-                forward: fwd,
-                evade: s.suppressedUntil > battle.time,
-                notBehind: fwd ? { axis: fwd, allow: BOUND_BACK_ALLOW } : null,
-                threat: threat,
-                coveredRoute: audit
-              });
+            : positioning && activeLease.data.point.verify
+              ? verifyCover(s, battle, activeLease.data.point, audit)
+              : findCover(s, battle, {
+                  slotId: positioning && activeLease.data.point.slotId,
+                  firingPosition: !!positioning,
+                  maxRange: covered ? C.boundTuning().maxDistance : COVER_RANGE_UNDER_FIRE,
+                  forward: fwd,
+                  evade: s.suppressedUntil > battle.time,
+                  notBehind: fwd ? { axis: fwd, allow: BOUND_BACK_ALLOW } : null,
+                  threat: threat,
+                  coveredRoute: audit
+                });
       if (covered) {
         var stats =
           e.coveredBound ||
@@ -644,13 +692,27 @@
       }
       if (cover) {
         e.cover = cover;
+        var RFM = root.BattleReactiveFireManeuver,
+          pace = positioning && RFM && RFM.leaseClock ? RFM.movePace(s) : 0;
         transition(
           s,
           battle,
           'bound',
-          Math.max(3, cover.distance / Math.max(0.6, s.speed * 0.6) + 2),
-          'authorized fireteam bound: cover'
+          root.BattleEngagement.boundWindow(s, cover.distance, pace),
+          positioning ? 'assigned firing position: cover' : 'authorized fireteam bound: cover'
         );
+        /* The order was accepted now: its execution time starts here, not when it was issued, so a
+           hesitation does not eat the move. Only ever pushes the lease out. */
+        if (pace)
+          root.BattleLeases.extend(
+            sq,
+            'bound',
+            lease.owner,
+            lease.since,
+            battle.time + root.BattleEngagement.boundWindow(s, cover.distance, pace) + 1,
+            lease.reason,
+            lease.release
+          );
         bound(s, battle);
         return true;
       }

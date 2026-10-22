@@ -21,6 +21,7 @@
       states = new WeakMap(),
       cooldown = new WeakMap(),
       counters = new WeakMap(),
+      rejections = new WeakMap(),
       tuning = {
         minimumHold: 4,
         preparationBudget: 12,
@@ -102,7 +103,10 @@
     /* Read-only proof of the SAME three adopted, stationary riflemen. A large
        squad may have additional men still finding cover; that cannot reset a
        genuine held fireteam or count a rotating set of arrivals as a 4s hold. */
-    function settledActors(st, a) {
+    function pilotOwned(b, sq, st) {
+      return !!(root.BattleAISquadAdapter && root.BattleAISquadAdapter.owned(b, sq, st));
+    }
+    function settledActors(b, st, a) {
       return st.orders
         .filter(function (o) {
           var s = a.find(function (man) {
@@ -110,6 +114,38 @@
           });
           if (!s) return false;
           var p = s.root.position;
+          if (pilotOwned(b, s.squad, st)) {
+            var cr = root.BattleCommandReception,
+              e = s.eng,
+              rec = cr && cr.peek(s, b, 'movement', 'soldier:' + String(s.id)),
+              witness = (st.coreWitnesses || []).find(function (w) {
+                return w.id === String(s.id);
+              });
+            return !!(
+              rec &&
+              rec.phase === 'adopted' &&
+              rec.envelopeId === s._fireteamAdoptedEnvelope &&
+              rec.data &&
+              rec.data.publishKey === o.key &&
+              rec.data.missionVersion === st.version &&
+              point(rec.point) &&
+              Math.hypot(p.x - rec.point.x, p.z - rec.point.z) <= 1.8 &&
+              s._fireteamPublishKey === o.key &&
+              e &&
+              !s.dead &&
+              !s.isPlayer &&
+              !s.incapacitated &&
+              (st.readyAt != null ||
+                (!s.moving &&
+                  ['crouch', 'prone'].indexOf(e.stance) >= 0 &&
+                  root.BattleCoverPositions.maskedPost(b, p, st.threats))) &&
+              (!witness ||
+                (Math.hypot(p.x - witness.point.x, p.z - witness.point.z) <= 0.5 &&
+                  epoch(s) === witness.epoch &&
+                  rec.envelopeId === witness.envelope &&
+                  (st.readyAt != null || e.stance === witness.stance)))
+            );
+          }
           return (
             s._fireteamPublishKey === o.key &&
             !s.moving &&
@@ -122,7 +158,7 @@
     }
     function heldCore(b, st, a, reports) {
       var C = root.BattleCoverPositions,
-        settled = settledActors(st, a);
+        settled = settledActors(b, st, a);
       return !!(
         st.readyAt != null &&
         st.heldActorIds &&
@@ -131,7 +167,9 @@
           return (
             settled.indexOf(id) >= 0 &&
             st.orders.some(function (o) {
-              return o.soldierId === id && C.maskedPost(b, o.point, reports);
+              return (
+                o.soldierId === id && (pilotOwned(b, a[0].squad, st) || C.maskedPost(b, o.point, reports))
+              );
             })
           );
         })
@@ -296,6 +334,14 @@
       states.delete(sq);
       return null;
     }
+    function reject(b, sq, reason, posts) {
+      if (root.BattleAISquadAdapter && root.BattleAISquadAdapter.requested(b, sq))
+        rejections.set(
+          sq,
+          Object.freeze({ at: b.time, reason: reason, maskedPosts: posts == null ? null : posts })
+        );
+      return null;
+    }
     function update(b, sq, report) {
       if (!on || !b || !sq) return null;
       var st = states.get(sq),
@@ -332,7 +378,24 @@
         !Number.isFinite(pressure) ||
         (ctx.localPlan.structureOrdersOn && ctx.localPlan.currentStructureOrders(b, sq))
       )
-        return end(b, sq, 'unknown evidence/override');
+        return st
+          ? end(b, sq, 'unknown evidence/override')
+          : reject(
+              b,
+              sq,
+              !a
+                ? 'unavailable-personnel'
+                : !rs.length
+                  ? 'unusable-reported-threat'
+                  : !nav ||
+                      !b.scene ||
+                      !b.scene.metadata ||
+                      nav.scenario !== (b.scene.metadata.battleScenario || b.scene.metadata.battleTown)
+                    ? 'navigation-scene-mismatch'
+                    : !point((sq.route || [])[+sq.routeIndex])
+                      ? 'no-current-route-leg'
+                      : 'mission-or-owner-override'
+            );
       if (
         st &&
         st.mode === 'ambush' &&
@@ -351,6 +414,11 @@
           a.some(function (s) {
             return coveredTeam(b, sq, [s], report);
           });
+        if (!possible && pilotOwned(b, sq, st) && heldCore(b, st, a, rs) && !(task && task.emergency)) {
+          st.at = now;
+          st.stage = 'awaiting-independent-support';
+          return st;
+        }
         st.mode = possible ? 'maneuver' : 'hold';
         st.stage = possible ? 'supporting-fire' : 'pressure-hold';
         st.pressureAt = now;
@@ -409,7 +477,15 @@
           pressure > tuning.pressureExit ||
           (cd && cd.mission === m && now < cd.until)
         )
-          return null;
+          return reject(
+            b,
+            sq,
+            pressure > tuning.pressureExit
+              ? 'preparation-under-pressure'
+              : cd && cd.mission === m && now < cd.until
+                ? 'native-posture-cooldown'
+                : 'contact-owns-reaction'
+          );
         var orders = [];
         for (var i = 0; i < a.length; i++) {
           var s = a[i],
@@ -435,7 +511,7 @@
              no concealed post; that man remains under his existing orders. */
           if (candidate) orders.push({ soldierId: String(s.id), point: candidate, watchPoint: point(rs[0]) });
         }
-        if (orders.length < 3) return null; // Never publish an understrength ambush element.
+        if (orders.length < 3) return reject(b, sq, 'insufficient-masked-posts', orders.length); // Never publish an understrength ambush element.
         var counts = counters.get(sq) || {
           ambushes: 0,
           pressureHolds: 0,
@@ -491,9 +567,12 @@
         !st.orders.every(function (o) {
           return C.maskedPost(b, o.point, rs);
         })
-      )
-        return end(b, sq, 'firing station lost masking/ray');
-      var settled = settledActors(st, a),
+      ) {
+        if (!(pilotOwned(b, sq, st) && st.readyAt != null))
+          return end(b, sq, 'firing station lost masking/ray');
+        if (st.compromisedAt == null) st.compromisedAt = now;
+      }
+      var settled = settledActors(b, st, a),
         coreHeld =
           st.heldActorIds.length >= 3 &&
           st.heldActorIds.every(function (id) {
@@ -505,6 +584,19 @@
            continuous hold by their stable IDs; newcomers cannot borrow dwell
            from one another. Other men keep trying their ordinary commands. */
         st.heldActorIds = settled.slice(0, 3);
+        if (pilotOwned(b, sq, st))
+          st.coreWitnesses = st.heldActorIds.map(function (id) {
+            var s = a.find(function (man) {
+              return String(man.id) === id;
+            });
+            return {
+              id: id,
+              point: point(s.root.position),
+              stance: s.eng.stance,
+              epoch: epoch(s),
+              envelope: s._fireteamAdoptedEnvelope
+            };
+          });
         st.heldSince = st.heldActorIds.length >= 3 ? now : null;
         st.stage = st.heldSince == null ? 'assemble' : 'hold';
         if (st.heldSince == null && now - st.since > tuning.preparationBudget)
@@ -542,6 +634,14 @@
       maneuverOn: maneuverOn,
       tuning: tuning,
       coveredTeam: coveredTeam,
+      releasePilot: function (b, sq, expected, reason) {
+        if (states.get(sq) === expected) return end(b, sq, reason || 'pilot cancelled');
+        return null;
+      },
+      rejection: function (b, sq) {
+        var r = rejections.get(sq);
+        return r && r.at === b.time ? r : null;
+      },
       update: update,
       current: current,
       soldierOrder: soldierOrder,

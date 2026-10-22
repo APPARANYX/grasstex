@@ -1,0 +1,403 @@
+# AI Skills V1 contract (#602)
+
+Status: A/B foundation, C soldier pilot and explicitly authorized D squad pilot.
+Gameplay default remains legacy. Natural Phase C acceptance is pending evidence;
+retirement (E) and merges require separate authorization. #527 stays parked.
+
+## Verified baseline and dependency graph
+
+Inspected `main@eba6c71f2596fca9cc02d39911205468317d1a83` on 2026-10-21,
+including #605–#610; not the older audit SHA. #610's head
+`3b889a916ed78522899a1fc2ff954535efcdab47` passed CI run
+[39532721817](https://github.com/APPARANYX/grasstex/actions/runs/39532721817).
+Merged main deployed in run
+[39533047685](https://github.com/APPARANYX/grasstex/actions/runs/39533047685).
+That is historical PR/deployment evidence, not final combined integration acceptance;
+[the acceptance register](../audits/ARCHITECTURE_STABILIZATION_V1_20261020.md)
+remains open.
+
+Open work inspected: #584 changes ideation QA; #499 changes the reported-contact
+map/camera; #299 is the old campaign draft; #527 is the parked Phase C draft
+(head `dc56795756441ca2b8d6ad5f1f86018872f5fd06`, 34 changed files including
+Engagement, Meso, reception and resolver). None is a dependency or merge source.
+#418 and #438 remain independent deferred work.
+
+Both PHP entries load core in this order: core-runtime, soldier, weapons,
+obstacle-field, terrain-features, squad-ai, movement-resolver, engagement,
+battle-sim. Extra runtimes follow: camera-controls, acoustics, scenario-generator,
+battle-navigation, town-objectives, module-registry, ai-policy, objective-system,
+battle-telemetry, commander-doctrine, commander-routes, commander-ai. Modules are
+then discovered and sorted by filename (`SORT_STRING`), filtered by the shared
+`runtime-contract.php`; ai-trainer and battle-control follow. Module factories
+15a–15o are attached by 16. A skills module must load after its readers, register
+one system, and never wrap start/restart/updateSoldier.
+
+```mermaid
+flowchart TD
+  Macro[Commander: versioned mission] --> Meso[Squad Leader: plans and leases]
+  Meso --> Reception[Per-person command adoption]
+  Reception --> Micro[Engagement: combat and posture]
+  Micro --> Resolver[Movement Resolver: sole destination writer]
+  Resolver --> Execution[Movement execution and Navigation]
+  Perception[Perception: own beliefs and upward reports] --> Macro
+  Perception --> Meso
+  Perception --> Micro
+  Perception --> Facts[Detached scoped facts]
+  Reception --> Facts
+  Facts --> Selector[Pure shadow selector]
+  Selector --> Receipts[Read-only decision diagnostics]
+```
+
+## Scopes, facts and skill API
+
+Scores compare only within one actor's scope: `soldier`, `squad`, or `command`.
+A soldier sees own beliefs and personally received commands; a squad sees reported
+member intel and its accepted mission; command sees upward reports only. Access
+to a faction roster is permitted solely to enumerate own actors, never to inspect
+hostile actors. No skill receives the sim, entities, enemy references, RNG or APIs.
+
+A fact is a detached immutable record `{source, observedAt, expiresAt, confidence,
+generation, location, key}`. `observedAt <= now < expiresAt`, finite coordinates,
+confidence in (0,1], and current generation are mandatory. Do not refresh old intel
+when copying it. No enemy unit/transform/weapon reference survives projection.
+Use `SquadAI.beliefSnapshot` for personal facts (not `soldierContact`, whose
+selection cache can mutate). Use `BattleCommandReception.peek` for receipt state;
+`snapshot`, `adopted` and `adoptedView` call `settle` and are unsuitable for a
+neutral observer. Missing/legacy provenance is denied, not promoted to knowledge.
+Squad/command adapters need separately proven upward-report provenance; V1 shadow
+may leave those scopes unsupported rather than invent facts.
+
+Plain JS contract (no build tooling):
+
+```js
+registerSkill({
+  id: 'soldier.seek-cover', scope: 'soldier',
+  requires: ['perceived-threat', 'reachable-cover'],
+  resources: ['locomotion', 'posture'],
+  parameters: { threshold: { type: 'number', min: 0, max: 1, default: 0.5 } },
+  evaluate: (snapshot, parameters) => ({
+    eligible: true, score: 0.8, reason: 'exposed-to-known-fire', evidence: []
+  }),
+  createPlan: (snapshot, actions) => actions.sequence(/* authorized actions */)
+});
+```
+
+IDs are unique, ordered by ASCII comparison, scopes/resources/capabilities and
+parameters validated at registration/config resolution. Registry/profile dictionaries
+use own keys, including valid names such as `constructor`; inherited Object properties
+never supply a default skill entry or parameter. Registration never evaluates
+or creates a plan. Evaluation gets one shared snapshot per actor/Commander tick;
+it returns finite [0,1] utility and bounded reason/evidence. Highest score wins;
+exact ties choose the smaller ID. No cross-scope ranking. Mission, ROE, safety,
+receipt, freshness and resource availability are hard guards before evaluation.
+Missing guards deny eligibility regardless of score. Required capabilities must
+be facts established by their owners, not asserted by the skill.
+
+## Permissions and existing candidates
+
+| Candidate / resource | Existing decision vs executor | Permission and smallest adapter |
+| --- | --- | --- |
+| soldier seek-cover / locomotion, posture | Engagement decides; module 19 `findCover`, `boundRoute`, `reserveCover` execute/claim | `findCover` is not pure: it can reserve and report. Shadow only observes threat, never calls it. Future Engagement action adapter must preserve cover ownership. |
+| soldier hold/fire / posture, weapon | Engagement state/drill/`supportReady`; 19b fire/stance | No direct stance/trigger write. A requested action needs Engagement receipt and current adopted ROE. |
+| squad covered bound / team, locomotion | 15n `localPlan` scores choices; 15j `fireAndMovement` commits/publishes; 15o prepares firing posts | Local-plan scoring and skill utility overlap as decisions; they cannot both select. Keep existing executors; later replace one scoped decision only after pilot gates. |
+| squad regroup / team | 15m cohesion/regroup and 16 lease/anchor publication | Reuse Meso command publisher and BattleLeases, not another timer/anchor/destination. |
+| command objective / orders | Commander `reconsiderMission`/`issueMission`; doctrine/routes | Command-only intent, no squad phase/route rewrite. No command skill in first shadow release. |
+| transport / team, locomotion | module 58 owns mission journey/seat/exit lifecycle | Owner request/receipt only; never write seats, carrier, position or passenger state. |
+| report / communications | SquadAI beliefs, module 09 delivery | Submit through provenance-preserving communications owner, never grant a sighting. |
+| move/hold execution | resolver `proposeOrder`/`proposeCombat`, Navigation routes; 18a `man`/`squad` outcome | Existing priorities/TTL/hysteresis remain authoritative. Proposed point is not arrival; use physical outcome tied to envelope and mission. |
+
+Likewise-named functions do not imply duplicate authority: Navigation reachability,
+Engagement eligibility and Meso tactical choice answer different questions. Broad
+closure factories are an adapter constraint, not permission to export mutable ctx.
+No new resolver priority, lease type, global state mirror or navigation algorithm.
+
+## Lifecycle, scheduling and rollback
+
+Use `BattleModules.registerSystem` with `onBattleStart`, `beforeBattleRestart`,
+`onBattleRestart`, and `onCommanderTick`. Core restart remains
+request → before → roster replacement → afterRosterReset (Commander emits nested
+onBattleRestart) → afterRestart → complete. Keep private per-sim WeakMap state;
+never stamp authoritative actors. A generation token changes at each start/restart;
+state identity also includes entity and Macro mission version. Snapshots carry an
+opaque frozen battle token (no sim/entity reference) so equal numeric generations
+and IDs in independent sims cannot share a decision context. Public snapshot reads
+require the exact current roster object before accessing beliefs; an old or foreign
+actor returns null. The scheduled batch enumerates the roster once and invokes the
+private projector directly, avoiding a per-actor roster membership scan. These live
+snapshot tokens are process-local; persisted diagnostics contain detached receipts,
+not executable snapshot contexts. Drop old state
+before roster replacement, handle multiple independent sims, and reject old snapshots.
+Commander cadence is 0.45 simulated seconds after 0.15-s AI ticks, not render time.
+Deterministic ID ordering, fixed operation budgets and no wall clocks/RNG.
+
+C has one scheduler for resource acquisition, commitment, suspension,
+preemption, timeout and release. It must integrate existing BattleLeases and personal
+adoption, not duplicate their commitments. The action lifecycle is
+`not-started → running → succeeded|failed|cancelled`; BT nodes return
+`Success|Running|Failure` with receipts and bounded typed reasons:
+`invalid-target`, `stale-intel`, `blocked-route`, `never-arrived`,
+`unsupported-action`, `no-authority`, `interrupted`. Death/safety, mission supersession
+and restart preempt utility. B acquires no resources and runs no BT, even if a
+factory is registered. C's narrow posture adapter is described below; movement and other effectors remain unavailable.
+
+One validated profile controls mode `legacy|shadow|pilot` and per-skill enablement
+and typed parameters. Default is legacy. One `aiSkills` query may
+select legacy/shadow/pilot; no per-skill query parsers. Pilot requires an explicit
+one-actor scope; the central URL declaration scopes it to US soldier 31. Explicit disable overrides a
+registered skill. Invalid/unknown config fails closed with a diagnostic. Changing
+profile clears shadow receipts; C must cancel/release/reconcile before falling back.
+Rollback B by selecting legacy; it prepares no facts/evaluations/plans and issues
+no actions. A has no runtime load changes.
+
+Decision receipts contain entity, scope, generation, mission version, skill, score,
+chosen/rejected reasons, blockers, action (`none` in shadow), owner and outcome.
+A bounded private ring returns frozen detached views. Observer-off disables only
+recording: it must not alter selection, gameplay, command history or RNG. Diagnostic
+reads never prepare snapshots, advance adoption or extend fact validity.
+
+## Executable gates and reproducible conditions
+
+`node tools/ai-sim-harness/ai-skills-contract-check.js` exercises the shipping pure
+belief/receipt readers with hostile-reference traps and pending adoption; it also
+checks lifecycle/loader contracts. Baseline and every final head run:
+
+```sh
+for c in tools/ai-sim-harness/*-check.js; do node "$c" || exit 1; done
+for s in 12345 1 2 3 5 8 13 21; do HARNESS_SEED=$s node tools/ai-sim-harness/run.js || exit 1; done
+node tools/ai-sim-harness/state-ownership-check.js
+node tools/ai-sim-harness/wire-map-check.js
+node tools/ai-sim-harness/squad-phase-check.js
+```
+
+Full CI additionally owns syntax/formatting and `scripts/check-*.cjs` gates. Record
+actual results in PRs. PHP is needed by loader/preview checks. Do not waive failures.
+Baseline seed suite deliberately isolates Engagement: run.js uses
+`morale=0&coa=0&stressAct=0&fireControl=0&stanceVis=0&slStress=0&soldierBeliefs=0&incomingFireReveal=0&leaderlessIntent=0`;
+it does not prove complete runtime parity.
+
+For runtime B, enable `command_history=true` in the existing GitHub standard paired
+benchmark (or `BATTLE_BENCHMARK_COMMAND_HISTORY=1` in its runner), never local
+fingerprint batches. Seed `ai-skills-v1-602`, one exact-seed pair per meeting,
+us-defend and ge-defend, 600 actual simulated seconds, 0.15 fixed step/0.45 Commander;
+legacy/shadow must have identical gameplay records/outcomes/command history.
+Repeat with observer disabled and profile disabled. Preserve head, effective flags,
+scenario and clock in artifacts; measure shadow cost, make no performance claim.
+
+Full-ON 5 km control explicitly sets
+`strategicInterception=1&frontLines=1&motorTransport=1&truckAccess=1&truckCollision=1&truckVisual=1&aerialRecon=1&interception=1&reinforcements=1&reinforcementSortie=1`,
+normal map, Combat Lab off. All ten are currently default-on in core-runtime.
+Do not call `probe_strategic_5km.cjs` full-ON: its control explicitly has
+`frontLines=0`, seed `strategic-chromium-0001`. Browser QA uses the immutable branch
+preview with effective configuration asserted, and repeated same-page restarts.
+
+Phase C diagnostic controls remain opt-in:
+`localPlan=1&localAmbush=1&localManeuver=1&coveredBounds=1`, existing
+`probe_phase_c_natural.cjs` seed prefix `phase-c-natural-20261012`, 3 seeds ×
+meeting/us-defend/ge-defend, 210 simulated seconds (not full acceptance). Separate
+resource/task/degradation options require explicit recording, never implied ON.
+Future acceptance needs the real same-squad/plan chain through two independently
+effective supporters and actual covered arrival; a staged fixture cannot accept C.
+No navigation/ballistics/weapon/movement or Phase C changes in A/B.
+
+## PR B adapter and file boundary
+
+`battle/modules/60-ai-skills.js` is the only runtime addition: registry, profile
+resolver, personal fact projection, pure selector and one registered shadow system.
+`runtime-contract.php` only forwards the single `aiSkills` preview option; it does
+not interpret it. `tools/ai-sim-harness/ai-skills-shadow-check.js` exercises the
+negative/neutrality/budget contracts. `scripts/probes/probe_ai_skills_shadow.cjs`
+and `.github/workflows/ai-skills-shadow-qa.yml` exercise the immutable hosted preview,
+three same-page restarts, owner-read neutrality, full-ON configuration and rollback.
+These are the precise B changes; no AI owner file changes or wire-map exemptions.
+
+The built-in `soldier.observe-threat` is a diagnostic candidate with no resources,
+no actions and no plan; it scores the maximum valid perceived confidence against
+a typed threshold. New registered skills default disabled; the one initial central
+profile enables only this diagnostic candidate, with mode still legacy. Configure
+via `BattleAISkills.configure({mode:'shadow', skills:{'soldier.observe-threat':
+{enabled:true, parameters:{threshold:0.25}}}})`; `observer:false` disables recording.
+Invalid profiles return legacy and `diagnostics().error = 'invalid-profile'`.
+All other skills require explicit manifest entries. Registry supports all three
+scope declarations, but automatic B snapshots deliberately support soldiers only.
+Reachable-cover and action resources remain unavailable; B does not call mutating
+owner readers to invent availability. Evaluator modules are trusted code, not a
+JavaScript security sandbox; the runtime supplies no world/action references.
+
+Limits are 32 registered skills, 512 actors per Commander decision, 32 personal
+belief rows and a 128-row receipt ring per battle. Overflow is explicit (omitted
+actors or `guard-budget`); no wall-time scheduling or unbounded retries. Counters
+separate prepared snapshots from actual evaluator invocations. These are operation
+bounds, not measured p95/p99 CPU claims. C supplies only the guarded posture
+adapter below; other resource/action combinations still fail closed.
+
+The opt-in benchmark command-history collector runs only in the benchmark runner.
+It samples the existing Command Reception publication log after each 0.15-s step,
+proves contiguous `cmd-1` through `cmd-N` serials, and archives detached publications
+with mission versions, recipients and provenance. Macro briefs/status changes are
+observed after each step; no claim is made about intermediate Macro states within
+a step. Sampling begins at t=0 for each seed and never calls settling telemetry.
+A source-log gap, reset/clock rewind, or 20,000-entry / 8 Mi serialized-character
+budget overflow aborts collection; a failed collector cannot export a complete
+trace. Window records contain the cumulative history through their end, just as
+their timeline is cumulative. Standard exact-state comparison includes the full
+`commandHistory` field when capture is enabled in both arms. Capture defaults OFF;
+no gameplay hook, writer or always-running observer is introduced.
+
+## PR C scheduler, tree runtime and isolated pilot
+
+`60-ai-skills.js` retains the single lifecycle registration, facts and selector.
+`60a-ai-skills-runtime.js` supplies one private scheduler per battle session,
+data-only tree builders, validation, execution and the shared effector boundary.
+`60b-ai-skill-crouch-warning.js` is the complete new skill: one descriptor and
+pure evaluator/factory, tested by `ai-skills-pilot-check.js`, enabled by one central
+profile declaration in 60. No General, Squad Leader, Engagement, reception,
+resolver, navigation, transport or weapon source changes.
+
+Configure a different single actor through the existing profile API:
+
+```js
+BattleAISkills.configure({
+  mode: 'pilot', observer: true, pilot: { faction: 'us', entity: '31' },
+  skills: { 'soldier.crouch-on-warning': { enabled: true } }
+});
+```
+
+The candidate needs a current personally adopted Macro movement mission and a
+fresh personal threat fact above its typed confidence threshold. The scheduler
+claims only posture, and accepts only an unpossessed, alive, upright advancing
+soldier outside contact, suppression, reload, transport and Engagement reactions.
+The ordinary upright march timer does not forbid lowering: the existing
+Engagement request API explicitly permits that transition.
+Existing non-diagnostic BattleLeases always take precedence: inspect the existing
+owner's kinds/holds readers, never grant a second command lease. Unavailable
+resources are excluded before utility. Squad/command execution stays unsupported.
+Diagnostic-only descriptors cannot win pilot execution.
+
+One plan per actor commits for its lifetime; reversed or close utility scores do
+not replace it. There is one attempt per actor/mission, successful or failed, with
+no recurrent cooldown/reselection loop. Generation, exact roster identity and
+mission changes cancel; personal receipt, ROE and safety guards are rechecked
+before every advancement and effect. A newly acquired command lease suspends the
+pending tree and releases scheduler resource claims; resumption reacquires only
+when the owner releases it. Safety cancels rather than suspends. Suspended time
+counts toward the same deadline, preventing starvation. Cancellation does not
+write another owner's state.
+
+The pilot waits one Commander interval (0.45 simulated seconds), then makes one
+atomic `BattleEngagement.requestStance(actor, sim, 'crouch', 0.45)` request. That
+API can only lower a soldier, never stand him up or renew an existing stance.
+Acceptance completes the action immediately; Engagement owns the bounded hold
+and all subsequent reactions. Cancellation before the request issues nothing.
+Rollback never reverses an already accepted posture or forces a soldier upright;
+its existing Engagement hold expires within 0.45 simulated seconds. This is a
+small execution pilot, not a cover/navigation or squad maneuver implementation.
+
+Trees return `Success|Running|Failure`. The explicit plan/action lifecycle is
+`not-started → running → succeeded|failed|cancelled`. Sequence, selector, wait,
+timeout and bounded retry are data nodes, not callbacks receiving world state.
+Factories get immutable snapshots, builders and typed parameters only. Trees are
+validated, cloned and frozen: ≤32 nodes, ≤8 levels, ≤64 visits per advancement,
+≤3 retry attempts (on separate Commander ticks), and an unconditional ≤10-second
+plan deadline. The pilot itself has a two-second timeout. Unsupported effects
+fail with `unsupported-action`; missing owner permission uses `no-authority`,
+stale evidence `stale-intel`, timeout `never-arrived`, safety/invalidation
+`interrupted`. `invalid-target`/`blocked-route` are reserved for future target and
+route adapters, not synthetic checks pretending to provide those capabilities.
+
+Profile changes reconcile before execution/fallback on the next Commander tick,
+within 0.45 simulated seconds. No pending action can execute under the previous
+profile. Observer-only changes clear recording while preserving commitments and
+completed-attempt identity; observer reads never advance anything. Restart clears
+trees, claims, attempts and receipts through the existing lifecycle, without
+wrappers or render observers. Receipts are immutable, bounded to 128 rows, with
+actor/scope identity, mission, generation, skill/score, resource claims, lifecycle,
+reason, action and authoritative owner. Rollback retains cancellation diagnostics
+until restart; observer-off hides all recorded rows.
+
+The hosted browser probe additionally selects a naturally eligible US actor,
+records a completed scoped Engagement request and three more same-page restarts.
+That dynamic test scope is recorded explicitly; it does not claim that fixed US31
+acts in every scenario. Standard benchmark artifacts store pilot profile and
+source-owned execution diagnostics separately from battle records (`skillExecution`),
+so exact gameplay comparison remains independent of decision observations.
+Use the existing GitHub standard benchmark at the final head for legacy/shadow
+parity and scoped legacy/pilot deltas in meeting/us-defend/ge-defend, seed
+`ai-skills-v1-602`, 600 simulated seconds, explicit full-ON 5 km settings above.
+Record no-eligibility runs as such, never as executed pilot evidence.
+
+Default-versus-main timing uses the standard benchmark's optional `baseline_ref`
+with the exact main SHA: OFF serves main, ON serves the C head, on one runner with
+the same head-owned benchmark code and capture setting. Source SHAs are preserved
+in `reports/source-refs.json` and arm summaries. Separate-runner comparisons can
+be retained as diagnostic evidence but do not resolve a failed timing gate.
+
+
+## PR D squad composition and opt-in boundary
+
+`aiSkills=squad` selects the three squad descriptors in 60d–60f for both factions;
+`aiSkills=squad-shadow` evaluates the same manifest without executing. These are
+aliases in the existing central profile resolver, not extra tactical parsers.
+The explicit prerequisites are `localPlan=1&localResources=1&localAmbush=1&localManeuver=1&coveredBounds=1`,
+Command Reception movement, effective fire and existing ammunition owners. Missing
+prerequisites or a disabled descriptor return control to legacy Meso.
+
+The existing scheduler handles soldier and squad scope, with one plan per actor
+and exact mission object, a 32-squad/32-member budget, Commander-cadence selection
+and AI-tick guard/action advancement. Successful squad phases may hand off to a
+different skill in the same episode; failures remain one attempt per mission.
+Squad plans have a 60-second ceiling (preparation 28, support 24, bound 14).
+The soldier pilot retains its ten-second ceiling. No extra lifecycle system,
+render observer, decision RNG, destination or posture/fire writer is introduced.
+
+`60c-ai-skills-squad-adapter.js` holds private owner references. Descriptors get
+only detached own-squad reported facts and accepted mission availability. The
+single Meso seam requests existing tactical-posture updates; fire-control still
+publishes through 15a and only 15j grants native bound leases/orders. Commander
+posture updates defer only at a scoped eligible pilot opportunity or an owned
+posture. Ineligible/foreign postures continue through their existing path.
+
+Readiness in a pilot-owned line requires the same three actual adopted personal
+movement envelopes and Macro version, actual low stance, masked body positions,
+and a continuous four-second hold. Anchors tolerate at most 0.5 m actual drift;
+arrival must also meet the native 1.8 m receipt endpoint. Possession epoch, envelope
+or stance changes reset the hold. An already prepared core can retain its real
+posts while Micro changes movement labels and while independent fire develops.
+Losing preparation masking marks a ready line compromised; every proposed bound
+still rechecks the unchanged native concealed route and endpoint geometry.
+No unprepared or legacy posture gains these retention rules.
+
+A prepared pilot line can open with one independently ready rifle/carbine under
+native visual contact, ROE and ballistic checks; another weapon joins only when
+its own owner permits. The adapter requires two current independently qualified
+rifles with actual own-discharge receipts after readiness before requesting a
+bound. `SquadAI.shotReceipt` only reads the existing own gunfire log (last 256
+rows, at most 4.5 seconds old); it creates no shot/support state. Native phase,
+COA, resource, adoption, support, cover and route gates still decide whether any
+bound is published. Defender/security/recovery phases receive no override.
+
+Completion tracks every mover ID in the exact native lease, legal route,
+observed departure/displacement and physical endpoint arrival. Two qualified
+non-movers must discharge during that travel, and two independent supporters
+must remain effective on each advancement. Losing support returns
+`support-revoked`; timeout/route/mission/safety failure releases only this
+pending authorization and exact posture token, preserving adopted Micro ownership.
+Unexpected executor errors release pending claims, record `owner-error` and
+propagate instead of silently falling back.
+
+The bounded observer journal records generation, squad, mission, episode serial,
+posture serial, native phase, stage and deterministic progress/failure reasons.
+The standard benchmark samples contiguous event serials after each fixed step,
+archives the full journal outside gameplay records, and fails on a gap or budget
+overflow (20,000 events / 8 Mi serialized characters). Observer reads are pure;
+observer-off disables recording without changing execution.
+
+`ai-skills-squad-check.js` covers actual native preparation geometry/adoption,
+freshness, mission identity, possession, rollback/restart and detached reads.
+Its isolated owner-boundary support/whole-team-arrival fixture is explicitly
+synthetic, not natural acceptance. `probe_ai_skills_squad.cjs` runs one immutable
+hosted natural full-ON 5km battle for 600 actual simulated seconds at 0.15/0.45,
+three same-page lifecycle restarts and rollback. It reports natural acceptance
+separately from browser QA. Paired outcome evidence uses only the existing
+GitHub standard benchmark, the natural `phase-c-natural-20261012` seed prefix,
+meeting/US-defend/GE-defend, and command history. Phase C remains opt-in and
+unaccepted unless those source traces show the full same-identity chain.

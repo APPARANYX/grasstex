@@ -1443,13 +1443,22 @@
       scores.recon = 0.6 + (1 - inputs.confidence) * 0.3;
       eligible.support = inputs.contact && !pressured;
       scores.support = 0.4 + inputs.pressure;
+      /* Reactive fire-and-maneuver may begin under manageable incoming fire.
+         Deliberate masked ambush remains a distinct pre-contact posture. */
+      var reactive = root.BattleReactiveFireManeuver;
+      var reactiveEligible = !!(reactive && reactive.on && reactive.canTask(sq, inputs));
       eligible.maneuver =
-        inputs.contact &&
-        !pressured &&
-        inputs.supporting != null &&
-        inputs.supporting >= tuning.minimumSupport &&
-        (!resourcesOn || (inputs.resources.status !== 'over-budget' && inputs.resources.moverIds.length > 0));
-      scores.maneuver = 0.6 + 0.25 * inputs.confidence - inputs.pressure;
+        reactive && reactive.on
+          ? reactiveEligible
+          : inputs.contact &&
+            !pressured &&
+            inputs.supporting != null &&
+            inputs.supporting >= tuning.minimumSupport &&
+            (!resourcesOn ||
+              (inputs.resources.status !== 'over-budget' && inputs.resources.moverIds.length > 0));
+      scores.maneuver = reactiveEligible
+        ? 1.8 + 0.25 * inputs.confidence - inputs.pressure * 0.1
+        : 0.6 + 0.25 * inputs.confidence - inputs.pressure;
       if (tasksOn) {
         var active = inputs.execution;
         eligible['route-transition'] =
@@ -1493,6 +1502,7 @@
         !pressured &&
         eligible[old.kind] &&
         now - old.since < ctx.BOUND_DURATION &&
+        !(reactiveEligible && eligible.maneuver && old.kind === 'support') &&
         !(continuityOn && old.kind === 'approach' && eligible['structure-handoff']) &&
         !(old.inputs.contact && old.inputs.supporting == null && inputs.supporting != null)
       )

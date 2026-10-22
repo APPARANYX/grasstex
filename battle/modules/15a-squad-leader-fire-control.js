@@ -213,17 +213,27 @@
       var postures = ctx.tacticalPostures && ctx.tacticalPostures(),
         posture = postures && postures.current(battle, sq);
       if (posture && posture.mode === 'ambush') {
-        var contact = firstHandContact(sq, battle),
-          ambushCounts = fireControlCounts(commanded(sq), battle, root.BattleEngagement),
+        var pilotLine = root.BattleAISquadAdapter && root.BattleAISquadAdapter.owned(battle, sq, posture),
+          requiredReady = pilotLine ? 1 : 2,
+          contact = firstHandContact(sq, battle),
+          ambushCounts = fireControlCounts(
+            pilotLine
+              ? commanded(sq).filter(function (s) {
+                  return s.weapon && ['rifle', 'carbine'].indexOf(s.weapon.kind) >= 0;
+                })
+              : commanded(sq),
+            battle,
+            root.BattleEngagement
+          ),
           open =
             (report && report.underFire > 0) ||
-            (posture.readyAt != null && contact && ambushCounts.ready >= 2),
+            (posture.readyAt != null && contact && ambushCounts.ready >= requiredReady),
           desired = open ? 'open' : 'hold';
         if (fc && fc.state === desired && fc.reason === 'coordinated masked ambush') return fc;
         return setFireControl(sq, battle, fc, desired, 'coordinated masked ambush', {
           targetId: contact && contact.unit.id,
           ready: ambushCounts.ready,
-          requiredReady: 2,
+          requiredReady: requiredReady,
           living: posture.members.length
         });
       }

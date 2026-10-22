@@ -212,8 +212,9 @@ section('a squad in contact stops marching (base of fire)');
     !m.clearingStoppage &&
     !m.outOfAmmo &&
     !SQ.isMachineGun(m);
-  const shooting = m =>
-    !m.dead && m.eng && m.eng.state === 'engage' && !(m.suppressedUntil > battle.time) && !m.reloading;
+  // The native bound requires fire capability, not merely an engage state.
+  // A low observer without a firing line cannot cover another team's move.
+  const shooting = m => root.BattleEngagement.supportReady(m, battle);
   const aTeamCouldGo = () =>
     TEAMS.some(t => {
       const movers = us.members.filter(m => free(m) && (!m._fireteamKey || m._fireteamKey === t));
