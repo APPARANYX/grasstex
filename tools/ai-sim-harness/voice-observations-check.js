@@ -120,7 +120,12 @@ function withdrawalWithoutContact() {
       }
     }
   });
-  root.BattleContextVoice = { say(sim, s, event) { spoken.push(event); return true; } };
+  root.BattleContextVoice = {
+    say(sim, s, event) {
+      spoken.push(event);
+      return true;
+    }
+  };
   b.onCallout = function () {};
   load(root, 'battle/modules/48-voice-observations.js');
   assert.equal(typeof tick, 'function');
