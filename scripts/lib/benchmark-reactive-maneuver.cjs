@@ -4,7 +4,9 @@
   function create(R, b, options = {}) {
     const E = R.BattleEngagement,
       P = R.BattleReactiveFireManeuver;
-    const active = new Map(),
+    const stages = {},
+      stageReasons = {},
+      active = new Map(),
       positioning = new Map(),
       seenLeases = new WeakSet(),
       squads = new Map(),
@@ -117,6 +119,12 @@
             if (q.inContact && support >= 2 && state.supportAt == null) state.supportAt = b.time;
             const positions = P.defensiveReadiness(b, q);
             state.positions = positions;
+            if (q.inContact && typeof P.squadStage === 'function') {
+              const stage = P.squadStage(b, q, { fireSupport: q.members });
+              stages[stage.stage] = (stages[stage.stage] || 0) + 1;
+              const sr = stage.stage + ':' + stage.reason;
+              stageReasons[sr] = (stageReasons[sr] || 0) + 1;
+            }
             if (q.inContact) {
               if (positions.ready) {
                 counts.positionReadySamples++;
@@ -238,6 +246,8 @@
       }));
       return {
         ...counts,
+        stages: { ...stages },
+        stageReasons: { ...stageReasons },
         successiveSquads: summary.filter(s => s.completedLeases > 1).length,
         active: active.size,
         rowsOmitted: counts.completed + counts.interrupted - rows.length,

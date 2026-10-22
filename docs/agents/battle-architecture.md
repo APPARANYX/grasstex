@@ -43,7 +43,14 @@ a line and passes the reactive route policy. Engagement reserves that exact slot
 and moves him; supporters and men with a usable line stay put, no objective
 bound is authorized while the lease holds, and `decision-firing-position` is
 recorded. With no safe slot nothing is assigned and the ordinary reactive path
-continues. Adoption rechecks holding members; peers already on the same bound may
+continues. The step ends on the executor's receipt, not on a timer: Engagement
+records `arrived` or `failed` (reached, unreachable, suppressed, overran) and the
+Squad Leader reads it, ends the lease and, on arrival, the pause after it so the
+next gate is judged that tick. A casualty also ends it; a failure keeps the pause.
+The lease window outlasts the mover's own bound window (`BattleEngagement.boundWindow`)
+so the receipt lands inside it, and stays the backstop for any other abandonment.
+`BattleReactiveFireManeuver.squadStage` derives which step a squad is in (cover,
+support, positions, advance, or gated) for diagnostics only; it is never a gate. Adoption rechecks holding members; peers already on the same bound may
 leave their initial positions. Native Meso selects/leases the fireteam; Engagement revalidates current
 support capability, real discharge receipts and mission/task identity, then chooses
 physical cover; the existing resolver/executor moves. This opt-in path skips

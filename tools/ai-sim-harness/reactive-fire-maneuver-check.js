@@ -371,12 +371,9 @@ assert.equal(warned.eng.state, 'advance', 'a warning without real supporting sho
 // A settled report-only man in useful cover that blocks his own line receives a
 // native covered firing-position slot; the shooters stay put and keep firing,
 // and the objective bound waits until he has arrived.
-{
+function positionWorld() {
   const fp = world(false, true);
   const { r: fr, b: fb, q: fq, S: fS, hostile: fh, wall: fw } = fp;
-  const FE = fr.BattleEngagement,
-    FL = fr.BattleLeases,
-    FR = fr.BattleReactiveFireManeuver;
   const [lone, ...shooters] = fq.members;
   const place = (s, x, z) => {
     s.root.position.set(x, 0, z);
@@ -415,15 +412,32 @@ assert.equal(warned.eng.state, 'advance', 'a warning without real supporting sho
   const fresh = { x: 0, z: 60, confidence: 0.9, source: 'told' };
   fr.SquadAI.soldierContact = () => ({ ...fresh, at: fb.time });
   fr.SquadAI.squadContactsMap = () => [{ ...fresh, at: fb.time }];
-  const decisions = [],
-    bounds = [],
-    support = new Set();
+  const events = { decisions: [], bounds: [], receipts: [] };
   fr.BattleTelemetry = {
     record(type, data) {
-      if (type === 'decision-firing-position') decisions.push({ ...data, at: fb.time });
-      if (type === 'decision-bound') bounds.push({ ...data, at: fb.time });
+      if (type === 'decision-firing-position') events.decisions.push({ ...data, at: fb.time });
+      if (type === 'decision-bound') events.bounds.push({ ...data, at: fb.time });
+      if (/^firing-position-/.test(type)) events.receipts.push({ type, ...data, at: fb.time });
     }
   };
+  const tick = () => {
+    fb.time += 0.15;
+    for (const s of fq.members) {
+      fr.BattleEngagement.updateSoldier(s, fb);
+      fr.BattleMovementResolver.resolve(s, fb);
+      H.stepMovement(fb, s, 0.15);
+    }
+    fS.fireAndMovement(fq, fb);
+  };
+  return { fr, fb, fq, fS, fh, lone, shooters, events, tick };
+}
+{
+  const { fr, fb, fq, fh, lone, shooters, events, tick } = positionWorld();
+  const FE = fr.BattleEngagement,
+    FL = fr.BattleLeases,
+    FR = fr.BattleReactiveFireManeuver;
+  const { decisions, bounds, receipts } = events,
+    support = new Set();
   const fired = fb.onFire,
     watcher = require('../../scripts/lib/benchmark-reactive-maneuver.cjs').create(fr, fb);
   let moving = false;
@@ -435,28 +449,34 @@ assert.equal(warned.eng.state, 'advance', 'a warning without real supporting sho
   const start = shooters.map(s => ({ ...s.root.position }));
   let arrivedAt = null,
     heldObjective = true,
-    slot = null;
-  for (let i = 0; i < 160 && arrivedAt === null; i++) {
-    fb.time += 0.15;
-    for (const s of fq.members) {
-      FE.updateSoldier(s, fb);
-      fr.BattleMovementResolver.resolve(s, fb);
-      H.stepMovement(fb, s, 0.15);
-    }
-    fS.fireAndMovement(fq, fb);
+    slot = null,
+    atArrival = null,
+    leased = null,
+    pauseUntil = null;
+  const trace = [];
+  for (let i = 0; i < 220 && !(arrivedAt !== null && bounds.length); i++) {
+    tick();
     watcher.sample();
+    const stage = FR.squadStage(fb, fq),
+      label = stage.stage + ':' + stage.reason;
+    if (trace[trace.length - 1] !== label) trace.push(label);
     const lease = FL.get(fq, 'bound');
     if (lease && lease.data && lease.data.firingPosition) {
       slot = lease.data.point;
+      leased = lease;
+      pauseUntil = pauseUntil || FL.until(fq, 'bound-cycle');
       moving = FE.firingPositionActive(lone);
       if (FL.holds(fq, 'bound', fb.time) && fq._assaultAuthorized) heldObjective = false;
     }
     if (
+      arrivedAt === null &&
       slot &&
       FE.stateOf(lone).state !== 'bound' &&
       Math.hypot(lone.root.position.x - slot.x, lone.root.position.z - slot.z) < 0.45
-    )
+    ) {
       arrivedAt = fb.time;
+      atArrival = watcher.snapshot();
+    }
   }
   const hide = { x: -12, y: 0, z: -7 };
   assert.equal(FR.firingLineAt(lone, fb, hide), false, 'sheltered from the enemy and from his own line');
@@ -476,7 +496,8 @@ assert.equal(warned.eng.state, 'advance', 'a warning without real supporting sho
     'the tall wall blocks the old position'
   );
   assert.equal(heldObjective, true, 'an objective bound is not authorized while he takes position');
-  assert.equal(bounds.filter(x => x.at <= arrivedAt).length, 0, 'no ordinary bound before arrival');
+  // The arrival receipt is judged in the tick that detects it, so the next bound may share that tick.
+  assert.equal(bounds.filter(x => x.at < arrivedAt).length, 0, 'no ordinary bound before arrival');
   assert.ok(support.size >= 2, 'at least two shooters kept firing while he moved: ' + [...support]);
   shooters.forEach((s, i) =>
     assert.ok(
@@ -485,17 +506,81 @@ assert.equal(warned.eng.state, 'advance', 'a warning without real supporting sho
     )
   );
   // The benchmark observer reports this step separately from team bounds.
-  const seen = watcher.snapshot();
-  assert.equal(seen.firingAssigned, 1, JSON.stringify(seen));
-  assert.equal(seen.firingAdopted, 1);
-  assert.equal(seen.firingArrived, 1);
-  assert.equal(seen.firingLineGained, 1, 'the observer re-measures the line on arrival');
-  assert.equal(seen.firingInterrupted, 0);
-  assert.ok(seen.firingSupportShots > 0, 'covering shots while he moved');
-  assert.equal(seen.authorized + seen.adopted, 0, 'a firing position is not counted as a team bound');
-  assert.ok(seen.firingPendingSamples > 0, 'the pending opportunity is sampled before assignment');
+  assert.equal(atArrival.firingAssigned, 1, JSON.stringify(atArrival));
+  assert.equal(atArrival.firingAdopted, 1);
+  assert.equal(atArrival.firingArrived, 1);
+  assert.equal(atArrival.firingLineGained, 1, 'the observer re-measures the line on arrival');
+  assert.equal(atArrival.firingInterrupted, 0);
+  assert.ok(atArrival.firingSupportShots > 0, 'covering shots while he moved');
+  // Only the ordinary bound the receipt released in the arrival tick counts as a team bound.
+  assert.equal(
+    atArrival.authorized,
+    bounds.filter(x => x.at <= arrivedAt).length,
+    'a firing position is not counted as a team bound'
+  );
+  assert.equal(atArrival.adopted, 0);
+  assert.ok(atArrival.firingPendingSamples > 0, 'the pending opportunity is sampled before assignment');
+  assert.ok(watcher.snapshot().stages.positions > 0, 'the observer samples the positions stage');
+
+  // The executor's arrival receipt ends the step; the window is only the backstop.
+  assert.equal(receipts.length, 1, JSON.stringify(receipts));
+  assert.equal(receipts[0].type, 'firing-position-arrived');
+  assert.equal(receipts[0].soldier, lone.id);
+  const ended = fq._leases.ended.find(l => l.kind === 'bound' && l.data && l.data.firingPosition);
+  assert.ok(ended && ended.endReason === 'firing position arrived', JSON.stringify(ended));
+  assert.ok(ended.endedAt <= arrivedAt + 0.5, 'the lease ends at arrival, not at window expiry');
+  assert.ok(ended.endedAt < leased.until - 1, 'it ended before its window ran out');
+  assert.ok(
+    bounds[0].at < pauseUntil - 0.3,
+    'the next step starts before the pause that followed the assignment would have lapsed: ' +
+      JSON.stringify({ next: bounds[0].at, pauseUntil, arrivedAt })
+  );
+  // Derived stage: cover and support first, then the assigned position, then advance.
+  const at = label => trace.findIndex(x => x.startsWith(label));
+  assert.ok(at('positions:assigned') >= 0, JSON.stringify(trace));
+  assert.ok(at('advance:') > at('positions:assigned'), JSON.stringify(trace));
+  assert.ok(
+    trace.slice(at('positions:assigned')).every(x => !x.startsWith('cover')),
+    'a man walking to his slot is the positions step, not unsettled cover: ' + JSON.stringify(trace)
+  );
   console.log(
     'PASS squad leader assigns a covered firing position to a settled man without a line',
-    JSON.stringify({ slot: decisions[0].slotId, arrivedAt, supporters: support.size })
+    JSON.stringify({
+      slot: decisions[0].slotId,
+      arrivedAt,
+      nextBoundAt: bounds[0].at,
+      pauseUntil,
+      supporters: support.size,
+      stages: trace
+    })
   );
 }
+
+// A casualty, or an Engagement move that ends without reaching the slot, ends the
+// step immediately. Only an arrival also ends the pause after it.
+for (const mode of ['casualty', 'engagement-failure']) {
+  const { fr, fb, fq, lone, events, tick } = positionWorld();
+  const FE = fr.BattleEngagement,
+    FL = fr.BattleLeases;
+  let lease = null;
+  for (let i = 0; i < 160 && !lease; i++) {
+    tick();
+    const l = FL.get(fq, 'bound');
+    if (l && l.data && l.data.firingPosition && FE.firingPositionActive(lone)) lease = l;
+  }
+  assert.ok(lease, mode + ': assigned');
+  if (mode === 'casualty') {
+    lone.dead = true;
+    lone.hp = 0;
+  } else FE.stateOf(lone).until = fb.time - 1; // the bound overruns its own window
+  for (let i = 0; i < 4 && !events.receipts.length; i++) {
+    if (mode === 'casualty') fr.BattleSquadStability.fireAndMovement(fq, fb);
+    else tick();
+  }
+  assert.equal(events.receipts.length, 1, mode + ': ' + JSON.stringify(events.receipts));
+  assert.equal(events.receipts[0].type, 'firing-position-failed');
+  assert.equal(events.receipts[0].reason, mode === 'casualty' ? 'casualty' : 'firing position overran');
+  assert.ok(!FL.holds(fq, 'bound', fb.time), mode + ': the failed step no longer holds the squad');
+  assert.ok(FL.holds(fq, 'bound-cycle', fb.time), mode + ': a failure keeps the pause, so no instant retry');
+}
+console.log('PASS a casualty or failed move ends the firing-position step at once and keeps the pause');

@@ -9,6 +9,9 @@
     /[?&]reactiveFireManeuver=(?:1|on|true)(?:&|#|$)/i.test(query) &&
     /[?&]localPlan=(?:1|on|true)(?:&|#|$)/i.test(query) &&
     /[?&]coveredBounds=(?:1|on|true)(?:&|#|$)/i.test(query);
+  /* A firing-position lease outlives its mover's own bound window by this much: adoption waits for
+     his next update and the receipt for the leader's next tick. */
+  var RECEIPT_SLACK = 1;
   function canTask(sq, inputs) {
     return taskReason(sq, inputs) === 'eligible';
   }
@@ -183,7 +186,13 @@
           continue;
         if (!result.point || p.distance < result.point.distance) {
           result.soldier = s;
-          result.point = { x: p.x, z: p.z, slotId: p.slotId, distance: p.distance };
+          result.point = {
+            x: p.x,
+            z: p.z,
+            slotId: p.slotId,
+            distance: p.distance,
+            window: E.boundWindow(s, p.distance) + RECEIPT_SLACK
+          };
         }
       }
     }
@@ -193,6 +202,48 @@
         ? 'no-safe-firing-position'
         : 'lines-ready';
     return result;
+  }
+  /* The executor's receipt for a leased firing-position move; a casualty also ends it. Any
+     other abandonment is left to the lease window. Read-only: the Squad Leader ends the lease. */
+  function firingPositionReceipt(battle, sq, lease) {
+    var data = lease && lease.data;
+    if (!data || !data.firingPosition) return null;
+    var id = data.moverIds && data.moverIds[0],
+      man = (sq.members || []).filter(function (s) {
+        return String(s.id) === id;
+      })[0];
+    if (!man || man.dead || man.hp <= 0 || man.incapacitated)
+      return { outcome: 'failed', reason: 'casualty', at: battle.time, soldier: man ? man.id : id };
+    var receipt = root.BattleEngagement.positionReceipt(man);
+    if (!receipt || receipt.at < lease.since || (data.point && receipt.slotId !== data.point.slotId))
+      return null;
+    receipt.soldier = man.id;
+    return receipt;
+  }
+  /* Which step of contact, cover, support, firing positions, advance a squad is in, from the
+     same gates the Squad Leader consults. Derived for diagnostics; never an authority or a gate. */
+  function squadStage(battle, sq, report) {
+    var L = root.BattleLeases,
+      task = sq && sq._localTask;
+    report = report || { fireSupport: (sq && sq.members) || [] };
+    if (!on || !sq || !sq.inContact) return { stage: 'no-contact', reason: on ? 'no-contact' : 'disabled' };
+    if (!task) return { stage: 'gated', reason: 'no-local-task' };
+    var gate = firingTaskReason(sq, task.inputs);
+    if (gate !== 'eligible' || ['support', 'maneuver'].indexOf(task.kind) < 0)
+      return { stage: 'gated', reason: (gate === 'eligible' ? 'task' : gate) + ':' + task.kind };
+    // The man walking to his slot is, by definition, not settled: the step comes first.
+    var lease = L.get(sq, 'bound');
+    if (lease && lease.data && lease.data.firingPosition && L.holds(sq, 'bound', battle.time))
+      return { stage: 'positions', reason: 'assigned' };
+    var readiness = defensiveReadiness(battle, sq);
+    if (!readiness.ready)
+      return { stage: 'cover', reason: 'squad-not-settled', pending: readiness.pending.length };
+    if (supporters(battle, sq, report, []).length < 2)
+      return { stage: 'support', reason: 'no-effective-support' };
+    var plan = firingPositionPlan(battle, sq, report);
+    if (plan.soldier) return { stage: 'positions', reason: 'assignable' };
+    if (L.holds(sq, 'bound', battle.time)) return { stage: 'advance', reason: 'bound-active' };
+    return { stage: 'advance', reason: plan.pending ? 'no-safe-firing-position' : 'ready' };
   }
   function canBoundTeam(battle, sq, movers, report) {
     return assessTeam(battle, sq, movers, report).eligible;
@@ -293,6 +344,8 @@
     supporters: supporters,
     defensiveReadiness: defensiveReadiness,
     firingPositionPlan: firingPositionPlan,
+    firingPositionReceipt: firingPositionReceipt,
+    squadStage: squadStage,
     firingTaskReason: firingTaskReason,
     firingLineAt: firingLineAt,
     canBoundTeam: canBoundTeam,

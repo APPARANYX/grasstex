@@ -666,7 +666,7 @@
           s,
           battle,
           'bound',
-          Math.max(3, cover.distance / Math.max(0.6, s.speed * 0.6) + 2),
+          root.BattleEngagement.boundWindow(s, cover.distance),
           positioning ? 'assigned firing position: cover' : 'authorized fireteam bound: cover'
         );
         bound(s, battle);

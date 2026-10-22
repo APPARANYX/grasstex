@@ -155,6 +155,7 @@
         reviewAt: 0,
         setUpSince: 0,
         boundOrder: false,
+        positionReceipt: null,
         boundWaitFrom: 0,
         suppressOrder: false,
         burstLeft: SUPPRESS_BURST,
@@ -1234,7 +1235,18 @@
   }
   function finishContactCover(s, battle, why) {
     if (!contactCoverFirstActive(s) && !firingPositionActive(s)) return false;
-    if (firingPositionActive(s)) why = why.replace('contact cover', 'firing position');
+    if (firingPositionActive(s)) {
+      why = why.replace('contact cover', 'firing position');
+      /* The executor's receipt to the lease owner: the slot it reserved was reached, or this move
+         ended without reaching it. The Squad Leader reads it; Engagement never ends a lease. */
+      var e = state(s);
+      e.positionReceipt = {
+        outcome: why === 'firing position reached' ? 'arrived' : 'failed',
+        reason: why,
+        slotId: e.cover && e.cover.slotId,
+        at: battle.time
+      };
+    }
     transition(s, battle, 'orient', reactTime(s, battle), why);
     orient(s, battle);
     return true;
@@ -1487,6 +1499,11 @@
     s._faceHint = plan.aim;
   }
 
+  /* How long a bound order gives its mover: distance at a bounding pace, plus slack. A lease that
+     commands the move must outlast this, or the mover's receipt arrives after it has expired. */
+  function boundWindow(s, distance) {
+    return Math.max(3, distance / Math.max(0.6, s.speed * 0.6) + 2);
+  }
   function bound(s, battle) {
     var e = state(s),
       cover = e.cover;
@@ -2195,6 +2212,11 @@
     states: STATES,
     contactCoverFirstActive: contactCoverFirstActive,
     firingPositionActive: firingPositionActive,
+    boundWindow: boundWindow,
+    positionReceipt: function (s) {
+      var r = s && s.eng && s.eng.positionReceipt;
+      return r ? { outcome: r.outcome, reason: r.reason, slotId: r.slotId, at: r.at } : null;
+    },
     contactCoverFirstOn: function () {
       return CONTACT_COVER_FIRST;
     },

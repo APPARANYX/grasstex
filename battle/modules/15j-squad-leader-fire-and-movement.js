@@ -171,8 +171,37 @@
           activePosition.data.firingPosition &&
           L.holds(sq, 'bound', t)
         ) {
-          sq._assaultAuthorized = false;
-          return;
+          /* Arrival, a failed move or a casualty ends the step now, not when the window runs out.
+             An arrival also ends the pause after it so the next gate is judged this tick; a
+             failure keeps the pause, so a refused slot is not retried at once. */
+          var receipt = reactive.firingPositionReceipt(battle, sq, activePosition);
+          if (!receipt) {
+            sq._assaultAuthorized = false;
+            return;
+          }
+          L.end(sq, 'bound', t, 'firing position ' + receipt.outcome);
+          E.clearBoundOrders(sq);
+          var pause = L.get(sq, 'bound-cycle');
+          if (receipt.outcome === 'arrived') {
+            if (pause && pause.reason === 'after firing position')
+              L.end(sq, 'bound-cycle', t, 'firing position arrived');
+          } else
+            L.extend(
+              sq,
+              'bound-cycle',
+              'squad-leader',
+              t,
+              t + BOUND_CYCLE,
+              'after failed firing position',
+              'cycle expiry'
+            );
+          telemetry(battle, 'firing-position-' + receipt.outcome, {
+            faction: sq.faction,
+            squad: sq.id,
+            soldier: receipt.soldier,
+            reason: receipt.reason,
+            seconds: +(t - activePosition.since).toFixed(2)
+          });
         }
         /* Only an actual assignment takes over: a man who lacks a line but has no safe covered
            slot (out of weapon range, no cover in reach) must not stall the ordinary reactive path. */
@@ -193,7 +222,7 @@
             'bound',
             'squad-leader',
             t,
-            t + BOUND_DURATION,
+            t + Math.max(BOUND_DURATION, setup.point.window),
             'establish firing position',
             'window expiry or contact broken',
             {
