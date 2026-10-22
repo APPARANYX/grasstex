@@ -26,7 +26,9 @@
         funnel: { within12: 0, facing: 0, useful: 0, free: 0, men0: 0 },
         failedAt: {},
         ownExposure: {},
-        threatSource: {}
+        threatSource: {},
+        // The fallback in question: any nearby terrain point with a prone line, no cover slot needed.
+        prone: { men: 0, helped: 0, byNearest: {}, pointsPerMan: {}, rejected: {}, helpedBySource: {} }
       };
     },
     sample: function (sim) {
@@ -87,6 +89,43 @@
           else if (!free) bucket(c.failedAt, 'all claimed');
           else bucket(c.failedAt, 'free slot exists (shapeHit or later gate)');
           bucket(c.ownExposure, band(F.coverPotentialAt(sim.obstacles, p.x, p.z), [0.5, 0.88, 1]));
+          // Deterministic ring sample: 8 bearings (16 beyond 6 m) at 2..12 m, plus the line toward the threat.
+          var threats = C.boundThreats(s, sim),
+            tgt = { root: { position: { x: ct.x, y: sim.heightAt(ct.x, ct.z), z: ct.z } } },
+            range = root.SquadAI.engageRange(s),
+            N = root.BattleNavigation,
+            found = 0,
+            nearest = Infinity;
+          c.prone.men++;
+          for (var r = 2; r <= maxD + 1e-9; r += 2) {
+            var n = r > 6 ? 16 : 8;
+            for (var k = 0; k < n; k++) {
+              var a = (k / n) * Math.PI * 2,
+                q = { x: p.x + Math.cos(a) * r, z: p.z + Math.sin(a) * r, distance: r };
+              if (Math.hypot(ct.x - q.x, ct.z - q.z) > range) continue;
+              if (N && N.movementClear && !N.movementClear(q, q)) {
+                bucket(c.prone.rejected, 'illegal-point');
+                continue;
+              }
+              if (!E.firingLineClear(s, tgt, q, 'prone', sim)) {
+                bucket(c.prone.rejected, 'no-prone-line');
+                continue;
+              }
+              var route = C.boundRoute(s, sim, q, threats, 'firing');
+              if (!route.eligible) {
+                bucket(c.prone.rejected, 'route:' + route.reason);
+                continue;
+              }
+              found++;
+              if (r < nearest) nearest = r;
+            }
+          }
+          bucket(c.prone.pointsPerMan, band(found, [0, 2, 5, 10, 20]));
+          if (found) {
+            c.prone.helped++;
+            bucket(c.prone.byNearest, band(nearest, [2, 4, 6, 8, 12]));
+            bucket(c.prone.helpedBySource, ct.source);
+          }
         });
       });
     },
