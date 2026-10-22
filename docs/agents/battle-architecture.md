@@ -59,6 +59,14 @@ not the gait he stands in, allows up to 2 s of hesitation before he accepts, and
 restarts the execution deadline when Engagement adopts the order. The Squad
 Leader also reads a late receipt on an expired but not yet pruned lease, and a
 failed arrival says whether the report went stale or the line was blocked.
+Sector memory (`?sectorMemory=0` turns it off): the Squad Leader step keeps one
+entry per 20 m cell for every told or seen contact the squad has had, until
+the squad's own men with a clear line inside 0.6 of weapon range see nothing
+there (3 s after the word came in, and no sighting nearby since), or newer word
+revives it; cells are dropped after 480 s as a safety net. It is built only from
+the squad's own contacts, and it only aims a verify-contact move for a man whose
+own report has gone stale: it is never a target and never support. The lease
+carries the aim so the arrival check measures the line to the remembered sector.
 The report only says where to look:
 the line is re-measured where he actually stops (a lost line is a failed receipt)
 and nothing counts as supporting fire until Perception sees the enemy and he

@@ -164,6 +164,7 @@
         return;
       }
       if (reactive) {
+        if (reactive.noteSectors) reactive.noteSectors(battle, sq);
         var activePosition = L.get(sq, 'bound');
         if (
           activePosition &&

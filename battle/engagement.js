@@ -1541,7 +1541,7 @@
          re-measure the line where he actually stopped (short of a crest it may be gone) and go prone
          to use it. A lost line is a failed arrival, which keeps the Squad Leader's pause. */
       if (cover.verify && firingPositionActive(s)) {
-        var vt = (root.BattleCoverPositions.boundThreats(s, battle) || [])[0];
+        var vt = (root.BattleCoverPositions.boundThreats(s, battle) || [])[0] || cover.aim;
         // The report going stale is not the line being blocked: say which one ended the move.
         if (!vt || !firingLineClear(s, { root: { position: vt } }, p, 'prone', battle))
           if (finishContactCover(s, battle, vt ? 'contact cover no line' : 'contact cover report stale'))
