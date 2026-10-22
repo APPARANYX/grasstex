@@ -94,6 +94,7 @@
             rejected.set(man, n);
             if (
               e &&
+              !man.dead &&
               e.state === 'bound' &&
               e.moveReason === 'assigned firing position: cover' &&
               !positioning.has(man)
@@ -111,6 +112,7 @@
             }
             if (
               e &&
+              !man.dead &&
               e.state === 'bound' &&
               e.moveReason === 'authorized fireteam bound: cover' &&
               !active.has(man)
@@ -252,20 +254,22 @@
             if (P.firingLineAt(man, b, man.root.position)) counts.firingLineGained++;
             if (row.verify) {
               counts.firingVerifyArrived++;
-              verifying.set(man, { at: b.time, shots: 0 });
+              verifying.set(man, { at: b.time, shots: 0, seen: false });
             }
           } else counts.firingInterrupted++;
           positioning.delete(man);
         }
       }
-      // The report is verified when this man's own recent contact is a sighting made after he arrived.
+      // The report is verified when this man's own recent contact is a sighting made after he arrived;
+      // his shots are counted for the whole 10 s window, seen or not.
       for (const [man, v] of verifying) {
         const c = man.dead ? null : R.SquadAI.soldierContact(man, b);
-        if (c && c.source === 'seen' && c.at >= v.at) {
+        if (!v.seen && c && c.source === 'seen' && c.at >= v.at) {
+          v.seen = true;
           counts.firingVerifySeen++;
-          verifying.delete(man);
-        } else if (man.dead || b.time - v.at > 10) {
-          counts.firingVerifyUnseen++;
+        }
+        if (man.dead || b.time - v.at > 10) {
+          if (!v.seen) counts.firingVerifyUnseen++;
           verifying.delete(man);
         }
       }
