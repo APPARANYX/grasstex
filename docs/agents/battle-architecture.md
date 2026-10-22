@@ -61,9 +61,12 @@ Leader also reads a late receipt on an expired but not yet pruned lease, and a
 failed arrival says whether the report went stale or the line was blocked.
 Sector memory (`?sectorMemory=0` turns it off): the Squad Leader step keeps one
 entry per 20 m cell for every told or seen contact the squad has had, until
-the squad's own men with a clear line inside 0.6 of weapon range see nothing
-there (3 s after the word came in, and no sighting nearby since), or newer word
-revives it; cells are dropped after 480 s as a safety net. It is built only from
+a squad man could see the cell from prone (Perception's own range, view cone and
+line, held for 1 s) and nobody has seen an enemy near it since, or newer word
+revives it. Confidence halves every 30 s (the aim prefers the strongest cell in
+weapon range) and cells are dropped after 120 s. With `?verifySight=0` off, verify
+points may be as far from the aim as weapon range; on, only as far as a prone man
+could be spotted there. It is built only from
 the squad's own contacts, and it only aims a verify-contact move for a man whose
 own report has gone stale: it is never a target and never support. The lease
 carries the aim so the arrival check measures the line to the remembered sector.

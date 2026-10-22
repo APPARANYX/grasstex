@@ -576,7 +576,9 @@
         audit.reason = 'unreachable-memory';
         return null;
       }
-      if (dist(threat.x, threat.z, pt.x, pt.z) > SA().engageRange(s)) {
+      var RFM = root.BattleReactiveFireManeuver,
+        reach = RFM && RFM.verifyRange ? RFM.verifyRange(s) : SA().engageRange(s);
+      if (dist(threat.x, threat.z, pt.x, pt.z) > reach) {
         audit.reason = 'out-of-range';
         return null;
       }
