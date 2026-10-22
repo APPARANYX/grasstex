@@ -558,6 +558,8 @@ squad on its next tick even if the posture change briefly cost everyone visual t
 
 `?gapHold=1` (opt-in, off by default): a squad's contact flag flickers (median contact 3.4 to 3.9 s, gap 2.6 to 3.2 s on 600 benchmark battles) and each drop cancelled the open order, so the next look restarted `hold`. With the flag, an `open` order stands through a gap while the squad still holds a first-hand contact record (`squadContact`, which expires on the existing `CONTACT_MEMORY` clock). `hold`, `precision` and `reposition` are never held and `clearContact` is unchanged.
 
+`?suppressBelieved=1` (opt-in, off by default; use with `gapHold=1`): `assignSuppressors` in personal-belief mode needs a man's own sighting under `ALERT_HOLD`, so with an open order held through gaps most men had no target and no suppress job. With the flag, while `squad.fireControl` is `open` and the squad still holds its own first-hand record (`hasFirstHandMemory`, not heard, not relayed), a man with a stale sighting may suppress that point. Same `MAX_SUPPRESSORS` cap and reach test; it is a suppress order, not a target, but `supportReady` counts a lawful suppress job as support.
+
 The normal volley target is deliberately not "all ten men or deadlock": all available men adopt the low posture,
 but the leader accepts the firing line when 70% of the commanded survivors (minimum three) are stationary, prone,
 armed and have both sight and a clear ballistic line. It then considers squad strength and mean MKM: at 85 m or

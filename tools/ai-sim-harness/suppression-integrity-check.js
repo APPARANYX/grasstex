@@ -85,4 +85,69 @@ function world() {
   assert.ok(e.burstPauseUntil > w.b.time, 'empty-sector burst starts the normal suppression pause');
 }
 
+{
+  // ?suppressBelieved=1: with the squad's order open and its own first-hand record fresh, a man whose own
+  // sighting is stale may suppress the believed point. Off by default; a relayed-only or closed order gives nothing.
+  const build = (search, mutate) => {
+    H.resetIds();
+    const r = H.bootstrap({ search: '?soldierBeliefs=1&stressAct=0' + search }),
+      b = H.makeBattle(r, { seed: 717 }),
+      q = H.addSquad(r, b, { id: 'us-bel', faction: 'us', x: 0, z: 0, objective: { x: 0, z: 100 } }),
+      ge = H.addSquad(r, b, { id: 'ge-bel', faction: 'ge', x: 0, z: 60, objective: { x: 0, z: -100 } }),
+      foe = ge.members[0];
+    r.SquadAI.canSuppress = () => true;
+    r.BattleAmmunition = { available: () => true };
+    q.members.forEach(s => {
+      s.target = null;
+      s.suppressedUntil = 0;
+      s.isPlayer = false;
+      s.moving = false;
+      s.crawling = false;
+      s.reloading = false;
+      r.BattleEngagement.stateOf(s).state = 'advance';
+    });
+    b.time = 20;
+    q.fireControl = { state: 'open' };
+    q.contact = {
+      unit: foe,
+      x: 0,
+      z: 60,
+      at: b.time - 2,
+      firstHandAt: b.time - 2,
+      seenBy: q.members[1].id,
+      source: 'seen'
+    };
+    // Every man's own sighting went stale long ago.
+    r.SquadAI.soldierContact = () => ({ x: 0, z: 60, at: b.time - 30, source: 'seen', confidence: 0.9 });
+    if (mutate) mutate(q);
+    return { r, b, q };
+  };
+  const on = build('&suppressBelieved=1');
+  assert.ok(
+    on.r.BattleEngagement.assignSuppressors(on.q, on.b, on.q.members) > 0,
+    'a stale man suppresses the believed point'
+  );
+  const off = build('');
+  assert.equal(
+    off.r.BattleEngagement.assignSuppressors(off.q, off.b, off.q.members),
+    0,
+    'default: stale sighting gives no job'
+  );
+  const closed = build('&suppressBelieved=1', q => (q.fireControl = { state: 'hold' }));
+  assert.equal(
+    closed.r.BattleEngagement.assignSuppressors(closed.q, closed.b, closed.q.members),
+    0,
+    'a closed order gives no job'
+  );
+  const relayed = build('&suppressBelieved=1', q => {
+    q.contact.firstHandAt = null;
+    q.contact.relayedFrom = 'ge-9';
+  });
+  assert.equal(
+    relayed.r.BattleEngagement.assignSuppressors(relayed.q, relayed.b, relayed.q.members),
+    0,
+    'a relayed record gives no job'
+  );
+}
+
 console.log('PASS suppression eligibility, retention and burst accounting');

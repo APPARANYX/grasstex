@@ -42,6 +42,12 @@
   var AIM_SETTLE = 0.4; // after a stance change or a major retarget
   var MOVE_FIRE_FRACTION = 0.12; // above this fraction of top speed the weapon stays down
   var ALERT_HOLD = 4.5; // hold the threat sector this long after losing sight
+  /* ?suppressBelieved=1 (opt-in): while the squad's fire order is open and it still holds its own first-hand
+     contact record, a man with no target of his own may suppress that believed point even though his own
+     sighting is stale. Same cap (MAX_SUPPRESSORS), same reach test; not a target. */
+  var SUPPRESS_BELIEVED =
+    typeof location !== 'undefined' &&
+    /[?&]suppressBelieved=(?:1|on|true)(?:&|#|$)/i.test(location.search || '');
   var ENGAGE_REVIEW = 7.0; // re-open the cover question this often while holding
   var NO_LINE_GRACE = 6.0; // a held target the man cannot fire on this long is observed, not engaged
   /* On by default; `?fireLineContact=0` is the old rule (every held target is contact, however long it has been unshootable). */
@@ -1930,12 +1936,31 @@
         )
           continue;
         if (bounding && es.boundOrder) continue;
-        var own = personal ? api.soldierContact(s, battle) : contact;
+        var own = personal ? api.soldierContact(s, battle) : contact,
+          believed = false;
+        if (
+          personal &&
+          SUPPRESS_BELIEVED &&
+          sq.fireControl &&
+          sq.fireControl.state === 'open' &&
+          contact &&
+          !contact.heard &&
+          api.hasFirstHandMemory &&
+          api.hasFirstHandMemory(contact, battle) &&
+          (!own || own.source !== 'seen' || !isFinite(+own.at) || battle.time - +own.at > ALERT_HOLD)
+        ) {
+          own = contact;
+          believed = true;
+        }
         if (!own || !isFinite(+own.x) || !isFinite(+own.z)) continue;
         /* A callout or gunshot is enough to orient and prepare a man, not enough to make him
            autonomously hose down a sector. Personal-mode automatic suppression requires his own
            recent visual memory; explicit area-fire / fire-control orders remain separate authority. */
-        if (personal && (own.source !== 'seen' || !isFinite(+own.at) || battle.time - +own.at > ALERT_HOLD))
+        if (
+          personal &&
+          !believed &&
+          (own.source !== 'seen' || !isFinite(+own.at) || battle.time - +own.at > ALERT_HOLD)
+        )
           continue;
         var point = { x: +own.x, z: +own.z };
         /* No job for a man who cannot reach what HE believes - he keeps advancing instead of
