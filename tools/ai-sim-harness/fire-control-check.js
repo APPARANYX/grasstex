@@ -58,7 +58,7 @@ function world(search, range) {
   return { r, b, us, ge, foe, E: r.BattleEngagement, Q: r.BattleSquadStability, St: r.BattleSoldierStats };
 }
 function command(w) {
-  return (w.Q.fireAndMovement(w.us, w.b), w.us.fireControl);
+  return w.Q.fireAndMovement(w.us, w.b), w.us.fireControl;
 }
 function prep(w) {
   w.us.members.filter(s => !s.dead).forEach(s => w.E.updateSoldier(s, w.b));
