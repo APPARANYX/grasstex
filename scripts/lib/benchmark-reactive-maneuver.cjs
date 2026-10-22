@@ -230,7 +230,7 @@
           d = row.goal
             ? Math.hypot(man.root.position.x - row.goal.x, man.root.position.z - row.goal.z)
             : Infinity;
-        if (d < 0.45 || man.dead || !e || e.state !== 'bound') {
+        if (man.dead || !e || e.state !== 'bound') {
           row.end = b.time;
           row.metres = Math.hypot(man.root.position.x - row.start.x, man.root.position.z - row.start.z);
           row.arrived = !man.dead && d < 0.45 && row.metres > 0.75;
@@ -248,7 +248,7 @@
           d = row.goal
             ? Math.hypot(man.root.position.x - row.goal.x, man.root.position.z - row.goal.z)
             : Infinity;
-        if (d < 0.45 || man.dead || !e || e.state !== 'bound') {
+        if (man.dead || !e || e.state !== 'bound') {
           if (!man.dead && d < 0.45) {
             counts.firingArrived++;
             if (P.firingLineAt(man, b, man.root.position)) counts.firingLineGained++;
