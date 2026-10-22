@@ -260,6 +260,13 @@
       e.fledAt = battle.time;
       var base = sq && SA().extractionHome ? SA().extractionHome(sq) : sq && sq.home;
       e.fledHome = base ? { x: base.x, z: base.z } : { x: posOf(s).x, z: posOf(s).z };
+      /* Remember which fully held line was safe when he broke. A later secured line can
+         shorten extraction, but never send a broken man backward or toward an unheld point. */
+      e.fledRearLine =
+        sq && sq._frontLineRear && Number.isFinite(+sq._frontLineRear.line)
+          ? +sq._frontLineRear.line
+          : null;
+      e.fledHomeRebasedAt = -1e9;
       e.refuge = null;
       e.refugeHere = false;
       e.refugeTries = 0;
@@ -312,6 +319,51 @@
       });
       return true;
     }
+    /* A permanently fleeing man is not re-tasked by Macro. Only the Front Lines
+       owner's already-published, fully held rear position may shorten his existing
+       homeward leg. On ordinary maps this remains inert. The original destination
+       remains authoritative when it is closer, the newer line is not farther
+       forward, or trouble is nearby. This avoids multi-kilometre detours after a
+       line has been secured without making a fleeing man combat-ready. */
+    function refreshFledHome(s, battle) {
+      var e = state(s),
+        rear = s.squad && s.squad._frontLineRear,
+        old = e.fledHome;
+      if (
+        e.fledPhase !== 'home' ||
+        !rear ||
+        !old ||
+        e.fledRearLine == null ||
+        !Number.isFinite(+rear.line) ||
+        !Number.isFinite(+rear.x) ||
+        !Number.isFinite(+rear.z) ||
+        battle.time - e.fledHomeRebasedAt < 30
+      )
+        return;
+      var newLine = +rear.line,
+        forward = s.faction === 'us' ? newLine > e.fledRearLine : newLine < e.fledRearLine;
+      if (!forward) return;
+      var p = posOf(s),
+        oldDistance = dist(p.x, p.z, old.x, old.z),
+        newDistance = dist(p.x, p.z, rear.x, rear.z),
+        th = trouble(s, battle);
+      if (newDistance + 50 >= oldDistance) return;
+      if (th && dist(p.x, p.z, th.x, th.z) < ACT_TUNING.FLED_ENEMY_NEAR) return;
+      e.fledHome = { x: +rear.x, z: +rear.z };
+      e.fledRearLine = newLine;
+      e.fledHomeRebasedAt = battle.time;
+      e.refugeBest = newDistance;
+      e.refugeAt = battle.time;
+      e.refugeTries = 0;
+      telemetry(battle, 'decision-fled-home-rebased', {
+        faction: s.faction,
+        soldier: s.id,
+        squad: s.squad && s.squad.id,
+        objectiveId: rear.objectiveId || null,
+        oldDistance: +oldDistance.toFixed(1),
+        newDistance: +newDistance.toFixed(1)
+      });
+    }
     function fledPhase(s) {
       return (s && s.eng && s.eng.fledPhase) || null;
     }
@@ -348,6 +400,7 @@
           return;
         }
       }
+      if (e.fledPhase === 'home') refreshFledHome(s, battle);
       if (!runTo(s, battle, e.fledHome, T.FLED_HOME_RADIUS, false)) return;
       /* At base: a new weapon, and he is a man of a retreating squad again, recovering. */
       if (SA().rearm) SA().rearm(s, battle.scene, battle);
