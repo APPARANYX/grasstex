@@ -576,7 +576,9 @@
         audit.reason = 'unreachable-memory';
         return null;
       }
-      if (dist(threat.x, threat.z, pt.x, pt.z) > SA().engageRange(s)) {
+      var RFM = root.BattleReactiveFireManeuver,
+        reach = RFM && RFM.verifyRange ? RFM.verifyRange(s) : SA().engageRange(s);
+      if (dist(threat.x, threat.z, pt.x, pt.z) > reach) {
         audit.reason = 'out-of-range';
         return null;
       }
@@ -589,7 +591,16 @@
         audit.reason = 'no-prone-line';
         return null;
       }
-      return { x: goal.x, z: goal.z, slotId: null, quality: 1, distance: d, type: 'terrain', verify: true };
+      return {
+        x: goal.x,
+        z: goal.z,
+        slotId: null,
+        quality: 1,
+        distance: d,
+        type: 'terrain',
+        verify: true,
+        aim: pt.aim || null
+      };
     }
     /* One Squad Leader permission produces one displacement. Cover and a no-cover rush use the same
      engagement lifecycle, so target flicker cannot create a second, invisible movement drill. */
@@ -648,6 +659,9 @@
         audit = null;
       if (covered) {
         var threats = C.boundThreats(s, battle);
+        // A verify move toward a remembered sector carries its own aim: his report has gone stale.
+        if (!threats.length && positioning && activeLease.data.point && activeLease.data.point.aim)
+          threats = [activeLease.data.point.aim];
         audit = {
           threats: threats,
           policy: positioning ? 'firing' : reactive ? 'reactive' : undefined,

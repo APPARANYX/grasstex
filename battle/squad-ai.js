@@ -754,6 +754,26 @@
     }
     return hasLineOfSight(soldier, unit, battle.heightAt, battle.obstacles);
   }
+  /* Read-only: would this man see a man holding still in `stance` at `point` (default prone), by the
+     same range, view cone and sight tests as his real spotting? A stand-in has no stance of its own
+     in the world, so it carries one here. Writes nothing and draws no RNG. */
+  function standIn(point, stance, battle) {
+    var y = battle && battle.heightAt ? battle.heightAt(point.x, point.z) : 0;
+    return {
+      root: { position: { x: point.x, y: y, z: point.z } },
+      prone: (stance || 'prone') === 'prone',
+      crouching: stance === 'crouch',
+      moving: false
+    };
+  }
+  function couldSeePoint(soldier, point, battle, stance) {
+    return canPersonallySeeKnown(soldier, standIn(point, stance, battle), battle);
+  }
+  /* The most he can see of a still man in that stance, ignoring view cone and cover. */
+  function sightRangeFor(soldier, stance) {
+    var role = ROLES[soldier.role];
+    return role ? detectionRange(role, standIn({ x: 0, z: 0 }, stance)) * sightScale(soldier) : 0;
+  }
   function observeKnownNonThreats(soldier, battle) {
     if (!SOLDIER_BELIEFS_ON || !soldier || !battle) return;
     var store = beliefStore(soldier, battle);
@@ -2376,6 +2396,8 @@
     playerFireRay: playerFireRay,
     hasLineOfSight: hasLineOfSight,
     detectionRange: detectionRange,
+    couldSeePoint: couldSeePoint,
+    sightRangeFor: sightRangeFor,
     findTarget: findTarget,
     threatDisposition: threatDisposition,
     lookYaw: lookYaw,

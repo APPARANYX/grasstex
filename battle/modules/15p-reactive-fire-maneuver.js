@@ -29,6 +29,16 @@
      counted from issue, receipts read only while the lease is live. */
   var LEASE_CLOCK = !/[?&]leaseClock=(?:0|off|false)(?:&|#|$)/i.test(query);
   var VERIFY_CONTACT = !/[?&]verifyContact=(?:0|off|false)(?:&|#|$)/i.test(query);
+  /* ?sectorMemory=0 restores the old rule: a man whose own report went stale (10 s, confidence 0.5)
+     has no target to verify, however recently his squad was told where the enemy is. */
+  var SECTOR_MEMORY = !/[?&]sectorMemory=(?:0|off|false)(?:&|#|$)/i.test(query);
+  /* ?verifySight=0 restores the old verify range: the target anywhere inside weapon range. A verify
+     point has to be near enough that a still prone man there could be spotted at all. */
+  var VERIFY_SIGHT = !/[?&]verifySight=(?:0|off|false)(?:&|#|$)/i.test(query);
+  var SECTOR_CELL = 20,
+    SECTOR_KEEP = 120,
+    SECTOR_LOOK = 1,
+    SECTOR_HALF_LIFE = 30;
   var VERIFY_STEP = 2,
     VERIFY_BEARINGS = [8, 8, 8, 16, 16, 16];
   function canTask(sq, inputs) {
@@ -138,6 +148,94 @@
       return null;
     return { root: { position: { x: c.x, y: battle.heightAt(c.x, c.z), z: c.z } } };
   }
+
+  /* Sector memory: where this squad last believed the enemy was, kept until its own men look there
+     and see nothing (or newer word replaces it), not until a timer. It is built only from the
+     squad's own told and seen contacts, aims a verify-contact move and nothing else: never a target,
+     never support. One entry per 20 m cell. `clearedAt` marks a cell where one of the squad's own men
+     would, by the real spotting tests, have seen a still prone man for SECTOR_LOOK s and saw nothing;
+     a later report revives it. Confidence halves every SECTOR_HALF_LIFE s, and a cell is dropped after
+     SECTOR_KEEP s (measured: past two minutes the enemy is rarely still there). */
+  function noteSectors(battle, sq) {
+    if (!on || !SECTOR_MEMORY || !sq || !battle) return null;
+    var mem = sq._sectorMemory || (sq._sectorMemory = { cells: Object.create(null), at: -1 }),
+      A = root.SquadAI,
+      E = root.BattleEngagement;
+    if (mem.at === battle.time) return mem;
+    mem.at = battle.time;
+    var rows = (A.squadContactsMap && A.squadContactsMap(sq, battle)) || [];
+    rows.forEach(function (c) {
+      if (!c || c.source === 'heard' || !Number.isFinite(c.x) || !Number.isFinite(c.z)) return;
+      var key = Math.floor(c.x / SECTOR_CELL) + ',' + Math.floor(c.z / SECTOR_CELL),
+        cell = mem.cells[key];
+      if (cell && !(c.at > cell.at)) return;
+      mem.cells[key] = {
+        key: key,
+        x: c.x,
+        z: c.z,
+        at: c.at,
+        source: c.source,
+        lookSince: null,
+        clearedAt: cell && cell.clearedAt != null && !(c.at > cell.clearedAt) ? cell.clearedAt : null
+      };
+    });
+    var seen = rows.filter(function (c) {
+      return c && c.source === 'seen';
+    });
+    Object.keys(mem.cells).forEach(function (key) {
+      var cell = mem.cells[key];
+      if (battle.time - cell.at > SECTOR_KEEP) {
+        delete mem.cells[key];
+        return;
+      }
+      if (cell.clearedAt != null || !A.couldSeePoint) return;
+      // Someone has since seen an enemy there: it is not empty.
+      if (
+        seen.some(function (c) {
+          return c.at > cell.at && Math.hypot(c.x - cell.x, c.z - cell.z) <= SECTOR_CELL * 1.25;
+        })
+      ) {
+        cell.lookSince = null;
+        return;
+      }
+      var looked = false;
+      for (var i = 0; i < sq.members.length && !looked; i++) {
+        var m = sq.members[i];
+        if (!m || m.dead || m.hp <= 0 || m.incapacitated || m.suppressedUntil > battle.time || !m.root)
+          continue;
+        looked = A.couldSeePoint(m, cell, battle, 'prone');
+      }
+      if (!looked) cell.lookSince = null;
+      else if (cell.lookSince == null) cell.lookSince = battle.time;
+      else if (battle.time - cell.lookSince >= SECTOR_LOOK) cell.clearedAt = battle.time;
+    });
+    return mem;
+  }
+  function sectorCells(sq) {
+    var mem = sq && sq._sectorMemory;
+    return mem
+      ? Object.keys(mem.cells).map(function (k) {
+          return mem.cells[k];
+        })
+      : [];
+  }
+  function sectorConfidence(cell, now) {
+    return Math.pow(0.5, Math.max(0, now - cell.at) / SECTOR_HALF_LIFE);
+  }
+  /* The most trusted remembered, uncleared sector inside this man's weapon range. */
+  function rememberedAim(s, battle) {
+    if (!SECTOR_MEMORY) return null;
+    var best = null,
+      range = root.SquadAI.engageRange(s),
+      p = s.root.position;
+    sectorCells(s.squad).forEach(function (cell) {
+      if (cell.clearedAt != null) return;
+      var d = Math.hypot(cell.x - p.x, cell.z - p.z);
+      if (d <= range && (!best || sectorConfidence(cell, battle.time) > sectorConfidence(best, battle.time)))
+        best = cell;
+    });
+    return best && { x: best.x, z: best.z, y: battle.heightAt(best.x, best.z), at: best.at };
+  }
   // The lowest stance with a clear sight and ballistic ray from this point, else null.
   function firingStanceAt(s, battle, point) {
     var target = firingThreat(s, battle),
@@ -220,7 +318,7 @@
         E.reacting(s) ||
         (root.BattleTacticalPositions && root.BattleTacticalPositions.current(s)) ||
         (task.inputs.resources && task.inputs.resources.moverIds.indexOf(String(s.id)) < 0) ||
-        !firingThreat(s, battle) ||
+        (!firingThreat(s, battle) && !rememberedAim(s, battle)) ||
         firingLineAt(s, battle, s.root.position)
       )
         continue;
@@ -228,6 +326,20 @@
       if (supporters(battle, sq, report, [s]).length < 2) continue;
       var threats = C.boundThreats(s, battle),
         target = firingThreat(s, battle);
+      if (!target) {
+        /* His own word has gone stale but his squad still believes the enemy is there: verify that
+           sector. No cover slots (they need a fresh report), and the lease carries the aim. */
+        var aim = rememberedAim(s, battle);
+        if (aim && !E.firingLineClear(s, { root: { position: aim } }, s.root.position, 'prone', battle))
+          stuck.push({
+            man: s,
+            threats: [aim],
+            target: { root: { position: aim } },
+            aim: { x: aim.x, z: aim.z }
+          });
+        else note(aim ? 'aim-has-line' : 'no-threats');
+        continue;
+      }
       if (!threats.length) {
         note('no-threats');
         continue;
@@ -275,6 +387,7 @@
             z: found.z,
             slotId: null,
             verify: true,
+            aim: stuck[m].aim || null,
             distance: found.distance,
             window:
               E.boundWindow(stuck[m].man, found.distance, movePace(stuck[m].man)) +
@@ -294,12 +407,19 @@
      enemy, inside weapon range, on a legal straight route that passes the same exposure limits as a
      slot. Deterministic rings, the bearing toward the report first, shortest ring wins. A report is
      only where to look: nothing here counts as support until Perception sees the enemy. */
+  /* How far a verify point may be from what it checks: weapon range, or with ?verifySight on only as
+     far as a still prone man there could be spotted from a prone position. */
+  function verifyRange(s) {
+    var A = root.SquadAI,
+      weapon = A.engageRange(s);
+    return VERIFY_SIGHT && A.sightRangeFor ? Math.min(weapon, A.sightRangeFor(s, 'prone')) : weapon;
+  }
   function verifyPoint(s, battle, target, threats, note) {
     var C = root.BattleCoverPositions,
       E = root.BattleEngagement,
       p = s.root.position,
       tp = target.root.position,
-      range = root.SquadAI.engageRange(s),
+      range = verifyRange(s),
       reach = C.boundTuning().maxDistance,
       toward = Math.atan2(tp.z - p.z, tp.x - p.x);
     for (var ring = 0; ring < VERIFY_BEARINGS.length; ring++) {
@@ -468,6 +588,11 @@
     firingPositionPlan: firingPositionPlan,
     verifyContact: VERIFY_CONTACT,
     leaseClock: LEASE_CLOCK,
+    sectorMemory: SECTOR_MEMORY,
+    noteSectors: noteSectors,
+    sectorCells: sectorCells,
+    sectorConfidence: sectorConfidence,
+    verifyRange: verifyRange,
     movePace: movePace,
     firingPositionReceipt: firingPositionReceipt,
     squadStage: squadStage,

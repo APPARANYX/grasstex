@@ -26,7 +26,6 @@ priority. This uses the native cover reservations and resolver; it does not
 require a squad supporting-fire lease. `contactCoverFirst=0` is the paired legacy
 control. No fire/support capability is reported during contact-cover ingress.
 
-
 The experimental `reactiveFireManeuver=1&localPlan=1&coveredBounds=1` path uses
 `15p-reactive-fire-maneuver.js` only as a read-only policy. Local planning selects
 the task. Before native Meso leases a fireteam, every living combat-capable
@@ -59,6 +58,18 @@ not the gait he stands in, allows up to 2 s of hesitation before he accepts, and
 restarts the execution deadline when Engagement adopts the order. The Squad
 Leader also reads a late receipt on an expired but not yet pruned lease, and a
 failed arrival says whether the report went stale or the line was blocked.
+Sector memory (`?sectorMemory=0` turns it off): the Squad Leader step (every pass, including
+ones that return early out of contact or under hold/precision fire control) keeps one
+entry per 20 m cell for every told or seen contact the squad has had, until
+a squad man could see the cell from prone (Perception's own range, view cone and
+line, held for 1 s) and nobody has seen an enemy near it since, or newer word
+revives it. Confidence halves every 30 s (the aim prefers the strongest cell in
+weapon range) and cells are dropped after 120 s. With `?verifySight=0` off, verify
+points may be as far from the aim as weapon range; on, only as far as a prone man
+could be spotted there. It is built only from
+the squad's own contacts, and it only aims a verify-contact move for a man whose
+own report has gone stale: it is never a target and never support. The lease
+carries the aim so the arrival check measures the line to the remembered sector.
 The report only says where to look:
 the line is re-measured where he actually stops (a lost line is a failed receipt)
 and nothing counts as supporting fire until Perception sees the enemy and he
@@ -78,7 +89,6 @@ native tactical safety gates and uses an explicit bounded-exposure route mode
 with a concealed destination. It is default OFF and has not been accepted as
 reliable natural-battle behavior. See Tunables and the reactive causal check.
 
-
 In the opt-in front-lines scenario, `BattleFrontLines.garrisonFor` is a read-only
 request for one present squad to secure the exposed held line; Force Command
 issues and releases the ordinary defense brief. Macro also considers nearby
@@ -96,7 +106,7 @@ supersedes its hold proposal. Repeated fled detachments have distinct identities
 including against retained empty squads in command history and diagnostics.
 
 **Fixed-policy baseline (October 2026; #360):** Genome v2 is stashed (`battle/ai-policy.js`), and
-commander *action doctrine* is independently disabled (`commander-doctrine.js`,
+commander _action doctrine_ is independently disabled (`commander-doctrine.js`,
 `ACTION_DOCTRINE_ON = false`). The four legacy conditional action overrides do **not** decide
 missions; the General defaults to its explicit assault action unless objective ownership,
 prepared-garrison requests, capture-zone security or reserve/hold contracts justify something else.
@@ -534,7 +544,7 @@ shots left (AGI+MKM), riflemen whoever remains, and the role still issues the we
 not crawling, within `AIM_CONE` (~12.6°), and gunner emplaced. `squad.inContact` is
 `contactCount>0 || suppressors>0 || taking fire` where `contactCount` is the men whose held target has a live firing line: sight
 alone does not make a firefight. A target whose round would meet the crest or an obstacle first (the trigger-time gate's own
-`blockReason`) counts for `NO_LINE_GRACE` (6 s) after the line closes, then the man is only *observing*: he proposes no hold, so the
+`blockReason`) counts for `NO_LINE_GRACE` (6 s) after the line closes, then the man is only _observing_: he proposes no hold, so the
 Squad Leader's published order moves him, and the squad can clear contact, close its plan lease and advance on the last sighting
 instead of sitting behind the crest with every layer reading "contact" (`?fireLineContact=0` is the old rule; the hill stalemate,
 `hill-stalemate-check.js`). Suppression deals no damage, only pins. There are at most

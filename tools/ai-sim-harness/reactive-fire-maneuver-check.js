@@ -416,7 +416,7 @@ function positionWorld(options = {}) {
   fb.obstacles.__physicalVersion = 1;
   fq.members.forEach((s, i) => (s._fireteamKey = ['alpha', 'bravo', 'bravo', 'charlie', 'charlie'][i]));
   lone.target = null; // Report-only: a delivered report never creates a direct target.
-  const fresh = { x: 0, z: 60, confidence: 0.9, source: 'told' };
+  const fresh = { x: 0, z: options.enemyZ || 60, confidence: 0.9, source: 'told' };
   fr.SquadAI.soldierContact = () => ({ ...fresh, at: fb.time });
   fr.SquadAI.squadContactsMap = () => [{ ...fresh, at: fb.time }];
   const events = { decisions: [], bounds: [], receipts: [] };
@@ -637,8 +637,8 @@ console.log('PASS the firing slot is judged on cover at the stance that sees, no
 // A settled man in the open with no cover slot in reach is sent to a nearby prone firing point so
 // Perception can see the enemy the report only describes. The report guides him; it is not support.
 {
-  const on = positionWorld({ slot: 'none' });
-  const off = positionWorld({ slot: 'none', search: '&verifyContact=0' });
+  const on = positionWorld({ enemyZ: 25, slot: 'none' });
+  const off = positionWorld({ enemyZ: 25, slot: 'none', search: '&verifyContact=0' });
   const OE = on.fr.BattleEngagement,
     OR = on.fr.BattleReactiveFireManeuver;
   assert.equal(OR.verifyContact, true);
@@ -666,7 +666,7 @@ console.log('PASS the firing slot is judged on cover at the stance that sees, no
 }
 {
   // The line is re-measured where he actually stops: a wall raised across it makes the arrival a failure.
-  const w = positionWorld({ slot: 'none' });
+  const w = positionWorld({ enemyZ: 25, slot: 'none' });
   let blocked = false;
   for (let i = 0; i < 220 && !w.events.receipts.length; i++) {
     w.tick();
@@ -712,7 +712,7 @@ console.log('PASS the firing slot is judged on cover at the stance that sees, no
 }
 {
   // A report that goes stale during the move is named as such, not as a blocked line.
-  const w = positionWorld({ slot: 'none' });
+  const w = positionWorld({ enemyZ: 25, slot: 'none' });
   let gone = false;
   for (let i = 0; i < 220 && !w.events.receipts.length; i++) {
     w.tick();
@@ -740,7 +740,7 @@ console.log('PASS the firing slot is judged on cover at the stance that sees, no
   // A man who hesitates before going keeps his lease, and its execution deadline restarts when he
   // accepts the order, so the wait does not eat his move.
   const run = search => {
-    const w = positionWorld({ slot: 'none', search });
+    const w = positionWorld({ enemyZ: 25, slot: 'none', search });
     // Only the hesitation matters here; every other mind query reads as neutral.
     w.fr.BattleSoldierMind = new Proxy(
       { hesitation: () => 2 },
@@ -769,6 +769,81 @@ console.log('PASS the firing slot is judged on cover at the stance that sees, no
   assert.ok(
     old.adopted && old.adopted.until <= old.issued + 1e-9,
     '?leaseClock=0 leaves the lease as issued'
+  );
+}
+{
+  // Sector memory: a man whose own word went stale still verifies the sector his squad believes in,
+  // until his squad looks there and sees nothing. ?sectorMemory=0 restores the stale-means-nothing rule.
+  const stale = search => {
+    const w = positionWorld({ enemyZ: 25, slot: 'none', search });
+    // His own contact has long expired; the squad's shared map still holds the told report.
+    w.fr.SquadAI.soldierContact = m =>
+      m === w.lone
+        ? { x: 0, z: 60, confidence: 0.9, source: 'told', at: w.fb.time - 60 }
+        : { x: 0, z: 60, confidence: 0.9, source: 'told', at: w.fb.time };
+    for (let i = 0; i < 160 && !w.events.decisions.length; i++) w.tick();
+    return w;
+  };
+  const on = stale('');
+  const d = on.events.decisions[0];
+  assert.ok(d && d.verify, 'the stale man is leased a verify move toward the remembered sector');
+  assert.ok(
+    on.fq._sectorMemory && Object.keys(on.fq._sectorMemory.cells).length,
+    'the squad remembers the sector'
+  );
+  const off = stale('&sectorMemory=0');
+  assert.equal(off.events.decisions.length, 0, '?sectorMemory=0 gives a stale man nothing to verify');
+}
+{
+  // A report reaches the memory on every Squad Leader pass, even one that returns early (no contact).
+  const w = positionWorld({ enemyZ: 25, slot: 'none' });
+  const update = w.fr.BattleEngagement.updateSquad;
+  w.fr.BattleEngagement.updateSquad = (sq, battle) => {
+    const r = update(sq, battle);
+    sq.inContact = false;
+    return r;
+  };
+  for (let i = 0; i < 5; i++) w.fS.fireAndMovement(w.fq, w.fb);
+  assert.ok(
+    w.fq._sectorMemory && Object.keys(w.fq._sectorMemory.cells).length,
+    'a squad out of contact still records the report'
+  );
+}
+{
+  // A sector is cleared only by a man who can see it, and a later report brings it back.
+  const w = positionWorld({ enemyZ: 25, slot: 'none' });
+  const OR = w.fr.BattleReactiveFireManeuver;
+  for (let i = 0; i < 40; i++) w.tick();
+  OR.noteSectors(w.fb, w.fq);
+  const cells = OR.sectorCells(w.fq);
+  assert.ok(cells.length, 'a told report becomes a remembered sector');
+  assert.ok(
+    cells.every(c => c.clearedAt == null),
+    'still uncleared: nobody has looked there'
+  );
+  const cell = cells[0];
+  // The word is no longer repeated: it stays as old as it was when it came in.
+  w.fr.SquadAI.squadContactsMap = () => [
+    { x: cell.x, z: cell.z, confidence: 0.9, source: 'told', at: cell.at }
+  ];
+  // A man within sighting range with a clear line, and no sighting there: looked at and empty.
+  w.shooters[0].root.position.set(cell.x, 0, cell.z - 30);
+  w.fb.time += 5;
+  OR.noteSectors(w.fb, w.fq);
+  assert.ok(
+    OR.sectorCells(w.fq).some(c => c.clearedAt != null),
+    'a sector his men saw empty is cleared'
+  );
+  const cleared = OR.sectorCells(w.fq).find(c => c.clearedAt != null);
+  w.fr.SquadAI.squadContactsMap = () => [
+    { x: cleared.x, z: cleared.z, confidence: 0.9, source: 'told', at: w.fb.time + 1 }
+  ];
+  w.fb.time += 2;
+  OR.noteSectors(w.fb, w.fq);
+  assert.equal(
+    OR.sectorCells(w.fq).find(c => c.key === cleared.key).clearedAt,
+    null,
+    'a newer report revives a cleared sector'
   );
 }
 console.log(
