@@ -367,3 +367,135 @@ warned.target = null;
 warned.eng.state = 'advance';
 warningOnly.r.BattleEngagement.updateSoldier(warned, warningOnly.b);
 assert.equal(warned.eng.state, 'advance', 'a warning without real supporting shots retains native transit');
+
+// A settled report-only man in useful cover that blocks his own line receives a
+// native covered firing-position slot; the shooters stay put and keep firing,
+// and the objective bound waits until he has arrived.
+{
+  const fp = world(false, true);
+  const { r: fr, b: fb, q: fq, S: fS, hostile: fh, wall: fw } = fp;
+  const FE = fr.BattleEngagement,
+    FL = fr.BattleLeases,
+    FR = fr.BattleReactiveFireManeuver;
+  const [lone, ...shooters] = fq.members;
+  const place = (s, x, z) => {
+    s.root.position.set(x, 0, z);
+    s.destination = { x, z };
+    s.orderDestination = { x, z };
+  };
+  const box = (id, x, z, hx, hz, height, cover, type) => ({
+    ...fw,
+    id,
+    physicalId: id,
+    type,
+    x,
+    z,
+    hx,
+    hz,
+    radius: 1,
+    height,
+    cover
+  });
+  place(lone, -12, -7);
+  shooters.forEach((s, i) => place(s, 12 + 4 * i, -8));
+  // A tall wall shelters the lone man from the reported enemy and from his own
+  // view. Chest-high cover 6 m away hides a crouched body but not a standing rifle.
+  fb.obstacles = [
+    box('blocker', -12, -6, 2.5, 0.4, 3.5, 0.55, 'wall'),
+    box('firing-wall', -18, -6, 1.2, 0.3, 1.3, 0.55, 'wall')
+  ].concat(
+    shooters.map(s =>
+      box('log-' + s.id, s.root.position.x + 1, s.root.position.z + 0.5, 0.3, 1, 0.62, 0.45, 'log')
+    )
+  );
+  fb.obstacles.__physicalFootprints = fb.obstacles;
+  fb.obstacles.__physicalVersion = 1;
+  fq.members.forEach((s, i) => (s._fireteamKey = ['alpha', 'bravo', 'bravo', 'charlie', 'charlie'][i]));
+  lone.target = null; // Report-only: a delivered report never creates a direct target.
+  const fresh = { x: 0, z: 60, confidence: 0.9, source: 'told' };
+  fr.SquadAI.soldierContact = () => ({ ...fresh, at: fb.time });
+  fr.SquadAI.squadContactsMap = () => [{ ...fresh, at: fb.time }];
+  const decisions = [],
+    bounds = [],
+    support = new Set();
+  fr.BattleTelemetry = {
+    record(type, data) {
+      if (type === 'decision-firing-position') decisions.push({ ...data, at: fb.time });
+      if (type === 'decision-bound') bounds.push({ ...data, at: fb.time });
+    }
+  };
+  const fired = fb.onFire,
+    watcher = require('../../scripts/lib/benchmark-reactive-maneuver.cjs').create(fr, fb);
+  let moving = false;
+  fb.onFire = function (s) {
+    watcher.shot(s);
+    if (moving && shooters.includes(s)) support.add(s.id);
+    return fired.apply(this, arguments);
+  };
+  const start = shooters.map(s => ({ ...s.root.position }));
+  let arrivedAt = null,
+    heldObjective = true,
+    slot = null;
+  for (let i = 0; i < 160 && arrivedAt === null; i++) {
+    fb.time += 0.15;
+    for (const s of fq.members) {
+      FE.updateSoldier(s, fb);
+      fr.BattleMovementResolver.resolve(s, fb);
+      H.stepMovement(fb, s, 0.15);
+    }
+    fS.fireAndMovement(fq, fb);
+    watcher.sample();
+    const lease = FL.get(fq, 'bound');
+    if (lease && lease.data && lease.data.firingPosition) {
+      slot = lease.data.point;
+      moving = FE.firingPositionActive(lone);
+      if (FL.holds(fq, 'bound', fb.time) && fq._assaultAuthorized) heldObjective = false;
+    }
+    if (
+      slot &&
+      FE.stateOf(lone).state !== 'bound' &&
+      Math.hypot(lone.root.position.x - slot.x, lone.root.position.z - slot.z) < 0.45
+    )
+      arrivedAt = fb.time;
+  }
+  const hide = { x: -12, y: 0, z: -7 };
+  assert.equal(FR.firingLineAt(lone, fb, hide), false, 'sheltered from the enemy and from his own line');
+  assert.equal(decisions.length, 1, JSON.stringify(decisions));
+  assert.equal(decisions[0].soldier, lone.id);
+  assert.ok(slot && slot.slotId === decisions[0].slotId, 'lease carries the native slot Engagement reserves');
+  assert.ok(arrivedAt !== null, 'native movement reaches the assigned firing position');
+  assert.equal(FR.firingLineAt(lone, fb, lone.root.position), true, 'the slot has an actual firing line');
+  assert.equal(
+    FE.firingLineClear(lone, fh, lone.root.position, 'stand', fb),
+    true,
+    'BattleEngagement.firingLineClear(s, target, pt, stance, battle) reaches the stance module'
+  );
+  assert.equal(
+    FE.firingLineClear(lone, fh, hide, 'stand', fb),
+    false,
+    'the tall wall blocks the old position'
+  );
+  assert.equal(heldObjective, true, 'an objective bound is not authorized while he takes position');
+  assert.equal(bounds.filter(x => x.at <= arrivedAt).length, 0, 'no ordinary bound before arrival');
+  assert.ok(support.size >= 2, 'at least two shooters kept firing while he moved: ' + [...support]);
+  shooters.forEach((s, i) =>
+    assert.ok(
+      Math.hypot(s.root.position.x - start[i].x, s.root.position.z - start[i].z) < 0.5,
+      'a man with a usable line stays put'
+    )
+  );
+  // The benchmark observer reports this step separately from team bounds.
+  const seen = watcher.snapshot();
+  assert.equal(seen.firingAssigned, 1, JSON.stringify(seen));
+  assert.equal(seen.firingAdopted, 1);
+  assert.equal(seen.firingArrived, 1);
+  assert.equal(seen.firingLineGained, 1, 'the observer re-measures the line on arrival');
+  assert.equal(seen.firingInterrupted, 0);
+  assert.ok(seen.firingSupportShots > 0, 'covering shots while he moved');
+  assert.equal(seen.authorized + seen.adopted, 0, 'a firing position is not counted as a team bound');
+  assert.ok(seen.firingPendingSamples > 0, 'the pending opportunity is sampled before assignment');
+  console.log(
+    'PASS squad leader assigns a covered firing position to a settled man without a line',
+    JSON.stringify({ slot: decisions[0].slotId, arrivedAt, supporters: support.size })
+  );
+}

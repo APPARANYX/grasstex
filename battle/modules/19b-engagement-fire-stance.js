@@ -341,7 +341,7 @@
     }
     function fireAllowed(s, battle) {
       var e = state(s);
-      if (root.BattleEngagement.contactCoverFirstActive(s))
+      if (root.BattleEngagement.contactCoverFirstActive(s) || root.BattleEngagement.firingPositionActive(s))
         return reportFireDenial(s, battle, 'contact-cover-ingress');
       if (!combatThreat(s.target)) return reportFireDenial(s, battle, 'no-threat');
       if (s.reloading) return reportFireDenial(s, battle, 'reloading');
@@ -372,7 +372,8 @@
      sector before he fires into it. */
     function suppress(s, battle, point) {
       var e = state(s);
-      if (root.BattleEngagement.contactCoverFirstActive(s)) return false;
+      if (root.BattleEngagement.contactCoverFirstActive(s) || root.BattleEngagement.firingPositionActive(s))
+        return false;
       if (!point || s.reloading || movingTooFast(s) || s.crawling) return false;
       if (!fireAuthorized(s, battle)) return false;
       if (battle.time < e.burstPauseUntil || battle.time < e.fireReadyAt) return false;
@@ -567,10 +568,12 @@
     function orderedBound(s, battle) {
       var e = state(s),
         sq = s.squad;
+      var activeLease = sq && root.BattleLeases.get(sq, 'bound'),
+        positioning = activeLease && activeLease.data && activeLease.data.firingPosition;
       if (
         !e.boundOrder ||
         !sq ||
-        !sq._assaultAuthorized ||
+        (!sq._assaultAuthorized && !positioning) ||
         !root.BattleLeases.holds(sq, 'bound', battle.time)
       )
         return false;
@@ -630,11 +633,13 @@
        but never walk him back behind where he is. 44's forward guard only covers the `assault`
        phase, and bounds are also ordered in `capture` and `clear-town` (backward-orders probe: most
        backward authorized bounds). With no cover ahead he rushes toward the objective instead. */
-      var fwd = boundForward(s),
+      var fwd = positioning ? null : boundForward(s),
         cover =
           covered && !audit.threats.length
             ? null
             : findCover(s, battle, {
+                slotId: positioning && activeLease.data.point.slotId,
+                firingPosition: !!positioning,
                 maxRange: covered ? C.boundTuning().maxDistance : COVER_RANGE_UNDER_FIRE,
                 forward: fwd,
                 evade: s.suppressedUntil > battle.time,
@@ -662,7 +667,7 @@
           battle,
           'bound',
           Math.max(3, cover.distance / Math.max(0.6, s.speed * 0.6) + 2),
-          'authorized fireteam bound: cover'
+          positioning ? 'assigned firing position: cover' : 'authorized fireteam bound: cover'
         );
         bound(s, battle);
         return true;

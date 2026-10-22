@@ -468,8 +468,8 @@
       return false;
     return fireStanceImpl().suppress(s, battle, point);
   }
-  function firingLineClear(target, pt, stance, battle) {
-    return fireStanceImpl().firingLineClear(target, pt, stance, battle);
+  function firingLineClear(s, target, pt, stance, battle) {
+    return fireStanceImpl().firingLineClear(s, target, pt, stance, battle);
   }
   function crestPrepPoint(s, target, battle) {
     return fireStanceImpl().crestPrepPoint(s, target, battle);
@@ -1163,6 +1163,10 @@
     var e = s && s.eng;
     return !!(CONTACT_COVER_FIRST && e && e.state === 'bound' && e.moveReason === 'contact cover first');
   }
+  function firingPositionActive(s) {
+    var e = s && s.eng;
+    return !!(e && e.state === 'bound' && e.moveReason === 'assigned firing position: cover');
+  }
   function settleAtBaseOfFire(s, battle, exposed) {
     transition(s, battle, 'alert', ALERT_HOLD, 'base of fire: take position');
     commitStance(s, battle, exposed ? 'prone' : 'crouch', LOW_GAP_HOLD, 'base of fire: take position');
@@ -1229,7 +1233,8 @@
     return true;
   }
   function finishContactCover(s, battle, why) {
-    if (!contactCoverFirstActive(s)) return false;
+    if (!contactCoverFirstActive(s) && !firingPositionActive(s)) return false;
+    if (firingPositionActive(s)) why = why.replace('contact cover', 'firing position');
     transition(s, battle, 'orient', reactTime(s, battle), why);
     orient(s, battle);
     return true;
@@ -1986,6 +1991,7 @@
       fledPhase(s) ||
       battle.time < e.fireReadyAt ||
       contactCoverFirstActive(s) ||
+      firingPositionActive(s) ||
       !fireAuthorized(s, battle) ||
       battle.time < shockUntil(s) ||
       (ammo && !ammo.available(s))
@@ -2188,6 +2194,7 @@
   root.BattleEngagement = {
     states: STATES,
     contactCoverFirstActive: contactCoverFirstActive,
+    firingPositionActive: firingPositionActive,
     contactCoverFirstOn: function () {
       return CONTACT_COVER_FIRST;
     },

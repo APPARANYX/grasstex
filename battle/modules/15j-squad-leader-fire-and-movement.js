@@ -163,6 +163,69 @@
         sq._assaultAuthorized = false;
         return;
       }
+      if (reactive) {
+        var activePosition = L.get(sq, 'bound');
+        if (
+          activePosition &&
+          activePosition.data &&
+          activePosition.data.firingPosition &&
+          L.holds(sq, 'bound', t)
+        ) {
+          sq._assaultAuthorized = false;
+          return;
+        }
+        /* Only an actual assignment takes over: a man who lacks a line but has no safe covered
+           slot (out of weapon range, no cover in reach) must not stall the ordinary reactive path. */
+        var blocker = boundLeaseBlocker(sq),
+          setup =
+            localTask &&
+            !localTask.emergency &&
+            r.effective >= 2 &&
+            r.pinned < r.effective &&
+            !L.holds(sq, 'bound', t) &&
+            !L.holds(sq, 'bound-cycle', t) &&
+            (!blocker || blocker === 'local-support') &&
+            reactive.firingPositionPlan(battle, sq, r);
+        if (setup && setup.soldier) {
+          sq._assaultAuthorized = false;
+          L.grant(
+            sq,
+            'bound',
+            'squad-leader',
+            t,
+            t + BOUND_DURATION,
+            'establish firing position',
+            'window expiry or contact broken',
+            {
+              missionVersion: localTask.missionVersion,
+              localTaskSerial: localTask.serial,
+              reactiveFireManeuver: true,
+              firingPosition: true,
+              moverIds: [String(setup.soldier.id)],
+              point: setup.point
+            }
+          );
+          L.grant(
+            sq,
+            'bound-cycle',
+            'squad-leader',
+            t,
+            t + BOUND_CYCLE,
+            'after firing position',
+            'cycle expiry'
+          );
+          E.orderBound([setup.soldier]);
+          telemetry(battle, 'decision-firing-position', {
+            faction: sq.faction,
+            squad: sq.id,
+            soldier: setup.soldier.id,
+            x: setup.point.x,
+            z: setup.point.z,
+            slotId: setup.point.slotId
+          });
+          return;
+        }
+      }
       if (COA_ON) updateCOA(sq);
       sq._assaultAuthorized = !!ASSAULT_PHASES[sq.commandPhase || ''];
       if (LEASE_CONFLICTS_ON && boundLeaseBlocker(sq)) sq._assaultAuthorized = false;

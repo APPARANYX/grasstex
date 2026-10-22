@@ -35,7 +35,15 @@ cover or stationary prone. Two shooters alone do not acknowledge the whole
 squad. Individual cover seeking and defensive fire continue while this gate
 waits. After two real supporters establish fire, fresh personally reported
 contacts also stop report-only members in cover or prone rather than continuing
-a warning-only march; this creates no direct target. Adoption rechecks holding members; peers already on the same bound may
+a warning-only march; this creates no direct target. Once the squad is settled
+with two real supporters, the Squad Leader may lease a one-man `firingPosition`
+bound to a settled member who lacks a firing line (range, sight and ballistic
+clearance from his own position): a covered slot within bound distance that has
+a line and passes the reactive route policy. Engagement reserves that exact slot
+and moves him; supporters and men with a usable line stay put, no objective
+bound is authorized while the lease holds, and `decision-firing-position` is
+recorded. With no safe slot nothing is assigned and the ordinary reactive path
+continues. Adoption rechecks holding members; peers already on the same bound may
 leave their initial positions. Native Meso selects/leases the fireteam; Engagement revalidates current
 support capability, real discharge receipts and mission/task identity, then chooses
 physical cover; the existing resolver/executor moves. This opt-in path skips

@@ -90,6 +90,110 @@
       pending: pending
     };
   }
+  function firingTaskReason(sq, inputs) {
+    if (!on) return 'disabled';
+    if (!sq || sq.state === 'retreat') return 'retreat';
+    if (['setup', 'regroup', 'reserve'].indexOf(sq.commandPhase) >= 0) return 'mission-phase';
+    if (!sq._macroMission || sq._macroMission.status !== 'executing') return 'mission-authority';
+    if (!inputs || !inputs.contact || !(inputs.confidence >= 0.5)) return 'credible-contact';
+    if (inputs.dispersed) return 'cohesion';
+    if (!Number.isFinite(inputs.pressure) || inputs.pressure >= 0.75) return 'pressure';
+    if (inputs.resources && inputs.resources.status === 'over-budget') return 'moving-element';
+    return 'eligible';
+  }
+  function firingThreat(s, battle) {
+    var c = root.SquadAI.soldierContact(s, battle);
+    if (
+      !c ||
+      c.source === 'heard' ||
+      !Number.isFinite(c.x) ||
+      !Number.isFinite(c.z) ||
+      !Number.isFinite(c.at) ||
+      battle.time < c.at ||
+      battle.time - c.at > 10 ||
+      !(c.confidence >= 0.5)
+    )
+      return null;
+    return { root: { position: { x: c.x, y: battle.heightAt(c.x, c.z), z: c.z } } };
+  }
+  function firingLineAt(s, battle, point) {
+    var target = firingThreat(s, battle),
+      E = root.BattleEngagement;
+    if (
+      !target ||
+      Math.hypot(point.x - target.root.position.x, point.z - target.root.position.z) >
+        root.SquadAI.engageRange(s)
+    )
+      return false;
+    return ['prone', 'crouch', 'stand'].some(function (stance) {
+      return E.firingLineClear(s, target, point, stance, battle);
+    });
+  }
+  /* Read-only local firing-line setup, not an objective advance. Meso commits
+     one non-shooter at a time; native Engagement reselects/reserves this slot. */
+  function firingPositionPlan(battle, sq, report) {
+    var task = sq && sq._localTask,
+      C = root.BattleCoverPositions,
+      E = root.BattleEngagement,
+      result = { pending: false, reason: 'not-ready', soldier: null, point: null };
+    if (
+      !task ||
+      ['support', 'maneuver'].indexOf(task.kind) < 0 ||
+      firingTaskReason(sq, task.inputs) !== 'eligible' ||
+      !defensiveReadiness(battle, sq).ready ||
+      supporters(battle, sq, report, []).length < 2 ||
+      !C ||
+      !C.coveredBoundsOn()
+    )
+      return result;
+    var men = sq.members || [];
+    for (var i = 0; i < men.length; i++) {
+      var s = men[i];
+      if (
+        !s ||
+        s.dead ||
+        s.hp <= 0 ||
+        s.incapacitated ||
+        s.isPlayer ||
+        root.SquadAI.isMachineGun(s) ||
+        s.moving ||
+        s.crawling ||
+        s.reloading ||
+        s.clearingStoppage ||
+        s.outOfAmmo ||
+        !s.weapon ||
+        s.suppressedUntil > battle.time ||
+        E.reacting(s) ||
+        (root.BattleTacticalPositions && root.BattleTacticalPositions.current(s)) ||
+        (task.inputs.resources && task.inputs.resources.moverIds.indexOf(String(s.id)) < 0) ||
+        !firingThreat(s, battle) ||
+        firingLineAt(s, battle, s.root.position)
+      )
+        continue;
+      result.pending = true;
+      if (supporters(battle, sq, report, [s]).length < 2) continue;
+      var threats = C.boundThreats(s, battle),
+        target = firingThreat(s, battle);
+      if (!threats.length) continue;
+      var candidates = C.candidates(s, battle, target, C.boundTuning().maxDistance);
+      if (!Array.isArray(candidates) || candidates.length > 256) continue;
+      for (var j = 0; j < Math.min(48, candidates.length); j++) {
+        var p = candidates[j];
+        if (!firingLineAt(s, battle, p) || !C.boundRoute(s, battle, p, threats, 'reactive').eligible)
+          continue;
+        if (!result.point || p.distance < result.point.distance) {
+          result.soldier = s;
+          result.point = { x: p.x, z: p.z, slotId: p.slotId, distance: p.distance };
+        }
+      }
+    }
+    result.reason = result.point
+      ? 'firing-position'
+      : result.pending
+        ? 'no-safe-firing-position'
+        : 'lines-ready';
+    return result;
+  }
   function canBoundTeam(battle, sq, movers, report) {
     return assessTeam(battle, sq, movers, report).eligible;
   }
@@ -165,12 +269,12 @@
       battle.time < lease.since ||
       battle.time >= lease.until ||
       !task ||
-      task.kind !== 'maneuver' ||
+      (data.firingPosition ? ['support', 'maneuver'].indexOf(task.kind) < 0 : task.kind !== 'maneuver') ||
       task.missionVersion !== data.missionVersion ||
       task.serial !== data.localTaskSerial ||
       !sq._macroMission ||
       sq._macroMission.version !== data.missionVersion ||
-      !canTask(sq, task.inputs)
+      (data.firingPosition ? firingTaskReason(sq, task.inputs) !== 'eligible' : !canTask(sq, task.inputs))
     )
       return false;
     var movers = sq.members.filter(function (man) {
@@ -188,6 +292,9 @@
     taskReason: taskReason,
     supporters: supporters,
     defensiveReadiness: defensiveReadiness,
+    firingPositionPlan: firingPositionPlan,
+    firingTaskReason: firingTaskReason,
+    firingLineAt: firingLineAt,
     canBoundTeam: canBoundTeam,
     assessTeam: assessTeam,
     adoptionAllowed: adoptionAllowed

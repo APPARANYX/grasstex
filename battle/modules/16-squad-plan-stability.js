@@ -176,12 +176,24 @@
       regroup = L.get(sq, 'regroup'),
       recon = L.get(sq, 'recon'),
       task = sq._reconTask;
-    var local = _lp && _lp.on && sq._localTask;
+    var local = _lp && _lp.on && sq._localTask,
+      bound = L.get(sq, 'bound'),
+      positionSupport = !!(
+        local &&
+        local.kind === 'support' &&
+        bound &&
+        bound.data &&
+        bound.data.firingPosition &&
+        bound.data.missionVersion === version &&
+        bound.data.localTaskSerial === local.serial &&
+        root.BattleReactiveFireManeuver &&
+        root.BattleReactiveFireManeuver.firingTaskReason(sq, local.inputs) === 'eligible'
+      );
     if (
       local &&
       local.missionVersion === version &&
       (local.kind === 'protect' ||
-        local.kind === 'support' ||
+        (local.kind === 'support' && !positionSupport) ||
         local.kind === 'objective-security' ||
         local.kind === 'structure-security')
     )
@@ -1973,7 +1985,8 @@
       sq._clearStride = sq.clearContact.since;
       force = true;
     }
-    var bounding = L.holds(sq, 'bound', battle.time),
+    var bound = L.get(sq, 'bound'),
+      bounding = L.holds(sq, 'bound', battle.time) && !(bound && bound.data && bound.data.firingPosition),
       clearing = !!sq.clearContact,
       held = !!sq.inContact && !bounding && !clearing,
       dx = goal.x - x,

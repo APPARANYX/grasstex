@@ -5,6 +5,7 @@
     const E = R.BattleEngagement,
       P = R.BattleReactiveFireManeuver;
     const active = new Map(),
+      positioning = new Map(),
       seenLeases = new WeakSet(),
       squads = new Map(),
       rows = [],
@@ -18,10 +19,25 @@
       adoptionRejected: 0,
       positionPendingSamples: 0,
       positionReadySamples: 0,
-      positionedSupportSamples: 0
+      positionedSupportSamples: 0,
+      // Squad Leader firing-position assignments, kept apart from team bounds above.
+      firingAssigned: 0,
+      firingAdopted: 0,
+      firingArrived: 0,
+      firingLineGained: 0,
+      firingInterrupted: 0,
+      firingSupportShots: 0,
+      firingPendingSamples: 0,
+      firingNoSlotSamples: 0
     };
     let nextDiagnostic = 0;
     function shot(s) {
+      for (const [man, row] of positioning)
+        if (man !== s && man.squad === s.squad && man.moving && E.stateOf(man).state === 'bound') {
+          row.supportShots++;
+          counts.firingSupportShots++;
+          break;
+        }
       for (const [man, row] of active)
         if (man !== s && man.squad === s.squad && man.moving && E.stateOf(man).state === 'bound') {
           row.supportShots++;
@@ -51,13 +67,30 @@
           const lease = R.BattleLeases.get(q, 'bound');
           if (lease && lease.data && lease.data.reactiveFireManeuver && !seenLeases.has(lease)) {
             seenLeases.add(lease);
-            counts.authorized++;
+            if (lease.data.firingPosition) counts.firingAssigned++;
+            else counts.authorized++;
           }
           for (const man of q.members) {
             const e = man.eng;
             const n = (e && e.coveredBound && e.coveredBound.rejected) || 0;
             counts.adoptionRejected += Math.max(0, n - (rejected.get(man) || 0));
             rejected.set(man, n);
+            if (
+              e &&
+              e.state === 'bound' &&
+              e.moveReason === 'assigned firing position: cover' &&
+              !positioning.has(man)
+            ) {
+              counts.firingAdopted++;
+              positioning.set(man, {
+                id: man.id,
+                squad: key,
+                at: b.time,
+                start: { x: man.root.position.x, z: man.root.position.z },
+                goal: e.cover && { x: e.cover.x, z: e.cover.z },
+                supportShots: 0
+              });
+            }
             if (
               e &&
               e.state === 'bound' &&
@@ -93,6 +126,12 @@
                   if (state.positionedSupportAt == null) state.positionedSupportAt = b.time;
                 }
               } else counts.positionPendingSamples++;
+              // The same read-only plan the Squad Leader consults; absent on older runtimes.
+              if (positions.ready && support >= 2 && typeof P.firingPositionPlan === 'function') {
+                const plan = P.firingPositionPlan(b, q, { fireSupport: q.members });
+                if (plan.pending) counts.firingPendingSamples++;
+                if (plan.reason === 'no-safe-firing-position') counts.firingNoSlotSamples++;
+              }
             }
             let reason = !q.inContact
               ? 'no-contact'
@@ -174,6 +213,19 @@
           } else counts.interrupted++;
           if (rows.length < 500) rows.push(row);
           active.delete(man);
+        }
+      }
+      for (const [man, row] of positioning) {
+        const e = man.eng,
+          d = row.goal
+            ? Math.hypot(man.root.position.x - row.goal.x, man.root.position.z - row.goal.z)
+            : Infinity;
+        if (d < 0.45 || man.dead || !e || e.state !== 'bound') {
+          if (!man.dead && d < 0.45) {
+            counts.firingArrived++;
+            if (P.firingLineAt(man, b, man.root.position)) counts.firingLineGained++;
+          } else counts.firingInterrupted++;
+          positioning.delete(man);
         }
       }
       if (b.time >= nextDiagnostic) nextDiagnostic = b.time + 1.5;

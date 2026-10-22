@@ -711,7 +711,13 @@
       for (var i = 0; i < candidates.length; i++) {
         var pt = candidates[i],
           moveD = pt.distance;
-        if (root.BattleAssaultForwardGuard && !root.BattleAssaultForwardGuard.allowCover(s, battle, pt)) {
+        if (opts.slotId && pt.slotId !== opts.slotId) continue;
+        if (opts.firingPosition && !root.BattleReactiveFireManeuver.firingLineAt(s, battle, pt)) continue;
+        if (
+          !opts.firingPosition &&
+          root.BattleAssaultForwardGuard &&
+          !root.BattleAssaultForwardGuard.allowCover(s, battle, pt)
+        ) {
           rejected('forward-guard');
           continue;
         }
