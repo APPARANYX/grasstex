@@ -1,12 +1,12 @@
 {
   "meta": {
     "mode": "seeds",
-    "run": "1227",
-    "runId": "39705747014",
+    "run": "1258",
+    "runId": "39806365498",
     "repo": "APPARANYX/grasstex",
-    "ref": "work/squad-firing-positions-20261021",
-    "sha": "c98d12e0ece067f736295a1d45b13f53f24a25d4",
-    "runUrl": "https://github.com/APPARANYX/grasstex/actions/runs/39705747014",
+    "ref": "work/sector-memory-20261022",
+    "sha": "91ca910efe9c17e358b4d898a281ef347da8c0bb",
+    "runUrl": "https://github.com/APPARANYX/grasstex/actions/runs/39806365498",
     "seed": "phase-c-natural-20261012",
     "seeds": 3,
     "windows": "contact+60,every60",
@@ -79,9 +79,9 @@
       "b": 0
     },
     "wallSeconds": {
-      "medianA": 15.712499999999999,
-      "medianB": 16.796,
-      "ratio": 1.069,
+      "medianA": 15.54,
+      "medianB": 17.214,
+      "ratio": 1.108,
       "gate": 1.25
     },
     "counters": {
@@ -475,8 +475,8 @@
     "pass": true
   },
   "viewer": {
-    "url": "https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=1227&view=brain3d",
-    "previewUrl": "https://test.ivandpopov.com/grasstex/preview/squad-firing-positions-20261021/ai_flow_live.html?bench=1227&view=brain3d",
+    "url": "https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=1258&view=brain3d",
+    "previewUrl": "https://test.ivandpopov.com/grasstex/preview/sector-memory-20261022/ai_flow_live.html?bench=1258&view=brain3d",
     "seeds": [
       {
         "seed": "phase-c-natural-20261012-0001",
