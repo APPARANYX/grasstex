@@ -46,6 +46,18 @@
       FIRETEAM_SPLIT_ON = ctx.FIRETEAM_SPLIT_ON,
       FIRE_CONTROL_ON = ctx.FIRE_CONTROL_ON,
       COA_ON = ctx.COA_ON;
+    /* ?gapHold=1 (opt-in): a squad's sighting flickers - its contact flag drops for a few seconds between
+       looks - and each drop used to cancel an open fire order, so the next look restarted HOLD. While the
+       squad still holds a first-hand contact record (squadContact, which expires on the existing
+       CONTACT_MEMORY clock) an open order stands through the gap. HOLD/PRECISION/REPOSITION are not held. */
+    var GAP_HOLD =
+      typeof location !== 'undefined' && /[?&]gapHold=(?:1|on|true)(?:&|#|$)/i.test(location.search || '');
+    function holdsThroughGap(sq, battle) {
+      var fc = sq.fireControl,
+        A = root.SquadAI,
+        c = GAP_HOLD && fc && fc.state === 'open' && A && A.squadContact ? A.squadContact(sq, battle) : null;
+      return !!(c && !c.heard && (A.hasFirstHandMemory ? A.hasFirstHandMemory(c, battle) : !c.relayedFrom));
+    }
     function teamStress(men) {
       var M = root.BattleSoldierMind;
       return M && M.teamStress ? M.teamStress(men) : 0;
@@ -150,7 +162,8 @@
         if (SL_STRESS.review) sq._slStressSince = null;
         /* A squad clearing the last contact is still in that engagement: its open fire order stands, so the man
          who finds the enemy again fires instead of the squad going to ground for a new volley. */
-        if (FIRE_CONTROL_ON && !sq.clearContact) clearFireControl(sq, battle, 'contact broken');
+        if (FIRE_CONTROL_ON && !sq.clearContact && !holdsThroughGap(sq, battle))
+          clearFireControl(sq, battle, 'contact broken');
         return;
       }
       stressReview(sq, battle);

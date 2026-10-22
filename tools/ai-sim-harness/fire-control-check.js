@@ -273,4 +273,39 @@ test('fireControl=0 preserves immediate-fire behavior', () => {
   assert.equal(w.us.fireControl || null, null);
   assert.equal(w.E.fireAuthorized(w.us.members[4], w.b), true);
 });
+test('?gapHold=1 keeps an open order through a short sighting gap; the default and a spent record clear it', () => {
+  const gap = (search, tweak) => {
+    const w = world(search, 100);
+    command(w);
+    prep(w);
+    w.b.time += 1.3;
+    assert.equal(command(w).state, 'open');
+    // The sighting flag drops between looks; the squad still holds its first-hand record.
+    const update = w.E.updateSquad;
+    w.E.updateSquad = (sq, battle) => {
+      const r = update(sq, battle);
+      sq.inContact = false;
+      return r;
+    };
+    w.b.time += 2;
+    w.us.contact.at = w.b.time - 2;
+    if (tweak) tweak(w.us.contact);
+    w.Q.fireAndMovement(w.us, w.b);
+    return w;
+  };
+  const on = gap('?stressAct=0&commandPosture=0&gapHold=1');
+  assert.equal(on.us.fireControl && on.us.fireControl.state, 'open', 'the order stands through the gap');
+  on.b.time += 20;
+  on.Q.fireAndMovement(on.us, on.b);
+  assert.equal(on.us.fireControl || null, null, 'a spent record ends it on the existing contact clock');
+  // A record relayed from another squad is not the squad's own sighting: it does not hold the order.
+  const relayed = gap('?stressAct=0&commandPosture=0&gapHold=1', c => {
+    c.relayedFrom = 'ge-9';
+    c.firstHandAt = null;
+  });
+  assert.equal(relayed.us.fireControl || null, null, 'a relayed record does not hold the order');
+  const off = gap('?stressAct=0&commandPosture=0');
+  assert.equal(off.us.fireControl || null, null, 'without the flag a gap cancels the order');
+});
+
 console.log(n + ' fire-control checks passed');
