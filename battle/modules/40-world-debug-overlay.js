@@ -426,8 +426,8 @@
      Presentation only. It reads the side's own TacticalSituation contacts (never live enemy
      positions), keeps a small cell ledger of its own so a belief can be seen fading, and writes
      nothing to the battle. Bright red = a first-hand sighting or incoming fire, orange = told by
-     someone else, yellow = heard or vague; each fades to grey with age. The side follows the
-     filter (All shows the US view). */
+     someone else, yellow = heard or vague; each fades to grey with age. A blue outline marks US
+     knowledge and a red one GE; the filter picks one side, and All draws both. */
   var SECTOR_CELL = 20,
     SECTOR_RETAIN = 90,
     SECTOR_FADE = [0.55, 0.55, 0.55],
@@ -472,11 +472,24 @@
     });
     return out;
   }
+  var SECTOR_OUTLINE = { us: [0.18, 0.55, 1], ge: [1, 0.1, 0.1] };
   function rebuildSectors(sim) {
     disposeLayer('wd-dyn-sectors');
+    disposeLayer('wd-dyn-sectors-us');
+    disposeLayer('wd-dyn-sectors-ge');
+    if (typeof BABYLON === 'undefined') return;
+    // The side follows the filter; All draws both, told apart by a blue (US) or red (GE) outline.
     var f = (ui.filter && ui.filter.value) || 'all',
-      cells = sectorCells(sim, f === 'ge' ? 'ge' : 'us');
-    if (!cells.length || typeof BABYLON === 'undefined') return;
+      sides = f === 'us' || f === 'ge' ? [f] : ['us', 'ge'],
+      cells = [],
+      outlines = { us: [], ge: [] };
+    sides.forEach(function (side) {
+      sectorCells(sim, side).forEach(function (c) {
+        c.side = side;
+        cells.push(c);
+      });
+    });
+    if (!cells.length) return;
     var pos = [],
       idx = [],
       col = [],
@@ -494,6 +507,11 @@
           [x0 + SECTOR_CELL - inset, z0 + SECTOR_CELL - inset],
           [x0 + inset, z0 + SECTOR_CELL - inset]
         ];
+      var ring = corners.map(function (q) {
+        return v3(sim, q[0], q[1], 0.45);
+      });
+      ring.push(ring[0]);
+      outlines[c.side].push(ring);
       corners.forEach(function (q) {
         pos.push(q[0], yAt(sim, q[0], q[1], 0.35), q[1]);
         col.push(
@@ -524,6 +542,9 @@
     mesh.renderingGroupId = 3;
     mesh.alwaysSelectAsActiveMesh = true;
     layers['wd-dyn-sectors'] = mesh;
+    sides.forEach(function (side) {
+      makeLines('wd-dyn-sectors-' + side, outlines[side], SECTOR_OUTLINE[side], 1);
+    });
   }
   /* Composure marks are meshes parented to each man's root, so they move with him every frame: the layers
    above are rebuilt every 180 ms and would trail a running man. Every living man carries a disc above his
@@ -891,7 +912,7 @@
       grid,
       'sectors',
       'Sector knowledge',
-      "What one side believes about the enemy, as a ground grid from that side's own reports: red seen or fired on, orange told, yellow heard or vague, each fading to grey as it ages. Side follows the filter (All shows US)"
+      "What one side believes about the enemy, as a ground grid from that side's own reports: red seen or fired on, orange told, yellow heard or vague, each fading to grey as it ages. Outline blue = US knowledge, red = GE knowledge; the filter picks one side or All shows both"
     );
     checkboxRow(
       grid,

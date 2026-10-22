@@ -492,16 +492,28 @@ assert.ok(
   assert.equal(asked.length, 0, 'and reads nothing while off');
   e.context.BattleWorldDebug.set('sectors', true);
   assert.equal(live().length, 1, 'one grid mesh');
-  assert.deepEqual(
-    new Set(asked),
-    new Set(['us']),
-    'All shows the US view and never asks for the enemy side'
-  );
+  assert.deepEqual(new Set(asked), new Set(['us', 'ge']), 'All draws each side from its own reports');
+  const outline = side => e.meshes.find(mesh => !mesh.disposed && mesh.name === 'wd-dyn-sectors-' + side);
+  assert.equal(outline('us').lines.length, 3, 'US cells carry a blue outline');
+  assert.equal(outline('ge').lines.length, 1, 'GE cells carry a red outline');
+  assert.ok(outline('us').color.b > outline('us').color.r, 'US outline is blue');
+  assert.ok(outline('ge').color.r > 0.9 && outline('ge').color.b < 0.3, 'GE outline is red');
   const colors = live()[0].vertexData.colors;
-  assert.equal(colors.length / 4 / 4, 3, 'one quad per belief cell');
+  assert.equal(colors.length / 4 / 4, 4, 'one quad per belief cell, both sides');
   // red (seen, fresh) is redder than yellow (heard, old and faded toward grey)
   assert.ok(colors[0] > 0.9 && colors[1] < 0.3, 'a fresh sighting is red');
   assert.ok(colors[3] > colors[4 * 4 * 2 + 3], 'older knowledge is fainter');
+  const filter = env0 => env0.document.body.querySelector('.wd-filter');
+  filter(e).value = 'ge';
+  filter(e).onchange();
+  assert.equal(
+    e.meshes.filter(mesh => !mesh.disposed && mesh.name === 'wd-dyn-sectors-us').length,
+    0,
+    'the GE filter drops the US view'
+  );
+  assert.equal(outline('ge').lines.length, 1, 'and keeps the GE view');
+  filter(e).value = 'all';
+  filter(e).onchange();
   b.time = 100 + 200;
   e.context.BattleWorldDebug.refresh();
   assert.equal(live().length, 0, 'beliefs older than the retention window drop out of the grid');
