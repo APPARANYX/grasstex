@@ -92,6 +92,66 @@ function battle(voice) {
     obs: b._voiceObs
   };
 }
+/* A withdrawal announcement cannot depend on still having live enemy contact.
+   In the reported battle contact disappeared during retreat, causing module 48
+   to miss the only state transition that would ever speak the order. */
+function withdrawalWithoutContact() {
+  H.resetIds();
+  const root = H.bootstrap(),
+    b = H.makeBattle(root),
+    q = H.addSquad(root, b, {
+      id: 'us-withdraw-quiet',
+      faction: 'us',
+      x: 0,
+      z: -60,
+      objective: { x: 0, z: 60 }
+    }),
+    spoken = [];
+  b.scene = { metadata: { battleScenario: { seed: 'withdraw-voice-check' } } };
+  root.BATTLE_AUDIO_MANIFEST = JSON.parse(
+    fs.readFileSync(path.join(H.REPO, 'Assets/audio/manifest.json'), 'utf8')
+  );
+  let tick;
+  root.BattleModules = Object.assign({}, root.BattleModules, {
+    registerSystem(id, spec) {
+      if (id === 'voice-observations') {
+        tick = spec.onSimulationStep;
+        if (spec.onBattleStart) spec.onBattleStart(b);
+      }
+    }
+  });
+  root.BattleContextVoice = {
+    say(sim, s, event) {
+      spoken.push(event);
+      return true;
+    }
+  };
+  b.onCallout = function () {};
+  load(root, 'battle/modules/48-voice-observations.js');
+  assert.equal(typeof tick, 'function');
+  b.time = 1;
+  tick(b); // establish the prior normal state
+  q.state = 'retreat';
+  q.inContact = false;
+  q.contact = null;
+  q.members.forEach(man => {
+    man.eng = man.eng || {};
+    man.eng.state = 'withdraw';
+  });
+  b.time = 2;
+  tick(b);
+  assert.ok(spoken.includes('fallBackByTeams'), 'the leader announces withdrawal without contact');
+  b.time = 3;
+  tick(b);
+  assert.equal(
+    spoken.filter(event => event === 'fallBackByTeams').length,
+    1,
+    'one order for the transition, not a shout every tick'
+  );
+}
+withdrawalWithoutContact();
+console.log('PASS withdrawal remains audible even when contact expires');
+
 const quiet = battle(false),
   talking = battle(true);
 assert.equal(talking.draws, quiet.draws, 'the voice must not draw from the combat RNG');

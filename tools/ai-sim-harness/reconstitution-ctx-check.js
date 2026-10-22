@@ -188,8 +188,11 @@ test('the parent seam keeps the pre-split name, arities and the exported constan
   assert.equal(st.strength, 10, 'the pool record carries the target strength');
   assert.equal(st.minimumStrength, 6, 'the pool record carries the viable minimum');
   assert.equal(C.missionState(b).reconstitution.groupsFormed, 1, 'the aggregate roll-up sees the group');
+  const { excluded, ...poolFields } = C.missionState(b).reconstitution.pool.us;
+  assert.equal(excluded.length, 2, 'grouped remnants remain visible as excluded while assembling');
+  assert.ok(excluded.every(x => x.reason === 'already-grouped'));
   assert.deepEqual(
-    C.missionState(b).reconstitution.pool.us,
+    poolFields,
     {
       survivors: 0,
       squads: [],

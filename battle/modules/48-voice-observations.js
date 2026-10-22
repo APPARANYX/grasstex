@@ -356,7 +356,17 @@
     if (living === 1 && m.living >= 2 && members >= 4 && !sq.fledId) say(sim, men[0], 'lastMan', 30);
     if (sq.state !== m.state) {
       if (m.state === 'retreat' && sq.state !== 'retreat' && !sq.disbanded) say(sim, lead, 'rallied', 20);
-      else if (sq.state === 'retreat' && sq.inContact && !sq.fledId) say(sim, lead, 'fallBackByTeams', 20);
+      else if (sq.state === 'retreat' && !sq.fledId) {
+        /* Withdrawal is an order, not a contact test. A squad that loses its last
+           sighting on the same tick it withdraws must still announce the fallback;
+           the old inContact gate silently discarded that transition forever.
+           An isolated survivor uses the existing simple retreat line, not a
+           nonsensical "by teams" order. Fled men speak via their own breaking
+           reaction and are never made into tactical reporters here. */
+        var speaker = lead || someone(sq, 'retreat-order');
+        if (men.length >= 2) say(sim, speaker, 'fallBackByTeams', 20);
+        else say(sim, speaker, 'retreat', 20);
+      }
       m.state = sq.state;
     }
     if (members > m.members && m.members > 0 && !sq.fledId) {
