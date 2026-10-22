@@ -23,6 +23,7 @@
     hedges: false,
     cover: false,
     coverSlots: false,
+    sectors: false,
     paths: false,
     waypoints: false,
     destinations: false,
@@ -84,6 +85,7 @@
   function anyDynamic() {
     return (
       settings.coverSlots ||
+      settings.sectors ||
       settings.paths ||
       settings.waypoints ||
       settings.destinations ||
@@ -419,6 +421,110 @@
     makeLines('wd-dyn-cover-slots-reserved', lines.reserved, COLORS.waypoint, 0.98);
     makeLines('wd-dyn-cover-slots-occupied', lines.occupied, COLORS.ge, 0.98);
   }
+
+  /* Sector knowledge: what one side believes about where the enemy is, drawn as a ground grid.
+     Presentation only. It reads the side's own TacticalSituation contacts (never live enemy
+     positions), keeps a small cell ledger of its own so a belief can be seen fading, and writes
+     nothing to the battle. Bright red = a first-hand sighting or incoming fire, orange = told by
+     someone else, yellow = heard or vague; each fades to grey with age. The side follows the
+     filter (All shows the US view). */
+  var SECTOR_CELL = 20,
+    SECTOR_RETAIN = 90,
+    SECTOR_FADE = [0.55, 0.55, 0.55],
+    sectorLedger = { us: Object.create(null), ge: Object.create(null), time: 0 };
+  function sectorClass(source) {
+    source = String(source || '');
+    return source === 'seen' || source === 'incoming' ? 0 : source === 'told' ? 1 : 2;
+  }
+  var SECTOR_COLORS = [
+    [1, 0.08, 0.05],
+    [1, 0.5, 0.08],
+    [1, 0.88, 0.15]
+  ];
+  function sectorCells(sim, faction) {
+    var now = +sim.time || 0,
+      T = root.BattleTacticalSituation,
+      ledger = sectorLedger[faction];
+    if (now < sectorLedger.time) {
+      sectorLedger.us = Object.create(null);
+      sectorLedger.ge = Object.create(null);
+      ledger = sectorLedger[faction];
+    }
+    sectorLedger.time = now;
+    var read = T && T.compute ? T.compute(sim, faction) : null;
+    ((read && read.contacts) || []).forEach(function (c) {
+      var at = +c.at,
+        x = +c.x,
+        z = +c.z;
+      if (!isFinite(at) || !isFinite(x) || !isFinite(z) || at > now) return;
+      var key = Math.floor(x / SECTOR_CELL) + ',' + Math.floor(z / SECTOR_CELL),
+        cls = sectorClass(c.source),
+        row = ledger[key];
+      // A fresher report refreshes the cell; at the same time the stronger kind of knowledge wins.
+      if (!row || at > row.at || (at === row.at && cls < row.cls))
+        ledger[key] = { cx: Math.floor(x / SECTOR_CELL), cz: Math.floor(z / SECTOR_CELL), at: at, cls: cls };
+    });
+    var out = [];
+    Object.keys(ledger).forEach(function (key) {
+      var row = ledger[key];
+      if (now - row.at > SECTOR_RETAIN) delete ledger[key];
+      else out.push({ cx: row.cx, cz: row.cz, age: now - row.at, cls: row.cls });
+    });
+    return out;
+  }
+  function rebuildSectors(sim) {
+    disposeLayer('wd-dyn-sectors');
+    var f = (ui.filter && ui.filter.value) || 'all',
+      cells = sectorCells(sim, f === 'ge' ? 'ge' : 'us');
+    if (!cells.length || typeof BABYLON === 'undefined') return;
+    var pos = [],
+      idx = [],
+      col = [],
+      n = 0;
+    cells.forEach(function (c) {
+      var t = Math.min(1, c.age / SECTOR_RETAIN),
+        base = SECTOR_COLORS[c.cls],
+        a = 0.62 * (1 - 0.55 * t),
+        x0 = c.cx * SECTOR_CELL,
+        z0 = c.cz * SECTOR_CELL,
+        inset = 1.2,
+        corners = [
+          [x0 + inset, z0 + inset],
+          [x0 + SECTOR_CELL - inset, z0 + inset],
+          [x0 + SECTOR_CELL - inset, z0 + SECTOR_CELL - inset],
+          [x0 + inset, z0 + SECTOR_CELL - inset]
+        ];
+      corners.forEach(function (q) {
+        pos.push(q[0], yAt(sim, q[0], q[1], 0.35), q[1]);
+        col.push(
+          base[0] + (SECTOR_FADE[0] - base[0]) * t,
+          base[1] + (SECTOR_FADE[1] - base[1]) * t,
+          base[2] + (SECTOR_FADE[2] - base[2]) * t,
+          a
+        );
+      });
+      idx.push(n, n + 2, n + 1, n, n + 3, n + 2);
+      n += 4;
+    });
+    var mesh = new BABYLON.Mesh('wd-dyn-sectors', sim.scene),
+      data = new BABYLON.VertexData();
+    data.positions = pos;
+    data.indices = idx;
+    data.colors = col;
+    data.applyToMesh(mesh);
+    var mat = new BABYLON.StandardMaterial('wd-dyn-sectors-mat', sim.scene);
+    mat.disableLighting = true;
+    mat.emissiveColor = new BABYLON.Color3(1, 1, 1);
+    mat.backFaceCulling = false;
+    mat.hasVertexAlpha = true;
+    mesh.material = mat;
+    mesh.hasVertexAlpha = true;
+    mesh.useVertexColors = true;
+    mesh.isPickable = false;
+    mesh.renderingGroupId = 3;
+    mesh.alwaysSelectAsActiveMesh = true;
+    layers['wd-dyn-sectors'] = mesh;
+  }
   /* Composure marks are meshes parented to each man's root, so they move with him every frame: the layers
    above are rebuilt every 180 ms and would trail a running man. Every living man carries a disc above his
    head coloured by band (green steady, yellow shaken, orange rattled, red broken), a little larger as his
@@ -542,6 +648,7 @@
     var sim = currentSim();
     if (!sim || typeof BABYLON === 'undefined' || !anyDynamic()) return;
     if (settings.coverSlots) rebuildCoverSlots(sim);
+    if (settings.sectors) rebuildSectors(sim);
     var path = { us: [], ge: [] },
       way = [],
       dest = [],
@@ -779,6 +886,12 @@
       'coverSlots',
       'Cover slots',
       'Reservable cover body positions and outward direction: cyan free, yellow reserved, orange occupied'
+    );
+    checkboxRow(
+      grid,
+      'sectors',
+      'Sector knowledge',
+      "What one side believes about the enemy, as a ground grid from that side's own reports: red seen or fired on, orange told, yellow heard or vague, each fading to grey as it ages. Side follows the filter (All shows US)"
     );
     checkboxRow(
       grid,

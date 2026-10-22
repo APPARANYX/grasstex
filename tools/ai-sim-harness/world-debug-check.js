@@ -190,6 +190,20 @@ function boot(stored = {}) {
           return mesh;
         }
       },
+      VertexData: class {
+        applyToMesh(mesh) {
+          mesh.vertexData = this;
+        }
+      },
+      Mesh: class {
+        constructor(name) {
+          this.name = name;
+          meshes.push(this);
+        }
+        dispose() {
+          this.disposed = true;
+        }
+      },
       StandardMaterial: class {
         constructor(name) {
           this.name = name;
@@ -445,6 +459,54 @@ assert.ok(
     !live().some(mesh => mesh.name === 'wd-dyn-path-us'),
     'empty physical queue cannot revive an older nav cache'
   );
+}
+{
+  // Sector knowledge draws one side's own reports as a ground grid and writes nothing.
+  const e = boot(),
+    asked = [],
+    b = {
+      scene: {},
+      time: 100,
+      heightAt: () => 0,
+      obstacles: [],
+      _roster: { us: [], ge: [] }
+    };
+  e.context.BattleTacticalSituation = {
+    compute(sim, faction) {
+      asked.push(faction);
+      return {
+        contacts:
+          faction === 'us'
+            ? [
+                { x: 5, z: 5, at: 99, source: 'seen' },
+                { x: 45, z: 5, at: 80, source: 'told' },
+                { x: 85, z: 5, at: 40, source: 'heard' }
+              ]
+            : [{ x: -30, z: -30, at: 99, source: 'seen' }]
+      };
+    }
+  };
+  e.hooks['world-debug-overlay'].onBattleStart(b);
+  const live = () => e.meshes.filter(mesh => !mesh.disposed && mesh.name === 'wd-dyn-sectors');
+  assert.equal(live().length, 0, 'the layer is off until asked for');
+  assert.equal(asked.length, 0, 'and reads nothing while off');
+  e.context.BattleWorldDebug.set('sectors', true);
+  assert.equal(live().length, 1, 'one grid mesh');
+  assert.deepEqual(
+    new Set(asked),
+    new Set(['us']),
+    'All shows the US view and never asks for the enemy side'
+  );
+  const colors = live()[0].vertexData.colors;
+  assert.equal(colors.length / 4 / 4, 3, 'one quad per belief cell');
+  // red (seen, fresh) is redder than yellow (heard, old and faded toward grey)
+  assert.ok(colors[0] > 0.9 && colors[1] < 0.3, 'a fresh sighting is red');
+  assert.ok(colors[3] > colors[4 * 4 * 2 + 3], 'older knowledge is fainter');
+  b.time = 100 + 200;
+  e.context.BattleWorldDebug.refresh();
+  assert.equal(live().length, 0, 'beliefs older than the retention window drop out of the grid');
+  e.context.BattleWorldDebug.set('sectors', false);
+  assert.equal(live().length, 0, 'switching it off clears the mesh');
 }
 console.log(
   'PASS world debug bulk controls, batching, mesh cleanup, window sync, persistence, individual changes and restart; authoritative cover slot geometry, claims, faction filter and lazy snapshots'
