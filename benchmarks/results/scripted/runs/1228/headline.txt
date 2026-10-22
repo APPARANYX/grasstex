@@ -1,0 +1,1 @@
+WEAK: 20 of 20 pairs changed (median first part 424.05 s); 3 of 42 counters under p 0.05 (about 2.1 by chance); casualties +0.0% (p 1)
