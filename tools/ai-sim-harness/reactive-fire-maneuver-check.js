@@ -10,12 +10,13 @@ const H = require('./harness');
 const { loadModule, quietConsole } = require('./module-loader');
 const { loadSquadCommandStack } = require('./squad-command-stack');
 
-function world(withWall = true, extraRifle = false) {
+function world(withWall = true, extraRifle = false, extraSearch = '') {
   H.resetIds();
   const r = H.bootstrap({
     modules: false,
     search:
-      '?reactiveFireManeuver=1&localPlan=1&localAmbush=1&localManeuver=1&coveredBounds=1&coa=0&slStress=0&scoutsForward=0&fireteamSplit=0&stressAct=0'
+      '?reactiveFireManeuver=1&localPlan=1&localAmbush=1&localManeuver=1&coveredBounds=1&coa=0&slStress=0&scoutsForward=0&fireteamSplit=0&stressAct=0' +
+      extraSearch
   });
   r.BattleModules = {
     registerSystem() {},
@@ -371,8 +372,8 @@ assert.equal(warned.eng.state, 'advance', 'a warning without real supporting sho
 // A settled report-only man in useful cover that blocks his own line receives a
 // native covered firing-position slot; the shooters stay put and keep firing,
 // and the objective bound waits until he has arrived.
-function positionWorld() {
-  const fp = world(false, true);
+function positionWorld(options = {}) {
+  const fp = world(false, true, options.search || '');
   const { r: fr, b: fb, q: fq, S: fS, hostile: fh, wall: fw } = fp;
   const [lone, ...shooters] = fq.members;
   const place = (s, x, z) => {
@@ -399,7 +400,9 @@ function positionWorld() {
   // view. Chest-high cover 6 m away hides a crouched body but not a standing rifle.
   fb.obstacles = [
     box('blocker', -12, -6, 2.5, 0.4, 3.5, 0.55, 'wall'),
-    box('firing-wall', -18, -6, 1.2, 0.3, 1.3, 0.55, 'wall')
+    options.slot === 'log'
+      ? box('firing-wall', -18, -6, 1.2, 0.3, 0.62, 0.45, 'log')
+      : box('firing-wall', -18, -6, 1.2, 0.3, 1.3, 0.55, 'wall')
   ].concat(
     shooters.map(s =>
       box('log-' + s.id, s.root.position.x + 1, s.root.position.z + 0.5, 0.3, 1, 0.62, 0.45, 'log')
@@ -584,3 +587,45 @@ for (const mode of ['casualty', 'engagement-failure']) {
   assert.ok(FL.holds(fq, 'bound-cycle', fb.time), mode + ': a failure keeps the pause, so no instant retry');
 }
 console.log('PASS a casualty or failed move ends the firing-position step at once and keeps the pause');
+
+// Only low cover is in reach: a 0.62 m log, 28% crouched. The firing slot is judged on the cover it
+// gives at the stance that has the line, not on being hidden from the reported position (the old
+// concealed-destination rule turned this slot away). The `firingCover` bar decides.
+{
+  const low = positionWorld({ slot: 'log' });
+  const strict = positionWorld({ slot: 'log', search: '&firingCover=40' });
+  assert.equal(low.fr.BattleReactiveFireManeuver.firingCover, 0.25, 'default bar');
+  assert.equal(strict.fr.BattleReactiveFireManeuver.firingCover, 0.4, '?firingCover=40');
+
+  let arrivedAt = null;
+  for (let i = 0; i < 200 && arrivedAt === null; i++) {
+    low.tick();
+    const slot = low.events.decisions[0];
+    if (slot && low.fr.BattleEngagement.stateOf(low.lone).state !== 'bound' && low.events.receipts.length)
+      arrivedAt = low.fb.time;
+  }
+  assert.equal(low.events.decisions.length, 1, 'a log gives the default bar: ' + JSON.stringify(low.events));
+  assert.equal(low.events.receipts[0].type, 'firing-position-arrived');
+  const LR = low.fr.BattleReactiveFireManeuver;
+  const there = LR.firingSlotAt(low.lone, low.fb, low.lone.root.position);
+  assert.equal(there.ok, true, JSON.stringify(there));
+  assert.equal(there.stance, 'crouch', 'the lowest stance that sees over a 0.62 m log');
+  assert.ok(there.cover >= 0.25 && there.cover < 0.4, 'a log gives about 28% crouched: ' + there.cover);
+
+  let rejectedLow = 0,
+    planned = 0;
+  for (let i = 0; i < 200; i++) {
+    strict.tick();
+    const plan = strict.fr.BattleReactiveFireManeuver.firingPositionPlan(strict.fb, strict.fq, {
+      fireSupport: strict.fq.members
+    });
+    if (plan.pending) planned++;
+    rejectedLow += plan.audit['low-cover'] || 0;
+  }
+  assert.equal(strict.events.decisions.length, 0, 'a 40% bar turns the log away');
+  assert.ok(
+    planned > 0 && rejectedLow > 0,
+    'it is rejected for cover, not for lack of a slot: ' + rejectedLow
+  );
+}
+console.log('PASS the firing slot is judged on cover at the stance that sees, not on concealment');

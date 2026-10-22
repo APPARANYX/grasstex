@@ -6,6 +6,7 @@
       P = R.BattleReactiveFireManeuver;
     const stages = {},
       stageReasons = {},
+      slotAudit = {},
       active = new Map(),
       positioning = new Map(),
       seenLeases = new WeakSet(),
@@ -137,6 +138,8 @@
               // The same read-only plan the Squad Leader consults; absent on older runtimes.
               if (positions.ready && support >= 2 && typeof P.firingPositionPlan === 'function') {
                 const plan = P.firingPositionPlan(b, q, { fireSupport: q.members });
+                for (const [key, n] of Object.entries(plan.audit || {}))
+                  slotAudit[key] = (slotAudit[key] || 0) + n;
                 if (plan.pending) counts.firingPendingSamples++;
                 if (plan.reason === 'no-safe-firing-position') counts.firingNoSlotSamples++;
               }
@@ -248,6 +251,7 @@
         ...counts,
         stages: { ...stages },
         stageReasons: { ...stageReasons },
+        slotAudit: { ...slotAudit },
         successiveSquads: summary.filter(s => s.completedLeases > 1).length,
         active: active.size,
         rowsOmitted: counts.completed + counts.interrupted - rows.length,

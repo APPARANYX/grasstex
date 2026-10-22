@@ -622,7 +622,7 @@
         var threats = C.boundThreats(s, battle);
         audit = {
           threats: threats,
-          policy: reactive ? 'reactive' : undefined,
+          policy: positioning ? 'firing' : reactive ? 'reactive' : undefined,
           candidates: 0,
           samples: 0,
           reason: threats.length ? 'no-viable-cover' : 'unknown-contact'

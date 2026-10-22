@@ -118,8 +118,13 @@
       var steps = Math.ceil(d / boundTuning.sampleSpacing),
         step = d / steps,
         exposed = 0,
+        /* 'firing' is the reactive policy for a firing-position slot: the same bounded exposure,
+           but the destination need not be concealed, because a man who must see the reported
+           position cannot be hidden from it. Its cover is judged by the caller at the firing stance. */
         reactive =
-          stance === 'reactive' && root.BattleReactiveFireManeuver && root.BattleReactiveFireManeuver.on,
+          (stance === 'reactive' || stance === 'firing') &&
+          root.BattleReactiveFireManeuver &&
+          root.BattleReactiveFireManeuver.on,
         maxExposure = reactive ? boundTuning.reactiveMaxExposure : boundTuning.maxExposure,
         boundEye = SA().eyeHeight(stance === 'stand' ? {} : { crouching: true }),
         threatEye = SA().eyeHeight({}); // Standing height from Perception, never a hidden unit's stance.
@@ -160,7 +165,7 @@
             break;
           }
         }
-        if (!concealed && ((!reactive && i === 0) || i === steps)) {
+        if (!concealed && ((!reactive && i === 0) || (i === steps && stance !== 'firing'))) {
           result.reason = 'exposed-endpoint';
           return result;
         }
@@ -712,7 +717,10 @@
         var pt = candidates[i],
           moveD = pt.distance;
         if (opts.slotId && pt.slotId !== opts.slotId) continue;
-        if (opts.firingPosition && !root.BattleReactiveFireManeuver.firingLineAt(s, battle, pt)) continue;
+        if (opts.firingPosition && !root.BattleReactiveFireManeuver.firingSlotAt(s, battle, pt).ok) {
+          rejected('firing-slot');
+          continue;
+        }
         if (
           !opts.firingPosition &&
           root.BattleAssaultForwardGuard &&

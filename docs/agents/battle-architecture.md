@@ -39,7 +39,11 @@ a warning-only march; this creates no direct target. Once the squad is settled
 with two real supporters, the Squad Leader may lease a one-man `firingPosition`
 bound to a settled member who lacks a firing line (range, sight and ballistic
 clearance from his own position): a covered slot within bound distance that has
-a line and passes the reactive route policy. Engagement reserves that exact slot
+a line, gives at least `firingCover` (default 25%) cover at the lowest stance that
+has that line, and passes the reactive route policy's bounded-exposure rule. The
+destination need not be concealed from the reported position: a man who must see
+it cannot be hidden from it, and the stance that sees over low cover gives less
+than the one that does not. Engagement reserves that exact slot
 and moves him; supporters and men with a usable line stay put, no objective
 bound is authorized while the lease holds, and `decision-firing-position` is
 recorded. With no safe slot nothing is assigned and the ordinary reactive path

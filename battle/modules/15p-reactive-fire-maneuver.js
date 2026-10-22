@@ -12,6 +12,15 @@
   /* A firing-position lease outlives its mover's own bound window by this much: adoption waits for
      his next update and the receipt for the leader's next tick. */
   var RECEIPT_SLACK = 1;
+  /* Least cover a firing position must give at the stance that has its line, as protection
+     (1 minus the obstacle field's exposure value). `?firingCover=<percent>`; default 25, which
+     admits a 0.62 m log (28% crouched). The stance that sees over low cover is a higher one that
+     gives less, so 40 admits only chest-high walls (45%). */
+  var FIRING_COVER =
+    (function () {
+      var m = /[?&]firingCover=(\d{1,2})(?:&|#|$)/.exec(query);
+      return m ? Math.min(90, +m[1]) : 25;
+    })() / 100;
   function canTask(sq, inputs) {
     return taskReason(sq, inputs) === 'eligible';
   }
@@ -119,18 +128,33 @@
       return null;
     return { root: { position: { x: c.x, y: battle.heightAt(c.x, c.z), z: c.z } } };
   }
-  function firingLineAt(s, battle, point) {
+  // The lowest stance with a clear sight and ballistic ray from this point, else null.
+  function firingStanceAt(s, battle, point) {
     var target = firingThreat(s, battle),
-      E = root.BattleEngagement;
+      E = root.BattleEngagement,
+      stances = ['prone', 'crouch', 'stand'];
     if (
       !target ||
       Math.hypot(point.x - target.root.position.x, point.z - target.root.position.z) >
         root.SquadAI.engageRange(s)
     )
-      return false;
-    return ['prone', 'crouch', 'stand'].some(function (stance) {
-      return E.firingLineClear(s, target, point, stance, battle);
-    });
+      return null;
+    for (var i = 0; i < stances.length; i++)
+      if (E.firingLineClear(s, target, point, stances[i], battle)) return stances[i];
+    return null;
+  }
+  function firingLineAt(s, battle, point) {
+    return !!firingStanceAt(s, battle, point);
+  }
+  /* A firing slot needs a line AND real cover at the stance that has it. Concealment from the
+     reported position is not asked for: a man who must see cannot be hidden from it. */
+  function firingSlotAt(s, battle, point) {
+    var stance = firingStanceAt(s, battle, point);
+    if (!stance) return { ok: false, reason: 'no-line' };
+    var F = root.BattleObstacleField,
+      cover = F && F.coverAt ? 1 - F.coverAt(battle.obstacles, point.x, point.z, stance) : 0,
+      ok = cover + 1e-9 >= FIRING_COVER;
+    return { ok: ok, reason: ok ? 'ok' : 'low-cover', stance: stance, cover: cover };
   }
   /* Read-only local firing-line setup, not an objective advance. Meso commits
      one non-shooter at a time; native Engagement reselects/reserves this slot. */
@@ -138,7 +162,11 @@
     var task = sq && sq._localTask,
       C = root.BattleCoverPositions,
       E = root.BattleEngagement,
-      result = { pending: false, reason: 'not-ready', soldier: null, point: null };
+      result = { pending: false, reason: 'not-ready', soldier: null, point: null, audit: {} };
+    // Why candidates were turned away, for the benchmark observer; never read by the decision.
+    function note(key, n) {
+      result.audit[key] = (result.audit[key] || 0) + (n || 1);
+    }
     if (
       !task ||
       ['support', 'maneuver'].indexOf(task.kind) < 0 ||
@@ -177,13 +205,29 @@
       if (supporters(battle, sq, report, [s]).length < 2) continue;
       var threats = C.boundThreats(s, battle),
         target = firingThreat(s, battle);
-      if (!threats.length) continue;
+      if (!threats.length) {
+        note('no-threats');
+        continue;
+      }
       var candidates = C.candidates(s, battle, target, C.boundTuning().maxDistance);
-      if (!Array.isArray(candidates) || candidates.length > 256) continue;
+      if (!Array.isArray(candidates) || candidates.length > 256) {
+        note('too-many-candidates');
+        continue;
+      }
+      if (!candidates.length) note('no-candidates');
       for (var j = 0; j < Math.min(48, candidates.length); j++) {
         var p = candidates[j];
-        if (!firingLineAt(s, battle, p) || !C.boundRoute(s, battle, p, threats, 'reactive').eligible)
+        note('candidates');
+        var slot = firingSlotAt(s, battle, p);
+        if (!slot.ok) {
+          note(slot.reason);
           continue;
+        }
+        var route = C.boundRoute(s, battle, p, threats, 'firing');
+        if (!route.eligible) {
+          note('route:' + route.reason);
+          continue;
+        }
         if (!result.point || p.distance < result.point.distance) {
           result.soldier = s;
           result.point = {
@@ -348,6 +392,8 @@
     squadStage: squadStage,
     firingTaskReason: firingTaskReason,
     firingLineAt: firingLineAt,
+    firingSlotAt: firingSlotAt,
+    firingCover: FIRING_COVER,
     canBoundTeam: canBoundTeam,
     assessTeam: assessTeam,
     adoptionAllowed: adoptionAllowed
