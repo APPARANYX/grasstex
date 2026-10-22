@@ -5,59 +5,59 @@
 
 ## Verdict
 
-**WEAK: 95 of 95 pairs changed (median first part 201 s); 4 of 42 counters under p 0.05 (about 2.1 by chance); casualties +3.4% (p 0.0784)**
+**WEAK: 100 of 100 pairs changed (median first part 202.5 s); 6 of 42 counters under p 0.05 (about 2.1 by chance); casualties +2.7% (p 0.1093)**
 
-- Under 0.05 only: movementResolver.changes 312378 to 316779 (+1.4%, p 0.0097); recon.orders 3037 to 2891 (-4.8%, p 0.0116); recon.cancelled 849 to 764 (-10.0%, p 0.0225); recon.contacts 152 to 132 (-13.2%, p 0.0402).
+- Under 0.05 only: recon.orders 3198 to 3046 (-4.8%, p 0.0055); recon.contacts 165 to 137 (-17.0%, p 0.0119); recon.cancelled 892 to 809 (-9.3%, p 0.0186); movementResolver.changes 329251 to 333174 (+1.2%, p 0.028); recon.reportsDelivered 705 to 595 (-15.6%, p 0.0356); recon.retriggerBlocked 2488 to 2416 (-2.9%, p 0.0475).
 
 ## Paired comparison (off against on)
 
-- **95** pairs (unpaired: off 0, on 0) · identical in every field: **0** · runtime errors off 0 / on 0 · wall time on/off x0.985 (gate 1.25)
-- the 89 changed records first part at simulated second: min 148.05, p10 164.1, median 201, p90 299.1, max 583.05
+- **100** pairs (unpaired: off 0, on 0) · identical in every field: **0** · runtime errors off 0 / on 0 · wall time on/off x1.031 (gate 1.25)
+- the 94 changed records first part at simulated second: min 148.05, p10 165, median 202.5, p90 316.05, max 583.05
 
 | counter | off | on | mean diff per pair | pairs changed | on more | on fewer | sign p |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| `casualties` | 4960 | 5131 | 1.8 | 83 | 50 | 33 | 0.0784 |
-| `usKills` | 2249 | 2334 | 0.8947 | 81 | 46 | 35 | 0.2664 |
-| `geKills` | 2711 | 2797 | 0.9053 | 84 | 48 | 36 | 0.2299 |
-| `fire.total` | 23548 | 24241 | 7.2947 | 88 | 45 | 43 | 0.9152 |
-| `fire.hits` | 9578 | 9953 | 3.9474 | 88 | 50 | 38 | 0.2408 |
-| `retreatSamples` | 130293 | 136343 | 63.6842 | 87 | 48 | 39 | 0.3912 |
-| `movementResolver.changes` | 312378 | 316779 | 46.3263 | 87 | 56 | 31 | 0.0097 |
-| `grenades.throws` | 21 | 21 | 0 | 8 | 4 | 4 | 1 |
-| `grenades.bursts` | 21 | 21 | 0 | 8 | 4 | 4 | 1 |
-| `grenades.wounded` | 37 | 37 | 0 | 3 | 2 | 1 | 1 |
-| `grenades.casualties` | 10 | 11 | 0.0105 | 1 | 1 | 0 | 1 |
-| `grenades.suppressed` | 69 | 67 | -0.0211 | 4 | 2 | 2 | 1 |
-| `grenades.friendlyWounded` | 0 | 1 | 0.0105 | 1 | 1 | 0 | 1 |
+| `casualties` | 5252 | 5395 | 1.43 | 88 | 52 | 36 | 0.1093 |
+| `usKills` | 2360 | 2441 | 0.81 | 86 | 49 | 37 | 0.2354 |
+| `geKills` | 2892 | 2954 | 0.62 | 88 | 49 | 39 | 0.3374 |
+| `fire.total` | 24823 | 25449 | 6.26 | 93 | 46 | 47 | 1 |
+| `fire.hits` | 10133 | 10455 | 3.22 | 93 | 52 | 41 | 0.2997 |
+| `retreatSamples` | 137574 | 142680 | 51.06 | 92 | 50 | 42 | 0.4657 |
+| `movementResolver.changes` | 329251 | 333174 | 39.23 | 92 | 57 | 35 | 0.028 |
+| `grenades.throws` | 26 | 24 | -0.02 | 11 | 5 | 6 | 1 |
+| `grenades.bursts` | 26 | 24 | -0.02 | 11 | 5 | 6 | 1 |
+| `grenades.wounded` | 46 | 41 | -0.05 | 5 | 2 | 3 | 1 |
+| `grenades.casualties` | 13 | 13 | 0 | 2 | 1 | 1 | 1 |
+| `grenades.suppressed` | 92 | 78 | -0.14 | 6 | 2 | 4 | 0.6875 |
+| `grenades.friendlyWounded` | 0 | 1 | 0.01 | 1 | 1 | 0 | 1 |
 | `grenades.friendlyCasualties` | 0 | 0 | 0 | 0 | 0 | 0 | 1 |
 | `grenades.aborted` | 0 | 0 | 0 | 0 | 0 | 0 | 1 |
-| `movementStalls.length` | 12 | 13 | 0.0105 | 1 | 1 | 0 | 1 |
+| `movementStalls.length` | 12 | 13 | 0.01 | 1 | 1 | 0 | 1 |
 | `routeStalls.length` | 0 | 0 | 0 | 0 | 0 | 0 | 1 |
 | `targetlessStalls.length` | 0 | 0 | 0 | 0 | 0 | 0 | 1 |
-| `vacantObjectiveStalls.length` | 511 | 519 | 0.0842 | 75 | 40 | 35 | 0.6445 |
-| `loopAlerts.length` | 631 | 683 | 0.5474 | 72 | 36 | 36 | 1 |
+| `vacantObjectiveStalls.length` | 544 | 551 | 0.07 | 79 | 42 | 37 | 0.653 |
+| `loopAlerts.length` | 667 | 710 | 0.43 | 76 | 38 | 38 | 1 |
 | `writerConflicts` | 0 | 0 | 0 | 0 | 0 | 0 | 1 |
-| `regroups.entries` | 369 | 409 | 0.4211 | 70 | 39 | 31 | 0.403 |
-| `stallOutcomes.wakes` | 12 | 10 | -0.0211 | 12 | 5 | 7 | 0.7744 |
-| `stallOutcomes.repeats` | 2 | 3 | 0.0105 | 3 | 2 | 1 | 1 |
-| `timeline.stalledOnsets` | 14 | 15 | 0.0105 | 1 | 1 | 0 | 1 |
-| `timeline.stalledSamples` | 1183 | 994 | -1.9895 | 1 | 0 | 1 | 1 |
-| `timeline.stalledOnsetsRepeated` | 14 | 15 | 0.0105 | 1 | 1 | 0 | 1 |
-| `timeline.stalledSamplesRepeated` | 1183 | 994 | -1.9895 | 1 | 0 | 1 | 1 |
-| `recon.orders` | 3037 | 2891 | -1.5368 | 84 | 30 | 54 | 0.0116 |
-| `recon.contacts` | 152 | 132 | -0.2105 | 54 | 19 | 35 | 0.0402 |
-| `recon.noContact` | 1867 | 1848 | -0.2 | 74 | 33 | 41 | 0.416 |
-| `recon.timeouts` | 33 | 30 | -0.0316 | 23 | 10 | 13 | 0.6776 |
-| `recon.cancelled` | 849 | 764 | -0.8947 | 70 | 25 | 45 | 0.0225 |
-| `recon.reportsDelivered` | 646 | 570 | -0.8 | 62 | 24 | 38 | 0.098 |
-| `recon.retriggerBlocked` | 2362 | 2296 | -0.6947 | 78 | 30 | 48 | 0.0535 |
-| `squadPerformance.meanOverall` | 7770.599999999998 | 7749.2000000000035 | -0.2253 | 84 | 34 | 50 | 0.1011 |
-| `squadPerformance.p10Overall` | 7161.399999999999 | 7143.6 | -0.1874 | 53 | 26 | 27 | 1 |
+| `regroups.entries` | 401 | 426 | 0.25 | 74 | 39 | 35 | 0.7275 |
+| `stallOutcomes.wakes` | 12 | 10 | -0.02 | 12 | 5 | 7 | 0.7744 |
+| `stallOutcomes.repeats` | 2 | 3 | 0.01 | 3 | 2 | 1 | 1 |
+| `timeline.stalledOnsets` | 14 | 15 | 0.01 | 1 | 1 | 0 | 1 |
+| `timeline.stalledSamples` | 1183 | 994 | -1.89 | 1 | 0 | 1 | 1 |
+| `timeline.stalledOnsetsRepeated` | 14 | 15 | 0.01 | 1 | 1 | 0 | 1 |
+| `timeline.stalledSamplesRepeated` | 1183 | 994 | -1.89 | 1 | 0 | 1 | 1 |
+| `recon.orders` | 3198 | 3046 | -1.52 | 89 | 31 | 58 | 0.0055 |
+| `recon.contacts` | 165 | 137 | -0.28 | 58 | 19 | 39 | 0.0119 |
+| `recon.noContact` | 1965 | 1946 | -0.19 | 77 | 34 | 43 | 0.362 |
+| `recon.timeouts` | 34 | 30 | -0.04 | 24 | 10 | 14 | 0.5413 |
+| `recon.cancelled` | 892 | 809 | -0.83 | 73 | 26 | 47 | 0.0186 |
+| `recon.reportsDelivered` | 705 | 595 | -1.1 | 66 | 24 | 42 | 0.0356 |
+| `recon.retriggerBlocked` | 2488 | 2416 | -0.72 | 83 | 32 | 51 | 0.0475 |
+| `squadPerformance.meanOverall` | 8178.099999999998 | 8155.600000000004 | -0.225 | 89 | 37 | 52 | 0.1374 |
+| `squadPerformance.p10Overall` | 7537.900000000001 | 7517.100000000002 | -0.208 | 56 | 27 | 29 | 0.8939 |
 | `squadPerformance.lowScoreSquads` | 0 | 0 | 0 | 0 | 0 | 0 | 1 |
-| `squadPerformance.meanMission` | 6409.699999999998 | 6366.699999999996 | -0.4526 | 85 | 39 | 46 | 0.5154 |
-| `squadPerformance.meanMovement` | 9473.599999999997 | 9473.199999999997 | -0.0042 | 49 | 23 | 26 | 0.7754 |
-| `squadPerformance.meanControl` | 8949.499999999998 | 8920 | -0.3105 | 85 | 41 | 44 | 0.8284 |
-| `squadPerformance.meanCohesion` | 8504.099999999999 | 8530 | 0.2726 | 85 | 45 | 40 | 0.6646 |
+| `squadPerformance.meanMission` | 6742.7 | 6691.999999999996 | -0.507 | 89 | 41 | 48 | 0.525 |
+| `squadPerformance.meanMovement` | 9971.999999999996 | 9972.199999999997 | 0.002 | 53 | 27 | 26 | 1 |
+| `squadPerformance.meanControl` | 9418.1 | 9395.000000000002 | -0.231 | 90 | 44 | 46 | 0.9161 |
+| `squadPerformance.meanCohesion` | 8951.999999999996 | 8981 | 0.29 | 90 | 48 | 42 | 0.5984 |
 
 With this many counters a p of 0.05 is expected by chance in about one of twenty: read the size and the direction across counters, not one p.
 
