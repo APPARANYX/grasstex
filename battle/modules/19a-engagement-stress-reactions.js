@@ -263,9 +263,7 @@
       /* Remember which fully held line was safe when he broke. A later secured line can
          shorten extraction, but never send a broken man backward or toward an unheld point. */
       e.fledRearLine =
-        sq && sq._frontLineRear && Number.isFinite(+sq._frontLineRear.line)
-          ? +sq._frontLineRear.line
-          : null;
+        sq && sq._frontLineRear && Number.isFinite(+sq._frontLineRear.line) ? +sq._frontLineRear.line : null;
       e.fledHomeRebasedAt = -1e9;
       e.refuge = null;
       e.refugeHere = false;
