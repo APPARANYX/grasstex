@@ -58,7 +58,8 @@ not the gait he stands in, allows up to 2 s of hesitation before he accepts, and
 restarts the execution deadline when Engagement adopts the order. The Squad
 Leader also reads a late receipt on an expired but not yet pruned lease, and a
 failed arrival says whether the report went stale or the line was blocked.
-Sector memory (`?sectorMemory=0` turns it off): the Squad Leader step keeps one
+Sector memory (`?sectorMemory=0` turns it off): the Squad Leader step (every pass, including
+ones that return early out of contact or under hold/precision fire control) keeps one
 entry per 20 m cell for every told or seen contact the squad has had, until
 a squad man could see the cell from prone (Perception's own range, view cone and
 line, held for 1 s) and nobody has seen an enemy near it since, or newer word

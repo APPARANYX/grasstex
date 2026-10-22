@@ -83,6 +83,9 @@
         root.BattleReactiveFireManeuver && root.BattleReactiveFireManeuver.on
           ? root.BattleReactiveFireManeuver
           : null;
+      // The squad's memory of where the enemy was reported is built on every pass, not only while it
+      // is in contact and free of hold/precision fire control, or those reports never reach it.
+      if (reactive && reactive.noteSectors) reactive.noteSectors(battle, sq);
       var pilot =
         root.BattleAISkills && root.BattleAISkills.advanceSquad
           ? root.BattleAISkills.advanceSquad(battle, sq, r)
@@ -164,7 +167,6 @@
         return;
       }
       if (reactive) {
-        if (reactive.noteSectors) reactive.noteSectors(battle, sq);
         var activePosition = L.get(sq, 'bound');
         if (
           activePosition &&

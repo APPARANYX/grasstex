@@ -795,6 +795,21 @@ console.log('PASS the firing slot is judged on cover at the stance that sees, no
   assert.equal(off.events.decisions.length, 0, '?sectorMemory=0 gives a stale man nothing to verify');
 }
 {
+  // A report reaches the memory on every Squad Leader pass, even one that returns early (no contact).
+  const w = positionWorld({ enemyZ: 25, slot: 'none' });
+  const update = w.fr.BattleEngagement.updateSquad;
+  w.fr.BattleEngagement.updateSquad = (sq, battle) => {
+    const r = update(sq, battle);
+    sq.inContact = false;
+    return r;
+  };
+  for (let i = 0; i < 5; i++) w.fS.fireAndMovement(w.fq, w.fb);
+  assert.ok(
+    w.fq._sectorMemory && Object.keys(w.fq._sectorMemory.cells).length,
+    'a squad out of contact still records the report'
+  );
+}
+{
   // A sector is cleared only by a man who can see it, and a later report brings it back.
   const w = positionWorld({ enemyZ: 25, slot: 'none' });
   const OR = w.fr.BattleReactiveFireManeuver;
