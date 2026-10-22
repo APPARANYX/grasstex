@@ -13,9 +13,11 @@
      own report still trusted (an unexpired belief within 25 m, confidence >= 0.5); and whether the cell
      was still uncleared when that report stopped being trusted (the only moment memory adds anything).
    When the build has `sq._sectorMemory`, the shipped clearing rule is booked the same way from its cells,
-   plus how far the nearest man inside its range was compared with his vision range.
-   Also: verify-contact leases (how far the point is from what he is sent to verify, against his vision
-   range; the memory-aimed ones with the truth at issue), and the reactive gates (`taskReason`,
+   plus whether the squad's nearest able man was even inside his own sight range of the point (a still
+   prone man, and a standing one) when the cell was cleared, whatever the rule.
+   Also: verify-contact leases (how far the point is from what he is sent to verify, against his sight
+   range for a still prone and a standing man; the memory-aimed ones with the truth at issue), and the
+   reactive gates (`taskReason`,
    `firingTaskReason`) in squad-seconds with contact, including the time the firing-position gate is shut
    only for want of a credible contact while the shadow memory (report < 60 s) holds a cell.
    One seed per scenario. Observe only: reads state, draws no RNG, writes nothing. */
@@ -110,22 +112,44 @@
     }
     return false;
   }
-  /* The nearest man the shipped rule counts (inside 0.6 of his weapon range), against his vision range. */
-  function shippedObserver(sq, sim, x, z) {
-    var SA = root.SquadAI,
-      best = null;
+  /* How far he could see a still man in that stance, before view cone and cover: Perception's own figure
+     when the build exports it, else role vision range x stance visibility x his sight scale. */
+  function sightRange(m, stance) {
+    var SA = root.SquadAI;
+    if (SA.sightRangeFor) return SA.sightRangeFor(m, stance);
+    var role = SA.ROLES[m.role],
+      stats = root.BattleSoldierStats;
+    if (!role) return 0;
+    var proxy = { root: { position: { x: 0, y: 0, z: 0 } }, prone: stance === 'prone', moving: false };
+    return SA.detectionRange(role, proxy) * (stats && stats.scale ? stats.scale(m, 'sight') : 1);
+  }
+  /* The squad's nearest able man to the point, against his sight range for a still prone and a standing man. */
+  function nearestAble(sq, sim, x, z) {
+    var best = null;
     (sq.members || []).forEach(function (m) {
       if (!able(m, sim)) return;
-      var d = Math.hypot(m.root.position.x - x, m.root.position.z - z),
-        range = SA.engageRange(m);
-      if (!(range > 0) || d > range * 0.6) return;
-      if (!best || d < best.d)
-        best = { d: +d.toFixed(1), engageRange: range, visionRange: (SA.ROLES[m.role] || {}).visionRange };
+      var d = Math.hypot(m.root.position.x - x, m.root.position.z - z);
+      if (!best || d < best.d) best = { d: d, prone: sightRange(m, 'prone'), stand: sightRange(m, 'stand') };
     });
-    return best;
+    return (
+      best && {
+        d: +best.d.toFixed(1),
+        proneSight: +best.prone.toFixed(1),
+        standSight: +best.stand.toFixed(1)
+      }
+    );
   }
   function ruleOut() {
-    return { clears: 0, delay: {}, truth: bucket(), whileTrusted: 0, reportLapses: 0, outlivedReport: 0 };
+    return {
+      clears: 0,
+      delay: {},
+      truth: bucket(),
+      whileTrusted: 0,
+      reportLapses: 0,
+      outlivedReport: 0,
+      lapseCleared: 0,
+      lapseNoCell: 0
+    };
   }
   function bookClear(rule, sim, side, sq, cell, delay) {
     rule.clears++;
@@ -169,16 +193,18 @@
       })[0],
       c = man && root.SquadAI.soldierContact(man, sim),
       aim = pt.aim || (c && Number.isFinite(c.x) ? { x: c.x, z: c.z } : null),
-      vision = man && (root.SquadAI.ROLES[man.role] || {}).visionRange;
+      prone = man ? sightRange(man, 'prone') : 0,
+      stand = man ? sightRange(man, 'stand') : 0;
     v.n++;
-    if (!aim || !vision) {
+    if (!aim || !(stand > 0)) {
       v.unknown++;
       return;
     }
     var d = Math.hypot(aim.x - pt.x, aim.z - pt.z);
     if (v.distances.length < 200) v.distances.push(Math.round(d));
-    if (d <= vision * 0.35) v.withinProneSight++;
-    else if (d <= vision) v.withinStandingSightOnly++;
+    if (v.proneSight.length < 200) v.proneSight.push(Math.round(prone));
+    if (d <= prone) v.withinProneSight++;
+    else if (d <= stand) v.withinStandingSightOnly++;
     else v.beyondSight++;
   }
   (root.BattleProbes = root.BattleProbes || {})['sector-memory-truth'] = {
@@ -193,7 +219,9 @@
         byAge: {},
         shadow: ruleOut(),
         shipped: ruleOut(),
-        shippedNearestBeyondVision: 0,
+        shippedCells: 0,
+        shippedNearestBeyondProneSight: 0,
+        shippedNearestBeyondStandingSight: 0,
         shippedExamples: [],
         verifyLeases: {
           n: 0,
@@ -203,7 +231,8 @@
           withinStandingSightOnly: 0,
           beyondSight: 0,
           unknown: 0,
-          distances: []
+          distances: [],
+          proneSight: []
         },
         gates: {
           contactSeconds: 0,
@@ -217,7 +246,9 @@
     },
     sample: function (sim) {
       var dt = lastT == null ? 0 : Math.max(0, sim.time - lastT),
-        SA = root.SquadAI;
+        SA = root.SquadAI,
+        P = root.BattleReactiveFireManeuver,
+        hasMemory = !!(P && P.on && P.sectorMemory);
       lastT = sim.time;
       ['us', 'ge'].forEach(function (side) {
         ((sim.factions[side] && sim.factions[side].squads) || []).forEach(function (sq) {
@@ -287,9 +318,14 @@
               cell.lapsed = true;
               out.shadow.reportLapses++;
               if (cell.shadowAt == null) out.shadow.outlivedReport++;
-              if (mem) {
+              else out.shadow.lapseCleared++;
+              if (hasMemory) {
+                // The build keeps a sector memory: is this report in it, cleared, or never recorded?
+                var mc = mem && mem[key];
                 out.shipped.reportLapses++;
-                if (mem[key] && mem[key].clearedAt == null) out.shipped.outlivedReport++;
+                if (!mc) out.shipped.lapseNoCell++;
+                else if (mc.clearedAt != null) out.shipped.lapseCleared++;
+                else out.shipped.outlivedReport++;
               }
             }
           });
@@ -298,21 +334,23 @@
               var cell = mem[key],
                 id = side + ':' + sq.id + ':' + key,
                 was = shipped.get(id);
+              if (!was) out.shippedCells++;
               if (!was || was.at !== cell.at)
                 shipped.set(id, (was = { at: cell.at, clearedAt: cell.clearedAt }));
               if (cell.clearedAt != null && was.clearedAt == null) {
                 was.clearedAt = cell.clearedAt;
                 var delay = cell.clearedAt - cell.at,
                   en = bookClear(out.shipped, sim, side, sq, cell, delay),
-                  obs = shippedObserver(sq, sim, cell.x, cell.z);
-                if (obs && obs.d > obs.visionRange) out.shippedNearestBeyondVision++;
-                if (en && en.d <= 10 && out.shippedExamples.length < 6)
+                  near = nearestAble(sq, sim, cell.x, cell.z);
+                if (near && near.d > near.proneSight) out.shippedNearestBeyondProneSight++;
+                if (near && near.d > near.standSight) out.shippedNearestBeyondStandingSight++;
+                if (en && en.d <= 20 && out.shippedExamples.length < 6)
                   out.shippedExamples.push({
                     t: +sim.time.toFixed(2),
                     squad: sq.id,
                     delay: +delay.toFixed(2),
                     enemy: { d: +en.d.toFixed(1), stance: en.stance, moving: en.moving },
-                    nearestCountedObserver: obs
+                    nearestAbleMan: near
                   });
               }
             });
