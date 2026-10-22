@@ -47,7 +47,16 @@ than the one that does not. Engagement reserves that exact slot
 and moves him; supporters and men with a usable line stay put, no objective
 bound is authorized while the lease holds, and `decision-firing-position` is
 recorded. With no safe slot nothing is assigned and the ordinary reactive path
-continues. The step ends on the executor's receipt, not on a timer: Engagement
+continues, except for verify contact (`?verifyContact=0` turns it off): when no
+man has a slot, the nearest of a fixed ring of points within the same 12 m reach
+(the bearing toward the report first, then 2 m steps) that has a prone sight and
+ballistic line inside weapon range, a legal straight route and the same exposure
+limit becomes a point-only lease (`slotId` null, `verify` true). It exists
+because 97% of measured stuck men sat in open ground with no cover slot in reach,
+most holding a reported, not seen, enemy. The report only says where to look:
+the line is re-measured where he actually stops (a lost line is a failed receipt)
+and nothing counts as supporting fire until Perception sees the enemy and he
+fires. The observer counts `firingVerifyAssigned/Arrived/Seen/Unseen/Shots`. The step ends on the executor's receipt, not on a timer: Engagement
 records `arrived` or `failed` (reached, unreachable, suppressed, overran) and the
 Squad Leader reads it, ends the lease and, on arrival, the pause after it so the
 next gate is judged that tick. A casualty also ends it; a failure keeps the pause.

@@ -563,6 +563,34 @@
       return squadForward(s);
     }
 
+    /* A leased verify-contact point (no cover slot): re-establish at adoption what the plan saw. The
+       executor re-checks its own route, exposure and prone line to the reported enemy rather than trust
+       the lease; any failure consumes the order and he keeps fighting where he is. */
+    function verifyCover(s, battle, pt, audit) {
+      var C = root.BattleCoverPositions,
+        p = posOf(s),
+        d = dist(p.x, p.z, pt.x, pt.z),
+        threat = audit.threats[0],
+        goal = { x: pt.x, z: pt.z, distance: d };
+      if (root.BattleMovementProgress && !root.BattleMovementProgress.candidateAllowed(s, battle, goal)) {
+        audit.reason = 'unreachable-memory';
+        return null;
+      }
+      if (dist(threat.x, threat.z, pt.x, pt.z) > SA().engageRange(s)) {
+        audit.reason = 'out-of-range';
+        return null;
+      }
+      audit.candidates++;
+      var route = C.boundRoute(s, battle, goal, audit.threats, 'firing');
+      audit.samples += route.samples;
+      audit.reason = route.reason;
+      if (!route.eligible) return null;
+      if (!firingLineClear(s, { root: { position: threat } }, goal, 'prone', battle)) {
+        audit.reason = 'no-prone-line';
+        return null;
+      }
+      return { x: goal.x, z: goal.z, slotId: null, quality: 1, distance: d, type: 'terrain', verify: true };
+    }
     /* One Squad Leader permission produces one displacement. Cover and a no-cover rush use the same
      engagement lifecycle, so target flicker cannot create a second, invisible movement drill. */
     function orderedBound(s, battle) {
@@ -637,16 +665,18 @@
         cover =
           covered && !audit.threats.length
             ? null
-            : findCover(s, battle, {
-                slotId: positioning && activeLease.data.point.slotId,
-                firingPosition: !!positioning,
-                maxRange: covered ? C.boundTuning().maxDistance : COVER_RANGE_UNDER_FIRE,
-                forward: fwd,
-                evade: s.suppressedUntil > battle.time,
-                notBehind: fwd ? { axis: fwd, allow: BOUND_BACK_ALLOW } : null,
-                threat: threat,
-                coveredRoute: audit
-              });
+            : positioning && activeLease.data.point.verify
+              ? verifyCover(s, battle, activeLease.data.point, audit)
+              : findCover(s, battle, {
+                  slotId: positioning && activeLease.data.point.slotId,
+                  firingPosition: !!positioning,
+                  maxRange: covered ? C.boundTuning().maxDistance : COVER_RANGE_UNDER_FIRE,
+                  forward: fwd,
+                  evade: s.suppressedUntil > battle.time,
+                  notBehind: fwd ? { axis: fwd, allow: BOUND_BACK_ALLOW } : null,
+                  threat: threat,
+                  coveredRoute: audit
+                });
       if (covered) {
         var stats =
           e.coveredBound ||

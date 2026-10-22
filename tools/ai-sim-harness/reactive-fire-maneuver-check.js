@@ -402,12 +402,16 @@ function positionWorld(options = {}) {
     box('blocker', -12, -6, 2.5, 0.4, 3.5, 0.55, 'wall'),
     options.slot === 'log'
       ? box('firing-wall', -18, -6, 1.2, 0.3, 0.62, 0.45, 'log')
-      : box('firing-wall', -18, -6, 1.2, 0.3, 1.3, 0.55, 'wall')
-  ].concat(
-    shooters.map(s =>
-      box('log-' + s.id, s.root.position.x + 1, s.root.position.z + 0.5, 0.3, 1, 0.62, 0.45, 'log')
-    )
-  );
+      : options.slot === 'none'
+        ? null
+        : box('firing-wall', -18, -6, 1.2, 0.3, 1.3, 0.55, 'wall')
+  ]
+    .filter(Boolean)
+    .concat(
+      shooters.map(s =>
+        box('log-' + s.id, s.root.position.x + 1, s.root.position.z + 0.5, 0.3, 1, 0.62, 0.45, 'log')
+      )
+    );
   fb.obstacles.__physicalFootprints = fb.obstacles;
   fb.obstacles.__physicalVersion = 1;
   fq.members.forEach((s, i) => (s._fireteamKey = ['alpha', 'bravo', 'bravo', 'charlie', 'charlie'][i]));
@@ -593,7 +597,7 @@ console.log('PASS a casualty or failed move ends the firing-position step at onc
 // concealed-destination rule turned this slot away). The `firingCover` bar decides.
 {
   const low = positionWorld({ slot: 'log' });
-  const strict = positionWorld({ slot: 'log', search: '&firingCover=40' });
+  const strict = positionWorld({ slot: 'log', search: '&firingCover=40&verifyContact=0' });
   assert.equal(low.fr.BattleReactiveFireManeuver.firingCover, 0.25, 'default bar');
   assert.equal(strict.fr.BattleReactiveFireManeuver.firingCover, 0.4, '?firingCover=40');
 
@@ -629,3 +633,83 @@ console.log('PASS a casualty or failed move ends the firing-position step at onc
   );
 }
 console.log('PASS the firing slot is judged on cover at the stance that sees, not on concealment');
+
+// A settled man in the open with no cover slot in reach is sent to a nearby prone firing point so
+// Perception can see the enemy the report only describes. The report guides him; it is not support.
+{
+  const on = positionWorld({ slot: 'none' });
+  const off = positionWorld({ slot: 'none', search: '&verifyContact=0' });
+  const OE = on.fr.BattleEngagement,
+    OR = on.fr.BattleReactiveFireManeuver;
+  assert.equal(OR.verifyContact, true);
+  assert.equal(off.fr.BattleReactiveFireManeuver.verifyContact, false);
+  for (let i = 0; i < 220 && !(on.events.receipts.length && on.events.bounds.length); i++) on.tick();
+  for (let i = 0; i < 220; i++) off.tick();
+  const d = on.events.decisions[0];
+  assert.ok(
+    d && d.verify === true && d.slotId == null,
+    'a point-only verify lease: ' + JSON.stringify(on.events)
+  );
+  assert.equal(on.events.receipts[0].type, 'firing-position-arrived', JSON.stringify(on.events.receipts));
+  assert.equal(off.events.decisions.length, 0, '?verifyContact=0 restores the slot-only step');
+  const there = OR.firingLineAt(on.lone, on.fb, on.lone.root.position);
+  assert.equal(there, true, 'he stopped on a point that has a line');
+  assert.equal(on.lone.prone, true, 'and went prone to use it');
+  assert.equal(OE.stateOf(on.lone).positionReceipt.slotId == null, true, 'no slot was reserved');
+  const moved = Math.hypot(on.lone.root.position.x + 12, on.lone.root.position.z + 7);
+  assert.ok(moved > 1 && moved <= 12.5, 'a short move inside the 12 m reach: ' + moved);
+  assert.equal(
+    OR.supporters(on.fb, on.fq, { fireSupport: [on.lone] }, []).length,
+    0,
+    'a clear line to a report is not supporting fire'
+  );
+}
+{
+  // The line is re-measured where he actually stops: a wall raised across it makes the arrival a failure.
+  const w = positionWorld({ slot: 'none' });
+  let blocked = false;
+  for (let i = 0; i < 220 && !w.events.receipts.length; i++) {
+    w.tick();
+    const lease = w.fr.BattleLeases.get(w.fq, 'bound');
+    if (
+      !blocked &&
+      lease &&
+      lease.data &&
+      lease.data.point &&
+      lease.data.point.verify &&
+      w.fr.BattleEngagement.firingPositionActive(w.lone)
+    ) {
+      const q = lease.data.point;
+      w.fb.obstacles.push({
+        id: 'late-wall',
+        physicalId: 'late-wall',
+        shape: 'obb',
+        type: 'wall',
+        x: q.x,
+        z: q.z + 1.5,
+        hx: 30,
+        hz: 0.3,
+        ux: 1,
+        uz: 0,
+        vx: 0,
+        vz: 1,
+        radius: 1,
+        y: 0,
+        height: 4,
+        cover: 0.5
+      });
+      w.fb.obstacles.__physicalFootprints = w.fb.obstacles;
+      w.fb.obstacles.__physicalVersion++;
+      blocked = true;
+    }
+  }
+  assert.ok(blocked, 'a verify lease was granted');
+  const r = w.events.receipts[0];
+  assert.ok(
+    r && r.type === 'firing-position-failed',
+    'a lost line fails the arrival: ' + JSON.stringify(w.events.receipts)
+  );
+}
+console.log(
+  'PASS verify contact: a prone firing point when no cover slot is in reach, line re-measured at arrival, a report is not support'
+);

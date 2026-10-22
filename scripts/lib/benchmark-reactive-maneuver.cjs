@@ -9,6 +9,7 @@
       slotAudit = {},
       active = new Map(),
       positioning = new Map(),
+      verifying = new Map(),
       seenLeases = new WeakSet(),
       squads = new Map(),
       rows = [],
@@ -31,10 +32,21 @@
       firingInterrupted: 0,
       firingSupportShots: 0,
       firingPendingSamples: 0,
-      firingNoSlotSamples: 0
+      firingNoSlotSamples: 0,
+      // Verify contact (a prone firing point, no cover slot): did the report become a seen contact?
+      firingVerifyAssigned: 0,
+      firingVerifyArrived: 0,
+      firingVerifySeen: 0,
+      firingVerifyUnseen: 0,
+      firingVerifyShots: 0
     };
     let nextDiagnostic = 0;
     function shot(s) {
+      const v = verifying.get(s);
+      if (v) {
+        v.shots++;
+        counts.firingVerifyShots++;
+      }
       for (const [man, row] of positioning)
         if (man !== s && man.squad === s.squad && man.moving && E.stateOf(man).state === 'bound') {
           row.supportShots++;
@@ -70,8 +82,10 @@
           const lease = R.BattleLeases.get(q, 'bound');
           if (lease && lease.data && lease.data.reactiveFireManeuver && !seenLeases.has(lease)) {
             seenLeases.add(lease);
-            if (lease.data.firingPosition) counts.firingAssigned++;
-            else counts.authorized++;
+            if (lease.data.firingPosition) {
+              counts.firingAssigned++;
+              if (lease.data.point && lease.data.point.verify) counts.firingVerifyAssigned++;
+            } else counts.authorized++;
           }
           for (const man of q.members) {
             const e = man.eng;
@@ -91,7 +105,8 @@
                 at: b.time,
                 start: { x: man.root.position.x, z: man.root.position.z },
                 goal: e.cover && { x: e.cover.x, z: e.cover.z },
-                supportShots: 0
+                supportShots: 0,
+                verify: !!(lease && lease.data && lease.data.point && lease.data.point.verify)
               });
             }
             if (
@@ -235,8 +250,23 @@
           if (!man.dead && d < 0.45) {
             counts.firingArrived++;
             if (P.firingLineAt(man, b, man.root.position)) counts.firingLineGained++;
+            if (row.verify) {
+              counts.firingVerifyArrived++;
+              verifying.set(man, { at: b.time, shots: 0 });
+            }
           } else counts.firingInterrupted++;
           positioning.delete(man);
+        }
+      }
+      // The report is verified when this man's own recent contact is a sighting made after he arrived.
+      for (const [man, v] of verifying) {
+        const c = man.dead ? null : R.SquadAI.soldierContact(man, b);
+        if (c && c.source === 'seen' && c.at >= v.at) {
+          counts.firingVerifySeen++;
+          verifying.delete(man);
+        } else if (man.dead || b.time - v.at > 10) {
+          counts.firingVerifyUnseen++;
+          verifying.delete(man);
         }
       }
       if (b.time >= nextDiagnostic) nextDiagnostic = b.time + 1.5;

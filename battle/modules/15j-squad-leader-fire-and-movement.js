@@ -223,7 +223,7 @@
             'squad-leader',
             t,
             t + Math.max(BOUND_DURATION, setup.point.window),
-            'establish firing position',
+            setup.point.verify ? 'verify contact' : 'establish firing position',
             'window expiry or contact broken',
             {
               missionVersion: localTask.missionVersion,
@@ -250,7 +250,8 @@
             soldier: setup.soldier.id,
             x: setup.point.x,
             z: setup.point.z,
-            slotId: setup.point.slotId
+            slotId: setup.point.slotId,
+            verify: !!setup.point.verify
           });
           return;
         }

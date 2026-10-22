@@ -1532,11 +1532,20 @@
     }
     var p = posOf(s),
       d = dist(p.x, p.z, cover.x, cover.z);
-    if (d <= (cover.slotId ? 0.35 : COVER_ARRIVED)) {
+    if (d <= (cover.slotId || cover.verify ? 0.35 : COVER_ARRIVED)) {
       if (root.BattleMovementProgress) root.BattleMovementProgress.clearFailuresNear(s, battle, cover);
       if (s.suppressedUntil > battle.time) relief('cover', s, battle, { seconds: battle.time - e.since });
       holdPosition(s, battle);
       e.stanceUntil = 0; // the run's crouch ends here; engage picks the stance he fights in
+      /* A verify-contact point has no cover to fall back on: it is worth reaching only for its line, so
+         re-measure the line where he actually stopped (short of a crest it may be gone) and go prone
+         to use it. A lost line is a failed arrival, which keeps the Squad Leader's pause. */
+      if (cover.verify && firingPositionActive(s)) {
+        var vt = (root.BattleCoverPositions.boundThreats(s, battle) || [])[0];
+        if (!vt || !firingLineClear(s, { root: { position: vt } }, p, 'prone', battle))
+          if (finishContactCover(s, battle, 'contact cover no line')) return;
+        commitStance(s, battle, 'prone', LOW_GAP_HOLD, 'verify contact: prone');
+      }
       if (finishContactCover(s, battle, 'contact cover reached')) return;
       transition(s, battle, 'engage', 0, 'reached cover');
       return engage(s, battle);

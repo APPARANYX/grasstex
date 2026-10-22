@@ -21,6 +21,13 @@
       var m = /[?&]firingCover=(\d{1,2})(?:&|#|$)/.exec(query);
       return m ? Math.min(90, +m[1]) : 25;
     })() / 100;
+  /* Verify contact: a settled man in the open whose every stance is blind to a reported (not yet seen)
+     enemy has no cover slot to move to (measured: 97% have none within the 12 m bound reach). He is
+     offered a short move to a nearby prone firing point instead, so Perception can acquire the enemy
+     the report only describes. `?verifyContact=0` restores the slot-only step. */
+  var VERIFY_CONTACT = !/[?&]verifyContact=(?:0|off|false)(?:&|#|$)/i.test(query);
+  var VERIFY_STEP = 2,
+    VERIFY_BEARINGS = [8, 8, 8, 16, 16, 16];
   function canTask(sq, inputs) {
     return taskReason(sq, inputs) === 'eligible';
   }
@@ -177,7 +184,8 @@
       !C.coveredBoundsOn()
     )
       return result;
-    var men = sq.members || [];
+    var men = sq.members || [],
+      stuck = [];
     for (var i = 0; i < men.length; i++) {
       var s = men[i];
       if (
@@ -209,6 +217,7 @@
         note('no-threats');
         continue;
       }
+      stuck.push({ man: s, threats: threats, target: target });
       var candidates = C.candidates(s, battle, target, C.boundTuning().maxDistance);
       if (!Array.isArray(candidates) || candidates.length > 256) {
         note('too-many-candidates');
@@ -240,12 +249,63 @@
         }
       }
     }
+    /* A covered slot always wins. Only when no man has one, the nearest prone firing point. */
+    if (!result.point && VERIFY_CONTACT)
+      for (var m = 0; m < stuck.length; m++) {
+        var found = verifyPoint(stuck[m].man, battle, stuck[m].target, stuck[m].threats, note);
+        if (found && (!result.point || found.distance < result.point.distance)) {
+          result.soldier = stuck[m].man;
+          result.point = {
+            x: found.x,
+            z: found.z,
+            slotId: null,
+            verify: true,
+            distance: found.distance,
+            window: E.boundWindow(stuck[m].man, found.distance) + RECEIPT_SLACK
+          };
+        }
+      }
     result.reason = result.point
       ? 'firing-position'
       : result.pending
         ? 'no-safe-firing-position'
         : 'lines-ready';
     return result;
+  }
+  /* The nearest point within bound reach that has a prone sight and ballistic line to the reported
+     enemy, inside weapon range, on a legal straight route that passes the same exposure limits as a
+     slot. Deterministic rings, the bearing toward the report first, shortest ring wins. A report is
+     only where to look: nothing here counts as support until Perception sees the enemy. */
+  function verifyPoint(s, battle, target, threats, note) {
+    var C = root.BattleCoverPositions,
+      E = root.BattleEngagement,
+      p = s.root.position,
+      tp = target.root.position,
+      range = root.SquadAI.engageRange(s),
+      reach = C.boundTuning().maxDistance,
+      toward = Math.atan2(tp.z - p.z, tp.x - p.x);
+    for (var ring = 0; ring < VERIFY_BEARINGS.length; ring++) {
+      var r = VERIFY_STEP * (ring + 1);
+      if (r > reach + 1e-9) break;
+      var n = VERIFY_BEARINGS[ring];
+      for (var k = 0; k < n; k++) {
+        var a = toward + (k / n) * Math.PI * 2,
+          q = { x: p.x + Math.cos(a) * r, z: p.z + Math.sin(a) * r, distance: r };
+        if (Math.hypot(tp.x - q.x, tp.z - q.z) > range) continue;
+        if (!E.firingLineClear(s, target, q, 'prone', battle)) {
+          note('verify:no-prone-line');
+          continue;
+        }
+        var route = C.boundRoute(s, battle, q, threats, 'firing');
+        if (!route.eligible) {
+          note('verify:route:' + route.reason);
+          continue;
+        }
+        note('verify:point');
+        return q;
+      }
+    }
+    return null;
   }
   /* The executor's receipt for a leased firing-position move; a casualty also ends it. Any
      other abandonment is left to the lease window. Read-only: the Squad Leader ends the lease. */
@@ -388,6 +448,7 @@
     supporters: supporters,
     defensiveReadiness: defensiveReadiness,
     firingPositionPlan: firingPositionPlan,
+    verifyContact: VERIFY_CONTACT,
     firingPositionReceipt: firingPositionReceipt,
     squadStage: squadStage,
     firingTaskReason: firingTaskReason,
