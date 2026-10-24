@@ -30,83 +30,86 @@
          (sq.clearedReport). Its readers (Engagement's suppressor lock, the General's reported contacts) treat a
          picture no newer than the report's `seen` as over; any later sighting is newer and wins. */
       SQUAD_CLEARED =
-        typeof location !== 'undefined' && /[?&]squadCleared=(?:1|on|true)(?:&|#|$)/i.test(location.search || '');
-  function endClearContact(sq, battle, why) {
-    if (sq.clearContact && why !== 'sighting' && why !== 'under fire') sq._clearedSeen = sq.clearContact.seen;
-    if (sq.clearContact)
-      telemetry(battle, 'decision-clear-contact-end', {
-        faction: sq.faction,
-        squad: sq.id,
-        reason: why,
-        seconds: battle.time - sq.clearContact.since
-      });
-    if (SQUAD_CLEARED && why === 'cleared' && sq.clearContact) {
-      var cc = sq.clearContact;
-      sq.clearedReport = { x: cc.x, z: cc.z, at: battle.time, seen: cc.seen, how: 'reached' };
-      telemetry(battle, 'decision-squad-cleared', {
-        faction: sq.faction,
-        squad: sq.id,
-        point: { x: cc.x, z: cc.z },
-        seen: cc.seen
-      });
-    }
-    sq.clearContact = null;
-  }
-  function updateClearContact(sq, battle, r) {
-    if (!ALERT_ADVANCE) return;
-    var A = root.SquadAI,
-      c = A.squadContact ? A.squadContact(sq, battle) : null,
-      own = !!(c && (A.hasFirstHandMemory ? A.hasFirstHandMemory(c, battle) : !c.heard && !c.relayedFrom)),
-      cc = sq.clearContact,
-      why =
-        sq.contactCount > 0
-          ? 'sighting'
-          : r.underFire > 0
-            ? 'under fire'
-            : sq.state === 'retreat'
-              ? 'retreat'
-              : battle.winner
-                ? 'battle over'
-                : CLEAR_HOLD_PHASES[sq.commandPhase || '']
-                  ? 'holding phase'
-                  : null;
-    if (why) {
-      sq._quietSince = null;
-      endClearContact(sq, battle, why);
-      return;
-    }
-    if (cc) {
-      if (own) {
-        cc.x = c.x;
-        cc.z = c.z;
-        cc.seen = c.at;
+        typeof location !== 'undefined' &&
+        /[?&]squadCleared=(?:1|on|true)(?:&|#|$)/i.test(location.search || '');
+    function endClearContact(sq, battle, why) {
+      if (sq.clearContact && why !== 'sighting' && why !== 'under fire')
+        sq._clearedSeen = sq.clearContact.seen;
+      if (sq.clearContact)
+        telemetry(battle, 'decision-clear-contact-end', {
+          faction: sq.faction,
+          squad: sq.id,
+          reason: why,
+          seconds: battle.time - sq.clearContact.since
+        });
+      if (SQUAD_CLEARED && why === 'cleared' && sq.clearContact) {
+        var cc = sq.clearContact;
+        sq.clearedReport = { x: cc.x, z: cc.z, at: battle.time, seen: cc.seen, how: 'reached' };
+        telemetry(battle, 'decision-squad-cleared', {
+          faction: sq.faction,
+          squad: sq.id,
+          point: { x: cc.x, z: cc.z },
+          seen: cc.seen
+        });
       }
-      var a = sq.orderAnchor;
-      if (a && dist(a, cc) <= CLEAR_ARRIVED && orderCanAdvance(sq, battle)) endClearContact(sq, battle, 'cleared');
-      else if (battle.time - cc.since >= CLEAR_MAX) endClearContact(sq, battle, 'timeout');
-      if (!sq.clearContact) sq._quietSince = null;
-      return;
+      sq.clearContact = null;
     }
-    /* A picture the squad has already cleared, timed out on or left for a holding task is not ordered again. */
-    if (!own || (sq._clearedSeen != null && c.at <= sq._clearedSeen)) {
-      sq._quietSince = null;
-      return;
-    }
-    if (sq._quietSince == null) sq._quietSince = battle.time;
-    if (battle.time - sq._quietSince < CLEAR_AFTER) return;
-    sq.clearContact = { x: c.x, z: c.z, seen: c.at, since: battle.time };
-    telemetry(battle, 'decision-clear-contact', {
-      faction: sq.faction,
-      squad: sq.id,
-      phase: sq.commandPhase || '',
-      point: { x: c.x, z: c.z }
-    });
-    var fc = sq.fireControl;
-    if (FIRE_CONTROL_ON && !(fc && fc.state === 'open'))
-      setFireControl(sq, battle, fc || null, 'open', 'contact quiet: clearing', {
-        targetId: fc ? fc.targetId : c.unit && c.unit.id
+    function updateClearContact(sq, battle, r) {
+      if (!ALERT_ADVANCE) return;
+      var A = root.SquadAI,
+        c = A.squadContact ? A.squadContact(sq, battle) : null,
+        own = !!(c && (A.hasFirstHandMemory ? A.hasFirstHandMemory(c, battle) : !c.heard && !c.relayedFrom)),
+        cc = sq.clearContact,
+        why =
+          sq.contactCount > 0
+            ? 'sighting'
+            : r.underFire > 0
+              ? 'under fire'
+              : sq.state === 'retreat'
+                ? 'retreat'
+                : battle.winner
+                  ? 'battle over'
+                  : CLEAR_HOLD_PHASES[sq.commandPhase || '']
+                    ? 'holding phase'
+                    : null;
+      if (why) {
+        sq._quietSince = null;
+        endClearContact(sq, battle, why);
+        return;
+      }
+      if (cc) {
+        if (own) {
+          cc.x = c.x;
+          cc.z = c.z;
+          cc.seen = c.at;
+        }
+        var a = sq.orderAnchor;
+        if (a && dist(a, cc) <= CLEAR_ARRIVED && orderCanAdvance(sq, battle))
+          endClearContact(sq, battle, 'cleared');
+        else if (battle.time - cc.since >= CLEAR_MAX) endClearContact(sq, battle, 'timeout');
+        if (!sq.clearContact) sq._quietSince = null;
+        return;
+      }
+      /* A picture the squad has already cleared, timed out on or left for a holding task is not ordered again. */
+      if (!own || (sq._clearedSeen != null && c.at <= sq._clearedSeen)) {
+        sq._quietSince = null;
+        return;
+      }
+      if (sq._quietSince == null) sq._quietSince = battle.time;
+      if (battle.time - sq._quietSince < CLEAR_AFTER) return;
+      sq.clearContact = { x: c.x, z: c.z, seen: c.at, since: battle.time };
+      telemetry(battle, 'decision-clear-contact', {
+        faction: sq.faction,
+        squad: sq.id,
+        phase: sq.commandPhase || '',
+        point: { x: c.x, z: c.z }
       });
-  }
+      var fc = sq.fireControl;
+      if (FIRE_CONTROL_ON && !(fc && fc.state === 'open'))
+        setFireControl(sq, battle, fc || null, 'open', 'contact quiet: clearing', {
+          targetId: fc ? fc.targetId : c.unit && c.unit.id
+        });
+    }
 
     return {
       endClearContact: endClearContact,
