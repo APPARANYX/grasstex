@@ -566,6 +566,8 @@ squad on its next tick even if the posture change briefly cost everyone visual t
 
 `?pinBridge=1` (opt-in, off by default): pins used to last 1.3 s (x1.25 suppressive gun, x0.85 otherwise), shorter than a rifleman's gap between bursts, and only a suppressive weapon's aimed burst pinned. With the flag, any weapon's aimed burst pins its target, and area fire re-pins everyone it covered, until the shooter's next trigger pull plus `PIN_TAIL` (0.6 s), so a steady base of fire keeps heads down between bursts. Hold times are our own tuning, not doctrine figures. Fortitude still scales the hold in `pin()`.
 
+`?talkingGuns=1` (opt-in, off by default, stacked on `?pinBridge`'s branch but independent of it): when a squad has two suppressors, the second starts half a firing cycle after the first. The cycle is read from the first man's own last burst plus pause (`eng.cycleStart`, `eng.cycleLen`, written in `suppress()`), so the offset is derived, not tuned. One gun fires while the other pauses, so the enemy gets no gap. The follower is only phased between bursts, and again after each new suppress job. `SUPPRESS_PAUSE` (2.6 s) already sits in the published M240B range for rapid fire (2-3 s between bursts).
+
 The normal volley target is deliberately not "all ten men or deadlock": all available men adopt the low posture,
 but the leader accepts the firing line when 70% of the commanded survivors (minimum three) are stationary, prone,
 armed and have both sight and a clear ballistic line. It then considers squad strength and mean MKM: at 85 m or

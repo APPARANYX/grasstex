@@ -59,6 +59,11 @@
      man's own contact (a stale sighting, another sector, none at all). The job carries that point
      (`eng.suppressPoint`) and aim, facing and support readiness use it, so the man fires where the job says and
      support counts only fire on that point. `?suppressPoint=0` restores the old aim at his own contact. */
+  /* ?talkingGuns=1 (opt-in): the second suppressor of a squad starts half a firing cycle after the first (the
+     cycle is the one the first man actually fired: burst plus pause), so one gun is always firing while the
+     other pauses and the enemy gets no gap to rise in. */
+  var TALKING_GUNS =
+    typeof location !== 'undefined' && /[?&]talkingGuns=(?:1|on|true)(?:&|#|$)/i.test(location.search || '');
   var SUPPRESS_POINT = !(
     typeof location !== 'undefined' &&
     /[?&]suppressPoint=(?:0|off|false)(?:&|#|$)/i.test(location.search || '')
@@ -183,6 +188,9 @@
         suppressPoint: null,
         burstLeft: SUPPRESS_BURST,
         burstPauseUntil: 0,
+        cycleStart: 0,
+        cycleLen: 0,
+        phased: false,
         freezeStartedAt: null,
         freezeUntil: 0,
         freezeDuration: 0,
@@ -1940,6 +1948,7 @@
         if (state(s).suppressOrder) priorSuppressors.push(s);
         state(s).suppressOrder = false;
         state(s).suppressPoint = null;
+        state(s).phased = false;
         /* A direct order (hold/precision disables the job) or the end of the contact record ends the role. */
         if (disabled || !contact) state(s).suppressLock = false;
       }
@@ -2021,6 +2030,17 @@
         state(candidates[i]).suppressPoint = state(candidates[i]).suppressCandidate || null;
         if (SUPPRESSOR_LOCK) state(candidates[i]).suppressLock = true;
         chosen++;
+      }
+      if (TALKING_GUNS && chosen >= 2) {
+        var lead = state(candidates[0]),
+          follower = state(candidates[1]);
+        if (!follower.phased && lead.cycleLen > 0 && follower.burstLeft >= SUPPRESS_BURST) {
+          var half = lead.cycleLen / 2,
+            start = lead.cycleStart + half;
+          while (start <= battle.time) start += lead.cycleLen;
+          follower.burstPauseUntil = Math.max(follower.burstPauseUntil, start);
+          follower.phased = true;
+        }
       }
     }
     if (chosen !== (sq.suppressorCount || 0) && (chosen || sq.suppressorCount))
