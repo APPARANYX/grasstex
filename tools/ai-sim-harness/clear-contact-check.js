@@ -87,7 +87,12 @@ function world(search) {
   new Function('window', 'globalThis', 'console', 'location', FG_SRC)(r, r, console, r.location);
   new Function('window', 'globalThis', 'console', 'location', FT_SRC)(r, r, console, r.location);
   new Function('window', 'globalThis', 'console', 'location', FAM_SRC)(r, r, console, r.location);
-  new Function('window', 'globalThis', 'console', 'location', CC_SRC)(r, r, console, r.location);
+  new Function('window', 'globalThis', 'console', 'location', CC_SRC)(
+    r,
+    r,
+    console,
+    search == null ? r.location : { search }
+  );
   new Function('window', 'globalThis', 'console', 'location', SRC)(
     r,
     r,
@@ -341,6 +346,39 @@ test('an alerted man past his sector hold follows the clearing order, crouched; 
       assert.ok(kinds.includes('hold'), 'holds his position: ' + kinds.join());
     }
   }
+});
+
+test('?squadCleared=1 files one cleared report on arrival; default and a timeout file none', () => {
+  const w = world('?squadCleared=1'),
+    sq = squad(w);
+  ordered(w, sq, 0, 150);
+  const seenAt = sq.clearContact.seen;
+  w.S.publishAnchor(sq, { x: 1, z: 148 });
+  sq.members.forEach(s => {
+    s.orderDestination = { x: s.root.position.x, z: s.root.position.z };
+  });
+  tick(w, sq, 0.15);
+  assert.equal(sq.clearContact, null);
+  assert.ok(sq.clearedReport, 'the report is filed');
+  assert.equal(sq.clearedReport.seen, seenAt, 'it covers the picture it cleared');
+  assert.equal(sq.clearedReport.how, 'reached');
+  assert.equal(w.events.filter(e => e.type === 'decision-squad-cleared').length, 1);
+  const off = world(''),
+    oq = squad(off);
+  ordered(off, oq, 0, 150);
+  off.S.publishAnchor(oq, { x: 1, z: 148 });
+  oq.members.forEach(s => {
+    s.orderDestination = { x: s.root.position.x, z: s.root.position.z };
+  });
+  tick(off, oq, 0.15);
+  assert.equal(oq.clearContact, null);
+  assert.ok(!oq.clearedReport, 'default: no report');
+  const t = world('?squadCleared=1'),
+    tq = squad(t);
+  ordered(t, tq, 0, 150);
+  tick(t, tq, 91);
+  assert.equal(tq.clearContact, null);
+  assert.ok(!tq.clearedReport, 'a timeout is not an all clear');
 });
 
 console.log(n + ' clear-contact checks passed');

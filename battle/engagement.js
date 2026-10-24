@@ -1914,6 +1914,9 @@
       s,
       chosen = 0,
       priorSuppressors = [];
+    /* A "cleared" report (?squadCleared=1) ends the picture it covers: the squad reached that point and found
+       nothing. A newer sighting is newer than the report's `seen` and is not covered. */
+    if (contact && sq.clearedReport && +contact.at <= +sq.clearedReport.seen + 1e-6) contact = null;
     for (i = 0; i < members.length; i++) {
       s = members[i];
       if (!s.dead && !s.isPlayer) {
