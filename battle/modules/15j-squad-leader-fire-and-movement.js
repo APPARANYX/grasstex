@@ -212,7 +212,7 @@
           setup =
             localTask &&
             !localTask.emergency &&
-            r.effective >= 2 &&
+            r.effective >= reactive.firingSupportMin &&
             r.pinned < r.effective &&
             !L.holds(sq, 'bound', t) &&
             !L.holds(sq, 'bound-cycle', t) &&
