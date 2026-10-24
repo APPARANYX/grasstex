@@ -157,6 +157,7 @@
                   squads: (ur.pool && ur.pool.squads) || [],
                   ready: !!(ur.pool && ur.pool.ready),
                   blockedByDistance: !!(ur.pool && ur.pool.blockedByDistance),
+                  excluded: (ur.pool && ur.pool.excluded) || [],
                   poolMax: RECON_POOL_MAX,
                   minimumStrength: +ur.minimumStrength || RECON_MIN_STRENGTH,
                   targetStrength: +ur.strength || RECON_STRENGTH
@@ -168,6 +169,7 @@
                   squads: (gr.pool && gr.pool.squads) || [],
                   ready: !!(gr.pool && gr.pool.ready),
                   blockedByDistance: !!(gr.pool && gr.pool.blockedByDistance),
+                  excluded: (gr.pool && gr.pool.excluded) || [],
                   poolMax: RECON_POOL_MAX,
                   minimumStrength: +gr.minimumStrength || RECON_MIN_STRENGTH,
                   targetStrength: +gr.strength || RECON_STRENGTH

@@ -564,6 +564,8 @@ squad on its next tick even if the posture change briefly cost everyone visual t
 
 `?suppressPoint=0` (default on in this branch, `0` restores the old aim): a suppress job is assigned against a point (the squad contact, or the believed point under `?suppressBelieved`), but `alert()` used to fire at the man's own `knownThreat`, so he shot at his personal contact or nothing. Now `assignSuppressors` stores that point as `eng.suppressPoint` and `suppressAim` returns it while the job is held; `supportReady` and the alert aim share it, and `advance()` keeps the man in alert for a held job even with no contact of his own.
 
+`?pinBridge=1` (opt-in, off by default): pins used to last 1.3 s (x1.25 suppressive gun, x0.85 otherwise), shorter than a rifleman's gap between bursts, and only a suppressive weapon's aimed burst pinned. With the flag, any weapon's aimed burst pins its target, and area fire re-pins everyone it covered, until the shooter's next trigger pull plus `PIN_TAIL` (0.6 s), so a steady base of fire keeps heads down between bursts. Hold times are our own tuning, not doctrine figures. Fortitude still scales the hold in `pin()`.
+
 The normal volley target is deliberately not "all ten men or deadlock": all available men adopt the low posture,
 but the leader accepts the firing line when 70% of the commanded survivors (minimum three) are stationary, prone,
 armed and have both sight and a clear ballistic line. It then considers squad strength and mean MKM: at 85 m or

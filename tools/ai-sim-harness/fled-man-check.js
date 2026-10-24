@@ -347,6 +347,43 @@ test('a prepared defender flees and extracts to its immutable base, not the tact
   );
 });
 
+test('a broken soldier shortens an old homeward route only to a closer newly held forward rear', () => {
+  const w = world(),
+    { s } = broken(w, {
+      safe: { x: LANES[0], z: HOME_Z + 75 },
+      at: { x: LANES[0], z: HOME_Z + 400 }
+    }),
+    lone = s.squad,
+    e = s.eng,
+    oldHome = { x: LANES[0], z: HOME_Z },
+    forward = { x: s.root.position.x, z: s.root.position.z + 65 };
+
+  /* Bypass the refuge wait to test the already homebound leg, preserving the
+     normal fled status, weapon and one-man remnant. Front Lines publishes the
+     new fully held rear objective on this detached squad at commander tick. */
+  e.fledPhase = 'home';
+  e.fledHome = oldHome;
+  e.fledRearLine = 0;
+  e.fledHomeRebasedAt = -1e9;
+  lone._frontLineRear = { ...forward, line: 1, objectiveId: 'held-forward' };
+  const drawsBefore = w.b.random;
+  let draws = 0;
+  w.b.random = (...a) => {
+    draws++;
+    return drawsBefore.apply(w.b, a);
+  };
+  run(w, H.AI_TICK, () => (lone.contact = null));
+  assert.ok(e.fledHome && dist(e.fledHome, forward) < 1e-6, 'new held line shortens extraction');
+  assert.equal(e.fledRearLine, 1);
+  assert.ok(w.events.some(x => x.type === 'decision-fled-home-rebased' && x.data.soldier === s.id));
+  assert.equal(draws, 0, 'the reroute does not consume combat RNG');
+
+  /* A later rearward proposal must not undo the forward, fully held fallback. */
+  lone._frontLineRear = { x: s.root.position.x, z: s.root.position.z - 3, line: 0 };
+  run(w, H.AI_TICK, () => (lone.contact = null));
+  assert.ok(e.fledHome && dist(e.fledHome, forward) < 1e-6, 'no backward oscillation');
+});
+
 test('at the refuge he waits FLED_WAIT seconds, however calm he gets, then goes home on his own', () => {
   const w = world(),
     safe = { x: LANES[0], z: HOME_Z + 60 },

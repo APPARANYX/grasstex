@@ -242,6 +242,21 @@ test('three four-man remnants rebuild the nearest pair and leave the third in th
   assert.ok(!leftover._reconGroup);
   invariants(w, 12);
 });
+test('the pool diagnoses surviving remnants still extracting rather than calling them unavailable', () => {
+  const w = world(),
+    q = squad(w, 0, 3, null, 240);
+  q.state = 'retreat';
+  run(w, 2);
+  const st = recon(w),
+    excluded = st.pool.us.excluded.find(row => row.id === q.id);
+  assert.equal(st.pool.us.survivors, 0, 'not physically home; not in assembly pool');
+  assert.ok(excluded, 'the remnant has an explicit exclusion record');
+  assert.equal(excluded.reason, 'extracting-to-home');
+  assert.equal(excluded.assemblyPhase, 'to-base');
+  assert.equal(excluded.survivors, 3);
+  assert.ok(excluded.homeDistance > 100, 'the report includes distance to actual home');
+});
+
 test('no group is planned until enough survivors are actually home and out of contact', () => {
   const w = world();
   squad(w, 0, 3, null, 40);
