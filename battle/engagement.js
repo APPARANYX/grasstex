@@ -48,6 +48,13 @@
   var SUPPRESS_BELIEVED =
     typeof location !== 'undefined' &&
     /[?&]suppressBelieved=(?:1|on|true)(?:&|#|$)/i.test(location.search || '');
+  /* ?suppressorLock=1 (opt-in): a man who has taken a suppress job keeps it, and keeps firing on the squad's last
+     known point with no sighting of his own, until the squad's contact record is over, the Squad Leader gives a
+     direct order that takes the role away (a bound, a hold or precision order), or he is dead, pinned, out of
+     ammunition, withdrawing, unable to reach the point or fighting a target of his own. Not a target. */
+  var SUPPRESSOR_LOCK =
+    typeof location !== 'undefined' &&
+    /[?&]suppressorLock=(?:1|on|true)(?:&|#|$)/i.test(location.search || '');
   var ENGAGE_REVIEW = 7.0; // re-open the cover question this often while holding
   var NO_LINE_GRACE = 6.0; // a held target the man cannot fire on this long is observed, not engaged
   /* On by default; `?fireLineContact=0` is the old rule (every held target is contact, however long it has been unshootable). */
@@ -164,6 +171,7 @@
         positionReceipt: null,
         boundWaitFrom: 0,
         suppressOrder: false,
+        suppressLock: false,
         burstLeft: SUPPRESS_BURST,
         burstPauseUntil: 0,
         freezeStartedAt: null,
@@ -313,6 +321,7 @@
     s.eng.cover = null;
     s.eng.boundOrder = false;
     s.eng.suppressOrder = false;
+    s.eng.suppressLock = false;
   }
   // A firing station was released: the look direction it set goes, and the gun is no longer set up.
   function stationLeft(s) {
@@ -1910,6 +1919,8 @@
       if (!s.dead && !s.isPlayer) {
         if (state(s).suppressOrder) priorSuppressors.push(s);
         state(s).suppressOrder = false;
+        /* A direct order (hold/precision disables the job) or the end of the contact record ends the role. */
+        if (disabled || !contact) state(s).suppressLock = false;
       }
     }
     if (!disabled && (personal || contact)) {
@@ -1917,28 +1928,28 @@
         candidates = [];
       for (i = 0; i < members.length; i++) {
         s = members[i];
+        if (s.dead || s.isPlayer) continue;
+        var es = state(s),
+          locked = SUPPRESSOR_LOCK && es.suppressLock && !!contact;
+        if (s.target) continue; // fighting his own target; the lock waits for him
         if (
-          s.dead ||
-          s.isPlayer ||
-          s.target ||
           (root.BattleTacticalPositions && root.BattleTacticalPositions.current(s)) ||
-          (root.BattleAmmunition && !root.BattleAmmunition.available(s))
-        )
-          continue;
-        if (s.suppressedUntil > battle.time) continue;
-        var es = state(s);
-        if (
+          (root.BattleAmmunition && !root.BattleAmmunition.available(s)) ||
+          s.suppressedUntil > battle.time ||
           es.state === 'bound' ||
           es.state === 'pinned' ||
           (es.state === 'withdraw' && sq.state === 'retreat') ||
           es.state === 'assault' ||
-          ACTING[es.state] === 1
-        )
+          ACTING[es.state] === 1 ||
+          (bounding && es.boundOrder)
+        ) {
+          es.suppressLock = false;
           continue;
-        if (bounding && es.boundOrder) continue;
-        var own = personal ? api.soldierContact(s, battle) : contact,
-          believed = false;
+        }
+        var own = personal && !locked ? api.soldierContact(s, battle) : contact,
+          believed = locked;
         if (
+          !locked &&
           personal &&
           SUPPRESS_BELIEVED &&
           sq.fireControl &&
@@ -1965,10 +1976,16 @@
         var point = { x: +own.x, z: +own.z };
         /* No job for a man who cannot reach what HE believes - he keeps advancing instead of
            inheriting another man's invisible suppressive sector. */
-        if (api.canSuppress && !api.canSuppress(s, point, battle)) continue;
+        if (api.canSuppress && !api.canSuppress(s, point, battle)) {
+          es.suppressLock = false;
+          continue;
+        }
         candidates.push(s);
       }
       candidates.sort(function (a, b) {
+        var la = state(a).suppressLock ? 0 : 1,
+          lb = state(b).suppressLock ? 0 : 1;
+        if (la !== lb) return la - lb;
         var ga = SA().isMachineGun(a) ? 0 : 1,
           gb = SA().isMachineGun(b) ? 0 : 1;
         if (ga !== gb) return ga - gb;
@@ -1979,6 +1996,7 @@
       });
       for (i = 0; i < candidates.length && chosen < MAX_SUPPRESSORS; i++) {
         state(candidates[i]).suppressOrder = true;
+        if (SUPPRESSOR_LOCK) state(candidates[i]).suppressLock = true;
         chosen++;
       }
     }
@@ -2184,6 +2202,7 @@
       var e = state(movers[i]);
       e.boundOrder = true;
       e.suppressOrder = false;
+      e.suppressLock = false;
     }
   }
   function clearBoundOrders(sq) {
