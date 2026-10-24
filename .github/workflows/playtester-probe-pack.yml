@@ -22,7 +22,7 @@ on:
         required: false
         default: '600'
       query_off:
-        description: 'Query flags for the off arm, e.g. strategicInterception=0&pinBridge=0'
+        description: 'Query flags for the off arm (strategicInterception=0 is added to both arms if absent)'
         required: true
         default: 'strategicInterception=0'
       query_on:
@@ -119,6 +119,8 @@ jobs:
           rc=0
           for arm in off on; do
             if [ "$arm" = off ]; then q="$QUERY_OFF"; else q="$QUERY_ON"; fi
+            # Since #591 the default battle is the strategic map; the tactical scenarios need it pinned off in both arms.
+            case "&$q&" in *"&strategicInterception="*) ;; *) q="strategicInterception=0${q:+&$q}" ;; esac
             PROBE_BATTLES="$battles" \
             PROBE_URL="http://127.0.0.1:8765/grasstex/battle_sim_local.php?${q}" \
             PROBE_OUTPUT="reports/${arm}/${TYPE}-${{ matrix.shard.shard }}.json" \
