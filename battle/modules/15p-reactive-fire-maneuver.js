@@ -29,6 +29,12 @@
      counted from issue, receipts read only while the lease is live. */
   var LEASE_CLOCK = !/[?&]leaseClock=(?:0|off|false)(?:&|#|$)/i.test(query);
   var VERIFY_CONTACT = !/[?&]verifyContact=(?:0|off|false)(?:&|#|$)/i.test(query);
+  /* ?firstSupporter=1 (opt-in): the firing-position step moves a man who has no line to one, so it asks for the
+     cover of one real supporter, not two. Asking for two before anyone had moved made a squad with no base of
+     fire unable to get one through that step. Team bounds, which move men away from the base of fire, still
+     need two (`canTask`, `assessTeam`). */
+  var FIRST_SUPPORTER = /[?&]firstSupporter=(?:1|on|true)(?:&|#|$)/i.test(query);
+  var FIRING_SUPPORT_MIN = FIRST_SUPPORTER ? 1 : 2;
   var VERIFY_STEP = 2,
     VERIFY_BEARINGS = [8, 8, 8, 16, 16, 16];
   function canTask(sq, inputs) {
@@ -194,7 +200,7 @@
       ['support', 'maneuver'].indexOf(task.kind) < 0 ||
       firingTaskReason(sq, task.inputs) !== 'eligible' ||
       !defensiveReadiness(battle, sq).ready ||
-      supporters(battle, sq, report, []).length < 2 ||
+      supporters(battle, sq, report, []).length < FIRING_SUPPORT_MIN ||
       !C ||
       !C.coveredBoundsOn()
     )
@@ -225,7 +231,7 @@
       )
         continue;
       result.pending = true;
-      if (supporters(battle, sq, report, [s]).length < 2) continue;
+      if (supporters(battle, sq, report, [s]).length < FIRING_SUPPORT_MIN) continue;
       var threats = C.boundThreats(s, battle),
         target = firingThreat(s, battle);
       if (!threats.length) {
@@ -360,7 +366,7 @@
     var readiness = defensiveReadiness(battle, sq);
     if (!readiness.ready)
       return { stage: 'cover', reason: 'squad-not-settled', pending: readiness.pending.length };
-    if (supporters(battle, sq, report, []).length < 2)
+    if (supporters(battle, sq, report, []).length < FIRING_SUPPORT_MIN)
       return { stage: 'support', reason: 'no-effective-support' };
     var plan = firingPositionPlan(battle, sq, report);
     if (plan.soldier) return { stage: 'positions', reason: 'assignable' };
@@ -456,7 +462,8 @@
     return (
       movers.indexOf(s) >= 0 &&
       defensiveReadiness(battle, sq, movers).ready &&
-      supporters(battle, sq, { fireSupport: sq.members }, movers).length >= 2
+      supporters(battle, sq, { fireSupport: sq.members }, movers).length >=
+        (data.firingPosition ? FIRING_SUPPORT_MIN : 2)
     );
   }
   root.BattleReactiveFireManeuver = Object.freeze({
@@ -466,6 +473,7 @@
     supporters: supporters,
     defensiveReadiness: defensiveReadiness,
     firingPositionPlan: firingPositionPlan,
+    firingSupportMin: FIRING_SUPPORT_MIN,
     verifyContact: VERIFY_CONTACT,
     leaseClock: LEASE_CLOCK,
     movePace: movePace,

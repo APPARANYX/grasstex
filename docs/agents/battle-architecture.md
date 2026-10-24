@@ -58,7 +58,7 @@ most holding a reported, not seen, enemy. The firing-position lease clock
 not the gait he stands in, allows up to 2 s of hesitation before he accepts, and
 restarts the execution deadline when Engagement adopts the order. The Squad
 Leader also reads a late receipt on an expired but not yet pruned lease, and a
-failed arrival says whether the report went stale or the line was blocked.
+failed arrival says whether the report went stale or the line was blocked. `?firstSupporter=1` (opt-in): the step moves a man who has no line, so it asks for one real supporter (`BattleReactiveFireManeuver.firingSupportMin`), not two; by default a squad with no base of fire could not get one through this step. Team bounds still need two (`canTask`, `assessTeam`).
 The report only says where to look:
 the line is re-measured where he actually stops (a lost line is a failed receipt)
 and nothing counts as supporting fire until Perception sees the enemy and he

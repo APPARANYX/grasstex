@@ -563,6 +563,33 @@ function positionWorld(options = {}) {
   );
 }
 
+// ?firstSupporter=1: with only one real supporter left, the firing-position step still moves the man who has no
+// line. By default it asks for two supporters first, so a squad with no base of fire could not get one.
+{
+  const run = search => {
+    const w = positionWorld({ search });
+    // The others are alive and in the squad but cannot fire: one real supporter is left.
+    w.shooters.slice(1).forEach(s => {
+      s.reloading = true;
+      s.outOfAmmo = true;
+    });
+    for (let i = 0; i < 220 && !w.events.receipts.length; i++) w.tick();
+    return w;
+  };
+  const on = run('&firstSupporter=1'),
+    off = run('');
+  assert.equal(on.fr.BattleReactiveFireManeuver.firingSupportMin, 1);
+  assert.equal(off.fr.BattleReactiveFireManeuver.firingSupportMin, 2);
+  assert.equal(
+    on.events.decisions.length,
+    1,
+    'one supporter is enough to move the man: ' + JSON.stringify(on.events)
+  );
+  assert.equal(on.events.receipts[0] && on.events.receipts[0].type, 'firing-position-arrived');
+  assert.equal(off.events.decisions.length, 0, 'default: two supporters first');
+}
+console.log('PASS ?firstSupporter=1 lets one supporter cover the firing-position step');
+
 // A casualty, or an Engagement move that ends without reaching the slot, ends the
 // step immediately. Only an arrival also ends the pause after it.
 for (const mode of ['casualty', 'engagement-failure']) {
