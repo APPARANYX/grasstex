@@ -211,6 +211,8 @@
       if (!sq || !aliveMembers(sq).length) continue;
       var c = A.squadContact(sq, sim);
       if (!c || !isFinite(+c.x) || !isFinite(+c.z)) continue;
+      // A squad that reached its last known point and filed "cleared" (?squadCleared=1) no longer reports it.
+      if (sq.clearedReport && +c.at <= +sq.clearedReport.seen + 1e-6) continue;
       var id = c.knownUnitId != null ? c.knownUnitId : c.unit && c.unit.id != null ? c.unit.id : null,
         key = id != null ? 'unit:' + id : 'sector:' + Math.round(+c.x / 20) + ':' + Math.round(+c.z / 20),
         row = {

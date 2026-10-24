@@ -231,6 +231,21 @@ function world() {
   m.target = { dead: false };
   jobs(target);
   assert.equal(target.E.stateOf(m).suppressLock, true, 'fighting his own target does not end the role');
+  // A cleared report (?squadCleared=1) ends the role of a locked suppressor for the picture it covers; a newer
+  // sighting is not covered.
+  const lock = () => {
+    const w = build('&suppressorLock=1');
+    jobs(w);
+    return w;
+  };
+  const covered = lock();
+  covered.q.clearedReport = { x: 0, z: 60, at: covered.b.time, seen: covered.q.contact.at, how: 'reached' };
+  covered.r.SquadAI.soldierContact = () => ({ x: 0, z: 60, at: 0, source: 'seen', confidence: 0.9 });
+  assert.equal(jobs(covered), 0, 'a cleared report ends the role');
+  const newer = lock();
+  newer.q.clearedReport = { x: 0, z: 60, at: newer.b.time, seen: newer.q.contact.at - 5, how: 'reached' };
+  newer.r.SquadAI.soldierContact = () => ({ x: 0, z: 60, at: 0, source: 'seen', confidence: 0.9 });
+  assert.ok(jobs(newer) > 0, 'a sighting newer than the report is not covered');
 }
 
 console.log('PASS suppression eligibility, retention and burst accounting');

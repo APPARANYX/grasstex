@@ -31,4 +31,15 @@ assert.notStrictEqual(ug,gg,'US and GE use distinct General singleton state');
 ug.wakeReasons.test=1;ug.stallRecovery.completed=3;
 assert.equal(gg.wakeReasons.test,undefined);assert.equal(gg.stallRecovery.completed,0,'General state does not bleed across factions');
 assert.strictEqual(C.generals(b).us,ug);assert.strictEqual(C.generals(b).ge,gg);
+// A squad's "cleared" report (?squadCleared=1) removes the picture it covers from the General's reported contacts;
+// a sighting newer than the report is reported again.
+{
+  const before=D.reportedContacts(b,'us').length;
+  assert.equal(before,1);
+  us.clearedReport={x:12,z:40,at:b.time+1,seen:us.contact.at,how:'reached'};
+  assert.equal(D.reportedContacts(b,'us').length,0,'a cleared report ends the contact the General holds');
+  us.contact={unit:enemy,x:12,z:40,at:b.time+2,seenBy:us.members[0].id};
+  assert.equal(D.reportedContacts(b,'us').length,1,'a newer sighting is reported again');
+  delete us.clearedReport;
+}
 console.log('PASS two isolated General contexts and report-scoped hostile intel');

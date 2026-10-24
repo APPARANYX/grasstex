@@ -25,7 +25,12 @@
       CLEAR_MAX = ctx.CLEAR_MAX,
       CLEAR_ARRIVED = ctx.CLEAR_ARRIVED,
       CLEAR_HOLD_PHASES = ctx.CLEAR_HOLD_PHASES,
-      FIRE_CONTROL_ON = ctx.FIRE_CONTROL_ON;
+      FIRE_CONTROL_ON = ctx.FIRE_CONTROL_ON,
+      /* ?squadCleared=1 (opt-in): reaching the last known point with nothing sighted files one "cleared" report
+         (sq.clearedReport). Its readers (Engagement's suppressor lock, the General's reported contacts) treat a
+         picture no newer than the report's `seen` as over; any later sighting is newer and wins. */
+      SQUAD_CLEARED =
+        typeof location !== 'undefined' && /[?&]squadCleared=(?:1|on|true)(?:&|#|$)/i.test(location.search || '');
   function endClearContact(sq, battle, why) {
     if (sq.clearContact && why !== 'sighting' && why !== 'under fire') sq._clearedSeen = sq.clearContact.seen;
     if (sq.clearContact)
@@ -35,6 +40,16 @@
         reason: why,
         seconds: battle.time - sq.clearContact.since
       });
+    if (SQUAD_CLEARED && why === 'cleared' && sq.clearContact) {
+      var cc = sq.clearContact;
+      sq.clearedReport = { x: cc.x, z: cc.z, at: battle.time, seen: cc.seen, how: 'reached' };
+      telemetry(battle, 'decision-squad-cleared', {
+        faction: sq.faction,
+        squad: sq.id,
+        point: { x: cc.x, z: cc.z },
+        seen: cc.seen
+      });
+    }
     sq.clearContact = null;
   }
   function updateClearContact(sq, battle, r) {
