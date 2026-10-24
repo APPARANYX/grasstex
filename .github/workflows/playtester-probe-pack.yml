@@ -4,6 +4,9 @@ name: ⭐ Playtester Probe Pack
 # benchmark says whether outcomes moved; this says what the soldiers and squads did differently (pins,
 # suppressors, bounds, fire control, stalls, flicker). Probes never change a battle (see scripts/run_probe.cjs).
 on:
+  pull_request:
+    paths:
+      - '.github/workflows/playtester-probe-pack.yml'
   workflow_dispatch:
     inputs:
       seed:
@@ -42,7 +45,7 @@ on:
 permissions:
   contents: read
 
-run-name: Probe pack ${{ github.event.inputs.seed }} ${{ github.event.inputs.purpose }}
+run-name: Probe pack ${{ github.event.inputs.seed || 'pr-smoke' }} ${{ github.event.inputs.purpose }}
 
 jobs:
   plan:
@@ -61,7 +64,7 @@ jobs:
           node tools/ai-sim-harness/probe-pack-check.js
       - id: plan
         env:
-          SEEDS: ${{ github.event.inputs.seeds }}
+          SEEDS: ${{ github.event.inputs.seeds || '2' }}
         run: echo "shards=$(node scripts/plan_benchmark_shards.cjs "$SEEDS" 10)" >> "$GITHUB_OUTPUT"
 
   run:
@@ -98,13 +101,13 @@ jobs:
       - name: Play both arms
         env:
           TYPE: ${{ matrix.battle_type }}
-          PREFIX: ${{ github.event.inputs.seed }}
+          PREFIX: ${{ github.event.inputs.seed || 'pack-pr' }}
           FIRST: ${{ matrix.shard.first }}
           COUNT: ${{ matrix.shard.count }}
-          QUERY_OFF: ${{ github.event.inputs.query_off }}
-          QUERY_ON: ${{ github.event.inputs.query_on }}
-          PROBE: ${{ github.event.inputs.probes }}
-          PROBE_SECONDS: ${{ github.event.inputs.sim_seconds }}
+          QUERY_OFF: ${{ github.event.inputs.query_off || 'strategicInterception=0' }}
+          QUERY_ON: ${{ github.event.inputs.query_on || 'strategicInterception=0' }}
+          PROBE: ${{ github.event.inputs.probes || 'playtest,move-stalls,contact-flicker,bound-episodes,squad-idle,retreat-episodes,fire-gates,clear-contact' }}
+          PROBE_SECONDS: ${{ github.event.inputs.sim_seconds || (github.event_name == 'pull_request' && '240') || '600' }}
         run: |
           set -uo pipefail
           mkdir -p reports/off reports/on
