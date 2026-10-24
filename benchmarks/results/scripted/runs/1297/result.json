@@ -1,12 +1,12 @@
 {
   "meta": {
     "mode": "seeds",
-    "run": "1267",
-    "runId": "39830086066",
+    "run": "1297",
+    "runId": "40061906312",
     "repo": "APPARANYX/grasstex",
-    "ref": "work/sector-memory-20261022",
-    "sha": "1f79b3dd4e9884b54367a496ddaffc2aae8dc1f9",
-    "runUrl": "https://github.com/APPARANYX/grasstex/actions/runs/39830086066",
+    "ref": "work/first-supporter-20261024",
+    "sha": "32455ebab8fb8d74547ea9647abd2e8c58c685aa",
+    "runUrl": "https://github.com/APPARANYX/grasstex/actions/runs/40061906312",
     "seed": "phase-c-natural-20261012",
     "seeds": 3,
     "windows": "contact+60,every60",
@@ -80,9 +80,9 @@
       "b": 0
     },
     "wallSeconds": {
-      "medianA": 13.228,
-      "medianB": 12.852,
-      "ratio": 0.972,
+      "medianA": 11.91,
+      "medianB": 12.699,
+      "ratio": 1.066,
       "gate": 1.25
     },
     "counters": {
@@ -476,8 +476,8 @@
     "pass": true
   },
   "viewer": {
-    "url": "https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=1267&view=brain3d",
-    "previewUrl": "https://test.ivandpopov.com/grasstex/preview/sector-memory-20261022/ai_flow_live.html?bench=1267&view=brain3d",
+    "url": "https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=1297&view=brain3d",
+    "previewUrl": "https://test.ivandpopov.com/grasstex/preview/first-supporter-20261024/ai_flow_live.html?bench=1297&view=brain3d",
     "seeds": [
       {
         "seed": "phase-c-natural-20261012-0002",

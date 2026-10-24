@@ -55,9 +55,9 @@
     "b": 0
   },
   "wallSeconds": {
-    "medianA": 13.228,
-    "medianB": 12.852,
-    "ratio": 0.972,
+    "medianA": 11.91,
+    "medianB": 12.699,
+    "ratio": 1.066,
     "gate": 1.25
   },
   "counters": {
