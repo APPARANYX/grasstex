@@ -38,7 +38,7 @@ const near = (a, b, tol, what) =>
 function world(opts) {
   opts = opts || {};
   H.resetIds();
-  const r = H.bootstrap();
+  const r = opts.search ? H.bootstrap({ search: opts.search }) : H.bootstrap();
   r.BattleModules.unitsFor = b => (b._roster.us || []).concat(b._roster.ge || []);
   if (opts.mode) r.BattleSoldierMind.configure(opts.mode);
   const b = H.makeBattle(r, { seed: SEED, obstacles: opts.obstacles || [] });
@@ -135,6 +135,21 @@ test('nerve is a hash of the man, never the RNG: the same man has the same nerve
   assert.ok(a.M.of(sgt).nerve > 1.15 * 0.88 - 1e-9, 'the leader carries his +15% into the band');
 });
 
+test('?pinNerve caps what one unbroken pin costs; a second pin starts a new spell', () => {
+  const spell = (search, seconds) => {
+    const ctx = world({ search }),
+      s = man(ctx.us, 'rifleman');
+    run(ctx, s, 0.15);
+    ctx.S.pin(s, ctx.b, seconds + 0.1);
+    run(ctx, s, seconds);
+    return felt(ctx.M, s);
+  };
+  const off = spell('?stressAct=0', 6),
+    on = spell('?stressAct=0&pinNerve=1', 6);
+  near(off, 0.05 * 6, 0.04, 'old rule: six seconds pinned cost six seconds of nerve');
+  near(on, 0.05 * 1.25 * 1.3, 0.03, 'capped: one pin costs at most the old suppressive-gun hold');
+  assert.ok(on < off - 0.1, 'the cap is well under the uncapped cost');
+});
 test('a spell of suppression adds stress at its rate, and it decays back with no help', () => {
   const ctx = world(),
     s = man(ctx.us, 'rifleman');
