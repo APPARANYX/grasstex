@@ -1,8 +1,9 @@
 name: ⭐ Playtester Probe Pack
 
-# Paired full battles with the observe-only probes attached, off arm against on arm, same seeds. The standard
-# benchmark says whether outcomes moved; this says what the soldiers and squads did differently (pins,
-# suppressors, bounds, fire control, stalls, flicker). Probes never change a battle (see scripts/run_probe.cjs).
+# Paired full battles with the observe-only probes attached, off arm against on arm, same seeds. One table for
+# outcomes (`outcome`: winner, living, kills, objectives held), causes (`playtest` and the per-behaviour probes: pins,
+# suppressors, bounds, fire control, stalls, flicker) and broken behaviour (`causal-inaction`: men who hold a target
+# and do not fire, or hold an order and do not move). The standard benchmark stays the merge gate. Probes never change a battle (see scripts/run_probe.cjs).
 on:
   pull_request:
     paths:
@@ -38,7 +39,7 @@ on:
       probes:
         description: 'Comma-separated probes from scripts/probes'
         required: false
-        default: 'playtest,move-stalls,contact-flicker,bound-episodes,squad-idle,retreat-episodes,fire-gates,clear-contact'
+        default: 'outcome,playtest,causal-inaction,move-stalls,contact-flicker,bound-episodes,squad-idle,retreat-episodes,fire-gates,clear-contact'
       origin_agent:
         description: 'Who dispatched this (for the run title)'
         required: false
@@ -113,7 +114,7 @@ jobs:
           MAP: ${{ github.event.inputs.map || 'tactical' }}
           QUERY_OFF: ${{ github.event.inputs.query_off || 'strategicInterception=0' }}
           QUERY_ON: ${{ github.event.inputs.query_on || 'strategicInterception=0' }}
-          PROBE: ${{ github.event.inputs.probes || 'playtest,move-stalls,contact-flicker,bound-episodes,squad-idle,retreat-episodes,fire-gates,clear-contact' }}
+          PROBE: ${{ github.event.inputs.probes || 'outcome,playtest,causal-inaction,move-stalls,contact-flicker,bound-episodes,squad-idle,retreat-episodes,fire-gates,clear-contact' }}
           PROBE_SECONDS: ${{ github.event.inputs.sim_seconds || (github.event_name == 'pull_request' && '240') || (github.event.inputs.map == 'strategic' && '1800') || '600' }}
         run: |
           set -uo pipefail
