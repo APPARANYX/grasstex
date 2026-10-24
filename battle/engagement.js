@@ -55,6 +55,14 @@
   var SUPPRESSOR_LOCK =
     typeof location !== 'undefined' &&
     /[?&]suppressorLock=(?:1|on|true)(?:&|#|$)/i.test(location.search || '');
+  /* A suppress job made by ?suppressBelieved or ?suppressorLock is for the squad's point, which can differ from the
+     man's own contact (a stale sighting, another sector, none at all). The job carries that point
+     (`eng.suppressPoint`) and aim, facing and support readiness use it, so the man fires where the job says and
+     support counts only fire on that point. `?suppressPoint=0` restores the old aim at his own contact. */
+  var SUPPRESS_POINT = !(
+    typeof location !== 'undefined' &&
+    /[?&]suppressPoint=(?:0|off|false)(?:&|#|$)/i.test(location.search || '')
+  );
   var ENGAGE_REVIEW = 7.0; // re-open the cover question this often while holding
   var NO_LINE_GRACE = 6.0; // a held target the man cannot fire on this long is observed, not engaged
   /* On by default; `?fireLineContact=0` is the old rule (every held target is contact, however long it has been unshootable). */
@@ -172,6 +180,7 @@
         boundWaitFrom: 0,
         suppressOrder: false,
         suppressLock: false,
+        suppressPoint: null,
         burstLeft: SUPPRESS_BURST,
         burstPauseUntil: 0,
         freezeStartedAt: null,
@@ -287,6 +296,12 @@
     if (contact) return { x: contact.x, z: contact.z };
     var e = state(s);
     return e.lastSeen || null;
+  }
+
+  /* Where a man on a suppress job shoots: the point the job was made for, else where he otherwise looks. */
+  function suppressAim(s, battle) {
+    var e = state(s);
+    return SUPPRESS_POINT && e.suppressOrder && e.suppressPoint ? e.suppressPoint : knownThreat(s, battle);
   }
 
   /* ---- urgency ------------------------------------------------------------------------------ */
@@ -1284,6 +1299,11 @@
       transition(s, battle, 'alert', ALERT_HOLD, 'engagement continues');
       return alert(s, battle);
     }
+    /* A suppress job for the squad's point puts an advancing man on the existing alert/suppression path. */
+    if (SUPPRESS_POINT && e.suppressOrder && e.suppressPoint) {
+      transition(s, battle, 'alert', ALERT_HOLD, 'suppress job');
+      return alert(s, battle);
+    }
     /* Frozen by what he just saw (a friend down beside him, the leader falling): still and down on one
        knee for the moment it lasts. The hold is renewed each tick and lapses with the shock. */
     if (battle.time < shockUntil(s)) {
@@ -1779,7 +1799,7 @@
     else holdPosition(s, battle);
     /* His freshest personal contact/belief outranks his older Engagement last-seen point; the
        deliberate clearing order is the one exception because it is a Squad Leader destination. */
-    var aim = clearing ? s.squad.clearContact : knownThreat(s, battle);
+    var aim = clearing ? s.squad.clearContact : suppressAim(s, battle);
     /* Hold the sector low; clearing moves crouched, exposed stationary roles prefer prone. */
     var watch =
       !clearing && COVER_STANCE && (CONTACT_COVER_FIRST || PRONE_ROLES[s.role]) && !inCover(s, battle)
@@ -1919,6 +1939,7 @@
       if (!s.dead && !s.isPlayer) {
         if (state(s).suppressOrder) priorSuppressors.push(s);
         state(s).suppressOrder = false;
+        state(s).suppressPoint = null;
         /* A direct order (hold/precision disables the job) or the end of the contact record ends the role. */
         if (disabled || !contact) state(s).suppressLock = false;
       }
@@ -1980,6 +2001,7 @@
           es.suppressLock = false;
           continue;
         }
+        es.suppressCandidate = believed ? point : null;
         candidates.push(s);
       }
       candidates.sort(function (a, b) {
@@ -1996,6 +2018,7 @@
       });
       for (i = 0; i < candidates.length && chosen < MAX_SUPPRESSORS; i++) {
         state(candidates[i]).suppressOrder = true;
+        state(candidates[i]).suppressPoint = state(candidates[i]).suppressCandidate || null;
         if (SUPPRESSOR_LOCK) state(candidates[i]).suppressLock = true;
         chosen++;
       }
@@ -2075,7 +2098,7 @@
       return false;
     if (SA().isMachineGun(s) && !s.setUp) return false;
     if (e.suppressOrder) {
-      var point = knownThreat(s, battle);
+      var point = suppressAim(s, battle);
       if (
         point &&
         SA().canSuppress &&
@@ -2311,6 +2334,7 @@
     assignSuppressors: assignSuppressors,
     reactTime: reactTime,
     knownThreat: knownThreat,
+    suppressAim: suppressAim,
     findCover: findCover,
     threatSector: threatSector,
     sectorDistance: sectorDistance,

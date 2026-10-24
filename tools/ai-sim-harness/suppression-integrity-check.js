@@ -233,4 +233,62 @@ function world() {
   assert.equal(target.E.stateOf(m).suppressLock, true, 'fighting his own target does not end the role');
 }
 
+{
+  // A job made for the squad's point carries that point: the man aims there, not at his own (different or absent)
+  // contact, and an advancing man with no contact of his own enters the alert/suppression path.
+  const build = search => {
+    H.resetIds();
+    const r = H.bootstrap({ search: '?soldierBeliefs=1&stressAct=0&suppressBelieved=1' + search }),
+      b = H.makeBattle(r, { seed: 717 }),
+      q = H.addSquad(r, b, { id: 'us-pt', faction: 'us', x: 0, z: 0, objective: { x: 0, z: 100 } }),
+      ge = H.addSquad(r, b, { id: 'ge-pt', faction: 'ge', x: 0, z: 60, objective: { x: 0, z: -100 } });
+    r.SquadAI.canSuppress = () => true;
+    r.BattleAmmunition = { available: () => true };
+    q.members.forEach(s => {
+      s.target = null;
+      s.suppressedUntil = 0;
+      s.isPlayer = false;
+      s.moving = false;
+      s.crawling = false;
+      s.reloading = false;
+      r.BattleEngagement.stateOf(s).state = 'advance';
+    });
+    b.time = 20;
+    q.fireControl = { state: 'open' };
+    q.contact = {
+      unit: ge.members[0],
+      x: 0,
+      z: 60,
+      at: b.time - 2,
+      firstHandAt: b.time - 2,
+      seenBy: q.members[1].id,
+      source: 'seen'
+    };
+    return { r, b, q, E: r.BattleEngagement };
+  };
+  for (const [name, own] of [
+    ['another sector', () => ({ x: 60, z: 0, at: 0, source: 'seen', confidence: 0.9 })],
+    ['no contact', () => null]
+  ]) {
+    const on = build(''),
+      off = build('&suppressPoint=0');
+    for (const w of [on, off]) w.r.SquadAI.soldierContact = own;
+    on.E.assignSuppressors(on.q, on.b, on.q.members);
+    off.E.assignSuppressors(off.q, off.b, off.q.members);
+    const mOn = on.q.members.find(m => on.E.stateOf(m).suppressOrder),
+      mOff = off.q.members.find(m => off.E.stateOf(m).suppressOrder);
+    assert.ok(mOn && mOff, name + ': the job is made');
+    assert.deepEqual(on.E.suppressAim(mOn, on.b), { x: 0, z: 60 }, name + ': he aims at the job point');
+    assert.notDeepEqual(
+      off.E.suppressAim(mOff, off.b),
+      { x: 0, z: 60 },
+      name + ': ?suppressPoint=0 keeps aim at his own contact'
+    );
+    on.E.updateSoldier(mOn, on.b);
+    off.E.updateSoldier(mOff, off.b);
+    assert.equal(on.E.stateOf(mOn).state, 'alert', name + ': an advancing man enters the suppression path');
+    assert.equal(off.E.stateOf(mOff).state, 'advance', name + ': old behaviour: he keeps advancing');
+  }
+}
+
 console.log('PASS suppression eligibility, retention and burst accounting');
