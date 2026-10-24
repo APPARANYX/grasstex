@@ -566,6 +566,8 @@ squad on its next tick even if the posture change briefly cost everyone visual t
 
 `?pinBridge=1` (opt-in, off by default): pins used to last 1.3 s (x1.25 suppressive gun, x0.85 otherwise), shorter than a rifleman's gap between bursts, and only a suppressive weapon's aimed burst pinned. With the flag, any weapon's aimed burst pins its target, and area fire re-pins everyone it covered, until the shooter's next trigger pull plus `PIN_TAIL` (0.6 s), so a steady base of fire keeps heads down between bursts. Hold times are our own tuning, not doctrine figures. Fortitude still scales the hold in `pin()`.
 
+`?pinNerve=1` (opt-in, off by default, meant for use with `?pinBridge=1`): module 17 charged a pinned man `SUPPRESSED_RATE` per second for as long as the pin held, so a pin lengthened by `?pinBridge` cost three times the nerve (probe pack, 120 battles per map: US retreating squads +60%, freeze and flee states +90%, rounds -20%). With the flag one unbroken pin pays nerve for at most `1.25 x SquadAI.SUPPRESSION_TIME` seconds (the longest hold a single pin carried before the bridge), tracked in `mind.pinSpell` and reset when the pin ends. The cap is derived from the old pin hold, not tuned.
+
 The normal volley target is deliberately not "all ten men or deadlock": all available men adopt the low posture,
 but the leader accepts the firing line when 70% of the commanded survivors (minimum three) are stationary, prone,
 armed and have both sight and a clear ballistic line. It then considers squad strength and mean MKM: at 85 m or

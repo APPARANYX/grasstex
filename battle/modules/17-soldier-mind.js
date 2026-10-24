@@ -82,6 +82,8 @@
     } else out.flag = 'observe';
     return out;
   }
+  var PIN_NERVE =
+    typeof location !== 'undefined' && /[?&]pinNerve=(?:1|on|true)(?:&|#|$)/i.test(location.search || '');
   var MODE = parse(typeof location !== 'undefined' ? location.search : '');
 
   /* ---- who reads stress, declared ------------------------------------------------------------
@@ -499,6 +501,7 @@
       nerve: nerveOf(s),
       wounds: 0,
       pinnedUntil: 0,
+      pinSpell: 0,
       incoming: 0,
       incomingRounds: 0,
       lastIncomingAt: -99,
@@ -731,8 +734,17 @@
       m.wounds += woundsTaken;
     }
     var suppressed = m.pinnedUntil > now;
+    if (!suppressed) m.pinSpell = 0;
     if (suppressed) {
-      g = (SUPPRESSED_RATE * dt) / m.nerve;
+      /* ?pinNerve=1: one unbroken pin costs nerve for at most the longest hold a single pin used to carry (a suppressive
+         gun's hold, 1.25 x SUPPRESSION_TIME), so lengthening pins (?pinBridge) keeps men down without breaking them. */
+      var paid = dt;
+      if (PIN_NERVE) {
+        var cap = 1.25 * ((root.SquadAI && root.SquadAI.SUPPRESSION_TIME) || 1.3);
+        paid = Math.max(0, Math.min(dt, cap - m.pinSpell));
+        m.pinSpell += dt;
+      }
+      g = (SUPPRESSED_RATE * paid) / m.nerve;
       m.gained.suppression += g;
       recordGain(m, now, 'suppression', g);
       gain += g;
