@@ -165,7 +165,8 @@ jobs:
           off=$(find evidence -path '*/off/*.json' | tr '\n' ' ')
           on=$(find evidence -path '*/on/*.json' | tr '\n' ' ')
           node scripts/merge_probe_pack.cjs --off $off --on $on --json result/probe-pack.json --md result/probe-pack.md
-          cat result/probe-pack.md >> "$GITHUB_STEP_SUMMARY"
+          # Also print the table to the job log, where agents without artifact access read it.
+          tee -a "$GITHUB_STEP_SUMMARY" < result/probe-pack.md
           for t in meeting us-defend ge-defend; do
             o=$(find evidence -path "*/off/${t}-*.json" | tr '\n' ' ')
             n=$(find evidence -path "*/on/${t}-*.json" | tr '\n' ' ')

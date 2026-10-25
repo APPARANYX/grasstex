@@ -109,6 +109,7 @@ runtime loaders and module discovery; the controller uses it when it is present.
 manager, firing permission or proof that supplied evidence is true. Existing owners must
 produce the evidence in a later runtime integration; no gameplay acceptance is implied.
 
+<<<<<<< HEAD
 `battle/modules/13b-tactical-owner-adapters.js` (`BattleTacticalOwnerAdapters`) is that
 integration for every capability except movement. A provider passes `adapters` and
 `lifecycle` from it to `registerProvider`. Each adapter only bridges a validated request to
@@ -127,6 +128,8 @@ are listed in `missing`: Meso personal publication is private to module 16 and g
 entry in its own change, and until then a provider on these adapters alone is rejected with
 `missing-adapter:movement.move`.
 
+=======
+>>>>>>> origin/main
 Before activation, prove exclusive dispatch in both Meso paths and ordinary Micro/station
 policy, retained safety/adoption/transport, and cancellation on mission, membership,
 possession, transport, mode and generation changes. Then validate foundational skills,

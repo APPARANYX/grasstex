@@ -39,6 +39,7 @@ jobs:
               'timescale': 'timescale-parity-benchmark.yml',
               'matrix-smoke': 'matrix-diagnostics-smoke.yml',
               'matrix-full': 'battle-benchmark.yml',
+              'probe-pack': 'playtester-probe-pack.yml',
           }
           kind = req.get('benchmark')
           if kind not in names:
@@ -57,12 +58,15 @@ jobs:
               'timescale': ('seed', 'seconds'),
               'matrix-smoke': (),
               'matrix-full': ('seed', 'battles_per_worker', 'worker_minutes_cutoff'),
+              'probe-pack': ('seed', 'seeds', 'map', 'sim_seconds', 'query_off', 'query_on', 'probes', 'origin_agent', 'purpose'),
           }[kind]
           extras = set(req) - set(allowed) - {'benchmark', 'ref', 'confirm_full_matrix'}
           if extras:
               raise SystemExit('Unsupported parameters for ' + kind + ': ' + ', '.join(sorted(extras)))
           if 'battle_type' in req and req['battle_type'] not in ('meeting', 'us-defend', 'ge-defend'):
               raise SystemExit('Invalid battle_type')
+          if kind == 'probe-pack' and req.get('map', 'tactical') not in ('tactical', 'strategic'):
+              raise SystemExit('Invalid map; choose tactical or strategic')
           fields = []
           for key in allowed:
               if key not in req:

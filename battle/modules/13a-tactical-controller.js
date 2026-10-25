@@ -20,7 +20,11 @@
       'engagement',
       'stationSelection'
     ],
+<<<<<<< HEAD
     LIFECYCLE = ['cancel', 'release', 'stage'],
+=======
+    LIFECYCLE = ['cancel', 'release'],
+>>>>>>> origin/main
     MODES = ['legacy', 'shadow', 'new'],
     providers = Object.create(null),
     battles = new WeakMap(),
@@ -492,6 +496,7 @@
     b.squads = new WeakMap();
     return out;
   }
+<<<<<<< HEAD
   /* Every live or cleanup-pending action with the stage its owner reports, so a stall names the action,
      the stage it stopped at and why. A report that throws reads as `unknown: stage-fault`, never hides
      the action; reading the summary changes nothing. */
@@ -519,6 +524,8 @@
       });
     }
   }
+=======
+>>>>>>> origin/main
   function summary(sim) {
     var b = sim && battles.get(sim),
       out = { legacy: 0, shadow: 0, new: 0, actions: 0, pending: 0 };
@@ -530,7 +537,10 @@
         if (rec) {
           out.actions += rec.actions.length;
           out.pending += rec.pending.length;
+<<<<<<< HEAD
           liveActions(a[i], rec, out);
+=======
+>>>>>>> origin/main
           if (rec.refused)
             (out.refused = out.refused || []).push({
               squad: a[i].id,
