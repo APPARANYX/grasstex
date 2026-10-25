@@ -216,28 +216,38 @@
     if (P) for (var i = 0; i < a.length; i++) if (a[i] && P.current(a[i])) P.release(a[i], sim, reason);
     return holdouts(sq);
   }
-  /* Legacy authority still held after release, read without changing anything. An owner refusing
-     release must not silently pass authority to a second controller. */
+  /* Legacy authority still held after release, read without changing anything, each with the
+     object that holds it. An owner refusing release must not silently pass authority to a second
+     controller. */
   function holdouts(sq) {
     var L = root.BattleLeases,
       P = root.BattleTacticalPositions,
       a = members(sq),
-      out = [];
+      out = [],
+      held;
     if (L && L.get) {
       var leases = POLICY_LEASES.concat(['regroup', 'recon', 'tactical-plan']);
-      for (var j = 0; j < leases.length; j++) if (L.get(sq, leases[j])) out.push('lease:' + leases[j]);
+      for (var j = 0; j < leases.length; j++)
+        if ((held = L.get(sq, leases[j]))) out.push({ key: 'lease:' + leases[j], ref: held });
     }
-    if (P) for (var n = 0; n < a.length; n++) if (a[n] && P.current(a[n])) out.push('station:' + a[n].id);
-    if (sq.fireControl) out.push('fireControl');
-    if (sq._localTask) out.push('localTask');
+    if (P)
+      for (var n = 0; n < a.length; n++)
+        if (a[n] && (held = P.current(a[n]))) out.push({ key: 'station:' + a[n].id, ref: held });
+    if (sq.fireControl) out.push({ key: 'fireControl', ref: sq.fireControl });
+    if (sq._localTask) out.push({ key: 'localTask', ref: sq._localTask });
     return out;
   }
-  /* After a refused release, a repeated request runs cleanup again only once every holdout that
-     refused has gone, so retries never keep disrupting a squad that legacy still commands. */
+  /* After a refused release a repeated request skips cleanup while the very objects that refused
+     are still held, so retries never keep disrupting a squad legacy still commands. A mission or
+     roster change since the refusal, or a holdout replaced by a new one, earns one more release. */
   function stillRefused(sq, rec) {
-    if (!rec.refused) return false;
-    var now = holdouts(sq);
-    for (var i = 0; i < rec.refused.length; i++) if (now.indexOf(rec.refused[i]) >= 0) return true;
+    var r = rec.refused;
+    if (!r) return false;
+    if (r.missionVersion === missionVersion(sq) && r.rosterRevision === rosterRevision(sq, rec)) {
+      var now = holdouts(sq);
+      for (var i = 0; i < r.items.length; i++)
+        for (var k = 0; k < now.length; k++) if (now[k].ref === r.items[i].ref) return true;
+    }
     rec.refused = null;
     return false;
   }
@@ -305,7 +315,11 @@
       if (stillRefused(sq, rec)) return note(sim, 'cleanup-pending');
       var left = releaseLegacy(sim, sq, 'controller-switched');
       if (left.length) {
-        rec.refused = left;
+        rec.refused = {
+          items: left,
+          missionVersion: missionVersion(sq),
+          rosterRevision: rosterRevision(sq, rec)
+        };
         battleState(sim).stats.releaseRefused++;
         return note(sim, 'cleanup-pending');
       }
@@ -490,7 +504,12 @@
           out.actions += rec.actions.length;
           out.pending += rec.pending.length;
           if (rec.refused)
-            (out.refused = out.refused || []).push({ squad: a[i].id, holdouts: rec.refused.slice() });
+            (out.refused = out.refused || []).push({
+              squad: a[i].id,
+              holdouts: rec.refused.items.map(function (h) {
+                return h.key;
+              })
+            });
         }
       }
     });

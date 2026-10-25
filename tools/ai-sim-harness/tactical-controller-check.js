@@ -520,6 +520,44 @@ test('a native station that refuses release blocks controller takeover', () => {
   assert.equal(w.TC.summary(s).refused, undefined);
 });
 
+test('a momentary refusal earns one more release after a mission change or a replaced holdout', () => {
+  const w = boot(),
+    s = sim(),
+    P = provider(w.TC, 'fixture');
+  w.TC.registerProvider(P.spec);
+  const man = s.us.members[1];
+  man.station = { id: 'busy' };
+  let releases = 0,
+    refuse = true;
+  w.root.BattleTacticalPositions.release = m => {
+    releases++;
+    if (refuse) return false;
+    delete m.station;
+    return true;
+  };
+  assert.equal(w.TC.requestMode(s, s.us, 'new', 'fixture').reason, 'cleanup-pending');
+  refuse = false;
+  w.TC.requestMode(s, s.us, 'new', 'fixture');
+  assert.equal(releases, 1, 'same holdout, same mission and roster: no rerun');
+  s.us._macroMission = { version: 7 };
+  assert.equal(w.TC.requestMode(s, s.us, 'new', 'fixture').ok, true, 'a mission change reruns cleanup once');
+  assert.equal(releases, 2);
+
+  const w2 = boot(),
+    s2 = sim(),
+    P2 = provider(w2.TC, 'fixture');
+  w2.TC.registerProvider(P2.spec);
+  s2.us.members[1].station = { id: 'first' };
+  let tries = 0;
+  w2.root.BattleTacticalPositions.release = () => (tries++, false);
+  w2.TC.requestMode(s2, s2.us, 'new', 'fixture');
+  w2.TC.requestMode(s2, s2.us, 'new', 'fixture');
+  assert.equal(tries, 1);
+  s2.us.members[1].station = { id: 'second' };
+  w2.TC.requestMode(s2, s2.us, 'new', 'fixture');
+  assert.equal(tries, 2, 'a new holdout with the same name is not the old refusal');
+});
+
 test('a provider fault never hands the tick back to legacy', () => {
   const w = boot(),
     { s } = owned(w, {

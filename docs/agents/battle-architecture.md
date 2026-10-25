@@ -43,8 +43,9 @@ route-transition/corner-hold leases, fire control, the tactical posture, the loc
 orders, suppressor jobs and automatic stations, while retreat-anchor, rally-recovery and
 succession stay. Authority still held after that release (a lease, a station, fire control or a
 local task) rejects the switch as `cleanup-pending`, counts `stats.releaseRefused` and is listed
-under `summary().refused`; a repeated request reruns cleanup only once every listed holdout has
-gone, so retries never keep disrupting a squad legacy still commands. Actions are
+under `summary().refused`; a repeated request skips cleanup while the same holdout objects are
+still held, so retries never keep disrupting a squad legacy still commands. A mission or roster
+change since the refusal, or a holdout replaced by a new one, earns one more release. Actions are
 registered under their issuing provider before its owner adapter runs: lifecycle callbacks go
 to that provider, an adapter cannot switch controllers mid-acceptance (`accepting`), a
 synchronous completion is honoured, and only a context of the issuing epoch and generation
