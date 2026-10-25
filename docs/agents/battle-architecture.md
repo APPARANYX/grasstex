@@ -1049,3 +1049,13 @@ pause) and the leader's report (`heardBaseOfFire` in 15j) keeps only the men he 
 all read that filtered report, so a missed call, a silent or dead man or an old word is no base of fire. Calls follow
 the existing loss, delay, noise and not-listening rules. `cover-relay-check.js` owns the contract; `?coverRelay=0` (or
 absent) is the old direct read. Both constants are derived from the suppress cycle, not tuned.
+
+`?peelBack=1` (off by default) is the reverse of the assault bound. In 15j, a squad of four or more whose pinned men are
+half or more of the living (the base-of-fire rule read the other way), with two or more others still firing and no retreat
+ordered, sends one fireteam of free men (never the gun, never a pinned man) back while the rest keep shooting. It is the same
+`bound` lease (marked `data.back`) and the same `orderBound`, so the lease table still allows one bound at a time and
+Engagement stays the only mover; `bound-cycle` spaces the next one. In `orderedBound` (19b) the axis becomes the line from
+the threat through the man, cover must not lie behind him on that axis, the same covered-route gate applies, and with no
+cover he keeps fighting (no objective rush). The move reason is `authorized fireteam peel-back: cover`, so the bound-episodes
+probe counts it apart. With `?coverRelay=1` the supporters it needs are the ones the leader has heard. `peel-back-check.js`
+owns the contract.

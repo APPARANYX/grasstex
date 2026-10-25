@@ -84,6 +84,90 @@
       sq.heardEffectiveCount = support.length;
       return out;
     }
+    /* ?peelBack=1: the reverse of the assault bound. A squad whose pinned men are half or more of the living has lost
+       the fire fight where it stands; instead of waiting for a retreat order it sends one fireteam of free men back
+       to cover behind them (Engagement picks the cover, away from the threat) while at least two others keep
+       firing. This is the same 'bound' lease and the same orderBound as the forward bound, carrying back:true, so
+       the lease table still allows one bound at a time and Engagement stays the only mover. The squad's own
+       retreat, once ordered, outranks it. Half pinned = pinned men outnumber the free ones, the base-of-fire rule
+       read the other way. */
+    var PEEL_BACK =
+      typeof location !== 'undefined' && /[?&]peelBack=(?:1|on|true)(?:&|#|$)/i.test(location.search || '');
+    function peelBack(sq, battle, r) {
+      var E = root.BattleEngagement,
+        t = battle.time,
+        members = sq.members || [],
+        living = 0,
+        i,
+        s;
+      if (sq.state === 'retreat' || L.holds(sq, 'bound', t) || L.holds(sq, 'bound-cycle', t)) return false;
+      for (i = 0; i < members.length; i++) if (members[i] && !members[i].dead) living++;
+      if (living < 4 || r.pinned * 2 < living || r.effective < 2) return false;
+      var support = r.fireSupport || [],
+        first = sq._peelTurn == null ? 0 : sq._peelTurn + 1;
+      for (var k = 0; k < BOUND_TEAMS.length; k++) {
+        var turn = first + k,
+          team = BOUND_TEAMS[turn % BOUND_TEAMS.length],
+          movers = [];
+        for (i = 0; i < members.length; i++) {
+          s = members[i];
+          if (
+            s.dead ||
+            s.isPlayer ||
+            s.suppressedUntil > t ||
+            s.reloading ||
+            s.clearingStoppage ||
+            s.outOfAmmo
+          )
+            continue;
+          if (r.reacting && r.reacting.indexOf(s) >= 0) continue;
+          if (root.SquadAI.isMachineGun(s)) continue; // the gun keeps the base of fire
+          if (s._fireteamKey && s._fireteamKey !== team) continue;
+          movers.push(s);
+        }
+        var holding = support.filter(function (m) {
+          return movers.indexOf(m) < 0;
+        }).length;
+        if (!movers.length || holding < 2) continue;
+        sq._peelTurn = turn;
+        L.grant(
+          sq,
+          'bound',
+          'squad-leader',
+          t,
+          t + BOUND_DURATION,
+          'fireteam ' + team + ' peels back',
+          'window expiry or contact broken',
+          {
+            team: team,
+            back: true
+          }
+        );
+        L.grant(
+          sq,
+          'bound-cycle',
+          'squad-leader',
+          t,
+          t + BOUND_CYCLE,
+          'after peel-back by ' + team,
+          'cycle expiry'
+        );
+        E.orderBound(movers);
+        sq.peelBacks = (sq.peelBacks || 0) + 1;
+        telemetry(battle, 'decision-peel-back', {
+          faction: sq.faction,
+          squad: sq.id,
+          team: team,
+          movers: movers.length,
+          holding: holding,
+          pinned: r.pinned,
+          living: living
+        });
+        return true;
+      }
+      sq._peelTurn = first;
+      return false;
+    }
     /* Fire and movement. Engagement reports the squad's contact and base of fire; the Squad Leader decides
    whether the phase allows an assault and, every BOUND_CYCLE seconds, sends one fireteam forward
    for BOUND_DURATION while at least two men keep shooting. */
@@ -164,6 +248,10 @@
        maneuver the assault toward a viable firing line. Do not turn REPOSITION into a stationary
        self-latch by treating it like HOLD/PRECISION here. */
       if (fireControl && (fireControl.state === 'hold' || fireControl.state === 'precision')) {
+        sq._assaultAuthorized = false;
+        return;
+      }
+      if (PEEL_BACK && peelBack(sq, battle, r)) {
         sq._assaultAuthorized = false;
         return;
       }

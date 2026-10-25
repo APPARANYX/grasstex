@@ -563,10 +563,12 @@
     function orderedBound(s, battle) {
       var e = state(s),
         sq = s.squad;
+      var lease = sq && root.BattleLeases.get(sq, 'bound'),
+        back = !!(lease && lease.data && lease.data.back);
       if (
         !e.boundOrder ||
         !sq ||
-        !sq._assaultAuthorized ||
+        !(sq._assaultAuthorized || back) ||
         !root.BattleLeases.holds(sq, 'bound', battle.time)
       )
         return false;
@@ -617,18 +619,28 @@
        but never walk him back behind where he is. 44's forward guard only covers the `assault`
        phase, and bounds are also ordered in `capture` and `clear-town` (backward-orders probe: most
        backward authorized bounds). With no cover ahead he rushes toward the objective instead. */
-      var fwd = boundForward(s),
-        cover =
-          covered && !audit.threats.length
-            ? null
-            : findCover(s, battle, {
-                maxRange: covered ? C.boundTuning().maxDistance : COVER_RANGE_UNDER_FIRE,
-                forward: fwd,
-                evade: s.suppressedUntil > battle.time,
-                notBehind: fwd ? { axis: fwd, allow: BOUND_BACK_ALLOW } : null,
-                threat: threat,
-                coveredRoute: audit
-              });
+      var fwd = boundForward(s);
+      /* A peel-back is the same bound facing the other way: its axis runs from the threat through the man. */
+      if (back) {
+        var tp = threat && threat.root && threat.root.position,
+          me = posOf(s),
+          bx = tp ? me.x - tp.x : 0,
+          bz = tp ? me.z - tp.z : 0,
+          bl = Math.hypot(bx, bz);
+        if (!(bl > 0.1)) return false; // no known threat, no safe direction to back away in
+        fwd = { x: bx / bl, z: bz / bl };
+      }
+      var cover =
+        covered && !audit.threats.length
+          ? null
+          : findCover(s, battle, {
+              maxRange: covered ? C.boundTuning().maxDistance : COVER_RANGE_UNDER_FIRE,
+              forward: fwd,
+              evade: s.suppressedUntil > battle.time,
+              notBehind: fwd ? { axis: fwd, allow: BOUND_BACK_ALLOW } : null,
+              threat: threat,
+              coveredRoute: audit
+            });
       if (covered) {
         var stats =
           e.coveredBound ||
@@ -649,11 +661,12 @@
           battle,
           'bound',
           Math.max(3, cover.distance / Math.max(0.6, s.speed * 0.6) + 2),
-          'authorized fireteam bound: cover'
+          back ? 'authorized fireteam peel-back: cover' : 'authorized fireteam bound: cover'
         );
         bound(s, battle);
         return true;
       }
+      if (back) return false; // never rush toward the objective from a peel-back
       var p = posOf(s),
         goal = sq.objective || sq.home,
         dx = goal && goal.x - p.x,
