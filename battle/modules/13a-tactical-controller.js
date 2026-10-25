@@ -65,6 +65,7 @@
         pending: [],
         rosterKey: null,
         rosterRevision: 0,
+        handledRosterRevision: 0,
         rosterAt: null,
         missionVersion: null,
         cancelling: false,
@@ -196,15 +197,30 @@
       Q = root.BattleSquadStability,
       t = +sim.time || 0,
       a = members(sq);
-    if (Q && Q.endRecon) Q.endRecon(sq, sim, reason);
-    if (Q && Q.closePlan) Q.closePlan(sim, sq, reason);
-    if (Q && Q.endRegroup) Q.endRegroup(sim, sq, reason);
+    if (Q) {
+      if (Q.endRecon) Q.endRecon(sq, sim, reason);
+      if (Q.closePlan) Q.closePlan(sim, sq, reason);
+      if (Q.endRegroup) Q.endRegroup(sim, sq, reason);
+      /* Fire-control, posture and local task are tactical decisions, not retained survival services. */
+      if (Q.clearFireControl) Q.clearFireControl(sq, sim, reason);
+      if (Q.tacticalPostures && Q.tacticalPostures.end)
+        Q.tacticalPostures.end(sim, sq, reason);
+      if (Q.localPlan && Q.localPlan.reset) Q.localPlan.reset(sq);
+    }
     if (L) for (var k = 0; k < POLICY_LEASES.length; k++) L.end(sq, POLICY_LEASES[k], t, reason);
     if (E) {
       E.clearBoundOrders(sq);
       if (E.assignSuppressors) E.assignSuppressors(sq, sim, a, null);
     }
     if (P) for (var i = 0; i < a.length; i++) if (a[i] && P.current(a[i])) P.release(a[i], sim, reason);
+    /* An owner refusing release must not silently pass authority to a second controller. */
+    if (L && L.get) {
+      var remaining = POLICY_LEASES.concat(['regroup', 'recon', 'tactical-plan']);
+      for (var j = 0; j < remaining.length; j++) if (L.get(sq, remaining[j])) return false;
+    }
+    if (P) for (var n = 0; n < a.length; n++) if (a[n] && P.current(a[n])) return false;
+    if (sq.fireControl || sq._localTask) return false;
+    return true;
   }
   /* Cancel every live action of the current provider. Reentrant calls (an adapter that cancels,
      interrupts or restarts again) return without touching the list a second time. */
@@ -266,12 +282,13 @@
     if (rec.mode === 'new') {
       var done = cancelAll(sim, sq, rec, 'controller-switched');
       if (!done.ok) return note(sim, done.reason);
-    } else if (mode === 'new') releaseLegacy(sim, sq, 'controller-switched');
+    } else if (mode === 'new' && !releaseLegacy(sim, sq, 'controller-switched'))
+      return note(sim, 'cleanup-pending');
     rec.mode = mode;
     rec.provider = p;
     rec.epoch++;
     rec.missionVersion = missionVersion(sq);
-    rosterRevision(sq, rec);
+    rec.handledRosterRevision = rosterRevision(sq, rec);
     battleState(sim).stats.switches++;
     return { ok: true, reason: 'switched', epoch: rec.epoch };
   }
@@ -338,7 +355,9 @@
       b.squads.get(sq) !== rec ||
       rec.mode !== 'new' ||
       b.generation !== snapshot.generation ||
-      rec.epoch !== snapshot.controllerEpoch
+      rec.epoch !== snapshot.controllerEpoch ||
+      missionVersion(sq) !== snapshot.missionVersion ||
+      rosterRevision(sq, rec) !== snapshot.rosterRevision
     ) {
       b.stats.staleRequests++;
       return false;
@@ -368,12 +387,14 @@
     stats.dispatches[point] = (stats.dispatches[point] || 0) + 1;
     retryCleanup(sim, rec);
     var mission = missionVersion(sq),
-      before = rec.rosterRevision;
+      before = rec.handledRosterRevision;
     if (rec.missionVersion !== mission) {
       cancelAll(sim, sq, rec, 'mission-superseded');
       rec.missionVersion = mission;
     }
-    if (rosterRevision(sq, rec, at) !== before) cancelAll(sim, sq, rec, 'roster-changed');
+    var observedRoster = rosterRevision(sq, rec, at);
+    if (observedRoster !== before) cancelAll(sim, sq, rec, 'roster-changed');
+    rec.handledRosterRevision = observedRoster;
     var snapshot = token(sim, sq, rec, at),
       ctx = {
         point: point,
