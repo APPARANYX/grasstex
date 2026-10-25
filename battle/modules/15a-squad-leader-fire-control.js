@@ -238,6 +238,10 @@
       if (!fc || (fc.targetId != null && String(fc.targetId) !== String(c.unit.id))) {
         /* ?holdKeepClock=1: a new contact while the squad is already preparing is the same preparation, so the
            clock (startedAt) carries over and the maxHold window is not restarted by every target change. */
+        if (fc) {
+          var rc = sq._fcRetarget || (sq._fcRetarget = { kept: 0, restarted: 0 });
+          rc[HOLD_KEEP_CLOCK ? 'kept' : 'restarted']++;
+        }
         fc = setFireControl(sq, battle, HOLD_KEEP_CLOCK && fc ? fc : null, 'hold', 'first visual contact', {
           targetId: c.unit.id
         });

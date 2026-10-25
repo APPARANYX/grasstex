@@ -75,14 +75,20 @@
     var PRECISION_RELEASE = /[?&]precisionRelease=1(?:&|#|$)/.test(
       (typeof location !== 'undefined' && location.search) || ''
     );
-    function fireControlBlocks(fc, battle) {
+    function fireControlBlocks(sq, fc, battle) {
       if (!fc || (fc.state !== 'hold' && fc.state !== 'precision')) return false;
-      if (
-        PRECISION_RELEASE &&
-        fc.state === 'precision' &&
-        battle.time - fc.since >= ctx.FIRE_CONTROL_TUNING.maxHold
-      )
-        return false;
+      /* Observe only: ticks the squad's bounds were blocked by each state, and by PRECISION past the HOLD window
+         (the ticks ?precisionRelease=1 releases). Counted with the flag on or off so the two arms compare. */
+      var c = sq._fcBlock || (sq._fcBlock = { hold: 0, precision: 0, precisionPastWindow: 0, released: 0 });
+      var past = fc.state === 'precision' && battle.time - fc.since >= ctx.FIRE_CONTROL_TUNING.maxHold;
+      c[fc.state]++;
+      if (past) {
+        c.precisionPastWindow++;
+        if (PRECISION_RELEASE) {
+          c.released++;
+          return false;
+        }
+      }
       return true;
     }
     /* Fire and movement. Engagement reports the squad's contact and base of fire; the Squad Leader decides
@@ -163,7 +169,7 @@
        forbidden, but the whole point of that state is to release movement so the Squad Leader can
        maneuver the assault toward a viable firing line. Do not turn REPOSITION into a stationary
        self-latch by treating it like HOLD/PRECISION here. */
-      if (fireControlBlocks(fireControl, battle)) {
+      if (fireControlBlocks(sq, fireControl, battle)) {
         sq._assaultAuthorized = false;
         return;
       }
