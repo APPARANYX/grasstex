@@ -477,6 +477,35 @@ test('cleanup retries are guarded against reentrant lifecycle callbacks', () => 
   assert.equal(w.TC.summary(s).pending, 0);
 });
 
+test('stale mission and roster contexts cannot complete an old action and do not bypass cleanup', () => {
+  const w = boot(),
+    { s, P } = owned(w);
+  w.TC.dispatch(s, s.us, 'fireAndMovement');
+  const first = P.last(),
+    a = first.request('movement.move', 1, MOVE).actionId;
+  s.us._macroMission = { version: 2 };
+  assert.equal(first.finish(a), false, 'the original mission no longer owns completion');
+  w.TC.dispatch(s, s.us, 'fireAndMovement');
+  assert.ok(P.log.includes('cancel:' + a + ':mission-superseded'));
+  const second = P.last(),
+    b = second.request('movement.move', 1, MOVE).actionId;
+  s.us.members[2].dead = true;
+  assert.equal(second.finish(b), false, 'the old roster cannot complete a live action');
+  w.TC.dispatch(s, s.us, 'fireAndMovement');
+  assert.ok(P.log.includes('cancel:' + b + ':roster-changed'), 'dispatch still detects the roster change');
+});
+
+test('a native station that refuses release blocks controller takeover', () => {
+  const w = boot(),
+    s = sim(),
+    P = provider(w.TC, 'fixture');
+  w.TC.registerProvider(P.spec);
+  s.us.members[1].station = { id: 'still-held' };
+  w.root.BattleTacticalPositions.release = () => false;
+  assert.equal(w.TC.requestMode(s, s.us, 'new', 'fixture').reason, 'cleanup-pending');
+  assert.equal(w.TC.mode(s, s.us), 'legacy');
+});
+
 test('a provider fault never hands the tick back to legacy', () => {
   const w = boot(),
     { s } = owned(w, {
