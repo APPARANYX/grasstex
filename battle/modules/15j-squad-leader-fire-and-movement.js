@@ -68,6 +68,22 @@
       else if (battle.time - sq._slStressSince >= LEAD_TUNING.reviewAfter)
         requestReview(battle, sq, 'squad stress');
     }
+    /* ?coverRelay=1: the leader counts as base of fire only the men he has heard say they are firing (or himself).
+       Engagement still reports who is able to fire; this keeps that from being read through the squad. Everything
+       downstream (the bound gate, the supporter count, postures, local plan) reads this filtered report. */
+    function heardBaseOfFire(sq, battle, r) {
+      var heard = root.BattleCallouts.coverHeard(battle, sq),
+        support = (r.fireSupport || []).filter(function (m) {
+          return heard[m.id];
+        }),
+        out = {};
+      for (var k in r) out[k] = r[k];
+      out.fireSupport = support;
+      out.effective = support.length;
+      out.unheard = (r.fireSupport || []).length - support.length;
+      sq.heardEffectiveCount = support.length;
+      return out;
+    }
     /* Fire and movement. Engagement reports the squad's contact and base of fire; the Squad Leader decides
    whether the phase allows an assault and, every BOUND_CYCLE seconds, sends one fireteam forward
    for BOUND_DURATION while at least two men keep shooting. */
@@ -76,6 +92,7 @@
       if (!E || !sq || !battle) return;
       var r = E.updateSquad(sq, battle);
       if (!r) return;
+      if (root.BattleCallouts && root.BattleCallouts.coverRelayOn()) r = heardBaseOfFire(sq, battle, r);
       if (r.fled && r.fled.length && sq.fledId == null) detachFled(sq, battle, r.fled);
       updateRecon(sq, battle, r);
       var localTask = localPlan && localPlan.on ? localPlan.update(battle, sq, r) : null;

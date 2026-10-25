@@ -1040,3 +1040,12 @@ it does not manufacture targets or require a round on every cooldown tick. Out-o
 visual observation alone grants no combat hold. Incoming pressure and cover/pinning still
 retain protection authority. `?effectiveFire=0` restores the prior state-only support and
 range-hold behavior for paired benchmarks; weapon range settings are unchanged.
+
+`?coverRelay=1` (off by default; needs `?callouts` on, which is the default) removes the Squad Leader's direct read of who
+can give covering fire. Engagement still decides which men are putting rounds on a point (`updateSquad`); each such man
+now sends a `coverFire` callout (module 09, addressed to the leader alone, one per `COVER_REPEAT` 2.6 s = the suppress
+pause) and the leader's report (`heardBaseOfFire` in 15j) keeps only the men he has heard inside `COVER_KEEP` 6.4 s
+(two missed calls plus saying and hearing one), plus himself. The bound gate, supporter count, postures and local plan
+all read that filtered report, so a missed call, a silent or dead man or an old word is no base of fire. Calls follow
+the existing loss, delay, noise and not-listening rules. `cover-relay-check.js` owns the contract; `?coverRelay=0` (or
+absent) is the old direct read. Both constants are derived from the suppress cycle, not tuned.

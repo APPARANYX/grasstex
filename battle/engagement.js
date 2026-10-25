@@ -1907,6 +1907,7 @@
      this report to decide fire and movement; Engagement only executes a bound it is ordered to. */
   function updateSquad(sq, battle) {
     if (!sq || !battle) return null;
+    var COVER_CALL = root.BattleCallouts && root.BattleCallouts.coverRelayOn() ? root.BattleCallouts : null;
     var members = sq.members || [],
       contact = 0,
       effective = 0,
@@ -1968,6 +1969,11 @@
           if (!EFFECTIVE_FIRE || supportReady(s, battle)) {
             effective++;
             fireSupport.push(s);
+            /* ?coverRelay=1: he tells his leader he is firing; the leader counts only what he has heard. */
+            if (COVER_CALL) {
+              var aim = s.target ? posOf(s.target) : knownThreat(s, battle);
+              if (aim) COVER_CALL.reportCover(battle, s, aim.x, aim.z);
+            }
           }
         }
       }

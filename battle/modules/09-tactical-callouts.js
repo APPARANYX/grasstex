@@ -18,11 +18,17 @@
 
   var ON = !(typeof location !== 'undefined' && /[?&]callouts=(0|off|none)\b/.test(location.search || ''));
 
+  var COVER_RELAY =
+    typeof location !== 'undefined' && /[?&]coverRelay=(?:1|on|true)(?:&|#|$)/i.test(location.search || '');
   var KINDS = {
     contact: { carries: 'unit, x, z, at, stance', consumer: 'Perception squadSenses (relayed contact)' },
     incomingFire: {
       carries: 'unit, x, z, at, stance, precision, reason',
       consumer: 'Perception personal beliefs (shooter firing origin)'
+    },
+    coverFire: {
+      carries: 'x, z, at (the point he is firing on)',
+      consumer: 'Squad Leader fire and movement (is there a base of fire), only with ?coverRelay=1'
     }
   };
   var TUNING = {
@@ -38,6 +44,8 @@
     MISS_NOISE: 0.25,
     MISS_UNDER_FIRE: 0.2,
     MISS_MAX: 0.9,
+    COVER_REPEAT: 2.6, // s: a man firing on a point says so once per suppress pause (engagement SUPPRESS_PAUSE)
+    COVER_KEEP: 6.4, // s: his word stands for two missed calls plus saying and hearing it (2 x COVER_REPEAT + SPEAK + REACT)
     KEEP: 12, // s: a sighting older than this is not worth passing (Perception's CONTACT_MEMORY)
     LOG: 400 // listener records kept for diagnostics
   };
@@ -66,6 +74,8 @@
         bySquad: Object.create(null), // squad id -> freshest cross-squad message heard
         bySoldier: Object.create(null), // soldier id -> freshest actually delivered message
         lastCall: Object.create(null), // squad id -> {at, unitId}
+        cover: Object.create(null), // squad id -> soldier id -> {at, heardAt}: who the leader has heard say he is firing
+        lastCover: Object.create(null), // soldier id -> time of his last cover call
         log: [],
         overflow: 0,
         counts: {
@@ -141,10 +151,20 @@
       if (man.dead) outcome = 'dead';
       else if (NOT_LISTENING[engState(man)]) outcome = 'not-listening';
       else if (d.miss) outcome = 'missed';
-      else if (battle.time - msg.fact.at > TUNING.KEEP || (!beliefsOn() && !threat(msg.fact.unit)))
+      else if (
+        msg.kind === 'coverFire'
+          ? battle.time - msg.fact.at > TUNING.COVER_KEEP
+          : battle.time - msg.fact.at > TUNING.KEEP || (!beliefsOn() && !threat(msg.fact.unit))
+      )
         outcome = 'stale';
       else outcome = 'heard';
-      if (outcome === 'heard') {
+      if (outcome === 'heard' && msg.kind === 'coverFire') {
+        c.heard++;
+        c.delaySum += d.at - msg.sentAt;
+        var cs = st.cover[msg.fromSquad] || (st.cover[msg.fromSquad] = Object.create(null)),
+          mine = cs[msg.from];
+        if (!mine || msg.fact.at > mine.at) cs[msg.from] = { at: msg.fact.at, heardAt: d.at };
+      } else if (outcome === 'heard') {
         c.heard++;
         c.delaySum += d.at - msg.sentAt;
         var sq = man.squad,
@@ -174,7 +194,7 @@
     return st;
   }
 
-  function send(battle, sender, kind, fact) {
+  function send(battle, sender, kind, fact, audience) {
     if (!KINDS[kind] || !sender || sender.dead || !sender.root) return null;
     var E = root.BattleEngagement;
     if (
@@ -206,7 +226,7 @@
         man === sender ||
         !man.root ||
         !man.squad ||
-        (!beliefsOn() && man.squad === sender.squad) ||
+        (audience ? man !== audience : !beliefsOn() && man.squad === sender.squad) ||
         man.squad.disbanded
       )
         continue;
@@ -253,6 +273,38 @@
       at: contact.at,
       stance: contact.stance
     });
+  }
+
+  /* ?coverRelay=1: a man putting rounds on a point tells his Squad Leader, who has no other way to know. One call per
+     COVER_REPEAT, addressed to the leader alone (same loss, delay, noise and not-listening rules as any call). A
+     leader who is himself firing knows it without a call. */
+  function reportCover(battle, soldier, x, z) {
+    var sq = soldier && soldier.squad,
+      S = root.SquadAI,
+      leader = sq && S && S.leaderOf ? S.leaderOf(sq) : null;
+    if (!ON || !leader || soldier.dead) return null;
+    var st = settle(battle),
+      last = st.lastCover[soldier.id];
+    if (last != null && battle.time - last < TUNING.COVER_REPEAT) return null;
+    if (leader === soldier) {
+      st.lastCover[soldier.id] = battle.time;
+      var own = st.cover[sq.id] || (st.cover[sq.id] = Object.create(null));
+      own[soldier.id] = { at: battle.time, heardAt: battle.time };
+      return null;
+    }
+    var msg = send(battle, soldier, 'coverFire', { x: x, z: z, at: battle.time }, leader);
+    if (msg) st.lastCover[soldier.id] = battle.time;
+    return msg;
+  }
+  /* Soldier ids this squad's leader has heard say they are firing, still inside COVER_KEEP. */
+  function coverHeard(battle, sq) {
+    var out = Object.create(null);
+    if (!ON || !sq) return out;
+    var cs = settle(battle).cover[sq.id];
+    if (cs)
+      for (var id in cs)
+        if (battle.time - cs[id].at <= TUNING.COVER_KEEP && cs[id].heardAt <= battle.time) out[id] = true;
+    return out;
   }
 
   /* The freshest message this particular man actually heard. Personal belief consumption is age-only:
@@ -327,6 +379,11 @@
     tuning: TUNING,
     send: send,
     report: report,
+    coverRelayOn: function () {
+      return ON && COVER_RELAY;
+    },
+    reportCover: reportCover,
+    coverHeard: coverHeard,
     heard: heard,
     heardBy: heardBy,
     noteApplied: noteApplied,
