@@ -146,7 +146,8 @@ test('commanderTick and executeMission: mission acceptance stays, route/phase/pl
   assert.deepEqual(w.accepted, ['us-0'], 'Macro acceptance is retained');
   assert.equal(count(w, 'commanderTick', w.us), 1);
   assert.equal(count(w, 'executeMission', w.us), 1);
-  assert.equal(w.us._missionHold, 'tactical-controller');
+  assert.equal(w.us._missionHold, null, 'no hold reason masks a controlled squad from Loop Watch');
+  assert.equal(w.TC.summary(w.b).stats.dispatches.executeMission, 1);
   assert.equal(w.us._engagementPlan == null, true, 'no legacy engagement plan');
   assert.equal(count(w, 'commanderTick', w.ge), 0);
 });

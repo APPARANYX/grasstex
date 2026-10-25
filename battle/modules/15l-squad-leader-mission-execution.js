@@ -287,8 +287,9 @@
       var TC = root.BattleTacticalController;
       if (TC && TC.controls(sim, sq)) {
         adoptTransportArrival(sim, sq, m, ex, sq.route || []);
+        /* Not a mission hold: the replacement executes the brief. Loop Watch keeps judging its progress,
+           and the controller counts these dispatches in its summary. */
         TC.dispatch(sim, sq, 'executeMission');
-        sq._missionHold = 'tactical-controller';
         return;
       }
       /* A firefight under this brief is a commitment: contact never advances legs or rewrites phase. */

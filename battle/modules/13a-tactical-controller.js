@@ -36,7 +36,15 @@
         id: 'battle-' + nextBattle++,
         generation: 0,
         squads: new WeakMap(),
-        stats: { switches: 0, rejected: {}, staleRequests: 0, unconfirmed: 0, faults: 0 }
+        stats: {
+          switches: 0,
+          dispatches: {},
+          rejected: {},
+          staleRequests: 0,
+          unconfirmed: 0,
+          restartDropped: 0,
+          faults: 0
+        }
       };
       battles.set(sim, b);
     }
@@ -56,6 +64,7 @@
         pending: [],
         rosterKey: null,
         rosterRevision: 0,
+        rosterAt: null,
         missionVersion: null,
         cancelling: false
       };
@@ -75,8 +84,11 @@
     var m = sq && sq._macroMission;
     return m && Number.isSafeInteger(m.version) && m.version >= 0 ? m.version : 0;
   }
-  /* The roster revision is derived from who is alive and attached; detachment and death change it. */
-  function rosterRevision(sq, rec) {
+  /* The roster revision is derived from who is alive and attached; detachment and death change it.
+     Dispatch reads it once per sim time (Engagement dispatches per man); a request recomputes it. */
+  function rosterRevision(sq, rec, at) {
+    if (at != null && rec.rosterAt === at) return rec.rosterRevision;
+    rec.rosterAt = at == null ? null : at;
     var ids = [],
       a = members(sq);
     for (var i = 0; i < a.length; i++) if (a[i] && !a[i].dead) ids.push(String(a[i].id));
@@ -87,7 +99,7 @@
     }
     return rec.rosterRevision;
   }
-  function token(sim, sq, rec) {
+  function token(sim, sq, rec, at) {
     var b = battleState(sim);
     return {
       battleId: b.id,
@@ -95,7 +107,7 @@
       faction: sq.faction,
       squadId: String(sq.id),
       missionVersion: missionVersion(sq),
-      rosterRevision: rosterRevision(sq, rec),
+      rosterRevision: rosterRevision(sq, rec, at),
       controllerEpoch: rec.epoch,
       mode: rec.mode
     };
@@ -272,8 +284,10 @@
       if (/^stale-|^wrong-/.test(valid.reason)) battleState(sim).stats.staleRequests++;
       return note(sim, valid.reason);
     }
-    for (var i = 0; i < rec.actions.length; i++) {
-      var clash = C.resourceConflicts(valid.request, rec.actions[i].request);
+    /* An action whose cancellation is unconfirmed still holds its resources at the owner. */
+    var held = rec.actions.concat(rec.pending);
+    for (var i = 0; i < held.length; i++) {
+      var clash = C.resourceConflicts(valid.request, held[i].request);
       if (!clash.ok) return note(sim, clash.reason);
     }
     rec.nextAction++;
@@ -301,6 +315,9 @@
     var rec = record(sim, sq, false);
     if (!rec || rec.mode !== 'new') return false;
     if (POINTS.indexOf(point) < 0) throw new Error('Unknown tactical entry point: ' + point);
+    var at = +sim.time || 0,
+      stats = battleState(sim).stats;
+    stats.dispatches[point] = (stats.dispatches[point] || 0) + 1;
     retryCleanup(sim, rec);
     var mission = missionVersion(sq),
       before = rec.rosterRevision;
@@ -308,8 +325,8 @@
       cancelAll(sim, sq, rec, 'mission-superseded');
       rec.missionVersion = mission;
     }
-    if (rosterRevision(sq, rec) !== before) cancelAll(sim, sq, rec, 'roster-changed');
-    var snapshot = token(sim, sq, rec),
+    if (rosterRevision(sq, rec, at) !== before) cancelAll(sim, sq, rec, 'roster-changed');
+    var snapshot = token(sim, sq, rec, at),
       ctx = {
         point: point,
         sim: sim,
@@ -336,7 +353,9 @@
     });
   }
   /* The restart barrier. battle-sim.js calls this before any beforeBattleRestart hook clears legacy
-     squad state, so providers cancel against the squads and owners they acted on. */
+     squad state, so providers cancel against the squads and owners they acted on. Cleanup still
+     unconfirmed here cannot be retried (the squads are disposed): it is counted in
+     `stats.restartDropped` and logged as an accepted loss. */
   function beforeRestart(sim) {
     var b = sim && battles.get(sim);
     if (!b) return { cancelled: 0, unconfirmed: 0 };
@@ -352,6 +371,11 @@
         out.unconfirmed += done.unconfirmed;
       }
     });
+    if (out.unconfirmed) {
+      b.stats.restartDropped += out.unconfirmed;
+      if (root.GTLog)
+        root.GTLog('[TACTICAL] restart dropped ' + out.unconfirmed + ' unconfirmed controller cleanup(s)');
+    }
     b.generation++;
     b.squads = new WeakMap();
     return out;

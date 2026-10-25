@@ -41,7 +41,9 @@ bound orders, suppressor jobs and automatic stations through their owners. Missi
 changes cancel old actions before the next policy call, module 44's urgent cover interrupts
 the man's actions with a reason, and resources are released once. Unconfirmed cleanup is
 retried on the next dispatch (no timer) and blocks the next switch. `battle-sim.js` calls
-`beforeRestart` before any `beforeBattleRestart` hook clears legacy squad state. Requests are
+`beforeRestart` before any `beforeBattleRestart` hook clears legacy squad state; cleanup
+still unconfirmed at that point is an accepted loss, counted in `stats.restartDropped` and
+logged. A controlled squad sets no `_missionHold`, so Loop Watch still judges its progress. Requests are
 validated by the contract below, so a stale tuple or an actor outside the squad is rejected.
 No provider is registered at runtime and the contract is not loaded by the page, so live
 activation stays rejected (`contract-unavailable`) until owner adapters are extracted; the

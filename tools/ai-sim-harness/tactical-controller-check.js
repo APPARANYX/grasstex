@@ -245,6 +245,33 @@ test('owner rejection and resource conflicts leave no live action', () => {
   assert.equal(w.TC.summary(s).actions, 2);
 });
 
+test('an action with unconfirmed cancellation still holds its resources', () => {
+  const w = boot(),
+    { s, P } = owned(w, { release: () => false });
+  w.TC.dispatch(s, s.us, 'engagement');
+  P.last().request('movement.move', 1, MOVE);
+  w.TC.interrupt(s, s.us, 1, 'emergency-cover');
+  assert.equal(w.TC.summary(s).pending, 1);
+  w.TC.dispatch(s, s.us, 'engagement');
+  assert.equal(P.last().request('movement.move', 1, MOVE).reason, 'resource-conflict');
+  assert.equal(P.last().request('movement.move', 2, MOVE).ok, true);
+});
+
+test('the roster is read once per tick for dispatch, but a request always checks the live roster', () => {
+  const w = boot(),
+    { s, P } = owned(w);
+  w.TC.dispatch(s, s.us, 'engagement');
+  s.us.members[2].dead = true;
+  w.TC.dispatch(s, s.us, 'engagement');
+  assert.equal(P.last().token.rosterRevision, 0, 'same sim time: cached');
+  assert.equal(P.last().request('movement.move', 1, MOVE).reason, 'stale-roster');
+  s.time += 0.15;
+  w.TC.dispatch(s, s.us, 'engagement');
+  assert.equal(P.last().token.rosterRevision, 1);
+  assert.equal(P.last().request('movement.move', 1, MOVE).ok, true);
+  assert.equal(w.TC.summary(s).stats.dispatches.engagement, 3);
+});
+
 test('a switch away from the replacement cancels its actions first, then changes owner', () => {
   const w = boot();
   let modeAtCancel = null;
@@ -368,6 +395,7 @@ test('the restart barrier cancels with the battle-restart reason, then returns e
   P.last().request('movement.move', 2, MOVE);
   const out = w.TC.beforeRestart(s);
   assert.deepEqual(out, { cancelled: 0, unconfirmed: 2 });
+  assert.equal(w.TC.summary(s).stats.restartDropped, 2, 'dropped cleanup is counted');
   assert.ok(P.log.includes('cancel:' + a + ':battle-restart'));
   assert.equal(w.TC.mode(s, s.us), 'legacy');
   assert.equal(w.TC.summary(s).generation, 1);
