@@ -31,15 +31,21 @@
     h.capability = req.capability;
     h.stage = 'accepted';
     h.reason = 'owner-accepted';
-    h.at = now(sim);
+    h.at = h.requestedAt = now(sim);
     handles.set(req, h);
     return true;
   }
-  function mark(h, stage, reason) {
+  /* `at` is the owner's own time for the change; only an owner that keeps none falls back to the read. */
+  function mark(h, stage, reason, at) {
     if (h.stage === stage && h.reason === reason) return;
     h.stage = stage;
     h.reason = reason;
-    h.at = now(h.sim);
+    h.at = Number.isFinite(at) ? at : now(h.sim);
+  }
+  function stanceAt(s, stance) {
+    var trail = (s.eng && s.eng.stanceTrail) || [],
+      last = trail[trail.length - 1];
+    return last && last.to === stance ? last.at : null;
   }
   function mission(sq, req) {
     var m = sq && sq._macroMission;
@@ -71,7 +77,7 @@
       stage: function (h) {
         var e = h.man.eng;
         if (h.man.dead) mark(h, 'cancelled', 'actor-dead');
-        else if (e && e.stance === h.stance) mark(h, 'committed', 'committed');
+        else if (e && e.stance === h.stance) mark(h, 'committed', 'committed', stanceAt(h.man, h.stance));
       },
       cancel: function () {
         return true;
@@ -93,10 +99,11 @@
       },
       stage: function (h) {
         var P = root.BattleTacticalPositions;
-        if (!P || P.current(h.man) !== h.task)
-          mark(h, 'cancelled', h.task.releaseReason ? 'owner:' + h.task.releaseReason : 'cancelled');
-        else if (h.task.occupiedAt != null) mark(h, 'occupied', 'occupied');
-        else mark(h, 'assigned', 'assigned');
+        var t = h.task;
+        if (!P || P.current(h.man) !== t)
+          mark(h, 'cancelled', t.releaseReason ? 'owner:' + t.releaseReason : 'cancelled', t.releasedAt);
+        else if (t.occupiedAt != null) mark(h, 'occupied', 'occupied', t.occupiedAt);
+        else mark(h, 'assigned', 'assigned', t.assignedAt);
       },
       cancel: function (h, reason) {
         var P = root.BattleTacticalPositions;
@@ -120,9 +127,10 @@
         return keep(req, sim, { squad: sq });
       },
       stage: function (h, req) {
-        var m = mission(h.squad, req);
-        if (!m) mark(h, 'cancelled', 'mission-superseded');
-        else if (m.status === 'executing') mark(h, 'executing', 'executing');
+        var m = mission(h.squad, req),
+          next = h.squad._macroMission;
+        if (!m) mark(h, 'cancelled', 'mission-superseded', next && next.issuedAt);
+        else if (m.status === 'executing') mark(h, 'executing', 'executing', m.acceptedAt);
       },
       cancel: function () {
         return true;
@@ -146,11 +154,12 @@
         return keep(req, sim, { squad: sq, ride: sq._transport });
       },
       stage: function (h) {
-        var t = h.squad._transport;
-        if (t !== h.ride) mark(h, 'cancelled', 'owner:' + (h.ride.endReason || 'ended'));
-        else if (t.phase === 'embarked') mark(h, 'embarked', 'embarked');
-        else if (t.phase === 'boarding') mark(h, 'boarding', 'boarding');
-        else mark(h, 'cancelled', 'owner:' + (t.endReason || t.phase));
+        var t = h.squad._transport,
+          r = h.ride;
+        if (t !== r) mark(h, 'cancelled', 'owner:' + (r.endReason || 'ended'), r.endedAt);
+        else if (t.phase === 'embarked') mark(h, 'embarked', 'embarked', t.embarkedAt);
+        else if (t.phase === 'boarding') mark(h, 'boarding', 'boarding', h.requestedAt);
+        else mark(h, 'cancelled', 'owner:' + (t.endReason || t.phase), t.endedAt);
       },
       cancel: function (h, reason) {
         var T = root.BattleSquadTransport,
@@ -171,7 +180,7 @@
         return keep(req, sim, { squad: sq, ride: t });
       },
       stage: function (h) {
-        if (rideEnded(h)) mark(h, 'released', 'released');
+        if (rideEnded(h)) mark(h, 'released', 'released', h.squad._transport && h.squad._transport.endedAt);
       },
       cancel: function () {
         return true;

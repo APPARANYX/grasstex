@@ -319,6 +319,30 @@ test('the controller summary lists each live action with the stage and reason it
   ]);
 });
 
+test('a stage carries the owner’s own time for the change, however late it is read', () => {
+  const w = world(),
+    post = { id: 'w-3', x: 4, z: 6, building: 'b-1', facing: 0 };
+  w.r.BattleNavigation = {
+    firingStations: [post],
+    movementClear: () => true,
+    rejectedWindows: [],
+    invalidateNavPath() {}
+  };
+  w.r.BattleTacticalRoute = { createIngress: () => ({ door: 'd-1' }), cancel() {} };
+  loadModule(w.r, 'battle/modules/20-building-hardpoints.js');
+  w.systems['building-hardpoints'].onBattleStart(w.b);
+  w.us.state = 'engaged';
+  const ctx = owned(w),
+    s = rifleman(w);
+  ctx.request('station.claim', s.id, { stationId: 'w-3', threat: { x: 0, z: 90 } });
+  const task = w.r.BattleTacticalPositions.current(s);
+  task.occupiedAt = w.b.time + 2;
+  w.b.time += 30;
+  const live = w.TC.summary(w.b).live[0];
+  assert.equal(live.stage, 'occupied');
+  assert.equal(live.since, task.occupiedAt, 'since is when the owner saw it, not when it was read');
+});
+
 test('static: the adapters add no timer, RNG draw, movement writer or squad/soldier field', () => {
   const src = fs.readFileSync(path.join(H.REPO, 'battle/modules/13b-tactical-owner-adapters.js'), 'utf8');
   assert.doesNotMatch(src, /setTimeout|setInterval|requestAnimationFrame|Math\.random|\.random\(/);

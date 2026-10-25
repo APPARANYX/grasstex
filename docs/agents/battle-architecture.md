@@ -119,7 +119,7 @@ module 58 `considerMission`/`finish`. `stage(request)` reads the owner's own sta
 `executing`, `boarding`/`embarked`, `released`, or `cancelled` with the owner's reason). Every
 provider must supply that `stage` with its `cancel` and `release` (`missing-lifecycle:stage`
 otherwise), and the controller's `summary().live` lists each live or cleanup-pending action with
-its stage, reason and `since` time, so a stalled action names where it stopped; a report that
+its stage, reason and `since` (the owner's own time for that change), so a stalled action names where it stopped; a report that
 throws reads as `unknown: stage-fault`. A dismounting squad keeps `transport.*` unreleased, so a
 switch waits for the dismount to end. Handles live in a WeakMap keyed by the request
 object; the module adds no field, timer, lease or writer. `movement.move` and `movement.hold`
