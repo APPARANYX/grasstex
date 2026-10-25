@@ -391,10 +391,12 @@
         pinned = SA().areaFire(s, point, battle),
         fired = pinned > 0 || (+s.fireCooldown || 0) > cooldownBefore;
       if (!fired) return false;
+      if (!e.burstLeft || e.burstLeft >= SUPPRESS_BURST) e.cycleStart = battle.time;
       e.burstLeft = (e.burstLeft || SUPPRESS_BURST) - 1;
       if (e.burstLeft <= 0) {
         e.burstLeft = SUPPRESS_BURST;
         e.burstPauseUntil = battle.time + SUPPRESS_PAUSE + jitter(s, 0.2);
+        e.cycleLen = e.burstPauseUntil - e.cycleStart;
       }
       return true;
     }
