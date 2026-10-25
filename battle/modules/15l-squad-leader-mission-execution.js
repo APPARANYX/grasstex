@@ -282,6 +282,16 @@
           root.BattleCommanderAI.acceptMission(sim, sq, false);
         }
       }
+      /* Macro acceptance above and transport-arrival adoption stay here; route progression, phase,
+         recon and hold decisions belong to a replacement controller when one owns the squad. */
+      var TC = root.BattleTacticalController;
+      if (TC && TC.controls(sim, sq)) {
+        adoptTransportArrival(sim, sq, m, ex, sq.route || []);
+        /* Not a mission hold: the replacement executes the brief. Loop Watch keeps judging its progress,
+           and the controller counts these dispatches in its summary. */
+        TC.dispatch(sim, sq, 'executeMission');
+        return;
+      }
       /* A firefight under this brief is a commitment: contact never advances legs or rewrites phase. */
       var plan = sq._engagementPlan;
       if (plan && (plan.status === 'active' || plan.status === 'quiet')) {

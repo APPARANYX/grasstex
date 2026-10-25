@@ -77,6 +77,10 @@
       var r = E.updateSquad(sq, battle);
       if (!r) return;
       if (r.fled && r.fled.length && sq.fledId == null) detachFled(sq, battle, r.fled);
+      /* Contact reporting and fled-member detachment above are retained; recon, fire control, COA and
+         bound selection below belong to whichever controller owns the squad. */
+      var TC = root.BattleTacticalController;
+      if (TC && TC.dispatch(battle, sq, 'fireAndMovement', r)) return;
       updateRecon(sq, battle, r);
       var localTask = localPlan && localPlan.on ? localPlan.update(battle, sq, r) : null;
       if (tacticalPostures && tacticalPostures.on) tacticalPostures.update(battle, sq, r);

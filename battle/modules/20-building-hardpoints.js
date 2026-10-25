@@ -416,6 +416,9 @@
     maintain(sim);
     ['us', 'ge'].forEach(function (f) {
       (sim.factions[f].squads || []).forEach(function (sq) {
+        /* Automatic selection is tactical policy; maintenance above stays with this owner. */
+        var TC = root.BattleTacticalController;
+        if (TC && TC.dispatch(sim, sq, 'stationSelection')) return;
         var count = sq.members.filter(function (s) {
           return !!current(s);
         }).length;
