@@ -147,7 +147,7 @@
       !(root.BattleTacticalPositions && root.BattleTacticalPositions.current(s))
     );
   }
-  function startUrgent(s, b, e) {
+  function startUrgent(s, b, e, beforeCommit) {
     if (!safeToMove(s, b) || (+s.suppressedUntil || 0) <= b.time || !exposed(s, b)) return false;
     var threat = threatFor(s, b);
     if (!threat || !root.BattleEngagement.findCover) return false;
@@ -162,6 +162,8 @@
       minEnemyDistance: 10
     });
     if (!cover) return false;
+    /* A replacement controller's competing actions for this man are cancelled before the move is published. */
+    if (beforeCommit) beforeCommit();
     e.cover = cover;
     root.BattleEngagement.requestState(
       s,
@@ -265,14 +267,27 @@
   }
   /* Engagement's afterDrill slot runs this once the state machine has decided the soldier's tick. */
   root.BattleEngagement.extend('afterDrill', 'combat-urgency', function (s, b) {
-    var e = estate(s);
+    var e = estate(s),
+      TC = root.BattleTacticalController,
+      owned = !!(TC && s.squad && TC.controls(b, s.squad));
+    /* Urgent cover is emergency survival: under a replacement controller it interrupts that man's
+       actions explicitly. The ordinary shared-contact halt is policy and stays with legacy. */
     if (
       !maintainUrgent(s, b, e) &&
       (+s.suppressedUntil || 0) > b.time &&
       ['pinned', 'engage', 'orient'].indexOf(String(e.state || '')) >= 0
     )
-      startUrgent(s, b, e);
-    reactShared(s, b, e);
+      startUrgent(
+        s,
+        b,
+        e,
+        owned
+          ? function () {
+              TC.interrupt(b, s.squad, s.id, 'emergency-cover');
+            }
+          : null
+      );
+    if (!owned) reactShared(s, b, e);
   });
   function markUrgent(sim) {
     var t = +sim.time || 0,

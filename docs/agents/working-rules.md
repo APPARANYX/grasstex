@@ -47,3 +47,37 @@
   merge arrive as events, so nobody has to say "CI passed" and the agent does not poll. Merge when the head's CI events are
   green; cover the gaps (commit-status CI, merge-queue branches, a lost delivery) with one `send_later` check-in.
 
+## Agent ownership and handoffs
+
+**GitHub is the canonical shared record.** Agent-specific memory and chat summaries supplement the
+record; they are never the only place another agent can find the work. Record a task owner and scope;
+use a separate branch for each agent's parallel edits. Do not edit or force-push another agent's active branch or merge
+without explicit authorization; existing CI and deployment gates still apply.
+
+At a handoff, completion, blocker or material scope change, update the relevant PR or issue with the
+fields below. Keep the issue's current status and next step concise, and link the PR for detailed
+results rather than duplicating run-by-run logs. A read-only investigation records its inspected
+refs and says that no changes were made; it does not invent a work branch or commit.
+
+```text
+Owner / scope: agent or task owner; authorized work and exclusions
+Source: repository; base branch and full base SHA; inspected refs/SHAs if different
+Work: branch; full head SHA; committed yes/no; pushed yes/no; PR/issue URL
+Changes / findings: exact paths and commit-pinned file links; observed facts, inference,
+                    and untested claims identified separately
+Evidence: commands and actual results; logs/timestamps and run links; scenario/seeds,
+          flags, control SHA and metrics when applicable; failures and omitted checks
+Status / next: completed work; blockers; next owner/action; user decision required, if any
+```
+
+Record the **remote** head you verified, not merely a local SHA or a claim that work is pushed. For
+uncommitted or unpushed work, say so explicitly and do not imply that another agent can retrieve it.
+Link source documents at the inspected commit and provide the exact repository path/ref for
+supporting evidence. A handoff records authorization; it does not expand the authorized scope.
+
+The receiving agent must verify the remote PR/branch head and read the named source documents before
+relying on the handoff. If the branch has advanced, compare the recorded commit with the current
+head and identify which evidence applies. If a ref, path, commit or permission is missing or differs,
+report the specific mismatch and resolve it before proceeding with dependent work; do not assume
+that agent memory is shared or silently substitute another branch.
+

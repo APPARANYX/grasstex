@@ -1106,6 +1106,10 @@
       transition(s, battle, 'station', 0, 'firing station');
       return station(s, battle);
     }
+    /* Physiology, reactions, retreat, grenades and stations above are retained. Ordinary cover, assault and
+       withdrawal drills below belong to a replacement controller when one owns his squad. */
+    var TC = root.BattleTacticalController;
+    if (TC && s.squad && !s.isPlayer && TC.dispatch(battle, s.squad, 'engagement', s)) return;
     /* A first contact is not automatically a trigger pull. While the Squad Leader is holding fire,
        everyone not specifically chosen for a precision shot gets low, faces the contact and creeps
        only far enough to establish a prone line over a crest. */
@@ -1932,7 +1936,12 @@
       );
     /* A hold/precision order is silent preparation. Clear old suppressor jobs while it is active;
        otherwise a stale suppressOrder would make the squad look like a base of fire before permission. */
-    var suppressing = assignSuppressors(sq, battle, members, controlled ? null : undefined),
+    /* Automatic suppressor assignment is policy: a replacement controller clears legacy jobs on its switch. */
+    var TC = root.BattleTacticalController,
+      suppressing =
+        TC && TC.controls(battle, sq)
+          ? 0
+          : assignSuppressors(sq, battle, members, controlled ? null : undefined),
       broken = [],
       fled = [];
     for (i = 0; i < members.length; i++) {

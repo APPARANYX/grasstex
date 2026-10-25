@@ -504,6 +504,9 @@
   BattleSim.prototype.restart = function () {
     var request = { operator: !(arguments[0] && arguments[0].operator === false) };
     if (root.BattleModules) root.BattleModules.runHook('beforeBattleRestartRequest', this, request);
+    /* Restart barrier: replacement-controller actions are cancelled while the legacy squad state their
+       owners need is still intact. Every beforeBattleRestart hook below may clear that state. */
+    if (root.BattleTacticalController) root.BattleTacticalController.beforeRestart(this);
     if (root.BattleModules) root.BattleModules.runHook('beforeBattleRestart', this, {});
     var all = this._roster.us.concat(this._roster.ge),
       i;

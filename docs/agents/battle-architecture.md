@@ -10,6 +10,113 @@ file needs an entry there, which a reviewer sees; a fix that removes a writer mu
 `General (Macro) → Squad Leader (Meso) → Engagement → Movement Resolver → Movement Execution → Navigation`.
 Intent flows down and status flows up. No layer rewrites another's state.
 
+### Tactical controller replacement contract (#602)
+
+The October 25 direction replaces tactical **decisions** while retaining the existing
+simulation owners. Current main still uses the legacy controller. Draft #630 contains
+reusable registry, fact projection, selector and bounded executor experiments; its squad
+adapter still depends on legacy tactical choices and is not an exclusive replacement.
+The #651 directional-bound findings remain evidence. Its earlier requirement that 15n
+score tactics and 15j decide bound leases is superseded for new-controller squads:
+the selected controller chooses and commits; an extracted owner service may publish the
+native lease. Neither legacy function may independently choose a competing tactic.
+
+One controller owns each squad's ordinary tactical policy: legacy **or** new. Shadow
+has no effect authority. A switch must cancel and reconcile old actions and owner-held
+resources before activating its replacement. Validate that the replacement supports the
+squad's current obligations before disabling legacy. An unsupported mode cannot leave
+a squad without a controller; a failed running action cannot silently reactivate a second
+policy owner.
+
+`battle/modules/13a-tactical-controller.js` (`BattleTacticalController`) implements this
+switch. Every squad starts and restarts on legacy; the six policy entry points
+(`squadCommand`, `commanderTick`, `fireAndMovement`, `executeMission`, `engagement`,
+`stationSelection`) call `dispatch`/`controls` after their retained services and run the
+legacy policy whenever it answers false. `requestMode(sim, squad, 'new', providerId)` is
+rejected with a specific reason (`contract-unavailable`, `unknown-provider`,
+`missing-policy:<point>`, `missing-adapter:<capability>`, `missing-lifecycle:<cancel|release>`,
+`cleanup-pending`, `cancelling`) and the current controller keeps the squad. Leaving a
+replacement cancels and releases its actions first; entering one ends, through their owners,
+legacy recon, the engagement plan, a regroup (`endRegroup` restores the interrupted phase,
+counts the exit and grants the re-entry cooldown), the bound/bound-cycle/regroup-bypass/
+route-transition/corner-hold leases, fire control, the tactical posture, the local task, bound
+orders, suppressor jobs and automatic stations, while retreat-anchor, rally-recovery and
+succession stay. Authority still held after that release (a lease, a station, fire control or a
+local task) rejects the switch as `cleanup-pending`, counts `stats.releaseRefused` and is listed
+under `summary().refused`; a repeated request skips cleanup while the same holdout objects are
+still held, so retries never keep disrupting a squad legacy still commands. A mission or roster
+change since the refusal, or a holdout replaced by a new one, earns one more release. Actions are
+registered under their issuing provider before its owner adapter runs: lifecycle callbacks go
+to that provider, an adapter cannot switch controllers mid-acceptance (`accepting`), a
+synchronous completion is honoured, and only a context of the issuing epoch and generation
+may finish an action. Module 44 interrupts the man's actions before it publishes urgent cover. Mission and roster
+changes cancel old actions before the next policy call, module 44's urgent cover interrupts
+the man's actions with a reason, and resources are released once. Unconfirmed cleanup is
+retried on the next dispatch (no timer) and blocks the next switch. `battle-sim.js` calls
+`beforeRestart` before any `beforeBattleRestart` hook clears legacy squad state; cleanup
+still unconfirmed at that point is an accepted loss, counted in `stats.restartDropped` and
+logged. A controlled squad sets no `_missionHold`, so Loop Watch still judges its progress. Requests are
+validated by the contract below, so a stale tuple or an actor outside the squad is rejected.
+No provider is registered at runtime and the contract is not loaded by the page, so live
+activation stays rejected (`contract-unavailable`) until owner adapters are extracted; the
+controller keeps its state in WeakMaps and adds no squad or soldier field.
+
+Effect requests and receipts correlate the full tuple `battleId`, `generation`, `faction`, `squadId`,
+`actorId` (when applicable), `missionVersion`, `rosterRevision`, `controllerEpoch`, `mode`
+and `actionId`. Reconstitution, member detachment, mission supersession, controller
+switch and restart invalidate the relevant old tuple. Actor IDs alone are insufficient;
+opposing factions and independent battles can reuse them. `battleId` distinguishes
+independent sessions even when their numeric generations match. The new contract
+does not add fields to authoritative soldiers or squads. Future adapters must obtain
+these values from their lifecycle owners.
+
+| Entry point | Retained service / safety responsibility | Tactical policy to isolate |
+| --- | --- | --- |
+| Module 16 `squadCommand` | Casualties, succession, assembly and survival lifecycle | Fire-and-movement, anchor advancement, fireteam choice and forward-line decisions |
+| Module 16 commander tick | Transport exclusion, lifecycle cleanup and native lease expiry | Local plan/posture, regroup choice, mission-route/phase and engagement-plan selection |
+| 15j `fireAndMovement` | Contact reporting and fled-member detachment | Recon, fire control, COA, suppressor assignment and bound selection/commitment |
+| 15l `executeMission` | Macro acceptance/supersession and transport-arrival adoption | Route progression, local phase, recon and hold decisions |
+| Engagement `runDrill` / `updateSquad` | Physiology, reactions, pending grenade completion, station execution, stance/fire/weapon authority and upward facts | Ordinary cover/assault/withdrawal decisions and automatic suppressor assignment |
+| Module 20 hardpoints | Reservation, ingress, aperture, maintenance and release | Automatic station selection/claim; an explicit request may use the owner's claim service |
+| Module 44 `afterDrill` | Explicitly classified emergency survival interruption | Ordinary shared-contact halts and autonomous cover choices |
+
+Gate both Meso paths and the ordinary Micro/positional policies through the same
+authority. Do not skip entire mixed functions: retaining all of `executeMission` leaves
+legacy decisions active, while skipping it loses Macro acceptance and dismount adoption.
+The same separation is needed between Engagement's contact reporting and its suppressor
+assignment. Keep SquadAI's passenger/player gates and its perception → Engagement →
+resolver pipeline. Emergency survival remains owner-mediated and must cancel or suspend
+an affected skill explicitly, with a reason, rather than masquerade as utility selection.
+
+| Capability | Existing authority / interface | Remaining adapter boundary |
+| --- | --- | --- |
+| Movement / hold | Meso personal publication, Command Reception, Movement Resolver, Navigation and `BattleExecutionOutcome.man` | Publication is currently private to 16. Expose a guarded owner request; do not reuse fireteam policy merely to publish or add a destination writer. |
+| Posture / fire | Engagement and 19b | `requestStance` only lowers posture; `requestState` exposes specific requests, not a generic tactical move/fire API. Keep adopted ROE, weapon, ammo, settling, range and geometry checks. |
+| Cover / station | Engagement cover owner and module 20 `claim` / `release` | Selection/claims can mutate. Owner acceptance and release must be explicit; a fact projection cannot call these as pure readers. |
+| Mission / transport | Commander `acceptMission`, Meso adoption and module 58 journey lifecycle | Preserve supersession, boarding/dismount and restored route adoption; skills never write mission status, seats or physical passenger state. |
+| Resources / outcomes | Existing native leases/claims and 18a execution outcomes | Arbitrate squad/member requests without a second priority table or outcome tracker. Preserve player, reload, reaction, retreat and station obligations. |
+
+Movement evidence has separate publication, personal adoption, Meso application,
+resolver selection and physical arrival stages. A request passing validation establishes
+none of them. Correlate owner evidence with the same command envelope and full action
+tuple; a different mission's arrival cannot finish the current action. Real support fire
+also needs independent qualified shooters and actual owner-reported discharge/continuity;
+an accepted fire request or support count alone does not prove covering fire.
+
+`battle/tactical-capability-contract.js` and its focused harness define detached,
+executable request/receipt validation only. The module is deliberately absent from the
+runtime loaders and module discovery; the controller uses it when it is present. It supplies no live adapter, controller, lease
+manager, firing permission or proof that supplied evidence is true. Existing owners must
+produce the evidence in a later runtime integration; no gameplay acceptance is implied.
+
+Before activation, prove exclusive dispatch in both Meso paths and ordinary Micro/station
+policy, retained safety/adoption/transport, and cancellation on mission, membership,
+possession, transport, mode and generation changes. Then validate foundational skills,
+one directional covered-bound skill and a second independently registered complex skill.
+Use pinned equal-force 2 km/5 km normal/dense natural battles, actual shots, rotations,
+arrivals, mover/holder casualties, retreat completion, objectives, kills and CPU. Existing
+fixture success and #646–#653 gate experiments do not constitute this acceptance.
+
 In the opt-in front-lines scenario, `BattleFrontLines.garrisonFor` is a read-only
 request for one present squad to secure the exposed held line; Force Command
 issues and releases the ordinary defense brief. Macro also considers nearby
