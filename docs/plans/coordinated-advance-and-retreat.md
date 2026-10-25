@@ -51,6 +51,28 @@ Rules that must hold:
 - Fewer than 4 living or no contact: a plain retreat or a plain advance, as today.
 - Derive constants from `BOUND_CYCLE`, `BOUND_DURATION` and `BOUND_TEAMS`; add none.
 
+## Separation: fire control (HOLD, PRECISION) vs the fire-and-manoeuvre skill (Ivan, 2026-10-25)
+
+HOLD and PRECISION keep their job; they are not part of the fire-and-manoeuvre (FAM) skill.
+
+|                     | Fire control (15a)                                                         | FAM skill (15j, `execute-covered-bound`)              |
+| ------------------- | -------------------------------------------------------------------------- | ----------------------------------------------------- |
+| Question it answers | Who may fire, and when (prepare a prone line, wait for a marksman, ambush) | Who covers, who moves, when to swap                   |
+| States              | hold, precision, reposition, open                                          | covering, moving, swapping (the native `bound` lease) |
+| Reads               | contact, readiness, range, incoming fire                                   | the heard base of fire, cover, route, team rotation   |
+| Never does          | order a bound or a withdrawal                                              | grant or end fire permission                          |
+
+Rules:
+
+- FAM does not read `fireControl.state`. Today 15j returns early on HOLD and PRECISION (`fireControlBlocks`), which makes
+  fire control a hidden gate on maneuver. That early return is removed in the FAM PR.
+- FAM's only fire requirement is the same one it has for a bound: at least two men with real, heard fire. If fire control has
+  forbidden fire, there is no base of fire and FAM does not start. That is a consequence of fire permission, not a second
+  gate, and it is visible in the bound-gate probe as `effective<2`, not as `fire-control-hold`.
+- Fire control keeps owning preparation, the marksman and the ambush. Nothing in FAM may open or close fire control.
+- The interim flags `?precisionRelease=1` (#652) and `?holdKeepClock=1` (#653) tune the gate that FAM will no longer have. They stay
+  as measured Drafts until the FAM PR lands; they are not merged for their own sake.
+
 ## How it is judged
 
 Paired flag runs on 2 km and 5 km (fresh seeds, pinned control SHA, `strategicInterception=0` for 2 km). Report:
