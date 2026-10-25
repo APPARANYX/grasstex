@@ -2356,6 +2356,7 @@
       return sq && sq.fireControl ? Object.assign({}, sq.fireControl) : null;
     },
     updateFireControl: updateFireControl,
+    clearFireControl: clearFireControl,
     advanceSquadAnchor: advanceSquadAnchor,
     updateFireteams: updateFireteams,
     updateCohesion: updateCohesion,
