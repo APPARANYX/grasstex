@@ -203,8 +203,7 @@
       if (Q.endRegroup) Q.endRegroup(sim, sq, reason);
       /* Fire-control, posture and local task are tactical decisions, not retained survival services. */
       if (Q.clearFireControl) Q.clearFireControl(sq, sim, reason);
-      if (Q.tacticalPostures && Q.tacticalPostures.end)
-        Q.tacticalPostures.end(sim, sq, reason);
+      if (Q.tacticalPostures && Q.tacticalPostures.end) Q.tacticalPostures.end(sim, sq, reason);
       if (Q.localPlan && Q.localPlan.reset) Q.localPlan.reset(sq);
     }
     if (L) for (var k = 0; k < POLICY_LEASES.length; k++) L.end(sq, POLICY_LEASES[k], t, reason);
