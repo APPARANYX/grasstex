@@ -302,6 +302,41 @@ test('precisionRelease off: PRECISION blocks maneuver for as long as it lasts', 
   assert.equal(w.us._assaultAuthorized, false);
 });
 
+function retargetWorld(flag) {
+  const w = world('?stressAct=0&fireControl=1&commandPosture=0' + flag, 100);
+  let fc = command(w);
+  assert.equal(fc.state, 'hold');
+  const startedAt = fc.startedAt,
+    other = w.ge.members[1];
+  other.dead = false;
+  other.root.position.set(8, 0, 100);
+  w.b.time += 3;
+  w.us.members.forEach(s => (s.target = null));
+  w.us.contact = {
+    unit: other,
+    x: other.root.position.x,
+    z: other.root.position.z,
+    at: w.b.time,
+    seenBy: w.us.members[2].id,
+    stance: 'stand',
+    firstHandAt: w.b.time
+  };
+  if (w.r.SquadAI.soldierBeliefsOn && w.r.SquadAI.soldierBeliefsOn())
+    w.us.members.forEach(s => w.r.SquadAI.rememberSeen(s, other, w.b, true, 'fixture-second-enemy'));
+  fc = command(w);
+  return { fc, startedAt, other };
+}
+test('holdKeepClock=1: a new target during preparation keeps the HOLD clock', () => {
+  const { fc, startedAt, other } = retargetWorld('&holdKeepClock=1');
+  assert.equal(String(fc.targetId), String(other.id), 'the new target is the fire-control target');
+  assert.equal(fc.startedAt, startedAt, 'the preparation window was not restarted');
+});
+test('holdKeepClock off: a new target restarts the HOLD clock', () => {
+  const { fc, startedAt, other } = retargetWorld('');
+  assert.equal(String(fc.targetId), String(other.id));
+  assert.ok(fc.startedAt > startedAt, 'the window restarts on every target change');
+});
+
 test('fireControl=0 preserves immediate-fire behavior', () => {
   const w = world('?stressAct=0&fireControl=0', 100);
   command(w);

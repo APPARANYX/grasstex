@@ -119,6 +119,9 @@
       }
       return out;
     }
+    var HOLD_KEEP_CLOCK = /[?&]holdKeepClock=1(?:&|#|$)/.test(
+      (typeof location !== 'undefined' && location.search) || ''
+    );
     function setFireControl(sq, battle, prev, state, reason, data) {
       data = data || {};
       var fc = {
@@ -233,7 +236,11 @@
       if (!c) return fc || null;
       if (fc && fc.state === 'open') return fc;
       if (!fc || (fc.targetId != null && String(fc.targetId) !== String(c.unit.id))) {
-        fc = setFireControl(sq, battle, null, 'hold', 'first visual contact', { targetId: c.unit.id });
+        /* ?holdKeepClock=1: a new contact while the squad is already preparing is the same preparation, so the
+           clock (startedAt) carries over and the maxHold window is not restarted by every target change. */
+        fc = setFireControl(sq, battle, HOLD_KEEP_CLOCK && fc ? fc : null, 'hold', 'first visual contact', {
+          targetId: c.unit.id
+        });
       }
       if ((report && report.underFire) > 0) {
         return setFireControl(sq, battle, fc, 'open', 'enemy fire received', { targetId: c.unit.id });

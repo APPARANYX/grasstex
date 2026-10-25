@@ -1042,3 +1042,5 @@ retain protection authority. `?effectiveFire=0` restores the prior state-only su
 range-hold behavior for paired benchmarks; weapon range settings are unchanged.
 
 `?precisionRelease=1` (opt-in): fire-control PRECISION blocks the squad's maneuver only for `FIRE_CONTROL_TUNING.maxHold` (6 s, the same window HOLD is allowed) from the moment it began. The designated marksman keeps the fire order and the others keep holding fire; only the Squad Leader's bound authorization is released (`fireControlBlocks` in 15j). Off, PRECISION blocks maneuver until the enemy fires or the contact is lost, which was 34% (with HOLD) of attacker contact time on the 5 km map. HOLD is unchanged: it already ends by readiness, a partial line at 6 s, or REPOSITION.
+
+`?holdKeepClock=1` (opt-in, stacked on `?precisionRelease=1`): when the squad is already preparing under fire control (HOLD, PRECISION or REPOSITION) and a different enemy becomes the first-hand contact, the new HOLD carries over the preparation clock (`startedAt`) instead of starting a new one, so alternating sightings no longer restart the `maxHold` window forever. Off, every target change restarts HOLD from zero.
