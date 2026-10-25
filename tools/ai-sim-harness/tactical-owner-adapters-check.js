@@ -284,17 +284,32 @@ test('transport.cancel stays unreleased while the squad dismounts, so its resour
   assert.equal(w.TC.summary(b).pending, 1);
   /* The owner finishes the dismount; the next request completes the release and the switch. */
   w.us._transport.phase = 'aborted';
-  w.us._transport.endedAt = b.time + 3;
-  const ended = w.us._transport.endedAt;
-  w.us._transport = null;
-  b.time += 20;
-  assert.equal(
-    w.TC.summary(b).live.find(a => a.actionId === res.actionId).since,
-    ended,
-    'released at the tracked ride’s end, even once the squad no longer holds it'
-  );
   assert.equal(w.TC.requestMode(b, w.us, 'legacy').reason, 'switched');
   assert.equal(w.TC.summary(b).pending, 0);
+});
+
+test('a ride cancel left to finish reports its release at that ride’s end time', () => {
+  const w = world(),
+    r = w.r,
+    b = w.b,
+    ride = { phase: 'embarked', missionVersion: 1, access: false, boardedCount: 0 };
+  r.BattleSquadTransport = {
+    finish(sim, sq) {
+      sq._transport.phase = 'disembarking';
+    }
+  };
+  w.us._macroMission.status = 'executing';
+  w.us._transport = ride;
+  const ctx = owned(w),
+    res = ctx.request('transport.cancel', null, {});
+  assert.equal(res.reason, 'owner-accepted');
+  ride.phase = 'aborted';
+  ride.endedAt = b.time + 3;
+  w.us._transport = null;
+  b.time += 20;
+  const live = w.TC.summary(b).live.find(a => a.actionId === res.actionId);
+  assert.equal(live.stage, 'released');
+  assert.equal(live.since, ride.endedAt, 'the tracked ride’s end, not the time of the read');
 });
 
 test('the controller summary lists each live action with the stage and reason its owner reports', () => {
