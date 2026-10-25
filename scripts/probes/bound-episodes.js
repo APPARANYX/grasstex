@@ -2,12 +2,15 @@
    Every Engagement `bound` episode per man: how long it lasted, how it ended (arrived = reached
    cover and went to `engage`; rebound = sent to another cover point; other = any other next state;
    open = still bounding at the end), why he bounded (`byReason`: episodes, and `arrivedByReason`: those that
-   reached cover; a reason is Engagement's moveReason with the cover/leader detail cut off), and
+   reached cover; `reachedCover`: episodes whose last distance to the cover point was within REACHED, whatever state came next,
+   and `diedByReason`/`diedAtCover`: men who died bounding; a reason is Engagement's moveReason with the cover/leader detail cut off), and
    his distance to the cover point when it ended. Reports counts by duration band, the longest
    episodes, and how many open or long ones were stuck within 3 m of their cover (inside the
    movement-progress `FAR` band, where no-progress is never flagged). Observe only. */
 (function (root) {
-  var c, men;
+  var c,
+    men,
+    REACHED = 2.5; // m: the engine arrives at 1.2 m (COVER_ARRIVED); allow one 0.3 s sample of running on top
   function band(sec) {
     return sec < 5 ? '<5s' : sec < 15 ? '5-15s' : sec < 30 ? '15-30s' : sec < 60 ? '30-60s' : '60s+';
   }
@@ -25,6 +28,13 @@
     c.episodes++;
     c.byReason[w] = (c.byReason[w] || 0) + 1;
     if (how === 'arrived') c.arrivedByReason[w] = (c.arrivedByReason[w] || 0) + 1;
+    /* Reaching cover is not the same as going to `engage`: a man who gets there with no target goes to `alert`. */
+    if (rec.lastD != null && rec.lastD <= REACHED) {
+      c.reachedCover++;
+      c.reachedByReason[w] = (c.reachedByReason[w] || 0) + 1;
+      if (how === 'dead') c.diedAtCover++;
+    }
+    if (how === 'dead') c.diedByReason[w] = (c.diedByReason[w] || 0) + 1;
     c.byBand[band(sec)] = (c.byBand[band(sec)] || 0) + 1;
     c.byEnd[how] = (c.byEnd[how] || 0) + 1;
     if (sec >= 30 && rec.lastD != null && rec.lastD <= 3) c.longNearCover++;
@@ -46,6 +56,10 @@
     start: function () {
       c = {
         episodes: 0,
+        reachedCover: 0,
+        diedAtCover: 0,
+        reachedByReason: {},
+        diedByReason: {},
         byBand: {},
         byEnd: {},
         byReason: {},
