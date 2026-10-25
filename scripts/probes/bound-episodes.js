@@ -1,7 +1,8 @@
 /* Cover bounds that never arrive (the "Matrix dodge": a man circling a cover slot for minutes).
    Every Engagement `bound` episode per man: how long it lasted, how it ended (arrived = reached
    cover and went to `engage`; rebound = sent to another cover point; other = any other next state;
-   open = still bounding at the end), and
+   open = still bounding at the end), why he bounded (`byReason`: episodes, and `arrivedByReason`: those that
+   reached cover; a reason is Engagement's moveReason with the cover/leader detail cut off), and
    his distance to the cover point when it ended. Reports counts by duration band, the longest
    episodes, and how many open or long ones were stuck within 3 m of their cover (inside the
    movement-progress `FAR` band, where no-progress is never flagged). Observe only. */
@@ -15,9 +16,15 @@
       cv = e && e.cover;
     return p && cv ? Math.hypot(p.x - cv.x, p.z - cv.z) : null;
   }
+  function why(r) {
+    return r ? String(r).split(':')[0].replace(/\s+/g, '-') + (/: cover/.test(r) ? ':cover' : '') : 'none';
+  }
   function close(s, rec, sim, how) {
-    var sec = sim.time - rec.since;
+    var sec = sim.time - rec.since,
+      w = why(rec.reason);
     c.episodes++;
+    c.byReason[w] = (c.byReason[w] || 0) + 1;
+    if (how === 'arrived') c.arrivedByReason[w] = (c.arrivedByReason[w] || 0) + 1;
     c.byBand[band(sec)] = (c.byBand[band(sec)] || 0) + 1;
     c.byEnd[how] = (c.byEnd[how] || 0) + 1;
     if (sec >= 30 && rec.lastD != null && rec.lastD <= 3) c.longNearCover++;
@@ -37,7 +44,15 @@
   (root.BattleProbes = root.BattleProbes || {})['bound-episodes'] = {
     every: 0.3,
     start: function () {
-      c = { episodes: 0, byBand: {}, byEnd: {}, longNearCover: 0, longest: [] };
+      c = {
+        episodes: 0,
+        byBand: {},
+        byEnd: {},
+        byReason: {},
+        arrivedByReason: {},
+        longNearCover: 0,
+        longest: []
+      };
       men = new Map();
     },
     sample: function (sim) {
