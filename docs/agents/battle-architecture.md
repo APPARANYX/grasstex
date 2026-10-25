@@ -36,8 +36,14 @@ legacy policy whenever it answers false. `requestMode(sim, squad, 'new', provide
 rejected with a specific reason (`contract-unavailable`, `unknown-provider`,
 `missing-policy:<point>`, `missing-adapter:<capability>`, `missing-lifecycle:<cancel|release>`,
 `cleanup-pending`, `cancelling`) and the current controller keeps the squad. Leaving a
-replacement cancels and releases its actions first; entering one ends legacy bound leases,
-bound orders, suppressor jobs and automatic stations through their owners. Mission and roster
+replacement cancels and releases its actions first; entering one ends, through their owners,
+legacy recon, the engagement plan, the bound/bound-cycle/regroup/regroup-bypass/
+regroup-cooldown/route-transition/corner-hold leases, bound orders, suppressor jobs and
+automatic stations, while retreat-anchor, rally-recovery and succession stay. Actions are
+registered under their issuing provider before its owner adapter runs: lifecycle callbacks go
+to that provider, an adapter cannot switch controllers mid-acceptance (`accepting`), a
+synchronous completion is honoured, and only a context of the issuing epoch and generation
+may finish an action. Module 44 interrupts the man's actions before it publishes urgent cover. Mission and roster
 changes cancel old actions before the next policy call, module 44's urgent cover interrupts
 the man's actions with a reason, and resources are released once. Unconfirmed cleanup is
 retried on the next dispatch (no timer) and blocks the next switch. `battle-sim.js` calls

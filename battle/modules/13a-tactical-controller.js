@@ -43,6 +43,7 @@
           staleRequests: 0,
           unconfirmed: 0,
           restartDropped: 0,
+          interruptsUnconfirmed: 0,
           faults: 0
         }
       };
@@ -66,7 +67,8 @@
         rosterRevision: 0,
         rosterAt: null,
         missionVersion: null,
-        cancelling: false
+        cancelling: false,
+        accepting: 0
       };
       b.squads.set(sq, rec);
     }
@@ -169,28 +171,41 @@
     }
   }
   /* Resources are released once: a second interrupt, a retry or a reentrant cancel finds `released`. */
-  function releaseOnce(sim, rec, action, reason) {
+  function releaseOnce(sim, action, reason) {
     if (action.released) return true;
-    if (!call(sim, rec.provider.lifecycle.release, action.request, reason)) return false;
+    if (!call(sim, action.provider.lifecycle.release, action.request, reason)) return false;
     action.released = true;
     return true;
   }
-  function settle(sim, rec, action, reason) {
+  /* Lifecycle callbacks go to the provider that issued the action, whoever owns the squad now. */
+  function settle(sim, action, reason) {
     if (!action.cancelled)
-      action.cancelled = call(sim, rec.provider.lifecycle.cancel, action.request, reason);
-    return action.cancelled && releaseOnce(sim, rec, action, reason);
+      action.cancelled = call(sim, action.provider.lifecycle.cancel, action.request, reason);
+    return action.cancelled && releaseOnce(sim, action, reason);
   }
-  /* Owner-held legacy work a replacement must not inherit. Existing owner APIs only. */
+  /* Handoff matrix. Legacy tactical-policy work a replacement must not inherit is ended through its
+     owners: recon, the engagement plan, bound/regroup/route leases, bound orders, suppressor jobs and
+     automatic stations. retreat-anchor, rally-recovery and succession are retained lifecycle
+     obligations and stay. Existing owner APIs only. */
+  var POLICY_LEASES = [
+    'bound',
+    'bound-cycle',
+    'regroup',
+    'regroup-bypass',
+    'regroup-cooldown',
+    'route-transition',
+    'corner-hold'
+  ];
   function releaseLegacy(sim, sq, reason) {
     var L = root.BattleLeases,
       E = root.BattleEngagement,
       P = root.BattleTacticalPositions,
+      Q = root.BattleSquadStability,
       t = +sim.time || 0,
       a = members(sq);
-    if (L) {
-      L.end(sq, 'bound', t, reason);
-      L.end(sq, 'bound-cycle', t, reason);
-    }
+    if (Q && Q.endRecon) Q.endRecon(sq, sim, reason);
+    if (Q && Q.closePlan) Q.closePlan(sim, sq, reason);
+    if (L) for (var k = 0; k < POLICY_LEASES.length; k++) L.end(sq, POLICY_LEASES[k], t, reason);
     if (E) {
       E.clearBoundOrders(sq);
       if (E.assignSuppressors) E.assignSuppressors(sq, sim, a, null);
@@ -201,7 +216,6 @@
      interrupts or restarts again) return without touching the list a second time. */
   function cancelAll(sim, sq, rec, reason, filter) {
     if (rec.cancelling) return { ok: false, reason: 'cancelling', unconfirmed: rec.pending.length };
-    if (!rec.provider) return { ok: true, reason: 'no-actions', unconfirmed: 0 };
     rec.cancelling = true;
     try {
       var list = rec.actions.concat(rec.pending);
@@ -214,7 +228,7 @@
           continue;
         }
         action.cancelReason = action.cancelReason || reason;
-        if (!settle(sim, rec, action, action.cancelReason)) {
+        if (!settle(sim, action, action.cancelReason)) {
           rec.pending.push(action);
           battleState(sim).stats.unconfirmed++;
         }
@@ -230,10 +244,15 @@
   }
   function retryCleanup(sim, rec) {
     if (!rec.pending.length || rec.cancelling) return;
-    var list = rec.pending;
-    rec.pending = [];
-    for (var i = 0; i < list.length; i++)
-      if (!settle(sim, rec, list[i], list[i].cancelReason)) rec.pending.push(list[i]);
+    rec.cancelling = true;
+    try {
+      var list = rec.pending;
+      rec.pending = [];
+      for (var i = 0; i < list.length; i++)
+        if (!settle(sim, list[i], list[i].cancelReason)) rec.pending.push(list[i]);
+    } finally {
+      rec.cancelling = false;
+    }
   }
 
   function requestMode(sim, sq, mode, providerId) {
@@ -241,6 +260,8 @@
     if (MODES.indexOf(mode) < 0) return note(sim, 'unknown-mode');
     var rec = record(sim, sq, true);
     if (rec.cancelling) return note(sim, 'cancelling');
+    /* An owner adapter cannot switch controllers while it is accepting this squad's action. */
+    if (rec.accepting) return note(sim, 'accepting');
     var p = mode === 'new' ? providers[providerId] : null;
     if (mode === 'new') {
       var missing = incomplete(p);
@@ -291,17 +312,50 @@
       if (!clash.ok) return note(sim, clash.reason);
     }
     rec.nextAction++;
-    if (!call(sim, rec.provider.adapters[capability], valid.request, sim)) return note(sim, 'owner-rejected');
-    rec.actions.push({ request: valid.request, cancelled: false, released: false, cancelReason: null });
+    /* Registered under its issuing provider before the owner sees it, so a synchronous completion or
+       cancellation inside the adapter finds it; a rejection removes it again (nothing to release). */
+    var action = {
+      request: valid.request,
+      provider: rec.provider,
+      cancelled: false,
+      released: false,
+      cancelReason: null
+    };
+    rec.actions.push(action);
+    rec.accepting++;
+    var accepted;
+    try {
+      accepted = call(sim, action.provider.adapters[capability], valid.request, sim);
+    } finally {
+      rec.accepting--;
+    }
+    if (!accepted) {
+      var at = rec.actions.indexOf(action);
+      if (at >= 0) rec.actions.splice(at, 1);
+      return note(sim, 'owner-rejected');
+    }
     return { ok: true, reason: 'owner-accepted', actionId: valid.request.actionId };
   }
-  function finish(sim, rec, actionId, reason) {
+  /* Completion is honoured only from a context of the controller epoch and battle generation that
+     issued the action; an older policy context cannot finish a newer controller's work. */
+  function finish(sim, sq, rec, snapshot, actionId, reason) {
+    var b = battleState(sim);
+    if (
+      b.squads.get(sq) !== rec ||
+      rec.mode !== 'new' ||
+      b.generation !== snapshot.generation ||
+      rec.epoch !== snapshot.controllerEpoch
+    ) {
+      b.stats.staleRequests++;
+      return false;
+    }
     for (var i = 0; i < rec.actions.length; i++) {
       var action = rec.actions[i];
-      if (action.request.actionId !== actionId) continue;
+      if (action.request.actionId !== actionId || action.request.controllerEpoch !== snapshot.controllerEpoch)
+        continue;
       rec.actions.splice(i, 1);
       action.cancelled = true;
-      if (!releaseOnce(sim, rec, action, reason || 'completed')) {
+      if (!releaseOnce(sim, action, reason || 'completed')) {
         action.cancelReason = reason || 'completed';
         rec.pending.push(action);
       }
@@ -337,7 +391,7 @@
           return issue(sim, sq, rec, snapshot, point, capability, actorId, params);
         },
         finish: function (actionId, reason) {
-          return finish(sim, rec, actionId, reason);
+          return finish(sim, sq, rec, snapshot, actionId, reason);
         }
       };
     call(sim, rec.provider.policies[point], ctx);
@@ -347,10 +401,13 @@
   function interrupt(sim, sq, actorId, reason) {
     var rec = record(sim, sq, false);
     if (!rec || rec.mode !== 'new') return { ok: true, reason: 'not-controlled', unconfirmed: 0 };
-    var id = actorId == null ? null : String(actorId);
-    return cancelAll(sim, sq, rec, reason || 'interrupted', function (action) {
-      return id === null || action.request.actorId === id;
-    });
+    var id = actorId == null ? null : String(actorId),
+      out = cancelAll(sim, sq, rec, reason || 'interrupted', function (action) {
+        return id === null || action.request.actorId === id;
+      });
+    /* Emergency survival still proceeds; the unconfirmed resources stay pending and are counted. */
+    if (!out.ok) battleState(sim).stats.interruptsUnconfirmed++;
+    return out;
   }
   /* The restart barrier. battle-sim.js calls this before any beforeBattleRestart hook clears legacy
      squad state, so providers cancel against the squads and owners they acted on. Cleanup still

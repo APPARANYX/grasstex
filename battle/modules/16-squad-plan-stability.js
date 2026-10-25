@@ -2296,6 +2296,7 @@
     startRecon: startRecon,
     updateRecon: updateRecon,
     endRecon: endRecon,
+    closePlan: closePlan,
     reconTelemetry: reconTelemetry,
     slStress: function () {
       return Object.assign({}, SL_STRESS);

@@ -165,7 +165,19 @@ test('a complete replacement owns its squad exclusively at all six entry points;
   );
   assert.equal(P.ctxs[2].facts.fact, 'fireAndMovement');
   assert.equal(w.TC.controls(s, s.us), true);
-  assert.deepEqual(w.ends, ['bound:controller-switched', 'bound-cycle:controller-switched']);
+  assert.deepEqual(
+    w.ends,
+    [
+      'bound',
+      'bound-cycle',
+      'regroup',
+      'regroup-bypass',
+      'regroup-cooldown',
+      'route-transition',
+      'corner-hold'
+    ].map(k => k + ':controller-switched'),
+    'every legacy policy lease is ended; retreat-anchor, rally-recovery and succession are retained'
+  );
   assert.deepEqual(w.cleared, ['us-0']);
   assert.deepEqual(w.suppressed, [null], 'legacy suppressor jobs are cleared, not reassigned');
 });
@@ -373,6 +385,102 @@ test('mission supersession and roster changes cancel the old actions before the 
   w.TC.dispatch(s, s.us, 'executeMission');
   assert.ok(P.log.includes('release:' + b + ':roster-changed'));
   assert.equal(P.last().token.rosterRevision, 1);
+});
+
+test('an owner adapter cannot switch controllers while accepting; the action stays with its issuer', () => {
+  const w = boot(),
+    seen = [];
+  const B = provider(w.TC, 'fixture-b');
+  w.TC.registerProvider(B.spec);
+  let s = null;
+  const { s: sim0, P } = owned(w, {
+    accept: () => {
+      seen.push(w.TC.requestMode(s, s.us, 'new', 'fixture-b').reason);
+      return true;
+    }
+  });
+  s = sim0;
+  w.TC.dispatch(s, s.us, 'fireAndMovement');
+  const id = P.last().request('movement.move', 1, MOVE).actionId;
+  assert.deepEqual(seen, ['accepting']);
+  assert.equal(w.TC.requestMode(s, s.us, 'new', 'fixture-b').reason, 'switched');
+  assert.ok(
+    P.log.includes('cancel:' + id + ':controller-switched'),
+    'the issuing provider cancels its own action'
+  );
+  assert.equal(B.log.filter(e => e.startsWith('cancel:')).length, 0);
+  assert.equal(w.TC.summary(s).actions, 0);
+});
+
+test('an owner that completes synchronously inside acceptance leaves no ghost action', () => {
+  const w = boot();
+  let ctx = null,
+    finished = null;
+  const { s, P } = owned(w, {
+    accept: req => {
+      finished = ctx.finish(req.actionId, 'completed');
+      return true;
+    }
+  });
+  w.TC.dispatch(s, s.us, 'engagement');
+  ctx = P.last();
+  const r = ctx.request('movement.move', 1, MOVE);
+  assert.equal(r.ok, true);
+  assert.equal(finished, true);
+  assert.equal(w.TC.summary(s).actions, 0);
+  assert.equal(P.log.filter(e => e === 'release:' + r.actionId + ':completed').length, 1);
+});
+
+test('an older policy context cannot finish a newer controller action', () => {
+  const w = boot(),
+    { s, P } = owned(w);
+  w.TC.dispatch(s, s.us, 'engagement');
+  const old = P.last();
+  const a = old.request('movement.move', 1, MOVE).actionId;
+  assert.equal(old.finish(a), true, 'its own context may finish it');
+  w.TC.requestMode(s, s.us, 'legacy');
+  w.TC.requestMode(s, s.us, 'new', 'fixture');
+  w.TC.dispatch(s, s.us, 'engagement');
+  const b = P.last().request('movement.move', 1, MOVE).actionId;
+  assert.equal(old.finish(b), false);
+  assert.equal(w.TC.summary(s).actions, 1);
+  assert.equal(P.log.filter(e => e.startsWith('release:' + b)).length, 0);
+  w.TC.beforeRestart(s);
+  assert.equal(P.last().finish(b), false, 'nor after a restart');
+});
+
+test('a rejected acceptance is removed and releases nothing', () => {
+  const w = boot(),
+    { s, P } = owned(w, { accept: () => false });
+  w.TC.dispatch(s, s.us, 'engagement');
+  assert.equal(P.last().request('movement.move', 1, MOVE).reason, 'owner-rejected');
+  assert.equal(w.TC.summary(s).actions, 0);
+  assert.equal(P.log.filter(e => e.startsWith('release:')).length, 0);
+});
+
+test('cleanup retries are guarded against reentrant lifecycle callbacks', () => {
+  const w = boot(),
+    seen = [];
+  let tries = 0,
+    s = null;
+  const { s: sim0, P } = owned(w, {
+    release: () => {
+      tries++;
+      if (tries === 1) return false;
+      seen.push(w.TC.interrupt(s, s.us, null, 'again').reason);
+      seen.push(w.TC.requestMode(s, s.us, 'legacy').reason);
+      return true;
+    }
+  });
+  s = sim0;
+  w.TC.dispatch(s, s.us, 'squadCommand');
+  const id = P.last().request('movement.move', 1, MOVE).actionId;
+  w.TC.interrupt(s, s.us, 1, 'emergency-cover');
+  assert.equal(w.TC.summary(s).stats.interruptsUnconfirmed, 1);
+  w.TC.dispatch(s, s.us, 'squadCommand');
+  assert.deepEqual(seen, ['cancelling', 'cancelling']);
+  assert.equal(P.log.filter(e => e.startsWith('release:' + id)).length, 2, 'one failed try, one confirmed');
+  assert.equal(w.TC.summary(s).pending, 0);
 });
 
 test('a provider fault never hands the tick back to legacy', () => {

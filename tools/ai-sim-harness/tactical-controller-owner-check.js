@@ -240,6 +240,59 @@ test('combat urgency: the ordinary shared-contact halt is the provider’s, not 
   assert.equal(halts('new'), 0);
 });
 
+test('handoff matrix: legacy regroup, recon and plan leases end on the switch; retreat lifecycle leases stay', () => {
+  const w = world(),
+    L = w.r.BattleLeases,
+    t = w.b.time;
+  ['regroup', 'regroup-cooldown', 'corner-hold', 'bound', 'retreat-anchor', 'succession'].forEach(k =>
+    L.grant(w.us, k, 'squad-leader', t, t + 60, 'fixture')
+  );
+  owned(w);
+  ['regroup', 'regroup-cooldown', 'corner-hold', 'bound'].forEach(k => assert.equal(L.get(w.us, k), null, k));
+  ['retreat-anchor', 'succession'].forEach(k => assert.ok(L.get(w.us, k), k + ' is retained'));
+  w.us._macroMission = { version: 1, status: 'executing', intent: 'attack', legs: [{ x: 0, z: 300 }] };
+  w.systems['squad-command'].onCommanderTick(w.b, { town: null });
+  assert.equal(
+    count(w, 'executeMission', w.us),
+    1,
+    'a squad switched during regroup reaches its replacement'
+  );
+});
+
+test('urgent cover cancels the replacement controller actions before publishing its move', () => {
+  const w = world(),
+    E = w.r.BattleEngagement,
+    R = w.r.BattleMovementResolver,
+    order = [],
+    real = R.proposeCombat;
+  w.P.spec.lifecycle.cancel = req => (order.push('cancel:' + req.actorId), true);
+  w.TC.unregisterProvider('fixture');
+  w.TC.registerProvider(w.P.spec);
+  owned(w);
+  const s = w.us.members[3];
+  let ctx = null;
+  w.P.calls.engagement.length = 0;
+  E.updateSoldier(s, w.b);
+  ctx = w.P.calls.engagement[0];
+  assert.equal(ctx.request('movement.move', s.id, { point: { x: 4, z: 4 } }).ok, true);
+  R.proposeCombat = function (who, p, b, kind) {
+    if (kind === 'cover-bound') order.push('publish:' + who.id);
+    return real.apply(this, arguments);
+  };
+  E.findCover = () => ({ x: 3, z: 3, distance: 4 });
+  const foe = w.ge.members[0];
+  w.us.contact = { unit: foe, x: 0, z: 90, at: w.b.time, firstHandAt: w.b.time, seenBy: -1 };
+  if (w.r.SquadAI.soldierBeliefsOn && w.r.SquadAI.soldierBeliefsOn())
+    w.r.SquadAI.rememberSeen(s, foe, w.b, true, 'fixture-urgent');
+  s.suppressedUntil = w.b.time + 5;
+  s.eng.state = 'engage';
+  s.target = null;
+  E.updateSoldier(s, w.b);
+  R.proposeCombat = real;
+  assert.deepEqual(order, ['cancel:' + s.id, 'publish:' + s.id]);
+  assert.equal(w.TC.summary(w.b).actions, 0);
+});
+
 test('station selection: maintenance stays with the hardpoint owner; automatic claims go to the provider', () => {
   const w = world(),
     threats = [];
