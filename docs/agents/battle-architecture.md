@@ -26,7 +26,26 @@ has no effect authority. A switch must cancel and reconcile old actions and owne
 resources before activating its replacement. Validate that the replacement supports the
 squad's current obligations before disabling legacy. An unsupported mode cannot leave
 a squad without a controller; a failed running action cannot silently reactivate a second
-policy owner. These are required contracts, not implemented runtime switching.
+policy owner.
+
+`battle/modules/13a-tactical-controller.js` (`BattleTacticalController`) implements this
+switch. Every squad starts and restarts on legacy; the six policy entry points
+(`squadCommand`, `commanderTick`, `fireAndMovement`, `executeMission`, `engagement`,
+`stationSelection`) call `dispatch`/`controls` after their retained services and run the
+legacy policy whenever it answers false. `requestMode(sim, squad, 'new', providerId)` is
+rejected with a specific reason (`contract-unavailable`, `unknown-provider`,
+`missing-policy:<point>`, `missing-adapter:<capability>`, `missing-lifecycle:<cancel|release>`,
+`cleanup-pending`, `cancelling`) and the current controller keeps the squad. Leaving a
+replacement cancels and releases its actions first; entering one ends legacy bound leases,
+bound orders, suppressor jobs and automatic stations through their owners. Mission and roster
+changes cancel old actions before the next policy call, module 44's urgent cover interrupts
+the man's actions with a reason, and resources are released once. Unconfirmed cleanup is
+retried on the next dispatch (no timer) and blocks the next switch. `battle-sim.js` calls
+`beforeRestart` before any `beforeBattleRestart` hook clears legacy squad state. Requests are
+validated by the contract below, so a stale tuple or an actor outside the squad is rejected.
+No provider is registered at runtime and the contract is not loaded by the page, so live
+activation stays rejected (`contract-unavailable`) until owner adapters are extracted; the
+controller keeps its state in WeakMaps and adds no squad or soldier field.
 
 Effect requests and receipts correlate the full tuple `battleId`, `generation`, `faction`, `squadId`,
 `actorId` (when applicable), `missionVersion`, `rosterRevision`, `controllerEpoch`, `mode`
@@ -72,7 +91,7 @@ an accepted fire request or support count alone does not prove covering fire.
 
 `battle/tactical-capability-contract.js` and its focused harness define detached,
 executable request/receipt validation only. The module is deliberately absent from the
-runtime loaders and module discovery. It supplies no live adapter, controller, lease
+runtime loaders and module discovery; the controller uses it when it is present. It supplies no live adapter, controller, lease
 manager, firing permission or proof that supplied evidence is true. Existing owners must
 produce the evidence in a later runtime integration; no gameplay acceptance is implied.
 

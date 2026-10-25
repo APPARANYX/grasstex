@@ -2124,6 +2124,10 @@
   root.SquadAI.extend('squadCommand', 'squad-leader', function (sq, battle) {
     updateSquadState(sq, battle);
     if (!battle) return;
+    /* Casualties, succession, assembly and retreat above are retained services. Under a replacement
+       controller the anchor, fireteam and forward-line policy below is the provider's. */
+    var TC = root.BattleTacticalController;
+    if (TC && TC.dispatch(battle, sq, 'squadCommand')) return;
     advanceSquadAnchor(sq, battle);
     updateFireteams(sq, battle);
     publishForwardLine(sq, battle);
@@ -2220,7 +2224,8 @@
     summary(sim);
   }
   function commanderTick(sim, payload) {
-    var town = (payload && payload.town) || null;
+    var town = (payload && payload.town) || null,
+      TC = root.BattleTacticalController;
     ['us', 'ge'].forEach(function (f) {
       var a = (sim.factions && sim.factions[f] && sim.factions[f].squads) || [];
       for (var i = 0; i < a.length; i++) {
@@ -2229,12 +2234,17 @@
            do not rewrite fireteam and soldier destinations during road travel.
            Boarding still runs this Meso loop to accept the Macro brief. */
         if (q._transport && q._transport.phase === 'embarked') continue;
-        if (_lp && _lp.on) _lp.update(sim, q);
-        if (_postures && _postures.on) _postures.update(sim, q);
-        updateCohesion(sim, q);
-        if (LEASE_CONFLICTS_ON || (_lp && _lp.on)) resolveLeaseConflicts(sim, q);
+        /* Local plan, posture, regroup and engagement-plan choices are policy; mission acceptance and
+           transport adoption (inside executeMission) and lease expiry stay with their owners. */
+        var legacy = !TC || !TC.dispatch(sim, q, 'commanderTick');
+        if (legacy) {
+          if (_lp && _lp.on) _lp.update(sim, q);
+          if (_postures && _postures.on) _postures.update(sim, q);
+          updateCohesion(sim, q);
+          if (LEASE_CONFLICTS_ON || (_lp && _lp.on)) resolveLeaseConflicts(sim, q);
+        }
         executeMission(sim, q, town);
-        updatePlan(sim, q);
+        if (legacy) updatePlan(sim, q);
         L.prune(q, sim.time);
       }
     });

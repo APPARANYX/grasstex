@@ -265,14 +265,20 @@
   }
   /* Engagement's afterDrill slot runs this once the state machine has decided the soldier's tick. */
   root.BattleEngagement.extend('afterDrill', 'combat-urgency', function (s, b) {
-    var e = estate(s);
+    var e = estate(s),
+      TC = root.BattleTacticalController,
+      owned = !!(TC && s.squad && TC.controls(b, s.squad));
+    /* Urgent cover is emergency survival: under a replacement controller it interrupts that man's
+       actions explicitly. The ordinary shared-contact halt is policy and stays with legacy. */
     if (
       !maintainUrgent(s, b, e) &&
       (+s.suppressedUntil || 0) > b.time &&
-      ['pinned', 'engage', 'orient'].indexOf(String(e.state || '')) >= 0
+      ['pinned', 'engage', 'orient'].indexOf(String(e.state || '')) >= 0 &&
+      startUrgent(s, b, e) &&
+      owned
     )
-      startUrgent(s, b, e);
-    reactShared(s, b, e);
+      TC.interrupt(b, s.squad, s.id, 'emergency-cover');
+    if (!owned) reactShared(s, b, e);
   });
   function markUrgent(sim) {
     var t = +sim.time || 0,
