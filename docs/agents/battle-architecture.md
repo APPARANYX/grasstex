@@ -1040,3 +1040,10 @@ it does not manufacture targets or require a round on every cooldown tick. Out-o
 visual observation alone grants no combat hold. Incoming pressure and cover/pinning still
 retain protection authority. `?effectiveFire=0` restores the prior state-only support and
 range-hold behavior for paired benchmarks; weapon range settings are unchanged.
+
+`?maneuverFirst=1` (off by default, needs `?localPlan=1`) changes one thing in the local plan's task choice (15n `decide`): when
+`maneuver` is eligible (in contact, not pressured, a base of fire of at least `minimumSupport`, movers within budget) the
+`support` task is not eligible, so support no longer wins the score contest. Pressure is already gated by `pressured`; the
+contest counted it again (`0.6 + 0.25c - p` against `0.4 + p`). The bound-gates probe (`scripts/probes/bound-gates.js`) showed
+squads in contact with a base of fire were held on `support` about 40% of their contact time and never reached an open
+bound gate. The flag also drops contact confidence from that one contest; the pairs say whether that costs anything.

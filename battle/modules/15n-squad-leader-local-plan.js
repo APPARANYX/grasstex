@@ -19,6 +19,8 @@
       structuresOn =
         tasksOn &&
         /[?&]localStructures=(?:1|on|true)(?:&|#|$)/i.test((root.location && root.location.search) || ''),
+      maneuverFirst =
+        on && /[?&]maneuverFirst=(?:1|on|true)(?:&|#|$)/i.test((root.location && root.location.search) || ''),
       entryOn =
         structuresOn &&
         /[?&]localEntry=(?:1|on|true)(?:&|#|$)/i.test((root.location && root.location.search) || ''),
@@ -1478,6 +1480,12 @@
           eligible.protect = false;
         }
       }
+      /* ?maneuverFirst=1: maneuver's eligibility already carries every condition (in contact, not pressured, a base of
+         fire of at least minimumSupport, movers within budget), and pressure is already gated by `pressured`. The score
+         contest below then counted pressure a second time against it (0.6 - p against 0.4 + p), which in practice lets
+         'support' win whenever p is above about 0.1 and leaves the squad nobody to move. An eligible maneuver is not
+         beaten by support; every other task keeps its score. */
+      if (maneuverFirst && eligible.maneuver) eligible.support = false;
       var kind = 'approach',
         best = -Infinity;
       Object.keys(scores).forEach(function (k) {

@@ -172,6 +172,25 @@ assert.ok(restart.q._localTask.history.length, 'shipping commander hook activate
 restart.systems['squad-command'].onBattleRestart(restart.b);
 assert.equal(restart.q._localTask, null, 'same-object restart clears nonempty policy/history');
 assert.equal(restart.S.localPlanTelemetry(restart.b).transitions, 0);
+// ?maneuverFirst=1: an eligible maneuver is not beaten by support, whatever the contact's confidence (the default
+// still sends a squad with only a faint contact to support).
+{
+  const base = '?localPlan=1&localResources=1&coa=0&fireControl=0&slStress=0';
+  for (const [flag, expect] of [
+    ['', 'support'],
+    ['&maneuverFirst=1', 'maneuver']
+  ]) {
+    const m = world(base + flag);
+    m.q.inContact = true;
+    m.r.SquadAI.squadContactsMap = () => [{ at: m.b.time, confidence: 0.1, source: 'heard' }];
+    m.b.time = 6;
+    assert.equal(
+      m.S.localPlan.update(m.b, m.q, report(m, Math.ceil(m.q.members.length * 0.15))).kind,
+      expect,
+      'light pressure with a base of fire: ' + (flag || 'default')
+    );
+  }
+}
 console.log(
   'PASS situational weighting, actual bound/recon consumers, pressure hysteresis, mission/succession/possession, report isolation and restart'
 );
