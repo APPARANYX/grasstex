@@ -501,9 +501,23 @@ test('a native station that refuses release blocks controller takeover', () => {
     P = provider(w.TC, 'fixture');
   w.TC.registerProvider(P.spec);
   s.us.members[1].station = { id: 'still-held' };
-  w.root.BattleTacticalPositions.release = () => false;
+  let releases = 0;
+  w.root.BattleTacticalPositions.release = () => (releases++, false);
   assert.equal(w.TC.requestMode(s, s.us, 'new', 'fixture').reason, 'cleanup-pending');
   assert.equal(w.TC.mode(s, s.us), 'legacy');
+  assert.deepEqual(w.TC.summary(s).refused, [
+    { squad: s.us.id, holdouts: ['station:' + s.us.members[1].id] }
+  ]);
+  for (let i = 0; i < 5; i++) w.TC.requestMode(s, s.us, 'new', 'fixture');
+  assert.equal(releases, 1, 'retries do not rerun cleanup on a squad legacy still commands');
+  assert.equal(w.TC.summary(s).stats.releaseRefused, 1);
+  delete s.us.members[1].station;
+  assert.equal(
+    w.TC.requestMode(s, s.us, 'new', 'fixture').ok,
+    true,
+    'once the holdout is gone the switch proceeds'
+  );
+  assert.equal(w.TC.summary(s).refused, undefined);
 });
 
 test('a provider fault never hands the tick back to legacy', () => {

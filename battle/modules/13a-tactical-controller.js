@@ -44,6 +44,7 @@
           unconfirmed: 0,
           restartDropped: 0,
           interruptsUnconfirmed: 0,
+          releaseRefused: 0,
           faults: 0
         }
       };
@@ -66,6 +67,7 @@
         rosterKey: null,
         rosterRevision: 0,
         handledRosterRevision: 0,
+        refused: null,
         rosterAt: null,
         missionVersion: null,
         cancelling: false,
@@ -212,14 +214,32 @@
       if (E.assignSuppressors) E.assignSuppressors(sq, sim, a, null);
     }
     if (P) for (var i = 0; i < a.length; i++) if (a[i] && P.current(a[i])) P.release(a[i], sim, reason);
-    /* An owner refusing release must not silently pass authority to a second controller. */
+    return holdouts(sq);
+  }
+  /* Legacy authority still held after release, read without changing anything. An owner refusing
+     release must not silently pass authority to a second controller. */
+  function holdouts(sq) {
+    var L = root.BattleLeases,
+      P = root.BattleTacticalPositions,
+      a = members(sq),
+      out = [];
     if (L && L.get) {
-      var remaining = POLICY_LEASES.concat(['regroup', 'recon', 'tactical-plan']);
-      for (var j = 0; j < remaining.length; j++) if (L.get(sq, remaining[j])) return false;
+      var leases = POLICY_LEASES.concat(['regroup', 'recon', 'tactical-plan']);
+      for (var j = 0; j < leases.length; j++) if (L.get(sq, leases[j])) out.push('lease:' + leases[j]);
     }
-    if (P) for (var n = 0; n < a.length; n++) if (a[n] && P.current(a[n])) return false;
-    if (sq.fireControl || sq._localTask) return false;
-    return true;
+    if (P) for (var n = 0; n < a.length; n++) if (a[n] && P.current(a[n])) out.push('station:' + a[n].id);
+    if (sq.fireControl) out.push('fireControl');
+    if (sq._localTask) out.push('localTask');
+    return out;
+  }
+  /* After a refused release, a repeated request runs cleanup again only once every holdout that
+     refused has gone, so retries never keep disrupting a squad that legacy still commands. */
+  function stillRefused(sq, rec) {
+    if (!rec.refused) return false;
+    var now = holdouts(sq);
+    for (var i = 0; i < rec.refused.length; i++) if (now.indexOf(rec.refused[i]) >= 0) return true;
+    rec.refused = null;
+    return false;
   }
   /* Cancel every live action of the current provider. Reentrant calls (an adapter that cancels,
      interrupts or restarts again) return without touching the list a second time. */
@@ -281,8 +301,15 @@
     if (rec.mode === 'new') {
       var done = cancelAll(sim, sq, rec, 'controller-switched');
       if (!done.ok) return note(sim, done.reason);
-    } else if (mode === 'new' && !releaseLegacy(sim, sq, 'controller-switched'))
-      return note(sim, 'cleanup-pending');
+    } else if (mode === 'new') {
+      if (stillRefused(sq, rec)) return note(sim, 'cleanup-pending');
+      var left = releaseLegacy(sim, sq, 'controller-switched');
+      if (left.length) {
+        rec.refused = left;
+        battleState(sim).stats.releaseRefused++;
+        return note(sim, 'cleanup-pending');
+      }
+    }
     rec.mode = mode;
     rec.provider = p;
     rec.epoch++;
@@ -462,6 +489,8 @@
         if (rec) {
           out.actions += rec.actions.length;
           out.pending += rec.pending.length;
+          if (rec.refused)
+            (out.refused = out.refused || []).push({ squad: a[i].id, holdouts: rec.refused.slice() });
         }
       }
     });

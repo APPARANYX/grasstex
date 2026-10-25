@@ -39,7 +39,12 @@ rejected with a specific reason (`contract-unavailable`, `unknown-provider`,
 replacement cancels and releases its actions first; entering one ends, through their owners,
 legacy recon, the engagement plan, a regroup (`endRegroup` restores the interrupted phase,
 counts the exit and grants the re-entry cooldown), the bound/bound-cycle/regroup-bypass/
-route-transition/corner-hold leases, bound orders, suppressor jobs and automatic stations, while retreat-anchor, rally-recovery and succession stay. Actions are
+route-transition/corner-hold leases, fire control, the tactical posture, the local task, bound
+orders, suppressor jobs and automatic stations, while retreat-anchor, rally-recovery and
+succession stay. Authority still held after that release (a lease, a station, fire control or a
+local task) rejects the switch as `cleanup-pending`, counts `stats.releaseRefused` and is listed
+under `summary().refused`; a repeated request reruns cleanup only once every listed holdout has
+gone, so retries never keep disrupting a squad legacy still commands. Actions are
 registered under their issuing provider before its owner adapter runs: lifecycle callbacks go
 to that provider, an adapter cannot switch controllers mid-acceptance (`accepting`), a
 synchronous completion is honoured, and only a context of the issuing epoch and generation
