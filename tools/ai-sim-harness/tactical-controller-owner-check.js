@@ -78,6 +78,7 @@ function provider(w) {
   Object.keys(CONTRACT.capabilities).forEach(c => (spec.adapters[c] = () => true));
   spec.lifecycle.cancel = () => true;
   spec.lifecycle.release = () => true;
+  spec.lifecycle.stage = () => ({ stage: 'accepted', reason: 'fixture', at: 0 });
   assert.equal(w.TC.registerProvider(spec).ok, true);
   return { calls, spec };
 }
@@ -373,6 +374,7 @@ test('restart barrier: cancellation runs before any beforeBattleRestart hook cle
     return true;
   };
   spec.lifecycle.release = () => true;
+  spec.lifecycle.stage = () => ({ stage: 'accepted', reason: 'fixture', at: 0 });
   root.BattleTacticalController.registerProvider(spec);
   function Sim() {
     this.time = 1;

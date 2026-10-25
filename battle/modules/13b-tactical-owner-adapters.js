@@ -50,6 +50,11 @@
     return t && t.missionVersion === req.missionVersion ? t : null;
   }
 
+  function rideEnded(h) {
+    var t = h.squad._transport;
+    return t !== h.ride || ['boarding', 'embarked', 'disembarking'].indexOf(t.phase) < 0;
+  }
+
   var CAPS = {
     /* Engagement is the one stance writer; its request only lowers, for the owner's own hold time. */
     'posture.lower': {
@@ -133,7 +138,11 @@
           sq = squadOf(sim, req),
           m = mission(sq, req);
         if (!m || !T || !T.considerMission || !T.considerMission(sim, sq, m)) return false;
-        if (!ride(sq, req)) return false;
+        /* A ride the owner started for another brief is not this action's: end it, never leave it untracked. */
+        if (!ride(sq, req)) {
+          if (T.finish) T.finish(sim, sq, 'controller:untracked');
+          return false;
+        }
         return keep(req, sim, { squad: sq, ride: sq._transport });
       },
       stage: function (h) {
@@ -150,10 +159,7 @@
         return true;
       },
       /* Released once the owner no longer carries or seats the squad for this ride. */
-      release: function (h) {
-        var t = h.squad._transport;
-        return t !== h.ride || ['boarding', 'embarked', 'disembarking'].indexOf(t.phase) < 0;
-      }
+      release: rideEnded
     },
     'transport.cancel': {
       request: function (req, sim) {
@@ -165,16 +171,13 @@
         return keep(req, sim, { squad: sq, ride: t });
       },
       stage: function (h) {
-        var t = h.squad._transport;
-        if (t !== h.ride || ['boarding', 'embarked', 'disembarking'].indexOf(t.phase) < 0)
-          mark(h, 'released', 'released');
+        if (rideEnded(h)) mark(h, 'released', 'released');
       },
       cancel: function () {
         return true;
       },
-      release: function () {
-        return true;
-      }
+      /* A dismounting squad still holds its team, locomotion and weapons; release waits for the end. */
+      release: rideEnded
     }
   };
   var MISSING = ['movement.move', 'movement.hold'];
@@ -212,6 +215,6 @@
     adapters: adapters,
     missing: MISSING.slice(),
     stage: stage,
-    lifecycle: { cancel: lifecycle('cancel'), release: lifecycle('release') }
+    lifecycle: { cancel: lifecycle('cancel'), release: lifecycle('release'), stage: stage }
   };
 })(typeof window !== 'undefined' ? window : globalThis);

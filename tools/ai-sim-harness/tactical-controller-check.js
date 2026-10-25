@@ -89,6 +89,7 @@ function provider(TC, id, opts = {}) {
     log.push('release:' + req.actionId + ':' + why);
     return opts.release ? opts.release(req, why) : true;
   };
+  p.lifecycle.stage = req => (opts.stage ? opts.stage(req) : { stage: 'accepted', reason: 'fixture', at: 0 });
   (opts.omit || []).forEach(k => {
     const [group, name] = k.split(':');
     delete p[group][name];
@@ -130,7 +131,8 @@ test('an incomplete or unknown replacement is rejected with a specific reason an
     [{ omit: ['policies:stationSelection'] }, 'missing-policy:stationSelection'],
     [{ omit: ['adapters:transport.cancel'] }, 'missing-adapter:transport.cancel'],
     [{ omit: ['adapters:movement.move'] }, 'missing-adapter:movement.move'],
-    [{ omit: ['lifecycle:release'] }, 'missing-lifecycle:release']
+    [{ omit: ['lifecycle:release'] }, 'missing-lifecycle:release'],
+    [{ omit: ['lifecycle:stage'] }, 'missing-lifecycle:stage']
   ];
   cases.forEach(([opts, reason, id]) => {
     const w = boot(),
@@ -556,6 +558,23 @@ test('a momentary refusal earns one more release after a mission change or a rep
   s2.us.members[1].station = { id: 'second' };
   w2.TC.requestMode(s2, s2.us, 'new', 'fixture');
   assert.equal(tries, 2, 'a new holdout with the same name is not the old refusal');
+});
+
+test('a stage report that throws shows the action as unknown, never hides it, and the read changes nothing', () => {
+  const w = boot(),
+    { s, P } = owned(w, {
+      stage: () => {
+        throw new Error('boom');
+      }
+    });
+  w.TC.dispatch(s, s.us, 'fireAndMovement');
+  const a = P.last().request('movement.move', 1, MOVE).actionId,
+    sum = w.TC.summary(s);
+  assert.equal(sum.live.length, 1);
+  assert.equal(sum.live[0].actionId, a);
+  assert.equal(sum.live[0].stage, 'unknown');
+  assert.equal(sum.live[0].reason, 'stage-fault');
+  assert.deepEqual(w.TC.summary(s), sum, 'a second read is identical');
 });
 
 test('a provider fault never hands the tick back to legacy', () => {

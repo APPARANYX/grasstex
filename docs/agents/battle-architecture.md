@@ -116,8 +116,12 @@ the owner call named in the contract: Engagement `requestStance` (lowering only,
 owner's `STANCE_HOLD`/`PRONE_HOLD`), module 20 `claim`/`release`, Commander `acceptMission`,
 module 58 `considerMission`/`finish`. `stage(request)` reads the owner's own state and returns
 `{stage, reason, at}` in the contract's stage names (`committed`, `assigned`/`occupied`,
-`executing`, `boarding`/`embarked`, `released`, or `cancelled` with the owner's reason), so a
-stalled action names where it stopped. Handles live in a WeakMap keyed by the request
+`executing`, `boarding`/`embarked`, `released`, or `cancelled` with the owner's reason). Every
+provider must supply that `stage` with its `cancel` and `release` (`missing-lifecycle:stage`
+otherwise), and the controller's `summary().live` lists each live or cleanup-pending action with
+its stage, reason and `since` time, so a stalled action names where it stopped; a report that
+throws reads as `unknown: stage-fault`. A dismounting squad keeps `transport.*` unreleased, so a
+switch waits for the dismount to end. Handles live in a WeakMap keyed by the request
 object; the module adds no field, timer, lease or writer. `movement.move` and `movement.hold`
 are listed in `missing`: Meso personal publication is private to module 16 and gets its owner
 entry in its own change, and until then a provider on these adapters alone is rejected with

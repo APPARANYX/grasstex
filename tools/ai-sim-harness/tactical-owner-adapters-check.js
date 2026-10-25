@@ -231,6 +231,94 @@ test('transport.consider and transport.cancel run the module 58 journey owner', 
   );
 });
 
+test('transport.cancel stays unreleased while the squad dismounts, so its resources are not reused', () => {
+  const w = world(),
+    r = w.r,
+    b = w.b;
+  r.location = { search: '?motorTransport=1' };
+  b.scene = {
+    metadata: {
+      battleScenario: {
+        profile: 'strategic',
+        objectives: [
+          { id: 'a', x: 0, z: 0 },
+          { id: 'b', x: 0, z: 1400 }
+        ],
+        roads: [{ fromObjectiveId: 'a', toObjectiveId: 'b', ax: 0, az: 0, bx: 0, bz: 1400, width: 14 }],
+        spawnZones: { us: { bases: [{ id: 'us-base-0', objectiveId: 'a', x: 0, z: 0 }] }, ge: { bases: [] } }
+      }
+    }
+  };
+  r.BattleSim = Object.assign(r.BattleSim, { moveTransportPassenger: () => true });
+  r.BattleNavigation = { movementClear: () => true, invalidateNavPath() {} };
+  loadModule(r, 'battle/modules/58-strategic-abstract-transport.js');
+  w.systems['strategic-abstract-transport'].onBattleStart(b);
+  const m = {
+    owner: 'force-command',
+    intent: 'capture',
+    status: 'executing',
+    version: 1,
+    objectiveId: 'b',
+    point: { x: 0, z: 1400 },
+    route: []
+  };
+  w.us._macroMission = m;
+  assert.ok(r.BattleSquadTransport.considerMission(b, w.us, m), 'legacy started the ride');
+  /* The walk to the truck needs a running battle; seat the first man in the boarding order directly. */
+  const t = w.us._transport;
+  t.access = true;
+  t.boardedIds = [t.boardingOrder[0]];
+  t.boardedCount = 1;
+  const ctx = owned(w);
+  const res = ctx.request('transport.cancel', null, {});
+  assert.equal(res.reason, 'owner-accepted');
+  assert.equal(w.us._transport.phase, 'disembarking');
+  const live = w.TC.summary(b).live.find(a => a.actionId === res.actionId);
+  assert.equal(live.stage, 'accepted', 'not released while the squad dismounts');
+  assert.equal(
+    w.TC.requestMode(b, w.us, 'legacy').reason,
+    'cleanup-pending',
+    'no switch while the dismount still holds the squad'
+  );
+  assert.equal(w.TC.mode(b, w.us), 'new');
+  assert.equal(w.TC.summary(b).pending, 1);
+  /* The owner finishes the dismount; the next request completes the release and the switch. */
+  w.us._transport.phase = 'aborted';
+  assert.equal(w.TC.requestMode(b, w.us, 'legacy').reason, 'switched');
+  assert.equal(w.TC.summary(b).pending, 0);
+});
+
+test('the controller summary lists each live action with the stage and reason its owner reports', () => {
+  const w = world(),
+    post = { id: 'w-2', x: 4, z: 6, building: 'b-1', facing: 0 };
+  w.r.BattleNavigation = {
+    firingStations: [post],
+    movementClear: () => true,
+    rejectedWindows: [],
+    invalidateNavPath() {}
+  };
+  w.r.BattleTacticalRoute = { createIngress: () => ({ door: 'd-1' }), cancel() {} };
+  loadModule(w.r, 'battle/modules/20-building-hardpoints.js');
+  w.systems['building-hardpoints'].onBattleStart(w.b);
+  w.us.state = 'engaged';
+  const ctx = owned(w),
+    s = rifleman(w);
+  const res = ctx.request('station.claim', s.id, { stationId: 'w-2', threat: { x: 0, z: 90 } });
+  assert.deepEqual(w.TC.summary(w.b).live, [
+    {
+      squad: 'us-0',
+      actionId: res.actionId,
+      capability: 'station.claim',
+      actorId: String(s.id),
+      provider: 'owners',
+      cleanupPending: false,
+      stage: 'assigned',
+      reason: 'assigned',
+      since: w.b.time
+    }
+  ]);
+});
+
 test('static: the adapters add no timer, RNG draw, movement writer or squad/soldier field', () => {
   const src = fs.readFileSync(path.join(H.REPO, 'battle/modules/13b-tactical-owner-adapters.js'), 'utf8');
   assert.doesNotMatch(src, /setTimeout|setInterval|requestAnimationFrame|Math\.random|\.random\(/);
