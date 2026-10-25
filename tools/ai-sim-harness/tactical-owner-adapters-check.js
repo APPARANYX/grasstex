@@ -284,6 +284,15 @@ test('transport.cancel stays unreleased while the squad dismounts, so its resour
   assert.equal(w.TC.summary(b).pending, 1);
   /* The owner finishes the dismount; the next request completes the release and the switch. */
   w.us._transport.phase = 'aborted';
+  w.us._transport.endedAt = b.time + 3;
+  const ended = w.us._transport.endedAt;
+  w.us._transport = null;
+  b.time += 20;
+  assert.equal(
+    w.TC.summary(b).live.find(a => a.actionId === res.actionId).since,
+    ended,
+    'released at the tracked ride’s end, even once the squad no longer holds it'
+  );
   assert.equal(w.TC.requestMode(b, w.us, 'legacy').reason, 'switched');
   assert.equal(w.TC.summary(b).pending, 0);
 });

@@ -180,7 +180,7 @@
         return keep(req, sim, { squad: sq, ride: t });
       },
       stage: function (h) {
-        if (rideEnded(h)) mark(h, 'released', 'released', h.squad._transport && h.squad._transport.endedAt);
+        if (rideEnded(h)) mark(h, 'released', 'released', h.ride.endedAt);
       },
       cancel: function () {
         return true;
