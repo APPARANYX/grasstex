@@ -302,6 +302,25 @@ test('urgent cover cancels the replacement controller actions before publishing 
   assert.equal(w.TC.summary(w.b).actions, 0);
 });
 
+test('controller handoff clears native fire control, local task and tactical posture state', () => {
+  const w = world(),
+    stability = w.r.BattleSquadStability,
+    postures = stability.tacticalPostures;
+  let postureEnds = 0;
+  const originalEnd = postures.end;
+  postures.end = function () {
+    postureEnds++;
+    return originalEnd.apply(this, arguments);
+  };
+  w.us.fireControl = { state: 'hold', targetId: 1, shooterId: null };
+  w.us._localTask = { kind: 'support', missionVersion: 1 };
+  owned(w);
+  assert.equal(w.us.fireControl, null, 'legacy HOLD is cleared through fire-control owner');
+  assert.equal(w.us._localTask, null, 'legacy local task is reset through its owner');
+  assert.equal(postureEnds, 1, 'the posture owner releases its policy on the switch');
+  assert.equal(w.TC.mode(w.b, w.us), 'new');
+});
+
 test('station selection: maintenance stays with the hardpoint owner; automatic claims go to the provider', () => {
   const w = world(),
     threats = [];
