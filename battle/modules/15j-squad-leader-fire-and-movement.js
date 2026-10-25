@@ -68,6 +68,23 @@
       else if (battle.time - sq._slStressSince >= LEAD_TUNING.reviewAfter)
         requestReview(battle, sq, 'squad stress');
     }
+    /* ?precisionRelease=1: PRECISION is preparation like HOLD, so it blocks maneuver for the same window HOLD is allowed
+       (FIRE_CONTROL_TUNING.maxHold from the moment it began) and no longer. The marksman keeps the fire order; only the
+       squad's bounds are released. Off: PRECISION blocks maneuver for as long as it lasts, which is until the enemy fires
+       or the contact is lost. */
+    var PRECISION_RELEASE = /[?&]precisionRelease=1(?:&|#|$)/.test(
+      (typeof location !== 'undefined' && location.search) || ''
+    );
+    function fireControlBlocks(fc, battle) {
+      if (!fc || (fc.state !== 'hold' && fc.state !== 'precision')) return false;
+      if (
+        PRECISION_RELEASE &&
+        fc.state === 'precision' &&
+        battle.time - fc.since >= ctx.FIRE_CONTROL_TUNING.maxHold
+      )
+        return false;
+      return true;
+    }
     /* Fire and movement. Engagement reports the squad's contact and base of fire; the Squad Leader decides
    whether the phase allows an assault and, every BOUND_CYCLE seconds, sends one fireteam forward
    for BOUND_DURATION while at least two men keep shooting. */
@@ -146,7 +163,7 @@
        forbidden, but the whole point of that state is to release movement so the Squad Leader can
        maneuver the assault toward a viable firing line. Do not turn REPOSITION into a stationary
        self-latch by treating it like HOLD/PRECISION here. */
-      if (fireControl && (fireControl.state === 'hold' || fireControl.state === 'precision')) {
+      if (fireControlBlocks(fireControl, battle)) {
         sq._assaultAuthorized = false;
         return;
       }

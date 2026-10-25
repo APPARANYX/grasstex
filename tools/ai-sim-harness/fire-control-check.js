@@ -267,6 +267,41 @@ test('zero-line reposition times out even after the initiating contact ages out'
   assert.equal(fc.reason, 'reposition timed out: resume maneuver fire');
 });
 
+function precisionWorld(flag) {
+  const w = world('?stressAct=0&fireControl=1&commandPosture=0' + flag, 141.5);
+  const tp = w.foe.root.position;
+  const marksman = w.us.members
+    .filter(s => s.role === 'rifleman')
+    .sort(
+      (a, b) =>
+        Math.hypot(a.root.position.x - tp.x, a.root.position.z - tp.z) -
+        Math.hypot(b.root.position.x - tp.x, b.root.position.z - tp.z)
+    )[0];
+  w.us.members.forEach(s => {
+    w.St.of(s).mkm = 0.45;
+  });
+  w.St.of(marksman).mkm = 0.9;
+  command(w);
+  prep(w);
+  w.b.time += 1.3;
+  assert.equal(command(w).state, 'precision');
+  return w;
+}
+test('precisionRelease=1: PRECISION blocks maneuver only for the HOLD window, the marksman keeps the fire order', () => {
+  const w = precisionWorld('&precisionRelease=1');
+  assert.equal(w.us._assaultAuthorized, false, 'inside the window maneuver stays closed');
+  w.b.time += 6.1;
+  const fc = command(w);
+  assert.equal(fc.state, 'precision', 'the fire order is unchanged');
+  assert.equal(w.us._assaultAuthorized, true, 'past the window the squad may maneuver');
+});
+test('precisionRelease off: PRECISION blocks maneuver for as long as it lasts', () => {
+  const w = precisionWorld('');
+  w.b.time += 30;
+  assert.equal(command(w).state, 'precision');
+  assert.equal(w.us._assaultAuthorized, false);
+});
+
 test('fireControl=0 preserves immediate-fire behavior', () => {
   const w = world('?stressAct=0&fireControl=0', 100);
   command(w);
