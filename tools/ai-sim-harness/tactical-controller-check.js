@@ -167,16 +167,10 @@ test('a complete replacement owns its squad exclusively at all six entry points;
   assert.equal(w.TC.controls(s, s.us), true);
   assert.deepEqual(
     w.ends,
-    [
-      'bound',
-      'bound-cycle',
-      'regroup',
-      'regroup-bypass',
-      'regroup-cooldown',
-      'route-transition',
-      'corner-hold'
-    ].map(k => k + ':controller-switched'),
-    'every legacy policy lease is ended; retreat-anchor, rally-recovery and succession are retained'
+    ['bound', 'bound-cycle', 'regroup-bypass', 'route-transition', 'corner-hold'].map(
+      k => k + ':controller-switched'
+    ),
+    'policy leases end; regroup goes through its owner; retreat-anchor, rally-recovery, succession stay'
   );
   assert.deepEqual(w.cleared, ['us-0']);
   assert.deepEqual(w.suppressed, [null], 'legacy suppressor jobs are cleared, not reassigned');

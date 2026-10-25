@@ -240,15 +240,24 @@ test('combat urgency: the ordinary shared-contact halt is the provider’s, not 
   assert.equal(halts('new'), 0);
 });
 
-test('handoff matrix: legacy regroup, recon and plan leases end on the switch; retreat lifecycle leases stay', () => {
+test('handoff matrix: regroup ends through its owner, recon/plan/bound leases end, retreat lifecycle stays', () => {
   const w = world(),
     L = w.r.BattleLeases,
     t = w.b.time;
-  ['regroup', 'regroup-cooldown', 'corner-hold', 'bound', 'retreat-anchor', 'succession'].forEach(k =>
+  ['corner-hold', 'bound', 'retreat-anchor', 'succession'].forEach(k =>
     L.grant(w.us, k, 'squad-leader', t, t + 60, 'fixture')
   );
+  L.grant(w.us, 'regroup', 'squad-leader', t, Infinity, 'squad dispersed', 'fixture', {
+    resumePhase: 'assault'
+  });
+  w.us.commandPhase = 'regroup';
+  const exits = (w.us._regroupHysteresis && w.us._regroupHysteresis.exits) || 0;
   owned(w);
-  ['regroup', 'regroup-cooldown', 'corner-hold', 'bound'].forEach(k => assert.equal(L.get(w.us, k), null, k));
+  assert.equal(L.get(w.us, 'regroup'), null);
+  assert.equal(w.us.commandPhase, 'assault', 'the interrupted phase is restored, not stuck at regroup');
+  assert.equal(w.us._regroupHysteresis.exits, exits + 1, 'the exit is counted');
+  assert.ok(L.get(w.us, 'regroup-cooldown'), 'the owner grants its re-entry cooldown');
+  ['corner-hold', 'bound'].forEach(k => assert.equal(L.get(w.us, k), null, k));
   ['retreat-anchor', 'succession'].forEach(k => assert.ok(L.get(w.us, k), k + ' is retained'));
   w.us._macroMission = { version: 1, status: 'executing', intent: 'attack', legs: [{ x: 0, z: 300 }] };
   w.systems['squad-command'].onCommanderTick(w.b, { town: null });

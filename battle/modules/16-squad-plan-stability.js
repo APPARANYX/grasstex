@@ -2297,6 +2297,9 @@
     updateRecon: updateRecon,
     endRecon: endRecon,
     closePlan: closePlan,
+    endRegroup: function (sim, sq, reason) {
+      return endRegroup(sim, sq, reason);
+    },
     reconTelemetry: reconTelemetry,
     slStress: function () {
       return Object.assign({}, SL_STRESS);

@@ -184,18 +184,11 @@
     return action.cancelled && releaseOnce(sim, action, reason);
   }
   /* Handoff matrix. Legacy tactical-policy work a replacement must not inherit is ended through its
-     owners: recon, the engagement plan, bound/regroup/route leases, bound orders, suppressor jobs and
-     automatic stations. retreat-anchor, rally-recovery and succession are retained lifecycle
+     owners: recon, the engagement plan, a regroup (its owner restores the interrupted phase, counts
+     the exit and grants the re-entry cooldown), the bound/route leases, bound orders, suppressor jobs
+     and automatic stations. retreat-anchor, rally-recovery and succession are retained lifecycle
      obligations and stay. Existing owner APIs only. */
-  var POLICY_LEASES = [
-    'bound',
-    'bound-cycle',
-    'regroup',
-    'regroup-bypass',
-    'regroup-cooldown',
-    'route-transition',
-    'corner-hold'
-  ];
+  var POLICY_LEASES = ['bound', 'bound-cycle', 'regroup-bypass', 'route-transition', 'corner-hold'];
   function releaseLegacy(sim, sq, reason) {
     var L = root.BattleLeases,
       E = root.BattleEngagement,
@@ -205,6 +198,7 @@
       a = members(sq);
     if (Q && Q.endRecon) Q.endRecon(sq, sim, reason);
     if (Q && Q.closePlan) Q.closePlan(sim, sq, reason);
+    if (Q && Q.endRegroup) Q.endRegroup(sim, sq, reason);
     if (L) for (var k = 0; k < POLICY_LEASES.length; k++) L.end(sq, POLICY_LEASES[k], t, reason);
     if (E) {
       E.clearBoundOrders(sq);
