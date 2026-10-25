@@ -1,12 +1,12 @@
 {
   "meta": {
     "mode": "seeds",
-    "run": "1320",
-    "runId": "40159230486",
+    "run": "1350",
+    "runId": "40223329734",
     "repo": "APPARANYX/grasstex",
-    "ref": "work/retreat-teams-20261025",
-    "sha": "b9f6cd8e0f5ba50d8952c06c03468041d188e053",
-    "runUrl": "https://github.com/APPARANYX/grasstex/actions/runs/40159230486",
+    "ref": "claude/project-thread-a5sq10",
+    "sha": "dbf92c8ff9f613a0acc51e54d06fcc6c4f71054f",
+    "runUrl": "https://github.com/APPARANYX/grasstex/actions/runs/40223329734",
     "seed": "phase-c-natural-20261012",
     "seeds": 3,
     "windows": "contact+60,every60",
@@ -79,9 +79,9 @@
       "b": 0
     },
     "wallSeconds": {
-      "medianA": 12.807500000000001,
-      "medianB": 13.158999999999999,
-      "ratio": 1.027,
+      "medianA": 15.392,
+      "medianB": 15.785499999999999,
+      "ratio": 1.026,
       "gate": 1.25
     },
     "counters": {
@@ -475,8 +475,8 @@
     "pass": true
   },
   "viewer": {
-    "url": "https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=1320&view=brain3d",
-    "previewUrl": "https://test.ivandpopov.com/grasstex/preview/retreat-teams-20261025/ai_flow_live.html?bench=1320&view=brain3d",
+    "url": "https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=1350&view=brain3d",
+    "previewUrl": null,
     "seeds": [
       {
         "seed": "phase-c-natural-20261012-0002",

@@ -1,7 +1,7 @@
-# Benchmark run #1320 · 3 seeds from `phase-c-natural-20261012` (meeting), windows `contact+60,every60`
+# Benchmark run #1350 · 3 seeds from `phase-c-natural-20261012` (meeting), windows `contact+60,every60`
 
 - **OFF** flags: `none` · **ON** flags: `localPlan=1&localAmbush=1&localManeuver=1&coveredBounds=1`
-- work/retreat-teams-20261025 @ b9f6cd8 · [run](https://github.com/APPARANYX/grasstex/actions/runs/40159230486) · build v29-dev
+- claude/project-thread-a5sq10 @ dbf92c8 · [run](https://github.com/APPARANYX/grasstex/actions/runs/40223329734) · build v29-dev
 
 ## Verdict
 
@@ -11,7 +11,7 @@
 
 ## Paired comparison (off against on)
 
-- **20** pairs (unpaired: off 0, on 0) · identical in every field: **0** · runtime errors off 0 / on 0 · wall time on/off x1.027 (gate 1.25)
+- **20** pairs (unpaired: off 0, on 0) · identical in every field: **0** · runtime errors off 0 / on 0 · wall time on/off x1.026 (gate 1.25)
 - the 11 changed records first part at simulated second: min 278.1, p10 278.1, median 278.1, p90 324, max 324
 
 | counter | off | on | mean diff per pair | pairs changed | on more | on fewer | sign p |
@@ -67,7 +67,7 @@ phase-c-natural-20261012-0002 278.1 s (timeline) · phase-c-natural-20261012-000
 
 ## Viewer
 
-[Open both arms in the 3D map](https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=1320&view=brain3d) · [the same on this branch's viewer](https://test.ivandpopov.com/grasstex/preview/retreat-teams-20261025/ai_flow_live.html?bench=1320&view=brain3d) (it has the change before it reaches main)
+[Open both arms in the 3D map](https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=1350&view=brain3d)
 
-The viewer loads `off.json` and `on.json` from the `benchmark-results` branch (`?bench=1320`); it opens the seed that parts earliest, and the dropdowns choose another.
+The viewer loads `off.json` and `on.json` from the `benchmark-results` branch (`?bench=1350`); it opens the seed that parts earliest, and the dropdowns choose another.
 
