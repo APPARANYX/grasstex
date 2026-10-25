@@ -1,7 +1,7 @@
-# Benchmark run #1336 · scripted scenario `controller-runtime-20261025` (meeting), windows `0+600`
+# Benchmark run #1369 · scripted scenario `controller-runtime-20261025` (meeting), windows `0+600`
 
 - **OFF** flags: `none` · **ON** flags: `none`
-- claude/project-thread-a5sq10 @ adf6e5d · [run](https://github.com/APPARANYX/grasstex/actions/runs/40220013242) · build v29-dev
+- claude/project-thread-a5sq10 @ 5cbf68a · [run](https://github.com/APPARANYX/grasstex/actions/runs/40241708730) · build v29-dev
 
 ## Verdict
 
@@ -10,7 +10,7 @@
 
 ## Paired comparison (off against on)
 
-- **1** pairs (unpaired: off 0, on 0) · identical in every field: **1** · runtime errors off 0 / on 0 · wall time on/off x0.995 (gate 1.25)
+- **1** pairs (unpaired: off 0, on 0) · identical in every field: **1** · runtime errors off 0 / on 0 · wall time on/off x1.054 (gate 1.25)
 - no record has a timeline or stress series that parts
 
 | counter | off | on | mean diff per pair | pairs changed | on more | on fewer | sign p |
@@ -66,7 +66,7 @@ controller-runtime-20261025 (identical)
 
 ## Viewer
 
-[Open both arms in the 3D map](https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=1336&pick=-end&view=brain3d)
+[Open both arms in the 3D map](https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=1369&pick=-end&view=brain3d)
 
-The viewer loads `off.json` and `on.json` from the `benchmark-results` branch (`?bench=1336`); it opens the full-length record (`pick=-end`), and the dropdowns choose another.
+The viewer loads `off.json` and `on.json` from the `benchmark-results` branch (`?bench=1369`); it opens the full-length record (`pick=-end`), and the dropdowns choose another.
 
