@@ -109,6 +109,24 @@ runtime loaders and module discovery; the controller uses it when it is present.
 manager, firing permission or proof that supplied evidence is true. Existing owners must
 produce the evidence in a later runtime integration; no gameplay acceptance is implied.
 
+`battle/modules/13b-tactical-owner-adapters.js` (`BattleTacticalOwnerAdapters`) is that
+integration for every capability except movement. A provider passes `adapters` and
+`lifecycle` from it to `registerProvider`. Each adapter only bridges a validated request to
+the owner call named in the contract: Engagement `requestStance` (lowering only, for the
+owner's `STANCE_HOLD`/`PRONE_HOLD`), module 20 `claim`/`release`, Commander `acceptMission`,
+module 58 `considerMission`/`finish`. `stage(request)` reads the owner's own state and returns
+`{stage, reason, at}` in the contract's stage names (`committed`, `assigned`/`occupied`,
+`executing`, `boarding`/`embarked`, `released`, or `cancelled` with the owner's reason). Every
+provider must supply that `stage` with its `cancel` and `release` (`missing-lifecycle:stage`
+otherwise), and the controller's `summary().live` lists each live or cleanup-pending action with
+its stage, reason and `since` (the owner's own time for that change), so a stalled action names where it stopped; a report that
+throws reads as `unknown: stage-fault`. A dismounting squad keeps `transport.*` unreleased, so a
+switch waits for the dismount to end. Handles live in a WeakMap keyed by the request
+object; the module adds no field, timer, lease or writer. `movement.move` and `movement.hold`
+are listed in `missing`: Meso personal publication is private to module 16 and gets its owner
+entry in its own change, and until then a provider on these adapters alone is rejected with
+`missing-adapter:movement.move`.
+
 Before activation, prove exclusive dispatch in both Meso paths and ordinary Micro/station
 policy, retained safety/adoption/transport, and cancellation on mission, membership,
 possession, transport, mode and generation changes. Then validate foundational skills,
