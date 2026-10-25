@@ -1049,3 +1049,10 @@ pause) and the leader's report (`heardBaseOfFire` in 15j) keeps only the men he 
 all read that filtered report, so a missed call, a silent or dead man or an old word is no base of fire. Calls follow
 the existing loss, delay, noise and not-listening rules. `cover-relay-check.js` owns the contract; `?coverRelay=0` (or
 absent) is the old direct read. Both constants are derived from the suppress cycle, not tuned.
+
+`?coverStagger=1` (off by default, needs `?coverRelay=1`) stops everyone in the open going for cover at once. In Engagement
+`decide`, a man who is not pinned and whose squad has four or more living men keeps firing from where he is, instead of
+starting an individual cover move, unless the leader has heard at least two other men firing who are not themselves moving
+(`staggerHold`; two is the minimum support the bound uses). A pinned man is never held. It reuses the relay's heard set and the
+existing cover search and `bound` state; no new mover or timer. The held man is re-asked at the next engage review.
+`cover-stagger-check.js` owns the contract; the bound-episodes probe reports `diedByReason` and `reachedCover` for the pair.

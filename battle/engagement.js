@@ -498,6 +498,30 @@
   // How much of his running pace a crawl covers (module 11's gait table), 0.23 without it.
   var COVER_FIRE = !(typeof location !== 'undefined' && /[?&]coverFire=0\b/.test(location.search || ''));
   var COVER_STANCE = !(typeof location !== 'undefined' && /[?&]coverStance=0\b/.test(location.search || ''));
+  /* ?coverStagger=1 (needs ?coverRelay=1): a man in the open who is not pinned does not leave his spot for cover unless the
+     leader has heard at least two other men firing who are not themselves moving. Two is the minimum support the
+     bound itself needs (localPlan minimumSupport). Pinned men and squads under four men are never held. */
+  var COVER_STAGGER =
+      typeof location !== 'undefined' &&
+      /[?&]coverStagger=(?:1|on|true)(?:&|#|$)/i.test(location.search || ''),
+    STAGGER_SUPPORT = 2,
+    STAGGER_MIN_SQUAD = 4;
+  function staggerHold(s, battle) {
+    var C = root.BattleCallouts,
+      sq = s.squad;
+    if (!COVER_STAGGER || !C || !C.coverRelayOn() || !sq || !sq.inContact) return false;
+    var heard = C.coverHeard(battle, sq),
+      m = sq.members || [],
+      living = 0,
+      held = 0,
+      i;
+    for (i = 0; i < m.length; i++) {
+      if (!m[i] || m[i].dead) continue;
+      living++;
+      if (m[i] !== s && heard[m[i].id] && state(m[i]).state !== 'bound') held++;
+    }
+    return living >= STAGGER_MIN_SQUAD && held < STAGGER_SUPPORT;
+  }
   /* ---- cover (battle/modules/19-engagement-cover-positions.js) ------------------------------ */
 
   /* Cover is a set of physical stand slots, shared by engagement and survival routes. Claims
@@ -1332,6 +1356,11 @@
       evade: suppressed,
       notBehind: fwd ? { axis: fwd, allow: BOUND_BACK_ALLOW } : null
     });
+    if (cover && !suppressed && staggerHold(s, battle)) {
+      s.squad.staggerHolds = (s.squad.staggerHolds || 0) + 1;
+      transition(s, battle, 'engage', 0, why + ': cover move held (no heard base of fire)');
+      return engage(s, battle);
+    }
     if (cover) {
       e.cover = cover;
       transition(
