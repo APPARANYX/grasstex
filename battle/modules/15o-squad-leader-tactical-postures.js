@@ -543,6 +543,7 @@
       tuning: tuning,
       coveredTeam: coveredTeam,
       update: update,
+      end: end,
       current: current,
       soldierOrder: soldierOrder,
       summary: function (sim) {
