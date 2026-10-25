@@ -176,6 +176,14 @@
         if (!m.length) return;
         var desired = desiredAnchor(sq, key);
         if (!desired) return;
+        // ?retreatTeams=1: the holding team keeps the ground it stands on while the others fall back.
+        if (
+          sq.state === 'retreat' &&
+          sq._retreatHold &&
+          sq._retreatHold.anchors &&
+          sq._retreatHold.anchors[key]
+        )
+          desired = sq._retreatHold.anchors[key];
         /* The team's renewal waits for its men to close on the anchor. A man the Squad Leader's reading of
          Movement Execution (executionBlocked) has found physically unable to arrive is not waited for:
          counting him would hold his whole fireteam on its old anchor for as long as he stays stuck. */

@@ -68,6 +68,88 @@
       else if (battle.time - sq._slStressSince >= LEAD_TUNING.reviewAfter)
         requestReview(battle, sq, 'squad stress');
     }
+    /* ?retreatTeams=1: a retreating squad in contact falls back by fireteams. One team holds its ground and keeps firing
+       (its anchor frozen where it stands) while the others keep falling back; the 'bound' lease, BOUND_DURATION and the
+       team rotation are the forward bound's own, reversed in purpose: the hold ends, the next team in rotation holds,
+       and the team that held now moves. Retreat keeps ownership (#351/#356, #375): no order is issued, only the
+       holders' retreat anchor stays. A holder needs two men who are able to fire; the squad needs four living. */
+    var RETREAT_TEAMS =
+      /[?&]retreatTeams=1(?:&|#|$)/.test((typeof location !== 'undefined' && location.search) || '') &&
+      !/[?&]retreatTeams=0(?:&|#|$)/.test((typeof location !== 'undefined' && location.search) || '');
+    function retreatTeams(sq, battle, r) {
+      var t = battle.time,
+        lease = L.get(sq, 'bound'),
+        members = sq.members || [],
+        living = 0,
+        i,
+        s;
+      for (i = 0; i < members.length; i++) if (members[i] && !members[i].dead) living++;
+      if (lease && lease.data && lease.data.retreatHold && L.holds(sq, 'bound', t)) {
+        if (living >= 4 && sq.inContact) {
+          sq._retreatHold = lease.data;
+          return;
+        }
+        L.end(sq, 'bound', t, 'retreat hold over');
+      }
+      sq._retreatHold = null;
+      if (living < 4 || !sq.inContact) return;
+      var last = sq._retreatHoldLast == null ? -1 : sq._retreatHoldLast;
+      for (var k = 1; k <= BOUND_TEAMS.length; k++) {
+        var idx = (last + k) % BOUND_TEAMS.length,
+          team = BOUND_TEAMS[idx],
+          able = 0,
+          sx = 0,
+          sz = 0,
+          n = 0,
+          others = 0;
+        for (i = 0; i < members.length; i++) {
+          s = members[i];
+          if (!s || s.dead || s.isPlayer) continue;
+          if (s._fireteamKey !== team) {
+            others++;
+            continue;
+          }
+          n++;
+          sx += s.root.position.x;
+          sz += s.root.position.z;
+          if (
+            s.suppressedUntil <= t &&
+            !s.reloading &&
+            !s.clearingStoppage &&
+            !s.outOfAmmo &&
+            !(r.reacting && r.reacting.indexOf(s) >= 0)
+          )
+            able++;
+        }
+        if (able < 2 || !others) continue;
+        sq._retreatHoldLast = idx;
+        var anchors = {};
+        anchors[team] = { x: sx / n, z: sz / n };
+        L.grant(
+          sq,
+          'bound',
+          'squad-leader',
+          t,
+          t + BOUND_DURATION,
+          'fireteam ' + team + ' holds the retreat',
+          'window expiry or contact broken',
+          {
+            team: team,
+            retreatHold: team,
+            anchors: anchors
+          }
+        );
+        sq._retreatHold = L.get(sq, 'bound').data;
+        sq.retreatHolds = (sq.retreatHolds || 0) + 1;
+        telemetry(battle, 'decision-retreat-hold', {
+          faction: sq.faction,
+          squad: sq.id,
+          team: team,
+          able: able
+        });
+        return;
+      }
+    }
     /* ?coverRelay=1: the leader counts as base of fire only the men he has heard say they are firing (or himself).
        Engagement still reports who is able to fire; this keeps that from being read through the squad. Everything
        downstream (the bound gate, the supporter count, postures, local plan) reads this filtered report. */
@@ -97,9 +179,19 @@
       updateRecon(sq, battle, r);
       var localTask = localPlan && localPlan.on ? localPlan.update(battle, sq, r) : null;
       if (tacticalPostures && tacticalPostures.on) tacticalPostures.update(battle, sq, r);
-      if (localPlan && localPlan.tasksOn && sq.state === 'retreat') {
+      var heldLease = RETREAT_TEAMS && sq.state === 'retreat' && L.get(sq, 'bound');
+      if (
+        localPlan &&
+        localPlan.tasksOn &&
+        sq.state === 'retreat' &&
+        !(heldLease && heldLease.data && heldLease.data.retreatHold)
+      ) {
         L.end(sq, 'bound', battle.time, 'retreat owns recovery');
         E.clearBoundOrders(sq);
+      }
+      if (RETREAT_TEAMS) {
+        if (sq.state === 'retreat') retreatTeams(sq, battle, r);
+        else sq._retreatHold = null;
       }
       if (LEASE_CONFLICTS_ON || (localPlan && localPlan.on)) resolveLeaseConflicts(battle, sq);
       if (leaderlessActive(sq) && sq.state !== 'retreat') {

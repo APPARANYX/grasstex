@@ -1725,7 +1725,8 @@
       if (dist(p.x, p.z, localPoint.x, localPoint.z) > 1.8) move(s, battle, localPoint, 'withdraw');
       else holdPosition(s, battle);
     } else followOrders(s, battle, true);
-    if (s.target && dist(posOf(s).x, posOf(s).z, posOf(s.target).x, posOf(s.target).z) < 35)
+    var holding = squadRetreat && s.squad._retreatHold && s.squad._retreatHold.team === s._fireteamKey;
+    if (s.target && (holding || dist(posOf(s).x, posOf(s).z, posOf(s.target).x, posOf(s.target).z) < 35))
       tryFire(s, battle);
   }
 

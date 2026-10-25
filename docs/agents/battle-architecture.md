@@ -1049,3 +1049,5 @@ pause) and the leader's report (`heardBaseOfFire` in 15j) keeps only the men he 
 all read that filtered report, so a missed call, a silent or dead man or an old word is no base of fire. Calls follow
 the existing loss, delay, noise and not-listening rules. `cover-relay-check.js` owns the contract; `?coverRelay=0` (or
 absent) is the old direct read. Both constants are derived from the suppress cycle, not tuned.
+
+`?retreatTeams=1` (opt-in): a retreating squad in contact with four or more living falls back by fireteams. The Squad Leader grants the existing `bound` lease with `retreatHold` set to one team (rotation order and `BOUND_DURATION` are the forward bound's). That team's retreat anchor stays where it stands and its men fire from `withdraw()` at any range; the other teams keep following the retreat anchor. When the window ends the next team holds and the one that held moves. The squad stays in the `retreat` state (#375), no order is issued and no second movement writer exists (#351/#356): 15h only keeps the holder's anchor. Telemetry `decision-retreat-hold`; `sq.retreatHolds` counts holds.
