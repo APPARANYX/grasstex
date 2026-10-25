@@ -1,12 +1,12 @@
 {
   "meta": {
     "mode": "seeds",
-    "run": "1333",
-    "runId": "40219953750",
+    "run": "1362",
+    "runId": "40241195970",
     "repo": "APPARANYX/grasstex",
     "ref": "claude/project-thread-a5sq10",
-    "sha": "adf6e5d30cda619d5ad094480fa612c230533c56",
-    "runUrl": "https://github.com/APPARANYX/grasstex/actions/runs/40219953750",
+    "sha": "1f61da3c3ca78408d0baad335a7aed50bd191a60",
+    "runUrl": "https://github.com/APPARANYX/grasstex/actions/runs/40241195970",
     "seed": "phase-c-natural-20261012",
     "seeds": 3,
     "windows": "contact+60,every60",
@@ -79,8 +79,8 @@
       "b": 0
     },
     "wallSeconds": {
-      "medianA": 17.2295,
-      "medianB": 17.7215,
+      "medianA": 13.719,
+      "medianB": 14.123,
       "ratio": 1.029,
       "gate": 1.25
     },
@@ -475,7 +475,7 @@
     "pass": true
   },
   "viewer": {
-    "url": "https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=1333&view=brain3d",
+    "url": "https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=1362&view=brain3d",
     "previewUrl": null,
     "seeds": [
       {

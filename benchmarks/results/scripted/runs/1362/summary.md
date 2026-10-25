@@ -1,7 +1,7 @@
-# Benchmark run #1333 · 3 seeds from `phase-c-natural-20261012` (us-defend), windows `contact+60,every60`
+# Benchmark run #1362 · 3 seeds from `phase-c-natural-20261012` (us-defend), windows `contact+60,every60`
 
 - **OFF** flags: `none` · **ON** flags: `localPlan=1&localAmbush=1&localManeuver=1&coveredBounds=1`
-- claude/project-thread-a5sq10 @ adf6e5d · [run](https://github.com/APPARANYX/grasstex/actions/runs/40219953750) · build v29-dev
+- claude/project-thread-a5sq10 @ 1f61da3 · [run](https://github.com/APPARANYX/grasstex/actions/runs/40241195970) · build v29-dev
 
 ## Verdict
 
@@ -67,7 +67,7 @@ phase-c-natural-20261012-0002 334.05 s (timeline)
 
 ## Viewer
 
-[Open both arms in the 3D map](https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=1333&view=brain3d)
+[Open both arms in the 3D map](https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=1362&view=brain3d)
 
-The viewer loads `off.json` and `on.json` from the `benchmark-results` branch (`?bench=1333`); it opens the seed that parts earliest, and the dropdowns choose another.
+The viewer loads `off.json` and `on.json` from the `benchmark-results` branch (`?bench=1362`); it opens the seed that parts earliest, and the dropdowns choose another.
 
