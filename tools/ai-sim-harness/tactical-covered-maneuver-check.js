@@ -91,6 +91,29 @@ function world(range = 100, flags = '&commandPosture=0') {
       return { ...p, slot, slotId: slot.id };
     });
   cover.boundRoute = () => ({ eligible: true, reason: 'fixture-covered-segment' });
+  // The contact-route planner has its own deterministic geometry tests.
+  // Here isolate the Meso/Engagement adoption and support-fire lifecycle
+  // using a physically valid six-meter cover waypoint and live shot receipts.
+  r.BattleTacticalContactRoute = {
+    tuning: { maxHop: 26 },
+    pick: (soldier, sim, reports, goal) => {
+      const points = cover.candidates(soldier, sim, reports[0], 26);
+      const current = soldier.root.position;
+      const remaining = Math.hypot(current.x - goal.x, current.z - goal.z);
+      const toward = points.filter(p =>
+        Math.hypot(p.x - goal.x, p.z - goal.z) < remaining - 1 &&
+        cover.boundRoute(soldier, sim, p, reports).eligible
+      );
+      const point = toward[0];
+      return {
+        point: point ? { x: point.x, z: point.z } : null,
+        score: point ? Math.hypot(point.x - goal.x, point.z - goal.z) : null,
+        exposure: 0,
+        stats: { total: points.length, progressing: toward.length, safe: toward.length, rejected: {} }
+      };
+    },
+    evaluate: (soldier, sim, point, reports) => cover.boundRoute(soldier, sim, point, reports)
+  };
   see(w);
   return w;
 }
@@ -158,28 +181,28 @@ test('advance waits for real discharges, personal movement adoption, physical ar
   assert.equal(w.M.summary(w.q).phase, 'support');
   assert.equal(live(w, 'combat.bound').length, 0, 'readiness is not discharge');
   until(w, () => w.M.summary(w.q).phase === 'moving');
-  assert.ok(w.M.summary(w.q).supporters.length >= 2);
-  const firstTeam = w.M.summary(w.q).team;
+  assert.ok(w.M.summary(w.q).supporters.length >= 1);
+  const firstMover = w.M.summary(w.q).history.find(h => h.phase === 'support').movers[0].id;
   until(w, () => w.M.summary(w.q).completed >= 1);
   until(w, () => w.M.summary(w.q).phase === 'moving');
-  assert.notEqual(w.M.summary(w.q).team, firstTeam);
+  assert.notEqual(w.M.summary(w.q).history.filter(h => h.phase === 'support').slice(-1)[0].movers[0].id, firstMover);
   until(w, () => w.M.summary(w.q).completed >= 2);
   clean(w);
 });
-test('retreat retains two firing holders, moves backward, swaps teams and falls back on support loss', () => {
+test('retreat retains a real firing holder, moves backward, selects another mover and falls back on support loss', () => {
   const w = world();
   w.q.establishment = 25; // fixed casualty ratio keeps the native morale owner in retreat
   w.q.home = { x: 0, z: -200 };
   until(w, () => w.M.summary(w.q)?.phase === 'moving');
   assert.equal(w.q.state, 'retreat');
   assert.equal(w.M.summary(w.q).direction, 'back');
-  const first = w.M.summary(w.q).team;
+  const first = w.M.summary(w.q).history.find(h => h.phase === 'support').movers[0].id;
   const movers = live(w, 'combat.bound').map(a => w.q.members.find(s => String(s.id) === a.actorId));
   const origins = movers.map(s => s.root.position.z);
   until(w, () => w.M.summary(w.q).completed >= 1);
   assert.ok(movers.every((s, i) => s.root.position.z < origins[i]));
   until(w, () => w.M.summary(w.q).phase === 'moving');
-  assert.notEqual(w.M.summary(w.q).team, first);
+  assert.notEqual(w.M.summary(w.q).history.filter(h => h.phase === 'support').slice(-1)[0].movers[0].id, first);
   for (const s of w.q.members)
     if (w.r.BattleSquadStability.controllerBound.role(s, w.b) === 'cover') s.suppressedUntil = w.b.time + 10;
   tick(w);
