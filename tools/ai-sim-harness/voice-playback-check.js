@@ -45,6 +45,7 @@ function runModule(rel, invalidate) {
       this.url = url;
       this.scene = scene;
       this.played = 0;
+      this.isPlaying = false;
       this.attached = null;
       this.onEndedObservable = {
         addOnce: fn => {
@@ -65,6 +66,7 @@ function runModule(rel, invalidate) {
     }
     play() {
       this.played++;
+      this.isPlaying = true;
     }
   }
 
@@ -114,12 +116,23 @@ function runModule(rel, invalidate) {
     assert.ok(overlapped && overlapped.ended, 'same cached sound cannot restart while playing');
     assert.equal(overlapped.started, false);
     assert.equal(sounds[0].played, 1, 'overlapping speaker does not cut the original voice');
+    sounds[0].isPlaying = false;
     sounds[0].onEnded();
     assert.equal(handle.ended, true, 'physical end frees the active voice slot');
     ctx.performance.now = () => 7000;
     const resumed = ctx.BattleVoiceScheduler.enqueue(soldier, 'engage', null, { priority: 'tactical' });
     assert.ok(resumed && resumed.started, 'speaker can reuse the clip after actual completion');
     assert.equal(sounds[0].played, 2);
+    assert.equal(ctx.BattleVoiceScheduler.summary().active, 1);
+    // A missing Babylon end event must not silence all subsequent voices.
+    sounds[0].isPlaying = false;
+    ctx.performance.now = () => 8000;
+    const repaired = ctx.BattleVoiceScheduler.enqueue(soldier, 'engage', null, { priority: 'tactical' });
+    assert.ok(repaired && repaired.started, 'stale playback bookkeeping is repaired on the next request');
+    assert.equal(sounds[0].played, 3);
+    assert.equal(ctx.BattleVoiceScheduler.summary().staleRecovered, 1);
+    assert.equal(resumed.ended, true, 'orphaned prior playback handle completed once');
+    assert.equal(ctx.BattleVoiceScheduler.summary().active, 1);
   }
   assert.deepEqual(errors, [], rel + ': playback does not fall into the error handler');
 }

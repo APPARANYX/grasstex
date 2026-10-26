@@ -17,7 +17,8 @@
   var cache = {},
     failed = {},
     activeSounds = 0,
-    MAX_VOICES = 4,
+    MAX_VOICES = 8,
+    voiceStats = { played: 0, droppedBusyClip: 0, droppedCapacity: 0, staleRecovered: 0 },
     debugVoice = /[?&]voiceDebug=(?:1|on|true)(?:&|#|$)/i.test((root.location && root.location.search) || '');
   function voiceLog(s) {
     if (debugVoice && root.GTLog) root.GTLog(s);
@@ -172,6 +173,33 @@
       }
     }
   }
+  /* Missed playback-end events must not permanently fill the speaker pool.
+     Babylon exposes an actual isPlaying flag; honor the physical source instead
+     of treating a previous logical request as audible forever. Never interrupt
+     an actively playing clip just to gain another request. */
+  function recoverStopped() {
+    Object.keys(cache).forEach(function (file) {
+      var entry = cache[file],
+        sound = entry && entry.sound;
+      if (
+        entry &&
+        entry.playing &&
+        sound &&
+        sound.isPlaying === false &&
+        performance.now() - entry.startedAtMs >= 500
+      ) {
+        entry.playing = false;
+        activeSounds = Math.max(0, activeSounds - 1);
+        voiceStats.staleRecovered++;
+        var prior = entry.currentReq;
+        entry.currentReq = null;
+        try {
+          if (sound.detachFromMesh) sound.detachFromMesh();
+        } catch (_) {}
+        finish(prior);
+      }
+    });
+  }
   /* entry.sound is one Sound instance cached per filename and reused by whichever soldier next
      speaks that line. setPosition() alone only snapshots where the speaker stood at the instant
      play() fired: on anything longer than a one-word bark the soldier walks on and leaves the
@@ -180,6 +208,8 @@
      tracking (and, after a restart, reading) a disposed root. */
   function armEnded(entry, req) {
     function done() {
+      if (entry.currentReq !== req) return;
+      entry.currentReq = null;
       try {
         if (entry.sound && typeof entry.sound.detachFromMesh === 'function') entry.sound.detachFromMesh();
       } catch (_) {}
@@ -223,15 +253,19 @@
       finish(req);
       return req.handle;
     }
-    /* A cached Babylon Sound can play only one file instance at a time.
-       Replaying the same object interrupts the previous speaker and can
-       stack stale end callbacks. Drop only the redundant presentation
-       request; the caller's playback handle still completes correctly. */
+    recoverStopped();
+    /* Cached Sound is single-voice, but unrelated soldiers can speak at
+       once. Keep a bounded battle-wide voice budget with no hard lockup when
+       an audio-engine completion event is missed. */
     if (entry.playing || activeSounds >= MAX_VOICES) {
+      if (entry.playing) voiceStats.droppedBusyClip++;
+      else voiceStats.droppedCapacity++;
       finish(req);
       return req.handle;
     }
     entry.playing = true;
+    entry.currentReq = req;
+    entry.startedAtMs = performance.now();
     activeSounds++;
     try {
       var soldier = req.soldier,
@@ -262,10 +296,12 @@
         );
       s.play();
       req.handle.started = true;
+      voiceStats.played++;
       voiceLog(
         '[VOICE] play ' + entry.file + ' profile=' + (entry.profileId || 'neutral') + ' lane=' + req.lane
       );
     } catch (e) {
+      entry.currentReq = null;
       entry.playing = false;
       activeSounds = Math.max(0, activeSounds - 1);
       console.error('[VOICE] play failed ' + entry.file + ': ' + ((e && e.message) || e));
@@ -343,6 +379,8 @@
       sound: null,
       ready: false,
       playing: false,
+      currentReq: null,
+      startedAtMs: 0,
       pending: [req]
     };
     try {
@@ -376,6 +414,13 @@
     return handle;
   }
 
-  root.BattleVoiceScheduler = { enqueue: enqueue, profileFor: profileFor, variantPath: variantPath };
+  root.BattleVoiceScheduler = {
+    enqueue: enqueue,
+    profileFor: profileFor,
+    variantPath: variantPath,
+    summary: function () {
+      return Object.assign({ active: activeSounds, cap: MAX_VOICES }, voiceStats);
+    }
+  };
   root.GTLog('[VOICE] v5 pitch profiles + one-contact-per-squad + playback completion active');
 })(typeof window !== 'undefined' ? window : globalThis);
