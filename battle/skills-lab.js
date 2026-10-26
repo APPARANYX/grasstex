@@ -757,9 +757,9 @@
               (labels.length ? labels.join(' → ') : 'arrived');
           });
           return s.id + ' · mission ' + (s.missionAction || 'none') +
-            '\\n' + (lines.length ? lines.join('\\n') :
+            '\n' + (lines.length ? lines.join('\n') :
               '  No leader-approved multihop plan (' + (s.reason || 'no authorization') + ')');
-        }).join('\\n') || 'No US squads';
+        }).join('\n') || 'No US squads';
     panel.querySelector('#skillGates').textContent =
       d.squads
         .filter(function (s) {
