@@ -1244,7 +1244,9 @@
       var shot = M && M.shotEvidence && M.shotEvidence(s, battle);
       return (
         (!h.coverTeam || teamKeyFor(s) === h.coverTeam) &&
-        boundMember(s, battle) &&
+        (h.moverId
+          ? !!(s && !s.dead && !s.incapacitated && s.hp > 0 && s.weapon && !s.outOfAmmo)
+          : boundMember(s, battle)) &&
         E.supportReady(s, battle) &&
         shot &&
         shot.at >= h.lease.since &&
@@ -1294,7 +1296,9 @@
         !A.isMachineGun(s) && boundMember(s, battle);
     });
     var holders = a.filter(function (s) {
-      return movers.indexOf(s) < 0 && boundMember(s, battle);
+      return movers.indexOf(s) < 0 && (params.moverId
+        ? !!(s && !s.dead && !s.incapacitated && s.hp > 0 && s.weapon && !s.outOfAmmo)
+        : boundMember(s, battle));
     });
     if (params.moverId && (movers.length !== 1 || teamKeyFor(movers[0]) !== params.team)) return null;
     if (movers.length < (params.moverId ? 1 : 2) || holders.length < (params.moverId ? 1 : 2)) return null;
