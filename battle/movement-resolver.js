@@ -276,13 +276,30 @@
     return out;
   }
 
-  function proposeOrder(soldier, next, battle, urgent) {
+  function proposeOrder(soldier, next, battle, urgent, publisher) {
     if (!soldier) return null;
     var raw = point(next);
     if (!raw) return null;
     var st = state(soldier),
       team = point(soldier._fireteamDestination),
-      source = team ? 'squad-stability' : 'squad-orders';
+      source = publisher || (team ? 'squad-stability' : 'squad-orders');
+    /* Only the replacement controller's squad-leader provider may publish
+       routine squad-formation destinations. Previously SquadAI's legacy
+       fallback and Meso alternated that same field, producing physical
+       A→B→A reversals despite valid native combat bounds. The explicit
+       publisher identifies intent without guessing from mutable soldier
+       fields. Emergency/retreat calls and all legacy squads stay unchanged. */
+    if (
+      source === 'squad-orders' &&
+      !urgent &&
+      root.BattleTacticalController &&
+      root.BattleTacticalController.controls &&
+      soldier.squad &&
+      root.BattleTacticalController.controls(battle, soldier.squad)
+    ) {
+      count(battle, 'ignored-legacy-formation', source);
+      return st.order;
+    }
     count(battle, 'requests', source);
     st.requests = (st.requests || 0) + 1;
     var sig = signature(soldier),

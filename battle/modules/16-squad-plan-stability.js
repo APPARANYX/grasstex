@@ -995,7 +995,7 @@
     if (envelopeId !== undefined) s._fireteamAdoptedEnvelope = envelopeId;
     stats.intentPublishes++;
     if (root.BattleMovementResolver)
-      root.BattleMovementResolver.proposeOrder(s, s._fireteamDestination, battle, !!urgent);
+      root.BattleMovementResolver.proposeOrder(s, s._fireteamDestination, battle, !!urgent, 'squad-stability');
     else s.orderDestination = copy(s._fireteamDestination);
     return true;
   }

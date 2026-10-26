@@ -175,6 +175,20 @@ function until(w, predicate, seconds = 20) {
     'condition did not occur: ' + JSON.stringify(w.M.summary(w.q)) + ' ' + JSON.stringify(w.TC.summary(w.b))
   );
 }
+test('new-controller formation authorizations have one movement writer; legacy stays unchanged', () => {
+  const w = world();
+  const s = w.q.members[4];
+  const first = { x: s.root.position.x + 3, z: s.root.position.z + 5 };
+  const legacy = { x: s.root.position.x - 7, z: s.root.position.z - 9 };
+  w.r.BattleMovementResolver.proposeOrder(s, first, w.b, false, 'squad-stability');
+  const original = { ...s.orderDestination };
+  w.r.BattleMovementResolver.proposeOrder(s, legacy, w.b, false, 'squad-orders');
+  assert.deepEqual(s.orderDestination, original, 'legacy squad orders cannot reverse new Meso destinations');
+  assert.equal(w.TC.requestMode(w.b, w.q, 'legacy').ok, true);
+  w.r.BattleMovementResolver.proposeOrder(s, legacy, w.b, false, 'squad-orders');
+  assert.notDeepEqual(s.orderDestination, original, 'ordinary legacy publisher is unchanged in legacy mode');
+  clean(w);
+});
 test('advance waits for real discharges, personal movement adoption, physical arrival and alternates teams', () => {
   const w = world();
   squad(w);

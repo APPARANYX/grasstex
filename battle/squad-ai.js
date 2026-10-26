@@ -2064,7 +2064,7 @@
   function setDestination(soldier, next, battle, urgent) {
     if (!next) return;
     if (root.BattleMovementResolver)
-      return root.BattleMovementResolver.proposeOrder(soldier, next, battle, urgent);
+      return root.BattleMovementResolver.proposeOrder(soldier, next, battle, urgent, 'squad-orders');
     soldier.orderDestination = { x: next.x, z: next.z };
     var current = soldier.destination,
       atCurrent =
