@@ -75,6 +75,7 @@ function summarizeSamples(samples) {
     stationClaimSamples: stationClaims, supportingShotsDuringBoundMotion: supporterShootingWhileBoundMoving,
     startedCoveredWindows: maxStarts, completedCoveredWindows: maxCompleted, abortedCoveredWindows: maxAborted,
     maxOrderConflictsSnapshot: maxConflicts,
+    writerConflictDetails: last.lab.writerConflictDetails || [],
     controllerFaults: last.lab.controllerState && last.lab.controllerState.stats
       ? last.lab.controllerState.stats.faults : null,
     controllerFaultExamples: last.lab.controllerState && last.lab.controllerState.stats
