@@ -27,18 +27,25 @@
     var h = sim.heightAt(at.x, at.z);
     for (var k = 0; k < reports.length; k++) {
       var p = reports[k];
-      if (A.hasLineOfSight(
-        { root: { position: { x: at.x, z: at.z, y: h + 1.0 } }, crouching: true },
-        { root: { position: { x: p.x, z: p.z, y: sim.heightAt(p.x, p.z) + 1.6 } } },
-        sim.heightAt, sim.obstacles
-      )) return true;
+      if (
+        A.hasLineOfSight(
+          { root: { position: { x: at.x, z: at.z, y: h + 1.0 } }, crouching: true },
+          { root: { position: { x: p.x, z: p.z, y: sim.heightAt(p.x, p.z) + 1.6 } } },
+          sim.heightAt,
+          sim.obstacles
+        )
+      )
+        return true;
     }
     return false;
   }
   function edge(sim, from, to, reports, underFire, strict) {
     var N = root.BattleNavigation,
       out = { eligible: false, reason: 'unknown', distance: distance(from, to), exposure: 1 };
-    if (!reports || !reports.length) { out.reason = 'missing-reported-contact'; return out; }
+    if (!reports || !reports.length) {
+      out.reason = 'missing-reported-contact';
+      return out;
+    }
     if (!Number.isFinite(out.distance) || out.distance < MIN_HOP || out.distance > MAX_HOP) {
       out.reason = 'outside-contact-hop';
       return out;
@@ -47,13 +54,21 @@
       out.reason = 'blocked-physical-segment';
       return out;
     }
-    var steps = Math.max(2, Math.ceil(out.distance / SAMPLE)), exposed = 0;
+    var steps = Math.max(2, Math.ceil(out.distance / SAMPLE)),
+      exposed = 0;
     for (var i = 0; i <= steps; i++) {
       var t = i / steps;
-      if (threatVisible(sim, {
-        x: from.x + (to.x - from.x) * t,
-        z: from.z + (to.z - from.z) * t
-      }, reports)) exposed++;
+      if (
+        threatVisible(
+          sim,
+          {
+            x: from.x + (to.x - from.x) * t,
+            z: from.z + (to.z - from.z) * t
+          },
+          reports
+        )
+      )
+        exposed++;
     }
     out.exposure = exposed / (steps + 1);
     if (strict && out.exposure > (underFire ? MAX_UNDER_FIRE_EXPOSURE : MAX_EXPOSURE)) {
@@ -70,7 +85,9 @@
     return edge(sim, s.root.position, dest, reports, underFire, true);
   }
   function crossTrack(p, start, goal) {
-    var dx = goal.x - start.x, dz = goal.z - start.z, m = dx * dx + dz * dz;
+    var dx = goal.x - start.x,
+      dz = goal.z - start.z,
+      m = dx * dx + dz * dz;
     if (m < 1) return distance(p, start);
     var t = Math.max(0, Math.min(1, ((p.x - start.x) * dx + (p.z - start.z) * dz) / m));
     return Math.hypot(p.x - (start.x + t * dx), p.z - (start.z + t * dz));
@@ -80,33 +97,55 @@
       N = root.BattleNavigation,
       start = s && s.root && s.root.position,
       threat = reports && reports[0],
-      stats = { total: 0, progressing: 0, safe: 0, rejected: {}, graphNodes: 0,
-        evaluatedEdges: 0, expanded: 0, planLength: 0, terminal: 'none' };
+      stats = {
+        total: 0,
+        progressing: 0,
+        safe: 0,
+        rejected: {},
+        graphNodes: 0,
+        evaluatedEdges: 0,
+        expanded: 0,
+        planLength: 0,
+        terminal: 'none'
+      };
     if (!C || !start || !threat || !goal || !N || !N.movementClear) {
       stats.rejected['missing-world-or-contact'] = 1;
       return { point: null, waypoints: [], stats: stats };
     }
-    var here = point(start), target = point(goal);
+    var here = point(start),
+      target = point(goal);
     var horizon = Math.min(450, Math.max(100, distance(here, target) + 65)),
-      candidates = (C.routeCandidates
-        ? C.routeCandidates(s, sim, threat, horizon)
-        : C.candidates(s, sim, threat, horizon)) || [];
+      candidates =
+        (C.routeCandidates
+          ? C.routeCandidates(s, sim, threat, horizon)
+          : C.candidates(s, sim, threat, horizon)) || [];
     /* Cover nodes come from real obstacle-backed slots. Never project imaginary
        virtual cover spots, and never reserve a future waypoint in advance. */
-    var chosen = [], seen = new Set();
+    var chosen = [],
+      seen = new Set();
     candidates.forEach(function (p) {
-      if (!p || !Number.isFinite(p.x) || !Number.isFinite(p.z) ||
-          (p.slotId && seen.has(String(p.slotId))) ||
-          (taken || []).some(function (q) { return distance(q, p) < 2; }) ||
-          crossTrack(p, here, target) > MAX_DETOUR) return;
+      if (
+        !p ||
+        !Number.isFinite(p.x) ||
+        !Number.isFinite(p.z) ||
+        (p.slotId && seen.has(String(p.slotId))) ||
+        (taken || []).some(function (q) {
+          return distance(q, p) < 2;
+        }) ||
+        crossTrack(p, here, target) > MAX_DETOUR
+      )
+        return;
       if (p.slotId) seen.add(String(p.slotId));
       chosen.push(p);
     });
     stats.total = chosen.length;
     chosen.sort(function (a, b) {
-      return (crossTrack(a, here, target) + 0.12 * distance(a, here)) -
-        (crossTrack(b, here, target) + 0.12 * distance(b, here)) ||
-        String(a.slotId).localeCompare(String(b.slotId));
+      return (
+        crossTrack(a, here, target) +
+          0.12 * distance(a, here) -
+          (crossTrack(b, here, target) + 0.12 * distance(b, here)) ||
+        String(a.slotId).localeCompare(String(b.slotId))
+      );
     });
     chosen.length = Math.min(chosen.length, MAX_NODES);
     var nodes = [{ x: here.x, z: here.z, slotId: 'start', quality: 0 }].concat(chosen);
@@ -114,9 +153,13 @@
     var d = Array(nodes.length).fill(Infinity),
       prev = Array(nodes.length).fill(-1),
       used = Array(nodes.length).fill(false),
-      underFire = (+s.suppressedUntil || 0) > sim.time ||
-        !!(root.BattleEngagement && root.BattleEngagement.underFireNow &&
-          root.BattleEngagement.underFireNow(s, sim));
+      underFire =
+        (+s.suppressedUntil || 0) > sim.time ||
+        !!(
+          root.BattleEngagement &&
+          root.BattleEngagement.underFireNow &&
+          root.BattleEngagement.underFireNow(s, sim)
+        );
     d[0] = 0;
     /* Positive edge costs permit detours/backtracking. A first edge must pass
        the same strict safety rule Engagement will enforce before adoption.
@@ -143,8 +186,7 @@
         /* Base travel cost plus real-threat exposure penalty. No positive-
            progress gate: farther/sideways cover is allowed when the *whole*
            route delivers the squad toward its mission. */
-        var cost = leg * (1 + 2.6 * result.exposure) +
-          Math.max(0, +nodes[k].quality || 0) * 5;
+        var cost = leg * (1 + 2.6 * result.exposure) + Math.max(0, +nodes[k].quality || 0) * 5;
         if (d[from] + cost < d[k] - 0.0001) {
           d[k] = d[from] + cost;
           prev[k] = from;
@@ -152,7 +194,9 @@
       }
       if (stats.evaluatedEdges >= MAX_EDGE_QUERIES) break;
     }
-    var best = -1, rating = Infinity, complete = false,
+    var best = -1,
+      rating = Infinity,
+      complete = false,
       startToGoal = distance(here, target);
     for (var z = 1; z < nodes.length; z++) {
       if (!Number.isFinite(d[z])) continue;
@@ -179,7 +223,8 @@
       stats.rejected['no-connected-progress-route'] = 1;
       return { point: null, waypoints: [], stats: stats };
     }
-    var indices = [], cursor = best;
+    var indices = [],
+      cursor = best;
     for (var guard = 0; cursor > 0 && guard < nodes.length; guard++) {
       indices.unshift(cursor);
       cursor = prev[cursor];
@@ -208,21 +253,33 @@
       current = retained && retained.waypoints && retained.waypoints[retained.cursor];
     if (current && C && C.candidates && threat) {
       var available = C.candidates(s, sim, threat, MAX_HOP).some(function (p) {
-        return String(p.slotId) === String(current.slotId) &&
-          distance(p, current) < 0.05;
+        return String(p.slotId) === String(current.slotId) && distance(p, current) < 0.05;
       });
-      var underFire = (+s.suppressedUntil || 0) > sim.time ||
-        !!(root.BattleEngagement && root.BattleEngagement.underFireNow &&
-          root.BattleEngagement.underFireNow(s, sim));
+      var underFire =
+        (+s.suppressedUntil || 0) > sim.time ||
+        !!(
+          root.BattleEngagement &&
+          root.BattleEngagement.underFireNow &&
+          root.BattleEngagement.underFireNow(s, sim)
+        );
       var safe = available && evaluate(s, sim, current, reports, underFire);
       if (safe && safe.eligible)
         return {
-          point: point(current), waypoints: retained.waypoints,
-          score: 0, exposure: safe.exposure, reused: true,
-          stats: { total: retained.waypoints.length, progressing: retained.waypoints.length,
-            safe: 1, rejected: {}, graphNodes: retained.waypoints.length,
-            evaluatedEdges: 1, planLength: retained.waypoints.length,
-            terminal: 'retained-checkpoint' }
+          point: point(current),
+          waypoints: retained.waypoints,
+          score: 0,
+          exposure: safe.exposure,
+          reused: true,
+          stats: {
+            total: retained.waypoints.length,
+            progressing: retained.waypoints.length,
+            safe: 1,
+            rejected: {},
+            graphNodes: retained.waypoints.length,
+            evaluatedEdges: 1,
+            planLength: retained.waypoints.length,
+            terminal: 'retained-checkpoint'
+          }
         };
     }
     return findRoute(s, sim, reports, goal, taken);
@@ -231,9 +288,11 @@
     pick: pick,
     evaluate: evaluate,
     tuning: {
-      maxHop: MAX_HOP, maxExposure: MAX_EXPOSURE,
+      maxHop: MAX_HOP,
+      maxExposure: MAX_EXPOSURE,
       maxUnderFireExposure: MAX_UNDER_FIRE_EXPOSURE,
-      graphNodes: MAX_NODES, graphEdgeBudget: MAX_EDGE_QUERIES
+      graphNodes: MAX_NODES,
+      graphEdgeBudget: MAX_EDGE_QUERIES
     }
   };
 })(typeof window !== 'undefined' ? window : globalThis);
