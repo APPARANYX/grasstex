@@ -224,6 +224,30 @@ test('retreat wins: every order is finished at its owner, nothing is published, 
   assert.equal(w.TC.summary(w.b).actions, men.length, 'the men are asked again once the retreat ends');
 });
 
+test('live contact stands down march without issuing distant route-leg orders', () => {
+  const w = world();
+  w.systems['tactical-march-provider'].onBattleStart(w.b);
+  tick(w);
+  const man = alive(w)[0],
+    firstEnvelope = record(w, man).envelopeId;
+  assert.equal(w.TC.summary(w.b).actions, alive(w).length);
+  w.q.inContact = true;
+  w.TC.dispatch(w.b, w.q, 'squadCommand');
+  assert.equal(w.TC.summary(w.b).actions, 0, 'contact releases every march action at its owner');
+  assert.equal(w.TC.summary(w.b).pending, 0);
+  assert.equal(w.r.BattleSquadStability.controllerMovement.current(man, null), false);
+  for (let i = 0; i < 8; i++) {
+    w.b.time += 0.15;
+    w.TC.dispatch(w.b, w.q, 'squadCommand');
+  }
+  assert.equal(w.TC.summary(w.b).actions, 0, 'no march/contact-order ping-pong');
+  assert.equal(record(w, man).envelopeId, firstEnvelope, 'no new route publication in contact');
+  w.q.inContact = false;
+  w.b.time += 0.15;
+  w.TC.dispatch(w.b, w.q, 'squadCommand');
+  assert.equal(w.TC.summary(w.b).actions, alive(w).length, 'march resumes after contact ends');
+});
+
 test('a retreat phase alone also stands the provider down, as it does the resolver', () => {
   const w = world();
   w.systems['tactical-march-provider'].onBattleStart(w.b);
