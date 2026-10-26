@@ -503,12 +503,17 @@
       root.BattleTacticalMarchProvider.releaseMan(ctx, p.man);
       root.BattleTacticalContactSkills.release(ctx, p.man);
     });
-    var result = ctx.request('maneuver.cover', null, {
+    /* Capability contract distinguishes one native personal mover (moverId)
+       from a simultaneous group (moverIds requires 2–3 unique ids). Do not
+       accidentally send a one-element moverIds array or suppress valid C/D hops. */
+    var coverRequest = {
       direction: selected.direction,
       team: selected.team,
-      coverTeam: null,
-      moverIds: selected.moverIds
-    });
+      coverTeam: null
+    };
+    if (selected.moverIds.length === 1) coverRequest.moverId = selected.moverIds[0];
+    else coverRequest.moverIds = selected.moverIds;
+    var result = ctx.request('maneuver.cover', null, coverRequest);
     if (!result.ok) {
       st.blocked = b;
       st.reason = 'window-refused:' + result.reason;
