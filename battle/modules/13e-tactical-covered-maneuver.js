@@ -202,26 +202,15 @@
     };
   }
   function supports(ctx, st) {
-    var E = root.BattleEngagement,
-      M = root.BattleAmmunition;
+    var E = root.BattleEngagement;
     return men(ctx.squad)
       .filter(function (s) {
-        var shot = M && M.shotEvidence && M.shotEvidence(s, ctx.sim);
         return (
-          !st.plan.some(function (p) {
-            return p.man === s;
-          }) &&
-          !!(s && !s.dead && !s.incapacitated && s.hp > 0 && s.weapon && !s.outOfAmmo) &&
-          E.supportReady(s, ctx.sim) &&
-          shot &&
-          shot.at >= st.startedAt &&
-          ctx.sim.time >= shot.at &&
-          ctx.sim.time - shot.at <= Q.boundDuration
+          !st.plan.some(function (p) { return p.man === s; }) &&
+          E.supportDischarged(s, ctx.sim, st.startedAt)
         );
       })
-      .map(function (s) {
-        return String(s.id);
-      });
+      .map(function (s) { return String(s.id); });
   }
   function update(ctx) {
     var st = state(ctx),
@@ -351,7 +340,7 @@
     st.startedAt = ctx.sim.time;
     st.supporters = [];
     st.window = result.actionId;
-    note(ctx, st, 'support', 'await-two-independent-discharges');
+    note(ctx, st, 'support', 'await-independent-support-discharge');
   }
   function engagement(ctx) {
     var st = states.get(ctx.squad),
