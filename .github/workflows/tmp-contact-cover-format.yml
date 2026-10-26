@@ -1,0 +1,21 @@
+name: Temporary contact-cover formatting
+on:
+  pull_request:
+    paths:
+      - .github/workflows/tmp-contact-cover-format.yml
+permissions:
+  contents: read
+jobs:
+  emit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - run: |
+          npx --yes prettier@3.3.3 --write battle/engagement.js battle/modules/13e-tactical-covered-maneuver.js battle/modules/13g-tactical-contact-route.js battle/modules/16-squad-plan-stability.js tools/ai-sim-harness/tactical-contact-route-check.js
+          node - <<'NODE'
+          const fs=require('fs');
+          for(const path of ['battle/engagement.js','battle/modules/13e-tactical-covered-maneuver.js','battle/modules/13g-tactical-contact-route.js','battle/modules/16-squad-plan-stability.js','tools/ai-sim-harness/tactical-contact-route-check.js'])
+            console.log('FORMAT_HANDOFF '+JSON.stringify({path,content:fs.readFileSync(path,'utf8')}));
+          NODE
