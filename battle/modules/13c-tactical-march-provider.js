@@ -112,6 +112,14 @@
     for (var i = 0; i < slots.length; i++) {
       var s = slots[i].man;
       if (s.dead || s.isPlayer) continue;
+      /* A claimed native station owns locomotion; do not republish formation moves. */
+      if (root.BattleTacticalPositions && root.BattleTacticalPositions.current(s)) {
+        var occupied = st.men.get(String(s.id));
+        if (occupied) ctx.finish(occupied.actionId, 'station-claimed');
+        st.men.delete(String(s.id));
+        if (st.stopped) st.stopped.delete(String(s.id));
+        continue;
+      }
       var id = String(s.id),
         slot = slots[i].point,
         cur = st.men.get(id),
@@ -242,6 +250,12 @@
     },
     release: function (ctx) {
       standDown(ctx, stateOf(ctx.squad), 'covered-maneuver');
+    },
+    releaseMan: function (ctx, man) {
+      var st = stateOf(ctx.squad), id = String(man.id), cur = st.men.get(id);
+      if (cur) ctx.finish(cur.actionId, 'station-selection');
+      st.men.delete(id);
+      if (st.stopped) st.stopped.delete(id);
     }
   };
   if (!ON) return;
@@ -262,7 +276,9 @@
         if (root.BattleTacticalCoveredManeuver && root.BattleTacticalCoveredManeuver.engagement(ctx)) return;
         root.BattleTacticalContactSkills.engagement(ctx);
       },
-      stationSelection: noop
+      stationSelection: function (ctx) {
+        if (root.BattleTacticalStationSkill) root.BattleTacticalStationSkill.update(ctx);
+      }
     },
     adapters: OA.adapters,
     lifecycle: OA.lifecycle
