@@ -315,6 +315,34 @@ test('retreat, mission supersession, possession and restart cancel native contac
   assert.equal(w.TC.summary(w.b).actions, 0);
   clean(w);
 });
+test('native emergency cover cancels contact without changing the transition beneath its owner', () => {
+  const w = world(),
+    s = w.q.members.find(s => s.role === 'rifleman');
+  loadModule(w.r, 'battle/modules/44-combat-urgency.js', { location: w.r.location });
+  squad(w);
+  micro(w);
+  w.E.findCover = man => ({
+    x: man.root.position.x + 10,
+    z: man.root.position.z,
+    distance: 10,
+    quality: 0.5,
+    type: 'fixture'
+  });
+  s.suppressedUntil = w.b.time + 3;
+  w.b.time += 0.15;
+  squad(w);
+  assert.doesNotThrow(() => w.E.updateSoldier(s, w.b));
+  assert.equal(s.eng.state, 'bound');
+  assert.equal(s.eng.urgentBound, true);
+  assert.equal(
+    live(w, 'combat.contact').some(a => a.actorId === String(s.id)),
+    false
+  );
+  w.b.time += 0.15;
+  assert.doesNotThrow(() => w.E.updateSoldier(s, w.b));
+  assert.equal(s._movementResolver.combat.kind, 'cover-bound');
+  clean(w);
+});
 test('explicit contact requests conflict with movement and reject malformed fire control', () => {
   const req = {
     battleId: 'b',

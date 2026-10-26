@@ -2117,11 +2117,8 @@
     if (task.proposal && s._movementResolver && s._movementResolver.combat === task.proposal && R)
       R.clearCombat(s);
     e.suppressOrder = false;
-    if (['orient', 'engage', 'alert', 'pinned'].indexOf(e.state) >= 0) {
-      if (e.state !== 'alert') transition(s, battle, 'alert', 0, 'controller:contact ended');
-      transition(s, battle, 'advance', 0, 'controller:contact ended');
-      s.setUp = false;
-    }
+    /* Cancellation can be nested inside module 44's emergency-cover transition. Release the task,
+       not the Engagement state that the interrupting owner is in the middle of consuming. */
     return true;
   }
   function controllerCombatStage(s, battle, task) {
