@@ -136,7 +136,7 @@ test('explicit covered-assault opportunity preserves personal intel, range, frie
   const ctx = setup();
   const { r, b, s, G } = ctx;
   r.BattleTacticalController = { controls: () => true };
-  const enemy = victim(ctx, 24, 0);
+  const enemy = victim(ctx, 28, 0);
   s.target = enemy;
   r.SquadAI.rememberSeen(s, enemy, b, true, 'grenade-assault-fixture');
   assert.ok(G.assaultOpportunity(s, b), 'a visible close target is legal even with a usable rifle line');
@@ -167,6 +167,40 @@ test('explicit covered-assault opportunity preserves personal intel, range, frie
   r.BattleTacticalController.controls = () => false;
   assert.equal(G.assaultThrow(s, b), null, 'legacy controller cannot invoke the explicit finisher');
 });
+test('AI rejects an exposed ally 16m from the aim although the old 13m gate would pass', () => {
+  const ctx = setup();
+  const { G, b, s, r } = ctx;
+  r.BattleTacticalController = { controls: () => true };
+  const enemy = victim(ctx, 28, 0);
+  s.target = enemy;
+  r.SquadAI.rememberSeen(s, enemy, b, true, 'grenade-unsafe-fragment-field');
+  assert.ok(G.assaultOpportunity(s, b), 'clean 28m throw has space to clear its own thrower');
+  const friend = man(ctx, 'us', 44, 0); // 16m from the planned landing, exposed
+  assert.equal(G.assaultOpportunity(s, b), null, '22m fragment reach plus 3.5m scatter must be respected');
+  friend.root.position.x = 58;
+  assert.ok(G.assaultOpportunity(s, b), 'ally outside full hazard permits the same throw');
+});
+
+test('AI release aborts if a friendly moves into the burst zone during windup', () => {
+  const ctx = setup();
+  const { G, b, s, r } = ctx;
+  r.BattleTacticalController = { controls: () => true };
+  const enemy = victim(ctx, 28, 0);
+  s.target = enemy;
+  r.SquadAI.rememberSeen(s, enemy, b, true, 'grenade-release-safety');
+  const carried = G.count(s);
+  const plan = G.assaultThrow(s, b);
+  assert.ok(plan, 'grenade committed with safe initial formation');
+  const friend = man(ctx, 'us', 28, 0); // intervening movement invalidates release
+  at(ctx, plan.releaseAt);
+  assert.equal(G.projectiles(b).length, 0, 'unsafe live landing never becomes a projectile');
+  assert.equal(G.count(s), carried, 'cancelled grenade does not consume inventory');
+  assert.equal(G.summary(b).unsafeAborts, 1, 'diagnostics record the safety abort');
+  assert.equal(G.summary(b).throws, 0);
+  assert.equal(G.pendingOf(s, b), null, 'a cancelled plan frees its native reservation');
+  friend.root.position.x = 60;
+});
+
 test('OFF has no registered grenade clock, field writes or RNG draws, including read APIs', () => {
   const ctx = setup({ search: '?grenades=0&log=0' });
   const { r, b, s, G } = ctx;
