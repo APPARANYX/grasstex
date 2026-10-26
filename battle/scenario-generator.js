@@ -731,6 +731,11 @@
     if (root.SKILLS_LAB) {
       scenario.roads = [];
       scenario.terrain.roughness = 0.18;
+      /* Pre-spawn range geometry, not scripted soldier locomotion. */
+      var gap = Number(new URLSearchParams(root.location.search).get('labDistance') || 70);
+      if ([35, 70, 120, 180].indexOf(gap) < 0) gap = 70;
+      scenario.spawnZones.us.z = -gap / 2;
+      scenario.spawnZones.ge.z = gap / 2;
     }
     scenario.objectives = generateObjectives(r, cx, cz, spanX, spanZ, objectiveCount);
     scenario.sectors = scenario.objectives;
