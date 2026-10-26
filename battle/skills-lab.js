@@ -11,10 +11,22 @@
   if (![1, 0.5, 0.25].includes(scale)) scale = 1;
   var focus = params.get('labFocus') || 'all';
   if (!['all', 'fire', 'bounds', 'station'].includes(focus)) focus = 'all';
-  var battle = null, scene = null, panel = null, toggle = null, play = null;
-  var shots = 0, hits = 0, supporters = 0, ticks = 0, lastTime = -1;
-  var history = [], seenEvents = new Set(), dummies = new WeakSet(), vectors = [];
-  var materials = null, timer = null;
+  var battle = null,
+    scene = null,
+    panel = null,
+    toggle = null,
+    play = null;
+  var shots = 0,
+    hits = 0,
+    supporters = 0,
+    ticks = 0,
+    lastTime = -1;
+  var history = [],
+    seenEvents = new Set(),
+    dummies = new WeakSet(),
+    vectors = [];
+  var materials = null,
+    timer = null;
   var lastError = null;
 
   function log(kind, message) {
@@ -35,8 +47,12 @@
     var old = root.BattleDesktopCamera.current;
     if (old && old.stop) old.stop();
     var c = new BABYLON.ArcRotateCamera(
-      'skills-range-camera', -Math.PI / 2, 0.7, 205,
-      new BABYLON.Vector3(0, 0, 0), opts.scene
+      'skills-range-camera',
+      -Math.PI / 2,
+      0.7,
+      205,
+      new BABYLON.Vector3(0, 0, 0),
+      opts.scene
     );
     c.lowerRadiusLimit = 12;
     c.upperRadiusLimit = 340;
@@ -46,9 +62,15 @@
     c.wheelPrecision = 12;
     c.attachControl(opts.canvas, true);
     opts.scene.activeCamera = c;
-    var out = { camera: c, desktop: false,
+    var out = {
+      camera: c,
+      desktop: false,
       hint: 'Skills Lab · orbit to inspect soldiers, scroll to zoom',
-      mode: 'skills-lab', stop: function () { c.detachControl(opts.canvas); } };
+      mode: 'skills-lab',
+      stop: function () {
+        c.detachControl(opts.canvas);
+      }
+    };
     root.BattleDesktopCamera.current = out;
     return out;
   }
@@ -81,9 +103,10 @@
       if (dummies.has(s)) return;
       dummies.add(s);
       function part(kind, dims, xyz, mat) {
-        var m = kind === 'cylinder'
-          ? BABYLON.MeshBuilder.CreateCylinder('skill-target-pole-' + s.id, dims, scene)
-          : BABYLON.MeshBuilder.CreateBox('skill-target-' + s.id, dims, scene);
+        var m =
+          kind === 'cylinder'
+            ? BABYLON.MeshBuilder.CreateCylinder('skill-target-pole-' + s.id, dims, scene)
+            : BABYLON.MeshBuilder.CreateBox('skill-target-' + s.id, dims, scene);
         m.parent = s.root;
         m.position.set(xyz[0], xyz[1], xyz[2]);
         m.material = mat;
@@ -93,12 +116,10 @@
         return m;
       }
       part('cylinder', { height: 1.45, diameter: 0.09 }, [0, 0.75, 0], materials.wood);
-      part('box', { width: 0.7, height: 0.88, depth: 0.10 },
-        [0, 1.5, -0.02], materials.canvas);
-      part('cylinder', { height: 0.04, diameter: 0.39 },
-        [0, 1.5, -0.10], materials.ring).rotation.x = Math.PI / 2;
-      part('box', { width: 1.1, height: 0.32, depth: 0.42 },
-        [0, 0.21, 0], materials.sand);
+      part('box', { width: 0.7, height: 0.88, depth: 0.1 }, [0, 1.5, -0.02], materials.canvas);
+      part('cylinder', { height: 0.04, diameter: 0.39 }, [0, 1.5, -0.1], materials.ring).rotation.x =
+        Math.PI / 2;
+      part('box', { width: 1.1, height: 0.32, depth: 0.42 }, [0, 0.21, 0], materials.sand);
     });
   }
   function options(id, pairs, val) {
@@ -180,28 +201,60 @@
       visible(panel, value);
       visible(toggle, !value);
     }
-    toggle.onclick = function () { open(true); };
-    panel.querySelector('#skillClose').onclick = function () { open(false); };
+    toggle.onclick = function () {
+      open(true);
+    };
+    panel.querySelector('#skillClose').onclick = function () {
+      open(false);
+    };
     panel.addEventListener('keydown', function (event) {
       if (event.key === 'Escape') open(false);
     });
     open(true);
-    options('#skillController',
-      [['new','New tactical controller'],['legacy','Existing controller']],
-      params.get('tacticalController') === 'new' ? 'new' : 'legacy')
-      .onchange = function () { configure('tacticalController', this.value); };
-    options('#skillFocus',
-      [['all','All movement and combat'],['fire','Fire / suppression'],['bounds','Covered advance and retreat'],
-       ['station','Firing-station assignment']],focus).onchange = function () {
-         focus = this.value; render();
-       };
-    options('#skillRange',
-      [['1','1× native range'],['0.5','½× spotting + weapon range'],['0.25','¼× range']],
-      String(scale)).onchange = function () { configure('labRange', this.value); };
+    options(
+      '#skillController',
+      [
+        ['new', 'New tactical controller'],
+        ['legacy', 'Existing controller']
+      ],
+      params.get('tacticalController') === 'new' ? 'new' : 'legacy'
+    ).onchange = function () {
+      configure('tacticalController', this.value);
+    };
+    options(
+      '#skillFocus',
+      [
+        ['all', 'All movement and combat'],
+        ['fire', 'Fire / suppression'],
+        ['bounds', 'Covered advance and retreat'],
+        ['station', 'Firing-station assignment']
+      ],
+      focus
+    ).onchange = function () {
+      focus = this.value;
+      render();
+    };
+    options(
+      '#skillRange',
+      [
+        ['1', '1× native range'],
+        ['0.5', '½× spotting + weapon range'],
+        ['0.25', '¼× range']
+      ],
+      String(scale)
+    ).onchange = function () {
+      configure('labRange', this.value);
+    };
     play = panel.querySelector('#skillPlay');
-    play.onclick = function () { setRunning(battle && battle.paused); };
-    panel.querySelector('#skillStep').onclick = function () { advance(1); };
-    panel.querySelector('#skillSecond').onclick = function () { advance(7); };
+    play.onclick = function () {
+      setRunning(battle && battle.paused);
+    };
+    panel.querySelector('#skillStep').onclick = function () {
+      advance(1);
+    };
+    panel.querySelector('#skillSecond').onclick = function () {
+      advance(7);
+    };
     panel.querySelector('#skillSpeed').onclick = function () {
       if (!battle) return;
       var fast = battle.timeScale !== 4;
@@ -219,11 +272,14 @@
       var result = snapshot();
       if (!result) return;
       var blob = new Blob([JSON.stringify(result, null, 2)], { type: 'application/json' });
-      var url = URL.createObjectURL(blob), a = document.createElement('a');
+      var url = URL.createObjectURL(blob),
+        a = document.createElement('a');
       a.href = url;
       a.download = 'skills-lab-' + result.seed + '-' + result.controller + '.json';
       a.click();
-      setTimeout(function () { URL.revokeObjectURL(url); }, 500);
+      setTimeout(function () {
+        URL.revokeObjectURL(url);
+      }, 500);
     };
   }
   var drawVectors = true;
@@ -249,7 +305,9 @@
     lastError = null;
     history = [];
     seenEvents.clear();
-    vectors.forEach(function (v) { v.dispose(); });
+    vectors.forEach(function (v) {
+      v.dispose();
+    });
     vectors = [];
     battle.restart();
     battle.timeLimit = 300;
@@ -268,43 +326,67 @@
     render();
   }
   function diagnostics() {
-    var squads = [], actors = [];
+    var squads = [],
+      actors = [];
     if (!battle) return { squads: squads, actors: actors };
-    ['us','ge'].forEach(function (side) {
+    ['us', 'ge'].forEach(function (side) {
       var all = battle.factions[side].squads || [];
       all.forEach(function (sq) {
         var controller = root.BattleTacticalController;
         var isNew = !!(controller && controller.controls && controller.controls(battle, sq));
-        var m = root.BattleTacticalCoveredManeuver &&
-          root.BattleTacticalCoveredManeuver.summary(sq);
+        var m = root.BattleTacticalCoveredManeuver && root.BattleTacticalCoveredManeuver.summary(sq);
         squads.push({
-          id: side + ':' + sq.id, controller: isNew ? 'new' : 'legacy',
-          phase: sq.commandPhase || sq.state || '?', contact: !!sq.inContact,
-          maneuver: m && m.phase || null, direction: m && m.direction || null,
-          team: m && m.team || null, reason: m && m.reason || null,
-          supporters: m && m.supporters && m.supporters.length || 0,
-          completed: m && m.completed || 0, failed: m && m.failed || 0
+          id: side + ':' + sq.id,
+          controller: isNew ? 'new' : 'legacy',
+          phase: sq.commandPhase || sq.state || '?',
+          contact: !!sq.inContact,
+          maneuver: (m && m.phase) || null,
+          direction: (m && m.direction) || null,
+          team: (m && m.team) || null,
+          reason: (m && m.reason) || null,
+          supporters: (m && m.supporters && m.supporters.length) || 0,
+          completed: (m && m.completed) || 0,
+          failed: (m && m.failed) || 0
         });
-        if (m && Array.isArray(m.history)) m.history.forEach(function (e) {
-          var k = [side, sq.id, e.token, e.at, e.phase, e.team, e.reason].join('|');
-          if (seenEvents.has(k)) return;
-          seenEvents.add(k);
-          log('maneuver ' + e.phase, side + ':' + sq.id + ' ' + (e.direction || '') +
-            ' ' + (e.team || '') + ' — ' + (e.reason || ''), e.at);
-        });
+        if (m && Array.isArray(m.history))
+          m.history.forEach(function (e) {
+            var k = [side, sq.id, e.token, e.at, e.phase, e.team, e.reason].join('|');
+            if (seenEvents.has(k)) return;
+            seenEvents.add(k);
+            log(
+              'maneuver ' + e.phase,
+              side +
+                ':' +
+                sq.id +
+                ' ' +
+                (e.direction || '') +
+                ' ' +
+                (e.team || '') +
+                ' — ' +
+                (e.reason || ''),
+              e.at
+            );
+          });
       });
     });
     (battle._roster.us || []).forEach(function (s) {
-      var pos = s.root && s.root.position, rs = s._movementResolver || {};
-      var last = rs.last || {}, end = s.orderDestination || s.destination;
+      var pos = s.root && s.root.position,
+        rs = s._movementResolver || {};
+      var last = rs.last || {},
+        end = s.orderDestination || s.destination;
       var eng = s.eng || {};
       actors.push({
-        id: s.id, squad: s.squad && s.squad.id,
-        x: pos && +pos.x.toFixed(2), z: pos && +pos.z.toFixed(2),
-        hp: s.hp, target: s.target && String(s.target.id) || null,
-        moving: !!s.moving, gait: s._locomotionGait || 'none',
+        id: s.id,
+        squad: s.squad && s.squad.id,
+        x: pos && +pos.x.toFixed(2),
+        z: pos && +pos.z.toFixed(2),
+        hp: s.hp,
+        target: (s.target && String(s.target.id)) || null,
+        moving: !!s.moving,
+        gait: s._locomotionGait || 'none',
         state: eng.state || s.state || 'none',
-        orderOwner: last.owner || null, orderKind: last.kind || null,
+        orderOwner: last.owner || null,
+        orderKind: last.kind || null,
         stopped: s._movementStopReason || null,
         orderDestination: end && { x: +end.x.toFixed(2), z: +end.z.toFixed(2) }
       });
@@ -315,25 +397,42 @@
     if (!battle) return null;
     var data = diagnostics();
     return {
-      type: 'native-tactical-skills-lab', isolated: true,
-      seed: scene && scene.metadata && scene.metadata.battleScenario &&
-        scene.metadata.battleScenario.seed || null,
+      type: 'native-tactical-skills-lab',
+      isolated: true,
+      seed:
+        (scene && scene.metadata && scene.metadata.battleScenario && scene.metadata.battleScenario.seed) ||
+        null,
       controller: params.get('tacticalController') || 'legacy',
-      focus: focus, rangeScale: scale, time: +battle.time.toFixed(2),
-      paused: !!battle.paused, shots: shots, hits: hits, supporters: supporters,
-      targetCount: battle._roster.ge.length, targetDeaths: battle._roster.ge.filter(function (s) {
+      focus: focus,
+      rangeScale: scale,
+      time: +battle.time.toFixed(2),
+      paused: !!battle.paused,
+      shots: shots,
+      hits: hits,
+      supporters: supporters,
+      targetCount: battle._roster.ge.length,
+      targetDeaths: battle._roster.ge.filter(function (s) {
         return s.dead;
       }).length,
-      writerConflicts: root.BattleOrderProvenance && root.BattleOrderProvenance.conflicts
-        ? root.BattleOrderProvenance.conflicts(battle).length : null,
-      controllerState: root.BattleTacticalController && root.BattleTacticalController.summary
-        ? root.BattleTacticalController.summary(battle) : null,
-      units: data.actors, squads: data.squads, events: history.slice(), lastError: lastError
+      writerConflicts:
+        root.BattleOrderProvenance && root.BattleOrderProvenance.conflicts
+          ? root.BattleOrderProvenance.conflicts(battle).length
+          : null,
+      controllerState:
+        root.BattleTacticalController && root.BattleTacticalController.summary
+          ? root.BattleTacticalController.summary(battle)
+          : null,
+      units: data.actors,
+      squads: data.squads,
+      events: history.slice(),
+      lastError: lastError
     };
   }
   function draw() {
     if (!battle || !scene) return;
-    vectors.forEach(function (v) { v.dispose(); });
+    vectors.forEach(function (v) {
+      v.dispose();
+    });
     vectors = [];
     if (!drawVectors) return;
     (battle._roster.us || []).forEach(function (s) {
@@ -342,12 +441,13 @@
       if (!next || !Number.isFinite(next.x) || !Number.isFinite(next.z)) return;
       var start = s.root.position,
         a = new BABYLON.Vector3(start.x, start.y + 1.8, start.z),
-        b = new BABYLON.Vector3(next.x,
-          battle.heightAt(next.x, next.z) + 1.8, next.z);
-      if (BABYLON.Vector3.Distance(a,b) < 0.4) return;
-      var mesh = BABYLON.MeshBuilder.CreateLines('skill-order-' + s.id, { points:[a,b] }, scene);
-      mesh.color = s.eng && s.eng.state === 'bound'
-        ? new BABYLON.Color3(1, 0.68, 0.2) : new BABYLON.Color3(0.32, 0.77, 1);
+        b = new BABYLON.Vector3(next.x, battle.heightAt(next.x, next.z) + 1.8, next.z);
+      if (BABYLON.Vector3.Distance(a, b) < 0.4) return;
+      var mesh = BABYLON.MeshBuilder.CreateLines('skill-order-' + s.id, { points: [a, b] }, scene);
+      mesh.color =
+        s.eng && s.eng.state === 'bound'
+          ? new BABYLON.Color3(1, 0.68, 0.2)
+          : new BABYLON.Color3(0.32, 0.77, 1);
       mesh.isPickable = false;
       vectors.push(mesh);
     });
@@ -366,26 +466,68 @@
     panel.querySelector('#skillHits').textContent = String(d.hits);
     panel.querySelector('#skillConflicts').textContent = String(d.writerConflicts ?? '?');
     play.textContent = battle.paused ? '▶ Play' : 'Ⅱ Pause';
-    panel.querySelector('#skillSquads').textContent = d.squads
-      .filter(function (s) { return s.id.startsWith('us:'); })
-      .map(function (s) {
-        return s.id + ' [' + s.controller + '] ' + s.phase +
-          (s.contact ? ' · CONTACT' : '') +
-          (s.maneuver ? '\n  ' + s.maneuver + ' ' + (s.direction || '') + ' ' +
-            (s.team || '') + ' · support ' + s.supporters + '\n  ' + s.reason +
-            ' · completed ' + s.completed + ' · aborted ' + s.failed : '');
-      }).join('\n') || 'No active squads';
-    panel.querySelector('#skillMen').textContent = d.units.filter(function (s) {
-      return focus !== 'bounds' || s.state === 'bound' || s.moving;
-    }).slice(0, 20).map(function (s) {
-      return s.id + ' ' + s.state + '/' + s.gait + ' · ' +
-        (s.orderKind || '-') + ' (' + (s.orderOwner || '-') + ')' +
-        (s.target ? ' · sighted #' + s.target : '') +
-        (s.stopped ? '\n  stopped: ' + s.stopped : '');
-    }).join('\n') || 'No active movers';
-    panel.querySelector('#skillEvents').textContent = d.events.slice(-12).map(function (e) {
-      return e.t.toFixed(2) + 's ' + e.kind + ': ' + e.message;
-    }).join('\n') || 'No events';
+    panel.querySelector('#skillSquads').textContent =
+      d.squads
+        .filter(function (s) {
+          return s.id.startsWith('us:');
+        })
+        .map(function (s) {
+          return (
+            s.id +
+            ' [' +
+            s.controller +
+            '] ' +
+            s.phase +
+            (s.contact ? ' · CONTACT' : '') +
+            (s.maneuver
+              ? '\n  ' +
+                s.maneuver +
+                ' ' +
+                (s.direction || '') +
+                ' ' +
+                (s.team || '') +
+                ' · support ' +
+                s.supporters +
+                '\n  ' +
+                s.reason +
+                ' · completed ' +
+                s.completed +
+                ' · aborted ' +
+                s.failed
+              : '')
+          );
+        })
+        .join('\n') || 'No active squads';
+    panel.querySelector('#skillMen').textContent =
+      d.units
+        .filter(function (s) {
+          return focus !== 'bounds' || s.state === 'bound' || s.moving;
+        })
+        .slice(0, 20)
+        .map(function (s) {
+          return (
+            s.id +
+            ' ' +
+            s.state +
+            '/' +
+            s.gait +
+            ' · ' +
+            (s.orderKind || '-') +
+            ' (' +
+            (s.orderOwner || '-') +
+            ')' +
+            (s.target ? ' · sighted #' + s.target : '') +
+            (s.stopped ? '\n  stopped: ' + s.stopped : '')
+          );
+        })
+        .join('\n') || 'No active movers';
+    panel.querySelector('#skillEvents').textContent =
+      d.events
+        .slice(-12)
+        .map(function (e) {
+          return e.t.toFixed(2) + 's ' + e.kind + ': ' + e.message;
+        })
+        .join('\n') || 'No events';
   }
   function attachBattle(b, scn) {
     if (battle === b) return;
@@ -394,7 +536,8 @@
     battle.pause();
     battle.timeLimit = 300;
     battle.setTimeScale(1);
-    var previousFire = battle.onFire, previousShot = battle.onShot;
+    var previousFire = battle.onFire,
+      previousShot = battle.onShot;
     battle.onFire = function (s) {
       if (s && s.faction === 'us') {
         shots++;
@@ -405,8 +548,11 @@
     battle.onShot = function (s, target, hit, d, meta) {
       if (hit && s && s.faction === 'us') {
         hits++;
-        if (hits < 6) log('ballistic hit', 'US soldier ' + s.id + ' → ' +
-          (meta && meta.victim ? meta.victim.id : target && target.id));
+        if (hits < 6)
+          log(
+            'ballistic hit',
+            'US soldier ' + s.id + ' → ' + (meta && meta.victim ? meta.victim.id : target && target.id)
+          );
       }
       if (previousShot) return previousShot.apply(this, arguments);
     };
@@ -419,19 +565,31 @@
      confirmation and suppression receipts. Never fabricate shots or moves. */
   root.PhaseCCombatLab = {
     disableObjectiveVictory: true,
-    rangeScale: scale, movementPace: 'baseline',
+    rangeScale: scale,
+    movementPace: 'baseline',
     interiorIngressRecovery: false,
-    stationary: function (s) { return !!s && s.faction === 'ge'; },
-    blockShot: function (s) { return !!s && s.faction === 'ge'; },
-    preventWound: function (s, victim) { return !!victim && victim.faction === 'ge'; },
-    preventDeath: function (s) { return !!s && s.faction === 'ge'; }
+    stationary: function (s) {
+      return !!s && s.faction === 'ge';
+    },
+    blockShot: function (s) {
+      return !!s && s.faction === 'ge';
+    },
+    preventWound: function (s, victim) {
+      return !!victim && victim.faction === 'ge';
+    },
+    preventDeath: function (s) {
+      return !!s && s.faction === 'ge';
+    }
   };
   if (root.BattleDesktopCamera && root.BattleDesktopCamera.create)
     root.BattleDesktopCamera.create = installCamera;
   makePanel();
   root.BattleSkillsLab = {
-    attachBattle: attachBattle, snapshot: snapshot,
-    advance: advance, reset: reset, stageRetreat: stageRetreat,
+    attachBattle: attachBattle,
+    snapshot: snapshot,
+    advance: advance,
+    reset: reset,
+    stageRetreat: stageRetreat,
     setRunning: setRunning
   };
 })(window);
