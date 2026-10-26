@@ -2136,7 +2136,9 @@
     var threats = C.boundThreats(s, battle),
       contactRoute = root.BattleTacticalContactRoute,
       flexible = !!(
-        contactRoute && root.BattleSquadStability.controllerBound.current(s.squad, battle).moverId
+        contactRoute &&
+        (root.BattleSquadStability.controllerBound.current(s.squad, battle).moverId ||
+          root.BattleSquadStability.controllerBound.current(s.squad, battle).moverIds)
       ),
       maxHop = flexible ? contactRoute.tuning.maxHop : C.boundTuning().maxDistance,
       choices = C.candidates(s, battle, threats[0], maxHop),
