@@ -2101,7 +2101,9 @@
       return null;
     var threats = C.boundThreats(s, battle),
       contactRoute = root.BattleTacticalContactRoute,
-      flexible = !!(contactRoute && root.BattleSquadStability.controllerBound.current(s.squad, battle).moverId),
+      flexible = !!(
+        contactRoute && root.BattleSquadStability.controllerBound.current(s.squad, battle).moverId
+      ),
       maxHop = flexible ? contactRoute.tuning.maxHop : C.boundTuning().maxDistance,
       choices = C.candidates(s, battle, threats[0], maxHop),
       candidate = choices.find(function (p) {
@@ -2109,8 +2111,13 @@
       });
     if (!candidate) return null;
     var route = flexible
-      ? contactRoute.evaluate(s, battle, candidate, threats,
-          (s.suppressedUntil || 0) > battle.time || underFireNow(s, battle))
+      ? contactRoute.evaluate(
+          s,
+          battle,
+          candidate,
+          threats,
+          (s.suppressedUntil || 0) > battle.time || underFireNow(s, battle)
+        )
       : C.boundRoute(s, battle, candidate, threats);
     if (!route.eligible) return null;
     var claim = C.reserve(s, battle, candidate.slot, 'controller');
