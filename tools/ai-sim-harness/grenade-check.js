@@ -347,7 +347,7 @@ test('AI decision rejects stale, distant, friendly-danger, empty, reload, crawl 
   }
 });
 
-test('Engagement orients, commits the throw action, blocks rifle fire, and leaves it after release', () => {
+test('Engagement orients, reserves and blocks rifle fire, then aborts if cover vanishes at release', () => {
   const ctx = setup();
   const { G, r, s, b } = ctx;
   const E = r.BattleEngagement;
@@ -373,7 +373,8 @@ test('Engagement orients, commits the throw action, blocks rifle fire, and leave
   at(ctx, plan.releaseAt);
   E.updateSoldier(s, b);
   assert.notEqual(e.state, 'throw', 'the next Engagement tick resumes combat after clock release');
-  assert.equal(G.summary(b).throws, 1);
+  assert.equal(G.summary(b).throws, 0, 'exposed thrower must not release into his own fragment field');
+  assert.equal(G.summary(b).unsafeAborts, 1, 'release checks the lost cover before spending a grenade');
 });
 
 test('Engagement can throw at a remembered enemy after cover removes its live target', () => {
