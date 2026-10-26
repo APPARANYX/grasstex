@@ -472,6 +472,10 @@
         root.BattleOrderProvenance && root.BattleOrderProvenance.conflicts
           ? root.BattleOrderProvenance.conflicts(battle).length
           : null,
+      writerConflictDetails:
+        root.BattleOrderProvenance && root.BattleOrderProvenance.conflicts
+          ? root.BattleOrderProvenance.conflicts(battle).slice(0, 8)
+          : [],
       controllerState:
         root.BattleTacticalController && root.BattleTacticalController.summary
           ? root.BattleTacticalController.summary(battle)
