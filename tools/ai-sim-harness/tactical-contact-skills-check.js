@@ -277,6 +277,7 @@ test('covered personal contact may use standing ballistic line rather than getti
 });
 test('a fresh squadmate SEEN sector authorizes real area suppression from covered stance', () => {
   const w = world(80);
+  squad(w); // establish the existing preparation clock before the later OPEN decision
   w.b.time = 16.1;
   see(w);
   const shooter = w.q.members.find(s => s.role === 'rifleman');
@@ -306,7 +307,10 @@ test('a fresh squadmate SEEN sector authorizes real area suppression from covere
     shooter.fireCooldown = 0;
   }
   assert.equal(w.E.stateOf(shooter).stance, 'stand', 'only native Engagement raises the hidden rifleman');
-  assert.ok(attempts.length > 0, 'the native area-fire primitive, not tryFire on an unseen target, is called');
+  assert.ok(
+    attempts.length > 0,
+    'the native area-fire primitive, not tryFire on an unseen target, is called'
+  );
   assert.equal(shooter.target, null, 'area fire never forges a direct target');
   A.canSuppress = actual;
   A.areaFire = actualAreaFire;

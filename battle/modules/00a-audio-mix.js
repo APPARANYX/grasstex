@@ -23,7 +23,8 @@
   /* Main keeps its established soundtrack. Dense new-controller fire can
      sum many otherwise safe one-shots into a clipped bus. Keep an exact
      ?audioMix=main comparison; ?audioMix=legacy bypasses routing entirely. */
-  var tacticalSafety = /(?:^|[?&])tacticalController=new(?:&|$)/.test(search) &&
+  var tacticalSafety =
+    /(?:^|[?&])tacticalController=new(?:&|$)/.test(search) &&
     !/(?:^|[?&])audioMix=(?:legacy|main)(?:&|$)/.test(search);
   var defaults = { master: 100, weapons: 100, voices: 100, effects: 100 };
   var settings = {};

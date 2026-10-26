@@ -282,8 +282,7 @@
             rating = d;
           }
         });
-        if (best)
-          opportunities.push({ man: s, point: { x: best.x, z: best.z }, distance: rating });
+        if (best) opportunities.push({ man: s, point: { x: best.x, z: best.z }, distance: rating });
       });
     opportunities.sort(function (a, b) {
       return (
@@ -367,7 +366,11 @@
     var result = ctx.request(
       desired === 'march' ? 'combat.march' : 'combat.contact',
       id,
-      desired === 'march' ? {} : desired === 'suppress' ? { drill: desired, point: point } : { drill: desired }
+      desired === 'march'
+        ? {}
+        : desired === 'suppress'
+          ? { drill: desired, point: point }
+          : { drill: desired }
     );
     if (result.ok)
       st.men.set(id, { id: result.actionId, drill: desired, target: target, pointKey: pointKey });

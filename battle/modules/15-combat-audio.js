@@ -283,8 +283,7 @@
          outlast their category estimate. Do not restart a Babylon source
          that is still audibly playing or it will crack/cut mid-sample. */
       for (var i = 0; i < pool.length; i++)
-        if (pool[i].endsAt <= t && !(pool[i].sound && pool[i].sound.isPlaying === true))
-          free.push(pool[i]);
+        if (pool[i].endsAt <= t && !(pool[i].sound && pool[i].sound.isPlaying === true)) free.push(pool[i]);
       if (!free.length) return void stats.dropped[s.group]++;
       var len = GROUPS[s.group].len;
       len = typeof len === 'object' ? len[s.kind] : len;

@@ -2343,8 +2343,7 @@
       holdPosition(s, battle);
       if (drill === 'suppress' && aim) {
         var post = root.BattleEngagement.suppressionStance(s, battle, aim);
-        if (post)
-          commitStanceRespectHold(s, battle, post, 0.55, 'controller:reported-sector-suppress');
+        if (post) commitStanceRespectHold(s, battle, post, 0.55, 'controller:reported-sector-suppress');
         else if (!holdStance(s, battle))
           commitStance(s, battle, 'crouch', 0.8, 'reported-sector-line-blocked');
       } else if (!holdStance(s, battle))

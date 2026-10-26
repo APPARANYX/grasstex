@@ -155,12 +155,7 @@ jobs:
             exit 0
           fi
           echo "Checking ${#files[@]} changed JavaScript file(s) against .prettierrc.json."
-          npx --yes prettier@3.3.3 --write battle/engagement.js battle/modules/00a-audio-mix.js battle/modules/13d-tactical-contact-skills.js battle/modules/15-combat-audio.js tools/ai-sim-harness/tactical-contact-skills-check.js
-          echo TACTICAL_FORMAT_DIFF_BEGIN
-          git diff -- battle/engagement.js battle/modules/00a-audio-mix.js battle/modules/13d-tactical-contact-skills.js battle/modules/15-combat-audio.js tools/ai-sim-harness/tactical-contact-skills-check.js
-          echo TACTICAL_FORMAT_DIFF_END
           npx --yes prettier@3.3.3 --check "${files[@]}"
-          if ! git diff --quiet -- battle/engagement.js battle/modules/00a-audio-mix.js battle/modules/13d-tactical-contact-skills.js battle/modules/15-combat-audio.js tools/ai-sim-harness/tactical-contact-skills-check.js; then exit 1; fi
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
 
