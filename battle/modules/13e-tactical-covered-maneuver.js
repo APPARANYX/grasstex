@@ -26,6 +26,7 @@
         routes: new Map(),
         checkins: 0,
         arrived: new Set(),
+        interrupted: new Set(),
         window: null,
         phase: 'idle',
         history: [],
@@ -73,7 +74,22 @@
         p.man.root.position.z - waypoint.z) < 2) route.cursor++;
       else st.routes.delete(id);
     }
+    var actionId = st.actions.get(id);
+    if (actionId) ctx.finish(actionId, 'confirmed-physical-arrival:' + id);
+    st.actions.delete(id);
     note(ctx, st, 'checkin', 'squad-leader-confirmed-physical-arrival:' + id);
+    st.phase = 'moving';
+  }
+  function interruptMan(ctx, st, p, reason) {
+    var id = String(p.man.id);
+    if (st.arrived.has(id) || st.interrupted.has(id)) return;
+    st.interrupted.add(id);
+    var actionId = st.actions.get(id);
+    if (actionId) ctx.finish(actionId, reason);
+    st.actions.delete(id);
+    st.routes.delete(id);
+    st.failed++;
+    note(ctx, st, 'interrupted', reason + ':' + id);
     st.phase = 'moving';
   }
   function end(ctx, st, reason, success) {
@@ -86,13 +102,17 @@
       st.lastTeam = st.team;
       st.turn = (st.turn + 1) % teams.length;
     } else {
-      st.failed++;
       (st.plan || []).forEach(function (p) {
-        if (!st.arrived.has(String(p.man.id))) st.routes.delete(String(p.man.id));
+        var id = String(p.man.id);
+        if (!st.arrived.has(id) && !st.interrupted.has(id)) {
+          st.failed++;
+          st.routes.delete(id);
+        }
       });
     }
     note(ctx, st, success ? 'completed' : 'aborted', reason);
     st.arrived.clear();
+    st.interrupted.clear();
   }
   function viable(s, sim) {
     var E = root.BattleEngagement,
@@ -288,17 +308,19 @@
       }
       st.supporters = supports(ctx, st);
       if (st.phase === 'moving') {
-        var interrupted = false;
+        /* Every person advances/checks in independently. One blocked actor
+           cannot cancel the other native movement orders or their covering
+           shooters. No watch clock or periodic support-shot renewal. */
         st.plan.forEach(function (p) {
           var id = String(p.man.id);
-          if (st.arrived.has(id) || interrupted) return;
+          if (st.arrived.has(id) || st.interrupted.has(id)) return;
           var actionId = st.actions.get(id),
-            stageForMan = actionId && ctx.stage(actionId);
-          if (!stageForMan || stageForMan.stage === 'cancelled') {
-            interrupted = true;
+            personal = actionId && ctx.stage(actionId);
+          if (!personal || personal.stage === 'cancelled') {
+            interruptMan(ctx, st, p, 'native-personal-order-ended');
             return;
           }
-          if (stageForMan.stage === 'arrived') {
+          if (personal.stage === 'arrived') {
             checkpoint(ctx, st, p);
             return;
           }
@@ -306,20 +328,24 @@
             p.man.root.position.z - p.point.z);
           if (!viable(p.man, ctx.sim) ||
               (gap > 2 && root.BattleNavigation &&
-                !root.BattleNavigation.movementClear(p.man.root.position, p.point)))
-            interrupted = true;
+                !root.BattleNavigation.movementClear(p.man.root.position, p.point))) {
+            interruptMan(ctx, st, p, 'genuine-mover-or-geometry-interruption');
+          }
         });
         var holders = men(ctx.squad).filter(function (s) {
           return !st.plan.some(function (moving) { return moving.man === s; }) &&
             s.hp > 0 && !s.dead && !s.incapacitated && s.weapon && !s.outOfAmmo;
         });
-        if (interrupted || holders.length < 2) {
-          end(ctx, st, 'support-or-mover-interrupted', false);
+        if (holders.length < 2) {
+          end(ctx, st, 'cover-team-incapable', false);
           st.blocked = b;
           return;
         }
-        if (st.arrived.size === st.plan.length) {
-          end(ctx, st, 'physical-team-arrival', true);
+        if (st.arrived.size + st.interrupted.size === st.plan.length) {
+          /* The Meso cover lease and remaining supporter roles end only after
+             every personal arrival/check-in or explicit interruption. */
+          end(ctx, st, st.interrupted.size ? 'all-personal-moves-resolved' :
+            'all-physical-arrivals-checked-in', st.arrived.size > 0);
           st.blocked = null;
         }
         return;
@@ -392,6 +418,7 @@
       });
     });
     st.arrived.clear();
+    st.interrupted.clear();
     st.plan = selected.plan;
     st.team = selected.team;
     st.turn = selected.index;
@@ -444,6 +471,11 @@
             completed: st.completed,
             failed: st.failed,
             checkins: st.checkins,
+            movingCount: st.window && st.phase === 'moving' ?
+              st.plan.length - st.arrived.size - st.interrupted.size : 0,
+            pendingCover: !!st.window,
+            arrivedIds: Array.from(st.arrived),
+            interruptedIds: Array.from(st.interrupted),
             retainedRoutes: Array.from(st.routes.entries()).map(function (entry) {
               return {
                 moverId: entry[0],
