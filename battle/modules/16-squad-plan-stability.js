@@ -1292,13 +1292,19 @@
     /* Optional flexible selection: Meso still validates the exact live actor and
        owns the sole bound lease. Legacy team requests retain their old semantics. */
     var movers = a.filter(function (s) {
-      return (params.moverId ? String(s.id) === params.moverId : teamKeyFor(s) === params.team) &&
-        !A.isMachineGun(s) && boundMember(s, battle);
+      return (
+        (params.moverId ? String(s.id) === params.moverId : teamKeyFor(s) === params.team) &&
+        !A.isMachineGun(s) &&
+        boundMember(s, battle)
+      );
     });
     var holders = a.filter(function (s) {
-      return movers.indexOf(s) < 0 && (params.moverId
-        ? !!(s && !s.dead && !s.incapacitated && s.hp > 0 && s.weapon && !s.outOfAmmo)
-        : boundMember(s, battle));
+      return (
+        movers.indexOf(s) < 0 &&
+        (params.moverId
+          ? !!(s && !s.dead && !s.incapacitated && s.hp > 0 && s.weapon && !s.outOfAmmo)
+          : boundMember(s, battle))
+      );
     });
     if (params.moverId && (movers.length !== 1 || teamKeyFor(movers[0]) !== params.team)) return null;
     if (movers.length < (params.moverId ? 1 : 2) || holders.length < (params.moverId ? 1 : 2)) return null;
