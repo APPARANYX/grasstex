@@ -1231,9 +1231,12 @@
       boundRoster(sq).length < 4 ||
       !sq.inContact ||
       !!back !== (h.direction === 'back') ||
-      (back ? A.isExtractionToHome(sq) :
-        !(ASSAULT_PHASES[sq.commandPhase] ||
-          (h.moverId && sq.commandPhase === 'approach' && sq._macroMission.action === 'assault')))
+      (back
+        ? A.isExtractionToHome(sq)
+        : !(
+            ASSAULT_PHASES[sq.commandPhase] ||
+            (h.moverId && sq.commandPhase === 'approach' && sq._macroMission.action === 'assault')
+          ))
     )
       return null;
     if (h.armed && controllerBoundSupport(h, battle) < (h.moverId ? 1 : 2)) return null;
@@ -1283,9 +1286,12 @@
       !sq._macroMission ||
       sq._macroMission.status !== 'executing' ||
       !!back !== (params.direction === 'back') ||
-      (back ? A.isExtractionToHome(sq) :
-        !(ASSAULT_PHASES[sq.commandPhase] ||
-          (params.moverId && sq.commandPhase === 'approach' && sq._macroMission.action === 'assault'))) ||
+      (back
+        ? A.isExtractionToHome(sq)
+        : !(
+            ASSAULT_PHASES[sq.commandPhase] ||
+            (params.moverId && sq.commandPhase === 'approach' && sq._macroMission.action === 'assault')
+          )) ||
       ['alpha', 'bravo', 'charlie'].indexOf(params.team) < 0 ||
       currentControllerBound(sq, battle) ||
       !C ||
