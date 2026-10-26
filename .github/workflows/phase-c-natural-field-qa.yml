@@ -1,6 +1,8 @@
 name: ⭐ Phase C Natural Full-Battle Acceptance
 on:
   pull_request:
+    # Full acceptance runs only when a draft is marked ready to review.
+    types: [ready_for_review]
     paths:
       - scripts/probes/probe_phase_c_natural.cjs
       - .github/workflows/phase-c-natural-field-qa.yml
@@ -8,6 +10,10 @@ on:
       - battle/modules/15j-squad-leader-fire-and-movement.js
       - battle/modules/19-engagement-cover-positions.js
   workflow_dispatch:
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 jobs:

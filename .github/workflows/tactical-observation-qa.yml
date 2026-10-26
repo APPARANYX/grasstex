@@ -1,6 +1,8 @@
 name: ⭐ Tactical Observation Browser QA
 on:
   pull_request:
+    # Full acceptance runs only when a draft is marked ready to review.
+    types: [ready_for_review]
     paths:
       - battle/engagement.js
       - battle/modules/13c-tactical-march-provider.js
@@ -31,6 +33,10 @@ on:
       - battle/modules/15h-squad-leader-fireteams.js
       - .github/workflows/tactical-observation-qa.yml
   workflow_dispatch:
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 jobs:

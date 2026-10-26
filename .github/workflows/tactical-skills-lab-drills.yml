@@ -1,6 +1,8 @@
 name: ⭐ Tactical Skills Lab Microdrills
 on:
   pull_request:
+    # Full acceptance runs only when a draft is marked ready to review.
+    types: [ready_for_review]
     paths:
       - battle/modules/13g-tactical-contact-route.js
       - battle/modules/13e-tactical-covered-maneuver.js
@@ -11,6 +13,10 @@ on:
       - scripts/probes/probe_skills_lab_drills.cjs
       - .github/workflows/tactical-skills-lab-drills.yml
   workflow_dispatch:
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 jobs:

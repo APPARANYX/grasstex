@@ -4,6 +4,11 @@ name: ⭐ Native Tactical Skills Lab QA
 on:
   pull_request:
   workflow_dispatch:
+# Keep only the newest draft-commit preflight and preview build.
+concurrency:
+  group: native-lab-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 jobs:

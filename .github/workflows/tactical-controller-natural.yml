@@ -1,6 +1,8 @@
 name: ⭐ New Tactical Controller Natural A-B
 on:
   pull_request:
+    # Full acceptance runs only when a draft is marked ready to review.
+    types: [ready_for_review]
     paths:
       - battle/modules/13c-tactical-march-provider.js
       - battle/modules/13d-tactical-contact-skills.js
@@ -8,6 +10,10 @@ on:
       - scripts/probes/probe_tactical_controller_natural.cjs
       - .github/workflows/tactical-controller-natural.yml
   workflow_dispatch:
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 jobs:
