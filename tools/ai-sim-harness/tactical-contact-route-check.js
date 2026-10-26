@@ -123,11 +123,25 @@ const defending = fixture([
   { x: 0, z: 47, slotId: 'outside-objective', quality: 0.1 }
 ]);
 const post = defending.skill.pickDefense(
-  defending.soldier, defending.sim, defending.report, { x: 0, z: 0 }, 30, 'bravo'
+  defending.soldier,
+  defending.sim,
+  defending.report,
+  { x: 0, z: 0 },
+  30,
+  'bravo'
 );
 assert.ok(post.point, 'defense admits genuine cover inside the objective perimeter');
 assert.ok(Math.hypot(post.point.x, post.point.z) <= 28.5);
 assert.equal(post.waypoints.length, 1, 'defense moves to a post, not toward the enemy');
+const staging = fixture([
+  { x: 0, z: -28, slotId: 'approach-one', quality: 0.1 },
+  { x: 0, z: -12, slotId: 'approach-two', quality: 0.1 }
+]);
+staging.soldier.root.position.z = -43;
+const staged = staging.skill.pickDefense(
+  staging.soldier, staging.sim, staging.report, { x: 0, z: 0 }, 30, 'alpha'
+);
+assert.ok(staged.point && staged.point.z > -43, 'outer defender can close on objective via real cover');
 const outside = fixture([{ x: 0, z: 35, slotId: 'enemy-post' }]);
 assert.equal(
   outside.skill.pickDefense(outside.soldier, outside.sim, outside.report, { x: 0, z: 0 }, 30, 'alpha').point,

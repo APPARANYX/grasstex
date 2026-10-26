@@ -169,9 +169,19 @@
     var m = ctx.squad._macroMission,
       p = m && m.point,
       report = rs && rs[0];
-    if (!m || m.action !== 'defend' || m.status !== 'executing' || !p ||
-        !Number.isFinite(p.x) || !Number.isFinite(p.z) || !report) return null;
-    var obj = root.BattleObjectiveSystem && root.BattleObjectiveSystem.get &&
+    if (
+      !m ||
+      m.action !== 'defend' ||
+      m.status !== 'executing' ||
+      !p ||
+      !Number.isFinite(p.x) ||
+      !Number.isFinite(p.z) ||
+      !report
+    )
+      return null;
+    var obj =
+      root.BattleObjectiveSystem &&
+      root.BattleObjectiveSystem.get &&
       root.BattleObjectiveSystem.get(ctx.sim, m.objectiveId);
     return {
       center: { x: p.x, z: p.z },
@@ -187,7 +197,11 @@
       list = men(ctx.squad),
       back = ctx.squad.state === 'retreat' || ctx.squad.commandPhase === 'retreat',
       defense = !back && defenseBrief(ctx, rs),
-      goal = back ? A.retreatGoal(ctx.squad) : defense ? defense.center : root.BattleTacticalMarchProvider.target(ctx.squad),
+      goal = back
+        ? A.retreatGoal(ctx.squad)
+        : defense
+          ? defense.center
+          : root.BattleTacticalMarchProvider.target(ctx.squad),
       leader = A.leaderOf(ctx.squad),
       audit = {
         at: ctx.sim.time,
@@ -235,8 +249,12 @@
       var team = Q.teamKeyFor(s);
       if (defense) {
         var post = st.defensePosts.get(String(s.id));
-        if (post && post.sector === defense.sector &&
-            Math.hypot(post.x - s.root.position.x, post.z - s.root.position.z) < 4) return;
+        if (
+          post &&
+          post.sector === defense.sector &&
+          Math.hypot(post.x - s.root.position.x, post.z - s.root.position.z) < 4
+        )
+          return;
       }
       /* The Meso covered-window owner accepts alpha/bravo/charlie, not the
          command element. Never choose a route it cannot lease. */

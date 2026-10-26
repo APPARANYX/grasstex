@@ -22,8 +22,7 @@
   function voiceLog(s) {
     if (debugVoice && root.GTLog) root.GTLog(s);
   }
-  var
-    lastSocialGlobal = 0,
+  var lastSocialGlobal = 0,
     socialSquadLast = {},
     lastTacticalGlobal = 0,
     tacticalSquadLast = {};
@@ -263,8 +262,9 @@
         );
       s.play();
       req.handle.started = true;
-      voiceLog('[VOICE] play ' + entry.file + ' profile=' +
-        (entry.profileId || 'neutral') + ' lane=' + req.lane);
+      voiceLog(
+        '[VOICE] play ' + entry.file + ' profile=' + (entry.profileId || 'neutral') + ' lane=' + req.lane
+      );
     } catch (e) {
       entry.playing = false;
       activeSounds = Math.max(0, activeSounds - 1);

@@ -222,18 +222,29 @@ test('one eligible native mover uses the singular Meso contract and reaches phys
 });
 test('new controller repositions to protect a captured objective without changing DEFEND intent', () => {
   const w = world();
-  w.q._macroMission = { version: 2, action: 'defend', intent: 'defend',
-    status: 'executing', point: { x: 0, z: 0 }, objectiveId: 'captured' };
+  w.q._macroMission = {
+    version: 2,
+    action: 'defend',
+    intent: 'defend',
+    status: 'executing',
+    point: { x: 0, z: 0 },
+    objectiveId: 'captured'
+  };
   w.q.commandPhase = 'defend';
   w.r.BattleObjectiveSystem = { get: () => ({ def: { radius: 30 } }) };
   w.r.BattleTacticalContactRoute.pickDefense = (soldier, sim, reports, center, radius) => {
     assert.deepEqual(center, { x: 0, z: 0 });
     assert.equal(radius, 30);
-    const p = w.r.BattleCoverPositions.candidates(soldier, sim, reports[0], 26)
-      .find(v => v.z > soldier.root.position.z);
-    return { point: p && { x: p.x, z: p.z }, waypoints: p ? [p] : [],
-      score: 1, exposure: 0,
-      stats: { total: 2, progressing: 1, safe: 1, rejected: {} } };
+    const p = w.r.BattleCoverPositions.candidates(soldier, sim, reports[0], 26).find(
+      v => v.z > soldier.root.position.z
+    );
+    return {
+      point: p && { x: p.x, z: p.z },
+      waypoints: p ? [p] : [],
+      score: 1,
+      exposure: 0,
+      stats: { total: 2, progressing: 1, safe: 1, rejected: {} }
+    };
   };
   until(w, () => w.M.summary(w.q)?.phase === 'moving', 40);
   assert.ok(live(w, 'combat.bound').length >= 1, 'defend can move under actual covering fire');

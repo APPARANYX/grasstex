@@ -399,8 +399,15 @@
     var C = root.BattleCoverPositions,
       pos = s && s.root && s.root.position,
       threat = reports && reports[0],
-      stats = { total: 0, progressing: 0, safe: 0, rejected: {}, graphNodes: 0,
-        planLength: 0, terminal: 'defensive-hold' };
+      stats = {
+        total: 0,
+        progressing: 0,
+        safe: 0,
+        rejected: {},
+        graphNodes: 0,
+        planLength: 0,
+        terminal: 'defensive-hold'
+      };
     if (!C || !C.candidates || !pos || !center || !threat)
       return { point: null, waypoints: [], stats: stats };
     var dx = threat.x - center.x,
@@ -418,19 +425,36 @@
       limit = Math.min(30, Math.max(12, radius * 0.95)),
       underFire =
         (+s.suppressedUntil || 0) > sim.time ||
-        !!(root.BattleEngagement && root.BattleEngagement.underFireNow &&
-          root.BattleEngagement.underFireNow(s, sim)),
+        !!(
+          root.BattleEngagement &&
+          root.BattleEngagement.underFireNow &&
+          root.BattleEngagement.underFireNow(s, sim)
+        ),
       candidates = C.candidates(s, sim, threat, MAX_HOP) || [],
       best = null,
       rating = Infinity;
     stats.total = candidates.length;
+    /* Some defenders are still on the approach route when the objective
+       changes hands. Advance them THROUGH real cover toward the defended point
+       before trying to occupy the inside perimeter. A physical detour may
+       temporarily move sideways, but its final cover must close on the goal. */
+    if (distance(pos, center) > limit + 2) {
+      var approach = pick(s, sim, reports, center, [], null),
+        last = approach.waypoints && approach.waypoints[approach.waypoints.length - 1];
+      if (!last || distance(last, center) >= distance(pos, center) - 3)
+        return { point: null, waypoints: [], stats: approach.stats || stats };
+      return approach;
+    }
     candidates.forEach(function (candidate) {
       if (!candidate || !Number.isFinite(candidate.x) || !Number.isFinite(candidate.z)) return;
       /* No unbounded pursuit; even reachable cover beyond the protected
          perimeter is not a defensive destination. */
-      if (distance(candidate, center) > limit ||
-          distance(candidate, pos) < MIN_HOP ||
-          distance(candidate, desired) > limit * 1.25) return;
+      if (
+        distance(candidate, center) > limit ||
+        distance(candidate, pos) < MIN_HOP ||
+        distance(candidate, desired) > limit * 1.25
+      )
+        return;
       stats.progressing++;
       var route = evaluate(s, sim, candidate, reports, underFire);
       if (!route.eligible) {
@@ -438,8 +462,10 @@
         return;
       }
       stats.safe++;
-      var score = distance(candidate, desired) * 2 +
-        route.distance * 0.75 + route.exposure * 28 +
+      var score =
+        distance(candidate, desired) * 2 +
+        route.distance * 0.75 +
+        route.exposure * 28 +
         Math.max(0, +candidate.quality || 0) * 5;
       if (score < rating) {
         best = candidate;
@@ -452,7 +478,9 @@
     return {
       point: point(best),
       waypoints: [{ x: best.x, z: best.z, slotId: String(best.slotId || '') }],
-      score: rating, exposure: 0, stats: stats
+      score: rating,
+      exposure: 0,
+      stats: stats
     };
   }
   root.BattleTacticalContactRoute = {
