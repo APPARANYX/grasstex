@@ -325,6 +325,9 @@
       !TC.controls(battle, sq) ||
       s.isPlayer ||
       s.incapacitated ||
+      s.moving ||
+      (s.eng && s.eng.urgentBound) ||
+      (root.BattleTacticalPositions && root.BattleTacticalPositions.current(s)) ||
       sq.state === 'retreat' ||
       sq.commandPhase === 'retreat' ||
       s.suppressedUntil > battle.time ||

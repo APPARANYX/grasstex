@@ -78,7 +78,7 @@ function summarizeSamples(samples) {
     boundSamples += d.units.filter(s => s.state === 'bound').length;
     engagingSamples += d.units.filter(s => s.target).length;
     stationClaims += item.stationClaims;
-    supporterShootingWhileBoundMoving += item.coveredShots;
+    supporterShootingWhileBoundMoving = Math.max(supporterShootingWhileBoundMoving, item.coveredShots);
     maxArrivals = Math.max(
       maxArrivals,
       item.maneuvers.reduce((n, z) => n + (z.completed || 0), 0)

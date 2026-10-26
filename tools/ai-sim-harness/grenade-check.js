@@ -143,6 +143,15 @@ test('explicit covered-assault opportunity preserves personal intel, range, frie
   const before = ctx.ownDraws.count;
   G.assaultOpportunity(s, b);
   assert.equal(ctx.ownDraws.count, before, 'planning draws no scatter RNG');
+  s.moving = true;
+  assert.equal(G.assaultOpportunity(s, b), null, 'finish the active movement before selecting a grenade');
+  s.moving = false;
+  r.BattleEngagement.stateOf(s).urgentBound = true;
+  assert.equal(G.assaultOpportunity(s, b), null, 'urgent survival displacement retains precedence');
+  s.eng.urgentBound = false;
+  r.BattleTacticalPositions = { current: () => ({ id: 'owned-station' }) };
+  assert.equal(G.assaultOpportunity(s, b), null, 'station holders cannot starve a free grenadier selection');
+  delete r.BattleTacticalPositions;
   s.reloading = true;
   assert.equal(G.assaultOpportunity(s, b), null);
   s.reloading = false;
