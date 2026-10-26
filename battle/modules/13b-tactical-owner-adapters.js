@@ -144,7 +144,8 @@
               : E.controllerCombat.start(
                   s,
                   sim,
-                  req.capability === 'combat.march' ? 'march' : req.params.drill
+                  req.capability === 'combat.march' ? 'march' : req.params.drill,
+                  req.params.point
                 ));
         return !!task && keep(req, sim, { man: s, task: task });
       },

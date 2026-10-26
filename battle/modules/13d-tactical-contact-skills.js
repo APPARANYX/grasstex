@@ -16,6 +16,7 @@
         fire: null,
         men: new Map(),
         roles: new Set(),
+        points: new Map(),
         rejected: {}
       };
       states.set(ctx.squad, st);
@@ -42,6 +43,7 @@
     st.fire = null;
     st.men.clear();
     st.roles.clear();
+    st.points.clear();
     st.active = false;
     st.startedAt = null;
     st.discipline = null;
@@ -59,7 +61,8 @@
         !stage ||
         stage.stage === 'cancelled' ||
         a.drill !== drill(s, ctx.sim, st) ||
-        a.target !== (s.target && String(s.target.id))
+        a.target !== (s.target && String(s.target.id)) ||
+        a.pointKey !== (st.points.has(id) ? JSON.stringify(st.points.get(id)) : null)
       ) {
         ctx.finish(a.id, 'contact-role-changed');
         st.men.delete(id);
@@ -89,6 +92,54 @@
     }
     return prior.value;
   }
+  /* Fresh eyewitness sectors are lawful suppression intelligence, never
+     personal targets. Ignore auditory, relayed and incoming-only beliefs. */
+  var SIGHTING_AGE = 8;
+  function seenSectors(sq, sim) {
+    var A = root.SquadAI,
+      men = members(sq),
+      reports = A.squadContactsMap && A.squadContactsMap(sq, sim),
+      out = [];
+    (reports || []).forEach(function (rec) {
+      if (
+        !rec ||
+        rec.source !== 'seen' ||
+        !Number.isFinite(rec.x) ||
+        !Number.isFinite(rec.z) ||
+        !Number.isFinite(rec.at) ||
+        rec.at > sim.time ||
+        sim.time - rec.at > SIGHTING_AGE ||
+        !(rec.confidence >= 0.2) ||
+        !men.some(function (man) {
+          return String(man.id) === String(rec.sourceSoldier);
+        })
+      )
+        return;
+      out.push({ x: rec.x, z: rec.z, at: rec.at, sector: rec.sector });
+    });
+    var c = A.squadContact && A.squadContact(sq, sim),
+      at = c && (c.firstHandAt == null ? c.at : c.firstHandAt);
+    if (
+      c &&
+      A.hasFirstHandMemory &&
+      A.hasFirstHandMemory(c, sim) &&
+      !c.heard &&
+      !c.relayedFrom &&
+      Number.isFinite(c.x) &&
+      Number.isFinite(c.z) &&
+      Number.isFinite(at) &&
+      at <= sim.time &&
+      sim.time - at <= SIGHTING_AGE &&
+      men.some(function (man) {
+        return String(man.id) === String(c.seenBy);
+      })
+    )
+      out.push({ x: c.x, z: c.z, at: at, sector: 'primary' });
+    out.sort(function (a, b) {
+      return b.at - a.at;
+    });
+    return out;
+  }
   function update(ctx) {
     var st = state(ctx),
       sq = ctx.squad,
@@ -114,6 +165,7 @@
       st.startedAt = null;
       st.discipline = null;
       st.roles.clear();
+      st.points.clear();
       st.reason = 'contact-clear';
       reconcile(ctx, st);
       return;
@@ -204,31 +256,49 @@
       st.rejected.fire = fire.ok ? null : fire.reason;
     }
     var prior = st.roles,
-      candidates =
-        desired === 'open'
-          ? men.filter(function (s) {
-              var own = personal(s, sim);
-              return (
-                !s.target &&
-                own &&
-                !E.reacting(s) &&
-                !(s.suppressedUntil > sim.time) &&
-                A.canSuppress &&
-                A.canSuppress(s, { x: +own.x, z: +own.z }, sim)
-              );
-            })
-          : [];
-    candidates.sort(function (a, b) {
+      sectors = desired === 'open' ? seenSectors(sq, sim) : [],
+      opportunities = [];
+    if (desired === 'open')
+      men.forEach(function (s) {
+        if (
+          E.reacting(s) ||
+          s.suppressedUntil > sim.time ||
+          !s.weapon ||
+          s.reloading ||
+          s.outOfAmmo ||
+          (s.eng && s.eng.urgentBound)
+        )
+          return;
+        var o = observation(s, sim, st);
+        if (s.target && o.ready) return;
+        var best = null,
+          rating = Infinity;
+        sectors.forEach(function (rec) {
+          var posture = E.suppressionStance && E.suppressionStance(s, sim, rec);
+          if (!posture) return;
+          var d = Math.hypot(rec.x - s.root.position.x, rec.z - s.root.position.z);
+          if (d < rating) {
+            best = rec;
+            rating = d;
+          }
+        });
+        if (best)
+          opportunities.push({ man: s, point: { x: best.x, z: best.z }, distance: rating });
+      });
+    opportunities.sort(function (a, b) {
       return (
-        +!A.isMachineGun(a) - +!A.isMachineGun(b) ||
-        +!prior.has(String(a.id)) - +!prior.has(String(b.id)) ||
-        (+a.slotIndex || 0) - (+b.slotIndex || 0) ||
-        String(a.id).localeCompare(String(b.id))
+        +!A.isMachineGun(a.man) - +!A.isMachineGun(b.man) ||
+        +!prior.has(String(a.man.id)) - +!prior.has(String(b.man.id)) ||
+        a.distance - b.distance ||
+        String(a.man.id).localeCompare(String(b.man.id))
       );
     });
+    st.points.clear();
     st.roles = new Set(
-      candidates.slice(0, E.tuning.MAX_SUPPRESSORS).map(function (s) {
-        return String(s.id);
+      opportunities.slice(0, E.tuning.MAX_SUPPRESSORS).map(function (entry) {
+        var id = String(entry.man.id);
+        st.points.set(id, entry.point);
+        return id;
       })
     );
     reconcile(ctx, st);
@@ -266,9 +336,9 @@
           E.firingLineClear &&
           (E.firingLineClear(s, s.target, here, 'crouch', sim) ||
             E.firingLineClear(s, s.target, here, 'stand', sim));
-      return o.inRange && ((o.visualLine && o.ballisticLine) || peek) ? 'fire' : 'march';
+      if (o.inRange && ((o.visualLine && o.ballisticLine) || peek)) return 'fire';
     }
-    if (st && st.roles.has(String(s.id)) && personal(s, sim)) return 'suppress';
+    if (st && st.roles.has(String(s.id)) && st.points.has(String(s.id))) return 'suppress';
     return E.underFireNow(s, sim) ? 'watch' : 'march';
   }
   function engagement(ctx, override) {
@@ -278,10 +348,16 @@
       desired = override || drill(s, ctx.sim, st),
       current = st.men.get(id),
       stage = current && ctx.stage(current.id),
-      target = s.target && String(s.target.id);
+      target = s.target && String(s.target.id),
+      point = desired === 'suppress' && st.points.get(id),
+      pointKey = point ? JSON.stringify(point) : null;
     if (
       current &&
-      (!stage || stage.stage === 'cancelled' || current.drill !== desired || current.target !== target)
+      (!stage ||
+        stage.stage === 'cancelled' ||
+        current.drill !== desired ||
+        current.target !== target ||
+        current.pointKey !== pointKey)
     ) {
       ctx.finish(current.id, 'contact-role-changed');
       st.men.delete(id);
@@ -291,9 +367,10 @@
     var result = ctx.request(
       desired === 'march' ? 'combat.march' : 'combat.contact',
       id,
-      desired === 'march' ? {} : { drill: desired }
+      desired === 'march' ? {} : desired === 'suppress' ? { drill: desired, point: point } : { drill: desired }
     );
-    if (result.ok) st.men.set(id, { id: result.actionId, drill: desired, target: target });
+    if (result.ok)
+      st.men.set(id, { id: result.actionId, drill: desired, target: target, pointKey: pointKey });
     st.rejected[id] = result.ok ? null : result.reason;
   }
   root.BattleTacticalContactSkills = {
@@ -324,7 +401,12 @@
         requiredReady: st.requiredReady || 0,
         shooterId: st.shooterId || null,
         roles: Array.from(st.men.entries()).map(function (entry) {
-          return { actorId: entry[0], actionId: entry[1].id, drill: entry[1].drill };
+          return {
+            actorId: entry[0],
+            actionId: entry[1].id,
+            drill: entry[1].drill,
+            reportedPoint: st.points.get(entry[0]) || null
+          };
         }),
         rejected: Object.assign({}, st.rejected)
       };

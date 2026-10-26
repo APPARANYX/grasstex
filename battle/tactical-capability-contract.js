@@ -119,7 +119,7 @@
       ['locomotion', 'posture', 'weapon'],
       ['executing'],
       ['BattleEngagement'],
-      ['drill']
+      ['drill', 'point']
     ),
     'movement.move': definition(
       'actor',
@@ -207,7 +207,8 @@
     if (
       !record(p, def.parameters) ||
       !def.parameters.every(function (k) {
-        return (k === 'moverId' || k === 'moverIds') && request.capability === 'maneuver.cover'
+        return ((k === 'moverId' || k === 'moverIds') && request.capability === 'maneuver.cover') ||
+          (k === 'point' && request.capability === 'combat.contact')
           ? true
           : Object.hasOwn(p, k);
       })
@@ -236,6 +237,9 @@
       (Object.hasOwn(p, 'version') && p.version !== request.missionVersion) ||
       (Object.hasOwn(p, 'drill') &&
         ['prepare', 'fire', 'suppress', 'watch', 'pinned'].indexOf(p.drill) < 0) ||
+      (request.capability === 'combat.contact' &&
+        ((p.drill === 'suppress' && !point(p.point)) ||
+          (p.drill !== 'suppress' && Object.hasOwn(p, 'point')))) ||
       (request.capability === 'fire.control' &&
         (['hold', 'precision', 'open'].indexOf(p.state) < 0 ||
           !(p.targetId === null || text(p.targetId)) ||
