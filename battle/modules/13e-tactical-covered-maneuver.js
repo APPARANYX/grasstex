@@ -75,12 +75,22 @@
         route.cursor++;
       else st.routes.delete(id);
     }
-    if (st.defending && st.defenseSector != null)
-      st.defensePosts.set(id, {
-        x: p.man.root.position.x,
-        z: p.man.root.position.z,
-        sector: st.defenseSector
-      });
+    /* A provisional covered hop toward the point is NOT a finished
+       defensive deployment. Only a checked-in position inside the guarded
+       perimeter may suppress new moves in the same threat sector. */
+    if (st.defending && st.defenseSector != null && st.defenseCenter) {
+      var distanceToPoint = Math.hypot(
+        p.man.root.position.x - st.defenseCenter.x,
+        p.man.root.position.z - st.defenseCenter.z
+      );
+      if (distanceToPoint <= st.defenseLimit)
+        st.defensePosts.set(id, {
+          x: p.man.root.position.x,
+          z: p.man.root.position.z,
+          sector: st.defenseSector
+        });
+      else st.defensePosts.delete(id);
+    }
     var actionId = st.actions.get(id);
     if (actionId) ctx.finish(actionId, 'confirmed-physical-arrival:' + id);
     st.actions.delete(id);
@@ -596,6 +606,8 @@
     st.plan = selected.plan;
     st.defending = !!selected.defending;
     st.defenseSector = selected.defenseSector;
+    st.defenseCenter = defense ? defense.center : null;
+    st.defenseLimit = defense ? Math.min(30, Math.max(12, defense.radius * 0.95)) : null;
     st.team = selected.team;
     st.turn = selected.index;
     st.direction = selected.direction;
