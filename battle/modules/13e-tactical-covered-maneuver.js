@@ -238,7 +238,8 @@
         (back
           ? !root.SquadAI.isExtractionToHome(ctx.squad)
           : Q.boundPhases().indexOf(ctx.squad.commandPhase) >= 0 ||
-            (ctx.squad.commandPhase === 'approach' && ctx.squad._macroMission &&
+            (ctx.squad.commandPhase === 'approach' &&
+              ctx.squad._macroMission &&
               ctx.squad._macroMission.action === 'assault'));
     if (st.window) {
       var stage = ctx.stage(st.window);
