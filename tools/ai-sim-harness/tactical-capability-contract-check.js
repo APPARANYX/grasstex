@@ -346,33 +346,31 @@ check(
     }
   }
 );
-check(
-  'standalone module is absent from all production entry points and does not register runtime systems',
-  () => {
-    for (const file of [
-      'battle_sim.php',
-      'battle_sim_local.php',
-      'runtime-contract.php',
-      'battle/battle_sim.html',
-      'tools/ai-sim-harness/harness.js'
-    ])
-      assert.equal(
-        fs.readFileSync(path.join(REPO, file), 'utf8').includes('tactical-capability-contract'),
-        false,
-        file
-      );
-    assert.equal(fs.existsSync(path.join(REPO, 'battle/modules/tactical-capability-contract.js')), false);
-    const root = {},
-      source = fs.readFileSync(path.join(REPO, 'battle/tactical-capability-contract.js'), 'utf8');
-    new Function('window', 'module', 'Math', source)(root, undefined, {
-      random() {
-        throw Error('contract must never draw RNG');
-      }
-    });
-    assert.deepEqual(Object.keys(root), ['BattleTacticalCapabilityContract']);
-    assert.equal(root.BattleTacticalCapabilityContract.validateRequest(request(), context()).ok, true);
-  }
-);
+check('the page loads the contract as a plain runtime (slice 2) and it registers no runtime system', () => {
+  /* The two loaders and the deploy plan carry it beside the Commander; module discovery does not. */
+  for (const file of ['battle_sim.php', 'battle_sim_local.php', 'scripts/prepare_incremental_deploy.py'])
+    assert.equal(
+      fs.readFileSync(path.join(REPO, file), 'utf8').includes('tactical-capability-contract.js'),
+      true,
+      file
+    );
+  for (const file of ['runtime-contract.php', 'tools/ai-sim-harness/harness.js'])
+    assert.equal(
+      fs.readFileSync(path.join(REPO, file), 'utf8').includes('tactical-capability-contract'),
+      false,
+      file
+    );
+  assert.equal(fs.existsSync(path.join(REPO, 'battle/modules/tactical-capability-contract.js')), false);
+  const root = {},
+    source = fs.readFileSync(path.join(REPO, 'battle/tactical-capability-contract.js'), 'utf8');
+  new Function('window', 'module', 'Math', source)(root, undefined, {
+    random() {
+      throw Error('contract must never draw RNG');
+    }
+  });
+  assert.deepEqual(Object.keys(root), ['BattleTacticalCapabilityContract']);
+  assert.equal(root.BattleTacticalCapabilityContract.validateRequest(request(), context()).ok, true);
+});
 console.log(
   'PASS tactical capability contract: ' + checks + ' checks (detached; no gameplay adapter acceptance)'
 );

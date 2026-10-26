@@ -167,6 +167,23 @@
       }
       return { x: a.x + r.x * lat + f.x * fw, z: a.z + r.z * lat + f.z * fw };
     }
+    /* The same layout as a pure function, for a replacement controller (13c): every living man's slot
+       when the squad's anchor is `a` facing `f`, with Meso's team offsets and in-team slots. It reads
+       only membership and the formation choice and writes nothing. */
+    function slotsAt(sq, a, f, formation) {
+      var form =
+          TEAM_OFFSETS[formation || sq.formation || root.SquadAI.formationFor(sq)] || TEAM_OFFSETS.wedge,
+        r = { x: -f.z, z: f.x },
+        out = [];
+      Object.keys(form).forEach(function (key) {
+        var o = form[key],
+          ta = { x: a.x + r.x * o[0] + f.x * o[1], z: a.z + r.z * o[0] + f.z * o[1] },
+          m = aliveTeam(sq, key);
+        for (var i = 0; i < m.length; i++)
+          out.push({ man: m[i], team: key, point: teamSlot(sq, key, m[i], i, m.length, ta, f) });
+      });
+      return out;
+    }
     /* Men start on their fireteam slots. They used to appear scattered up to 4 m around the lane point
    with no regard for their team, so the first order sent them across each other's teams to reach
    their slots: about half of all cross-team body crossings happened in the first minute. This runs
@@ -268,6 +285,7 @@
       desiredAnchor: desiredAnchor,
       forward: forward,
       teamSlot: teamSlot,
+      slotsAt: slotsAt,
       spawnForward: spawnForward,
       placeAtSlots: placeAtSlots,
       placeForce: placeForce,
