@@ -335,9 +335,8 @@
     for (var i = 0; i < battle.factions.us.squads.length; i++) {
       var s = battle.factions.us.squads[i];
       s.state = 'retreat';
-      s.commandPhase = 'retreat';
     }
-    log('scripted premise', 'US retreat state set manually; no simulated enemy threat or commander order');
+    log('scripted premise', 'US retreat state staged; Meso phase unchanged, no fabricated threat or commander order');
     render();
   }
   function diagnostics() {
