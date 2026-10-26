@@ -309,7 +309,20 @@
     if (!battle || battle.winner) return;
     battle.pause();
     battle.resume();
-    for (var i = 0; i < n && !battle.winner; i++) battle.step(0.15);
+    /* Run the SAME fixed-step clock as benchmark replay, including its
+       Commander/Meso tick. Direct sim.step() only advanced soldier simulation,
+       leaving the short-range drills permanently in an old approach phase. */
+    for (var i = 0; i < n && !battle.winner; i++) {
+      if (battle._fixedClock) {
+        var scale = battle.timeScale;
+        battle.setTimeScale(1);
+        battle._fixedClock.advance(0.15);
+        battle.setTimeScale(scale);
+      } else {
+        battle.step(0.15);
+        if (!battle.winner && battle._liveCommanderTick) battle._liveCommanderTick(0.15);
+      }
+    }
     battle.pause();
     render();
   }
