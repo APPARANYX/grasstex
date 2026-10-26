@@ -1,0 +1,50 @@
+name: Mini Meeting Combat Tempo 679
+on:
+  pull_request:
+    paths:
+      - 'scripts/probes/probe_mini_tempo.cjs'
+      - 'battle/scenario-generator.js'
+      - '.github/workflows/mini-meeting-tempo.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  paired-tempo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Install native browser
+        run: |
+          php -l battle_sim_local.php
+          node --check battle/scenario-generator.js
+          node --check scripts/probes/probe_mini_tempo.cjs
+          npm install --no-save --no-package-lock playwright@1.58.2
+          npx playwright install --with-deps chromium
+      - name: Start native PHP sandbox
+        run: |
+          mkdir -p /tmp/mini-tempo-site
+          ln -s "$GITHUB_WORKSPACE" /tmp/mini-tempo-site/grasstex
+          PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8765 -t /tmp/mini-tempo-site > /tmp/mini-tempo-php.log 2>&1 &
+          for i in $(seq 1 35); do
+            if curl -fsS 'http://127.0.0.1:8765/grasstex/battle_sim_local.php?seed=tempo-health' >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          tail -100 /tmp/mini-tempo-php.log
+          exit 1
+      - name: Run two seeded live US/GE meetings at 300m and 150m start distances
+        env:
+          MINI_TEMPO_SECONDS: '210'
+          MINI_TEMPO_SEEDS: 'mini-meeting-676-001,mini-meeting-676-002'
+        run: node scripts/probes/probe_mini_tempo.cjs
+      - if: failure()
+        run: tail -100 /tmp/mini-tempo-php.log || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mini-meeting-tempo-679-evidence
+          path: reports/mini-meeting-tempo/
+          if-no-files-found: warn
+          retention-days: 14
