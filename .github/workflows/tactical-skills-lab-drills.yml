@@ -23,6 +23,8 @@ jobs:
           php -l battle_sim_local.php
           node --check scripts/probes/probe_skills_lab.cjs
           node --check scripts/probes/probe_skills_lab_drills.cjs
+          node --check battle/modules/13g-tactical-contact-route.js
+          node tools/ai-sim-harness/tactical-contact-route-check.js
           npm install --no-save --no-package-lock playwright@1.58.2
           npx playwright install --with-deps chromium
       - name: Serve exact branch native runtime
