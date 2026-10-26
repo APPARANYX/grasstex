@@ -1235,11 +1235,18 @@
         ? A.isExtractionToHome(sq)
         : !(
             ASSAULT_PHASES[sq.commandPhase] ||
-            (h.moverId && sq.commandPhase === 'approach' && sq._macroMission.action === 'assault')
+            ((h.moverId || h.moverIds) && sq.commandPhase === 'approach' && sq._macroMission.action === 'assault')
           ))
     )
       return null;
-    if (h.armed && controllerBoundSupport(h, battle) < (h.moverId ? 1 : 2)) return null;
+    /* A confirmed live shot arms the bounded movement window. Do not cancel
+       an underway physical hop every 3s solely because the supporter's rifle
+       cycles; loss of all physically capable supporters still interrupts. */
+    if (h.armed && (h.moverId || h.moverIds)) {
+      if (!h.holders.some(function (s) {
+        return s && !s.dead && !s.incapacitated && s.hp > 0 && s.weapon && !s.outOfAmmo;
+      })) return null;
+    } else if (h.armed && controllerBoundSupport(h, battle) < 2) return null;
     return h;
   }
   function controllerBoundSupport(h, battle) {
@@ -1249,10 +1256,10 @@
       var shot = M && M.shotEvidence && M.shotEvidence(s, battle);
       return (
         (!h.coverTeam || teamKeyFor(s) === h.coverTeam) &&
-        (h.moverId
+        (h.moverId || h.moverIds
           ? !!(s && !s.dead && !s.incapacitated && s.hp > 0 && s.weapon && !s.outOfAmmo)
           : boundMember(s, battle)) &&
-        (h.moverId
+        (h.moverId || h.moverIds
           ? E.supportDischarged(s, battle, h.lease.since)
           : E.supportReady(s, battle) &&
             shot &&
@@ -1264,7 +1271,7 @@
   }
   function controllerBoundArm(sq, battle) {
     var h = currentControllerBound(sq, battle);
-    if (!h || controllerBoundSupport(h, battle) < (h.moverId ? 1 : 2)) return false;
+    if (!h || controllerBoundSupport(h, battle) < (h.moverId || h.moverIds ? 1 : 2)) return false;
     h.armed = true;
     return true;
   }
@@ -1292,7 +1299,7 @@
         ? A.isExtractionToHome(sq)
         : !(
             ASSAULT_PHASES[sq.commandPhase] ||
-            (params.moverId && sq.commandPhase === 'approach' && sq._macroMission.action === 'assault')
+            ((params.moverId || params.moverIds) && sq.commandPhase === 'approach' && sq._macroMission.action === 'assault')
           )) ||
       ['alpha', 'bravo', 'charlie'].indexOf(params.team) < 0 ||
       currentControllerBound(sq, battle) ||
@@ -1305,7 +1312,8 @@
        owns the sole bound lease. Legacy team requests retain their old semantics. */
     var movers = a.filter(function (s) {
       return (
-        (params.moverId ? String(s.id) === params.moverId : teamKeyFor(s) === params.team) &&
+        (params.moverIds ? params.moverIds.indexOf(String(s.id)) >= 0 :
+          params.moverId ? String(s.id) === params.moverId : teamKeyFor(s) === params.team) &&
         !A.isMachineGun(s) &&
         boundMember(s, battle)
       );
@@ -1313,13 +1321,15 @@
     var holders = a.filter(function (s) {
       return (
         movers.indexOf(s) < 0 &&
-        (params.moverId
+        (params.moverId || params.moverIds
           ? !!(s && !s.dead && !s.incapacitated && s.hp > 0 && s.weapon && !s.outOfAmmo)
           : boundMember(s, battle))
       );
     });
     if (params.moverId && (movers.length !== 1 || teamKeyFor(movers[0]) !== params.team)) return null;
-    if (movers.length < (params.moverId ? 1 : 2) || holders.length < (params.moverId ? 1 : 2)) return null;
+    if (params.moverIds && (movers.length !== params.moverIds.length ||
+      !movers.some(function (s) { return teamKeyFor(s) === params.team; }))) return null;
+    if (movers.length < (params.moverId || params.moverIds ? 1 : 2) || holders.length < (params.moverIds ? 2 : params.moverId ? 1 : 2)) return null;
     var lease = L.grant(
       sq,
       'bound',
@@ -1337,6 +1347,7 @@
       team: params.team,
       coverTeam: params.coverTeam,
       moverId: params.moverId || null,
+      moverIds: params.moverIds ? params.moverIds.slice() : null,
       mission: sq._macroMission,
       version: missionVersion(sq),
       scene: battle.scene,
@@ -1357,8 +1368,13 @@
   }
   function controllerBoundRole(s, battle) {
     var h = s && currentControllerBound(s.squad, battle);
-    if (!h || !boundMember(s, battle)) return null;
-    return h.movers.indexOf(s) >= 0 ? 'move' : h.holders.indexOf(s) >= 0 ? 'cover' : null;
+    if (!h) return null;
+    if (h.movers.indexOf(s) >= 0) return boundMember(s, battle) ? 'move' : null;
+    if (h.holders.indexOf(s) >= 0)
+      return h.moverId || h.moverIds
+        ? (s && !s.dead && !s.incapacitated && s.hp > 0 && s.weapon && !s.outOfAmmo ? 'cover' : null)
+        : boundMember(s, battle) ? 'cover' : null;
+    return null;
   }
 
   function tasksFor(phase) {
