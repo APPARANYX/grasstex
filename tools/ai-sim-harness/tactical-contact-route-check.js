@@ -139,7 +139,12 @@ const staging = fixture([
 ]);
 staging.soldier.root.position.z = -43;
 const staged = staging.skill.pickDefense(
-  staging.soldier, staging.sim, staging.report, { x: 0, z: 0 }, 30, 'alpha'
+  staging.soldier,
+  staging.sim,
+  staging.report,
+  { x: 0, z: 0 },
+  30,
+  'alpha'
 );
 assert.ok(staged.point && staged.point.z > -43, 'outer defender can close on objective via real cover');
 const outside = fixture([{ x: 0, z: 35, slotId: 'enemy-post' }]);
