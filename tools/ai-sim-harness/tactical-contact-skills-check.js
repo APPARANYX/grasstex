@@ -102,7 +102,7 @@ function live(w, cap) {
 }
 function clean(w) {
   const s = w.TC.summary(w.b);
-  assert.equal(s.stats.faults, 0);
+  assert.equal(s.stats.faults, 0, JSON.stringify(s.stats.faultExamples || []));
   assert.equal(s.pending, 0);
 }
 
