@@ -727,9 +727,7 @@
     /* Skills Lab: unclutter the 280 m range without altering live map generation.
        Retain the normal terrain-cover system and one genuine objective to drive
        the same mission, perception and Meso ownership as natural battles. */
-    scenario.buildings = root.SKILLS_LAB
-      ? []
-      : generateBuildings(r, cx, cz, spanX, spanZ, buildingCount);
+    scenario.buildings = root.SKILLS_LAB ? [] : generateBuildings(r, cx, cz, spanX, spanZ, buildingCount);
     if (root.SKILLS_LAB) {
       scenario.roads = [];
       scenario.terrain.roughness = 0.18;
