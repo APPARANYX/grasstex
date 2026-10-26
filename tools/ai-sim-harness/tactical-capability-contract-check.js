@@ -72,7 +72,7 @@ check('normalization detaches and freezes request without mutating owner project
     valid.request.mode = 'shadow';
   }, TypeError);
   assert(Object.values(C.capabilities).every(def => def.adapter === 'missing'));
-  assert.equal(Object.hasOwn(C.capabilities, 'fire.control'), false);
+  assert.equal(Object.hasOwn(C.capabilities, 'fire.control'), true);
   assert.equal(Object.hasOwn(C.capabilities, 'cover.reserve'), false);
 });
 check('all identity dimensions invalidate requests and owner evidence independently', () => {

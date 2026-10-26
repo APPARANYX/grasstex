@@ -91,6 +91,50 @@
   }
 
   var CAPS = {
+    'fire.control': {
+      request: function (req, sim) {
+        var Q = root.BattleSquadStability,
+          sq = squadOf(sim, req),
+          order = Q && Q.controllerFireControl && Q.controllerFireControl.publish(sq, sim, req.params);
+        return !!order && keep(req, sim, { squad: sq, order: order });
+      },
+      stage: function (h) {
+        mark(
+          h,
+          h.squad.fireControl === h.order ? 'published' : 'cancelled',
+          h.squad.fireControl === h.order ? 'published:await-personal-adoption' : 'owner:ended',
+          h.order.since
+        );
+      },
+      cancel: function (h) {
+        return root.BattleSquadStability.controllerFireControl.end(h.squad, h.sim, h.order);
+      },
+      release: function (h) {
+        return root.BattleSquadStability.controllerFireControl.end(h.squad, h.sim, h.order);
+      }
+    },
+    'combat.contact': {
+      request: function (req, sim) {
+        var E = root.BattleEngagement,
+          s = manOf(squadOf(sim, req), req),
+          task =
+            s &&
+            E &&
+            E.controllerCombat &&
+            E.controllerCombat.start(s, sim, req.capability === 'combat.march' ? 'march' : req.params.drill);
+        return !!task && keep(req, sim, { man: s, task: task });
+      },
+      stage: function (h) {
+        var stage = root.BattleEngagement.controllerCombat.stage(h.man, h.sim, h.task);
+        mark(h, stage.stage, stage.reason, stage.at);
+      },
+      cancel: function (h) {
+        return root.BattleEngagement.controllerCombat.end(h.man, h.sim, h.task);
+      },
+      release: function (h) {
+        return root.BattleEngagement.controllerCombat.end(h.man, h.sim, h.task);
+      }
+    },
     /* Meso (module 16) publishes the man's personal order; Command Reception adopts it, Squad Command
        applies it to the resolver and the execution outcome reader says how far it got. */
     'movement.move': {
@@ -278,6 +322,7 @@
     }
   };
 
+  CAPS['combat.march'] = CAPS['combat.contact'];
   function request(req, sim) {
     var c = CAPS[req.capability];
     if (!c || handles.has(req)) return false;

@@ -1,9 +1,9 @@
-/* March provider (slice 2 of the legacy replacement, `?tacticalController=new`). The first provider on
-   the tactical controller (13a): it takes every squad on both sides and only marches. Each squad walks
+/* Foundational provider (slices 2/3 of the legacy replacement, `?tacticalController=new`). It takes
+   every squad on both sides. Each squad walks
    its brief's route legs in Meso's formation layout and holds at the last leg; acceptance, transport,
    casualties, succession, retreat, rally recovery, physiology and reactions stay with their owners.
-   Contact drills, fire control and station selection are not here yet (slice 3), so a squad it owns
-   does not fight: this slice proves exclusive ownership and readable stalls, not tactics.
+   The independent contact module (13d) chooses fire discipline and contact roles. Station selection
+   and coordinated covered bounds remain later skills.
 
    It decides and asks; it writes nothing. Every effect is a capability request through the owner
    adapters (13b), and every man's progress is the stage his owner reports. A man the provider
@@ -116,6 +116,13 @@
         slot = slots[i].point,
         cur = st.men.get(id),
         stage = cur && ctx.stage(cur.actionId);
+      var contact = root.BattleTacticalContactSkills;
+      if (contact && contact.wants(s, ctx.sim)) {
+        if (cur) ctx.finish(cur.actionId, 'contact-skill');
+        st.men.delete(id);
+        st.stopped.delete(id);
+        continue;
+      }
       if (cur && !stage) cur = null; // the controller ended it (mission, roster, interrupt)
       if (cur && cur.target !== st.target) {
         ctx.finish(cur.actionId, 'superseded');
@@ -174,6 +181,11 @@
           '[TACTICAL] ?tacticalController=new but the capability contract is not loaded: legacy keeps every squad'
         );
     }
+    if (!root.BattleTacticalContactSkills) {
+      if (typeof console !== 'undefined' && console.warn)
+        console.warn('[TACTICAL] contact skills missing: legacy keeps every squad');
+      return;
+    }
     ['us', 'ge'].forEach(function (f) {
       var a = (sim.factions[f] && sim.factions[f].squads) || [];
       for (var i = 0; i < a.length; i++) if (!TC.controls(sim, a[i])) TC.requestMode(sim, a[i], 'new', ID);
@@ -203,6 +215,7 @@
           stages: {},
           stopped: {}
         };
+        if (root.BattleTacticalContactSkills) row.contact = root.BattleTacticalContactSkills.summary(a[i]);
         st.men.forEach(function (cur) {
           var l = byId[cur.actionId],
             key = cur.kind + ':' + (l ? l.stage : 'gone');
@@ -227,9 +240,13 @@
     policies: {
       squadCommand: squadCommand,
       commanderTick: noop,
-      fireAndMovement: noop,
+      fireAndMovement: function (ctx) {
+        root.BattleTacticalContactSkills.update(ctx);
+      },
       executeMission: executeMission,
-      engagement: noop,
+      engagement: function (ctx) {
+        root.BattleTacticalContactSkills.engagement(ctx);
+      },
       stationSelection: noop
     },
     adapters: OA.adapters,
@@ -238,10 +255,10 @@
   if (!reg.ok) throw new Error('March provider rejected: ' + reg.reason);
   if (root.BattleModules)
     root.BattleModules.registerSystem('tactical-march-provider', {
-      version: '1-march-only',
+      version: '2-march-contact',
       onBattleStart: takeAll,
       onCommanderTick: takeAll
     });
   if (root.GTLog)
-    root.GTLog('[TACTICAL] march provider on (?tacticalController=new): squads march, no contact drills');
+    root.GTLog('[TACTICAL] foundational provider on (?tacticalController=new): march and contact skills');
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -28,7 +28,8 @@ const { requestPreview } = require('./preview_request.cjs');
     url.searchParams.set('commandPosture', '0');
     const page = await context.newPage(),
       errors = [];
-    page.on('pageerror', e => errors.push(String(e)));
+    page.on('pageerror', e => errors.push(String(e.stack || e)));
+    page.on('requestfailed', r => console.error('C3_REQUEST_FAILED', r.url(), r.failure()?.errorText));
     await page.goto(url.href, { waitUntil: 'load', timeout: 300000 });
     await page.waitForFunction(() => window.__battle__ && BattleEngagement.supportReady, null, {
       timeout: 180000
