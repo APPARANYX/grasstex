@@ -113,7 +113,7 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Flag-on natural census and native contact execution
         env:
-          TACTICAL_DIRECT_PREVIEW: ${{ needs.contact-preview.outputs.preview_url }}
+          TACTICAL_DIRECT_PREVIEW: https://test.ivandpopov.com/grasstex/preview/${{ needs.contact-preview.outputs.preview_slug }}/battle_sim.php
           TACTICAL_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           TACTICAL_PREVIEW: https://test.ivandpopov.com/grasstex/preview.php?ref=${{ github.head_ref || github.ref_name }}
         run: node scripts/probes/probe_tactical_contact.cjs

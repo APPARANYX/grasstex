@@ -13,8 +13,8 @@ on:
         required: true
         type: string
     outputs:
-      preview_url:
-        value: ${{ jobs.preview.outputs.url }}
+      preview_slug:
+        value: ${{ jobs.preview.outputs.slug }}
     secrets:
       FTP_HOST:
         required: true
@@ -47,7 +47,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 8
     outputs:
-      url: ${{ steps.id.outputs.url }}
+      slug: ${{ steps.id.outputs.slug }}
     steps:
       - name: Checkout preview ref
         uses: actions/checkout@v4
@@ -75,7 +75,6 @@ jobs:
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
           echo "slug=$slug" >> "$GITHUB_OUTPUT"
           echo "ref=$PREVIEW_REF" >> "$GITHUB_OUTPUT"
-          echo "url=https://test.ivandpopov.com/grasstex/preview/$slug/battle_sim.php" >> "$GITHUB_OUTPUT"
 
       - name: Validate preview runtime
         shell: bash

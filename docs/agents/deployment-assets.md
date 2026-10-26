@@ -34,7 +34,7 @@
   ref retains its own gameplay defaults. Explicit strategic `=0` controls now survive redirects.
 - Contact-controller browser QA calls the existing branch-preview workflow with an exact commit
   SHA so its PHP loader, helper and JavaScript are tested together. The reusable workflow exposes
-  its verified preview URL; it uploads `runtime-contract.php` before the dependent loader. The
+  its verified preview slug; it uploads `runtime-contract.php` before the dependent loader. The
   launcher continues to use its trusted host loader and does not execute branch PHP.
 - Hosted textures load only from `test.ivandpopov.com` (WebGL rejects them cross-origin).
 
