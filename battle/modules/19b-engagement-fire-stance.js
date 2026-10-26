@@ -383,7 +383,7 @@
       if (!A || !A.canSuppress) return null;
       for (var i = 0; i < STANCE_ORDER.length; i++) {
         var pose = STANCE_ORDER[i],
-          proxy = Object.assign(Object.create(s), {
+          proxy = Object.assign({}, s, {
             root: s.root,
             prone: pose === 'prone',
             crouching: pose === 'crouch',
