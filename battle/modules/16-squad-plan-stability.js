@@ -1335,9 +1335,11 @@
       'bound',
       'squad-leader',
       battle.time,
-      battle.time + BOUND_CYCLE + BOUND_DURATION,
+      params.moverId || params.moverIds ? Infinity : battle.time + BOUND_CYCLE + BOUND_DURATION,
       'controller covered ' + params.direction,
-      'physical arrival, support lost, interruption or finite window expiry',
+      params.moverId || params.moverIds
+        ? 'last physical arrival/check-in or genuine interruption (never timeout)'
+        : 'physical arrival, support lost, interruption or finite window expiry',
       { team: params.team, back: !!back, controller: true }
     );
     var h = {
