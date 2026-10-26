@@ -297,6 +297,10 @@ test('a fresh squadmate SEEN sector authorizes real area suppression from covere
   squad(w);
   assert.equal(w.q.fireControl.state, 'open');
   assert.equal(shooter.target, null, 'shared report cannot create a personal target');
+  /* Contact.update picks eligible suppressors at squad policy time;
+     Engagement receives their actor-level actions at the separate per-man
+     dispatch point. Never mistake the pending selection for an accepted role. */
+  w.TC.dispatch(w.b, w.q, 'engagement', shooter);
   const role = w.S.summary(w.q).roles.find(x => x.actorId === String(shooter.id));
   assert.equal(
     role?.drill,
