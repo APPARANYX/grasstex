@@ -383,11 +383,11 @@
       if (!A || !A.canSuppress) return null;
       for (var i = 0; i < STANCE_ORDER.length; i++) {
         var pose = STANCE_ORDER[i],
-          proxy = Object.assign({}, s, {
-            root: s.root,
-            prone: pose === 'prone',
-            crouching: pose === 'crouch',
-            tacticalCrouch: pose === 'crouch'
+          proxy = Object.create(s, {
+            root: { value: s.root },
+            prone: { value: pose === 'prone' },
+            crouching: { value: pose === 'crouch' },
+            tacticalCrouch: { value: pose === 'crouch' }
           });
         if (A.canSuppress(proxy, point, battle, true)) return pose;
       }
