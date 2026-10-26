@@ -1,13 +1,13 @@
 name: ⭐ Deploy Battle Sim Branch Preview
 
-# Publishes an in-progress branch to its own URL for visual checks:
+# Publishes an in-progress branch or pull-request preview to its stable URL:
 #   https://test.ivandpopov.com/grasstex/preview/<branch-slug-or-pr-N>/battle_sim.php
 # Reusable PR callers must provide stable preview_slug=pr-<number>; ref remains exact commit SHA.
 # Production (/grasstex/battle_sim.php, build tags, deploy hash state) is never touched. A preview reads
 # production assets, policy and scenario memory, and makes no telemetry, policy or learning writes.
 
 on:
-  # Manual only: the production branch never deploys itself into a preview.
+  # Manually dispatchable or reusable by CI; production is never modified.
   workflow_call:
     inputs:
       ref:
