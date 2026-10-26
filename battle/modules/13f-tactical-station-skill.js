@@ -45,19 +45,22 @@
     var members = (ctx.squad.members || []).filter(function (s) {
       return s && !s.dead && !s.isPlayer;
     });
-    var occupied = members.filter(function (s) { return !!P.current(s); }).length;
+    var occupied = members.filter(function (s) {
+      return !!P.current(s);
+    }).length;
     if (occupied >= 3) {
       st.reason = 'station-cap';
       return;
     }
     members.sort(function (a, b) {
-      return (A.isMachineGun(a) ? 0 : 1) - (A.isMachineGun(b) ? 0 : 1) ||
-        String(a.id).localeCompare(String(b.id));
+      return (
+        (A.isMachineGun(a) ? 0 : 1) - (A.isMachineGun(b) ? 0 : 1) || String(a.id).localeCompare(String(b.id))
+      );
     });
     for (var i = 0; i < members.length; i++) {
-      var man = members[i], id = String(man.id);
-      if (!P.canAssign(man) || P.current(man) || st.claims.has(id) ||
-          (B && B.wants(man, ctx.sim))) continue;
+      var man = members[i],
+        id = String(man.id);
+      if (!P.canAssign(man) || P.current(man) || st.claims.has(id) || (B && B.wants(man, ctx.sim))) continue;
       var threat = R.knownThreat(man, ctx.sim);
       if (!threat) continue;
       var basis = signature(ctx, members, threat, P);
@@ -75,7 +78,8 @@
       if (E && E.release) E.release(ctx, man);
       for (var j = 0; j < posts.length; j++) {
         var response = ctx.request('station.claim', id, {
-          stationId: String(posts[j].id), threat: { x: +threat.x, z: +threat.z }
+          stationId: String(posts[j].id),
+          threat: { x: +threat.x, z: +threat.z }
         });
         if (response && response.ok) {
           st.claims.set(id, response.actionId);
@@ -85,7 +89,7 @@
           return; // At most one assignment per squad per commander tick.
         }
         st.refused++;
-        st.reason = 'station-owner-refused:' + (response && response.reason || 'unknown');
+        st.reason = 'station-owner-refused:' + ((response && response.reason) || 'unknown');
       }
       st.blocked = basis;
       return;
@@ -96,10 +100,14 @@
     update: update,
     summary: function (sq) {
       var s = states.get(sq);
-      return s && {
-        reason: s.reason, issued: s.issued, refused: s.refused,
-        liveActionIds: Array.from(s.claims.values())
-      };
+      return (
+        s && {
+          reason: s.reason,
+          issued: s.issued,
+          refused: s.refused,
+          liveActionIds: Array.from(s.claims.values())
+        }
+      );
     }
   };
 })(typeof window !== 'undefined' ? window : globalThis);
