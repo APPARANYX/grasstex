@@ -16,7 +16,9 @@ const CASES = [
   { distance: 70, arm: 'new', retreat: false },
   { distance: 120, arm: 'legacy', retreat: false },
   { distance: 120, arm: 'new', retreat: false },
-  { distance: 70, arm: 'new', retreat: true }
+  { distance: 70, arm: 'new', retreat: true },
+  { distance: 120, arm: 'new', cover: 'hedgerow', retreat: false },
+  { distance: 120, arm: 'new', cover: 'open', retreat: false }
 ];
 if (!Number.isFinite(SIM_SECONDS) || SIM_SECONDS < 20 || SIM_SECONDS > 240)
   throw new Error('SKILLS_DRILL_SECONDS must be 20..240 seconds');
@@ -34,11 +36,16 @@ function summarizeSamples(samples) {
   let controllerSamples = 0, contactSamples = 0, stationClaims = 0;
   let maxConflicts = 0, supporterShootingWhileBoundMoving = 0, maxCompleted = 0, maxAborted = 0;
   let maxStarts = 0, shots = 0, hits = 0, maxTargetDriftM = 0;
+  let maxArrivals = 0, maxCheckins = 0;
+  const usMovementConflicts = new Map();
   samples.forEach(item => {
     const d = item.lab;
     shots = Math.max(shots, d.shots || 0);
     hits = Math.max(hits, d.hits || 0);
     maxConflicts = Math.max(maxConflicts, d.writerConflicts || 0);
+    (d.writerConflictDetails || []).filter(e => e.faction === 'us' &&
+      e.field === 'orderDestination').forEach(e =>
+      usMovementConflicts.set(e.signature || JSON.stringify(e), e));
     controllerSamples += d.squads.filter(s => s.id.startsWith('us:') && s.controller === 'new').length;
     contactSamples += d.squads.filter(s => s.id.startsWith('us:') && s.contact).length;
     movingSamples += d.units.filter(s => s.moving).length;
@@ -46,6 +53,8 @@ function summarizeSamples(samples) {
     engagingSamples += d.units.filter(s => s.target).length;
     stationClaims += item.stationClaims;
     supporterShootingWhileBoundMoving += item.coveredShots;
+    maxArrivals = Math.max(maxArrivals, item.maneuvers.reduce((n,z) => n + (z.completed || 0),0));
+    maxCheckins = Math.max(maxCheckins, item.maneuvers.reduce((n,z) => n + (z.checkins || 0),0));
     item.maneuvers.forEach(z => {
       maxCompleted = Math.max(maxCompleted, z.completed || 0);
       maxAborted = Math.max(maxAborted, z.failed || 0);
@@ -66,6 +75,7 @@ function summarizeSamples(samples) {
   });
   return {
     arm: last.lab.controller, distanceM: last.lab.rangeDistanceM,
+    coverLayout: last.lab.coverLayout,
     seed: last.lab.seed, simulatedSeconds: last.lab.time,
     usShots: shots, hits, targetDeaths: last.lab.targetDeaths,
     movementMetersCumulative: +displacementM.toFixed(1),
@@ -75,6 +85,8 @@ function summarizeSamples(samples) {
     stationClaimSamples: stationClaims, supportingShotsDuringBoundMotion: supporterShootingWhileBoundMoving,
     startedCoveredWindows: maxStarts, completedCoveredWindows: maxCompleted, abortedCoveredWindows: maxAborted,
     maxOrderConflictsSnapshot: maxConflicts,
+    usMovementConflicts: Array.from(usMovementConflicts.values()),
+    totalPhysicalArrivals: maxArrivals, squadLeaderCheckins: maxCheckins,
     writerConflictDetails: last.lab.writerConflictDetails || [],
     controllerFaults: last.lab.controllerState && last.lab.controllerState.stats
       ? last.lab.controllerState.stats.faults : null,
@@ -100,6 +112,7 @@ function summarizeSamples(samples) {
       page.on('pageerror',e=>errors.push(String(e)));
       const params = new URLSearchParams({
         skillsLab:'1', seed:SEED, pinSeed:'1', labDistance:String(c.distance),
+        labCover:c.cover || 'staggered',
         labRange:'1', tacticalController:c.arm, strategicInterception:'0'
       });
       await page.goto(BASE+'?'+params,{waitUntil:'domcontentloaded',timeout:120000});
@@ -164,7 +177,7 @@ function summarizeSamples(samples) {
         'unexpected native browser failure');
       results.push(summary);
       console.log('SKILLS_LAB_DRILL',JSON.stringify(summary));
-      fs.writeFileSync(dir+'/'+c.distance+'m-'+c.arm+(c.retreat?'-casualty':'')+'.json',
+      fs.writeFileSync(dir+'/'+c.distance+'m-'+c.arm+'-'+(c.cover || 'staggered')+(c.retreat?'-casualty':'')+'.json',
         JSON.stringify({summary,samples:captured},null,2));
       await page.close();
     }
@@ -177,7 +190,14 @@ function summarizeSamples(samples) {
         anyControllerBounds:results.some(r=>r.arm==='new' && r.startedCoveredWindows>0),
         anyRealSupportDuringMove:results.some(r=>r.arm==='new' && r.supportingShotsDuringBoundMotion>0),
         anyControllerCompletion:results.some(r=>r.arm==='new' && r.completedCoveredWindows>0),
-        anyWriterConflicts:results.some(r=>r.arm==='new' && r.maxOrderConflictsSnapshot>0)
+        anyWriterConflicts:results.some(r=>r.arm==='new' && r.maxOrderConflictsSnapshot>0),
+        anyUSMovementConflicts:results.some(r=>r.arm==='new' && r.usMovementConflicts.length>0),
+        maxStaggeredArrivals:Math.max(...results.filter(r=>r.arm==='new' &&
+          r.coverLayout==='staggered').map(r=>r.totalPhysicalArrivals),0),
+        maxStaggeredCheckins:Math.max(...results.filter(r=>r.arm==='new' &&
+          r.coverLayout==='staggered').map(r=>r.squadLeaderCheckins),0),
+        hedgerowArrivals:results.find(r=>r.coverLayout==='hedgerow')?.totalPhysicalArrivals ?? 0,
+        openFieldArrivals:results.find(r=>r.coverLayout==='open')?.totalPhysicalArrivals ?? 0
       }
     };
     fs.writeFileSync(dir+'/summary.json',JSON.stringify(pass,null,2));
@@ -186,9 +206,19 @@ function summarizeSamples(samples) {
     // completion and supporting fire are scored separately from runtime health.
     if(process.env.SKILLS_DRILL_REQUIRE_TACTICS==='1'){
       assert.equal(pass.findings.missingFire.length,0,'fire skill must shoot standing targets');
-      assert.equal(pass.findings.anyWriterConflicts,false,'locomotion owner conflicts forbidden');
+      /* German target actors are intentionally stationary, but their squad-orders
+         still conflict with squad-stability. Report those separately; never
+         call them a US moving soldier's ownership conflict. */
+      assert.equal(pass.findings.anyUSMovementConflicts,false,
+        'US movement destination ownership conflicts forbidden');
       assert.equal(pass.findings.anyRealSupportDuringMove,true,'real covering fire during physical bound');
       assert.equal(pass.findings.anyControllerCompletion,true,'native controlled bound must complete');
+      assert.ok(pass.findings.maxStaggeredArrivals>=4,
+        'staggered physical cover must permit four real US waypoints');
+      assert.ok(pass.findings.maxStaggeredCheckins>=4,
+        'four waypoints must create real leader checkpoint receipts');
+      assert.equal(pass.findings.openFieldArrivals,0,
+        'empty cover field must never fabricate native physical-cover arrivals');
     }
   } finally {
     await browser.close();
