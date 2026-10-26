@@ -110,7 +110,7 @@ manager, firing permission or proof that supplied evidence is true. Existing own
 produce the evidence in a later runtime integration; no gameplay acceptance is implied.
 
 `battle/modules/13b-tactical-owner-adapters.js` (`BattleTacticalOwnerAdapters`) is that
-integration for every capability except movement. A provider passes `adapters` and
+integration for every capability. A provider passes `adapters` and
 `lifecycle` from it to `registerProvider`. Each adapter only bridges a validated request to
 the owner call named in the contract: Engagement `requestStance` (lowering only, for the
 owner's `STANCE_HOLD`/`PRONE_HOLD`), module 20 `claim`/`release`, Commander `acceptMission`,
@@ -122,10 +122,25 @@ otherwise), and the controller's `summary().live` lists each live or cleanup-pen
 its stage, reason and `since` (the owner's own time for that change), so a stalled action names where it stopped; a report that
 throws reads as `unknown: stage-fault`. A dismounting squad keeps `transport.*` unreleased, so a
 switch waits for the dismount to end. Handles live in a WeakMap keyed by the request
-object; the module adds no field, timer, lease or writer. `movement.move` and `movement.hold`
-are listed in `missing`: Meso personal publication is private to module 16 and gets its owner
-entry in its own change, and until then a provider on these adapters alone is rejected with
-`missing-adapter:movement.move`.
+object; the module adds no field, timer, lease or writer.
+
+Movement goes through the two existing movement owners. `movement.move` calls module 16's owner
+entry `BattleSquadStability.controllerMovement.publish(sq, sim, man, point, key)`, which publishes
+the man's personal order through the same `publishPersonalMovement` path as a fireteam slot
+(publish key `controller:<actionId>`), so Command Reception adoption and resolver arbitration are
+unchanged. Under the controller `updateFireteams` does not run for the squad, so Squad Command
+carries these orders on its own tick until the controller ends them (`controllerMovement.end`);
+the orders live in a WeakMap in module 16. A man in survival movement is refused. The stage is
+the execution outcome reader's (18a) state for that publish key: `published` (pending, at the
+envelope's `issuedAt`), `adopted` (at `adoptedAt`), `applied` (held by a higher authority, reason
+`held:<by>`), `resolved` (executing or blocked), `arrived`; with `?commandMovement=0` it is
+`applied: adoption-off` at once. `movement.hold` is one native resolver `hold` proposal from
+source `tactical-controller` with no expiry of its own (`ttl` Infinity), so nothing refreshes it:
+the resolver ends it when the squad's phase, plan or retreat changes or a higher authority
+replaces it (`cancelled: owner:replaced`). Its stage is `resolved` when it wins arbitration,
+`holding` within the resolver's `arrival` distance, or `accepted: outranked:<kind>` while a post
+or other authority wins. Cancel withdraws only that proposal. The resolver keeps no time for
+selection or arrival, so those stages carry the first read that saw them.
 
 Before activation, prove exclusive dispatch in both Meso paths and ordinary Micro/station
 policy, retained safety/adoption/transport, and cancellation on mission, membership,

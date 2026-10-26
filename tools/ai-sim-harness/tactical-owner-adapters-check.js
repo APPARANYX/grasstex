@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 'use strict';
 /* Tactical owner adapters (13b): each capability the controller can issue reaches the shipping owner
-   (Engagement stance, module 20 stations, Commander mission acceptance, module 58 transport) through
+   (Meso personal movement, the Movement Resolver, Engagement stance, module 20 stations, Commander
+   mission acceptance, module 58 transport) through
    that owner's own call, reports its stage from the owner's state, and is cancelled and released by
    the owner when the controller switches back or the action is interrupted. */
 const assert = require('node:assert/strict'),
@@ -63,17 +64,11 @@ function rifleman(w) {
   return w.us.members.find(m => m.role === 'rifleman');
 }
 
-test('the adapters cover every contract capability except movement, which is listed as missing', () => {
+test('the adapters cover every contract capability, so a provider can take a squad on them alone', () => {
   const w = world(),
     caps = Object.keys(CONTRACT.capabilities);
-  assert.deepEqual(w.OA.missing, MOVEMENT);
-  caps.forEach(c =>
-    assert.equal(
-      MOVEMENT.includes(c) ? w.OA.adapters[c] : typeof w.OA.adapters[c],
-      MOVEMENT.includes(c) ? undefined : 'function',
-      c
-    )
-  );
+  assert.deepEqual(w.OA.missing, []);
+  caps.forEach(c => assert.equal(typeof w.OA.adapters[c], 'function', c));
   const spec = {
     id: 'owners-only',
     policies: {},
@@ -81,12 +76,8 @@ test('the adapters cover every contract capability except movement, which is lis
     lifecycle: w.OA.lifecycle
   };
   w.TC.points.forEach(p => (spec.policies[p] = () => {}));
-  w.TC.registerProvider(spec);
-  assert.equal(
-    w.TC.requestMode(w.b, w.us, 'new', 'owners-only').reason,
-    'missing-adapter:movement.move',
-    'a provider cannot take a squad on these adapters alone'
-  );
+  assert.equal(w.TC.registerProvider(spec).ok, true);
+  assert.equal(w.TC.requestMode(w.b, w.us, 'new', 'owners-only').reason, 'switched');
 });
 
 test('posture.lower goes through the Engagement stance owner, for its own hold time', () => {
@@ -367,10 +358,184 @@ test('a stage carries the owner’s own time for the change, however late it is 
   assert.equal(live.since, task.occupiedAt, 'since is when the owner saw it, not when it was read');
 });
 
+/* Movement needs the shipping Squad Command stack (module 16), Command Reception and the resolver. */
+function moving(search) {
+  H.resetIds();
+  const r = H.bootstrap({ search: search || '?stressAct=0&commandRelay=0' });
+  r.BattleTacticalCapabilityContract = CONTRACT;
+  loadModule(r, 'battle/movement-resolver.js');
+  loadModule(r, 'battle/modules/13a-tactical-controller.js');
+  loadModule(r, 'battle/modules/13b-tactical-owner-adapters.js');
+  const b = H.makeBattle(r, { seed: 57 });
+  b.time = 10;
+  const q = H.addSquad(r, b, {
+    id: 'us-0',
+    faction: 'us',
+    x: 0,
+    z: 0,
+    objective: { x: 0, z: 120 },
+    facing: 0
+  });
+  q.state = 'advance';
+  q.commandPhase = 'approach';
+  q.orderAnchor = { x: 0, z: 0 };
+  q.rally = { x: 0, z: 0 };
+  q.objective = { x: 0, z: 120 };
+  q._macroMission = { owner: 'force-command', intent: 'capture', status: 'executing', version: 1 };
+  const TC = r.BattleTacticalController,
+    OA = r.BattleTacticalOwnerAdapters,
+    log = [],
+    seen = [],
+    adapters = {};
+  Object.keys(OA.adapters).forEach(
+    c =>
+      (adapters[c] = function (req, sim) {
+        seen.push(req);
+        return OA.adapters[c](req, sim);
+      })
+  );
+  const policies = {};
+  TC.points.forEach(p => (policies[p] = ctx => log.push(ctx)));
+  assert.equal(TC.registerProvider({ id: 'owners', policies, adapters, lifecycle: OA.lifecycle }).ok, true);
+  assert.equal(TC.requestMode(b, q, 'new', 'owners').reason, 'switched');
+  r.SquadAI.updateSquad(q, b);
+  const s = q.members.find(m => m.role === 'rifleman');
+  return { r, b, q, TC, OA, log, seen, s, ctx: log[log.length - 1] };
+}
+function at(s, p) {
+  s.root.position.x = p.x;
+  s.root.position.z = p.z;
+}
+function slotOf(s) {
+  return 'movement|soldier:' + String(s.id);
+}
+
+test('movement.move is a Meso personal order: published, adopted, applied, resolved, arrived', () => {
+  const w = moving(),
+    CR = w.r.BattleCommandReception,
+    R = w.r.BattleMovementResolver,
+    goal = { x: 8, z: 30 };
+  assert.equal(CR.movementEnabled(), true);
+  const res = w.ctx.request('movement.move', w.s.id, { point: goal });
+  assert.equal(res.reason, 'owner-accepted');
+  const req = w.seen[w.seen.length - 1],
+    rec = CR.peek(w.s, w.b, 'movement', 'soldier:' + String(w.s.id));
+  assert.equal(rec.data.publishKey, 'controller:' + res.actionId, 'Meso published the controller’s order');
+  assert.deepEqual(w.OA.stage(req), { stage: 'published', reason: rec.phase, at: rec.issuedAt });
+  assert.notEqual(w.s._fireteamPublishKey, rec.data.publishKey, 'not applied before the man adopts it');
+
+  w.b.time = rec.adoptedAt + 0.01;
+  assert.deepEqual(w.OA.stage(req), { stage: 'adopted', reason: 'adopted', at: rec.adoptedAt });
+  w.r.SquadAI.updateSquad(w.q, w.b);
+  assert.equal(w.s._fireteamAdoptedEnvelope, rec.envelopeId, 'Squad Command carried it on its own tick');
+  assert.equal(w.s._fireteamPublishKey, rec.data.publishKey);
+  R.resolve(w.s, w.b);
+  assert.equal(w.OA.stage(req).stage, 'resolved');
+  at(w.s, w.s._movementResolver.last.intentPoint);
+  assert.equal(w.OA.stage(req).stage, 'arrived');
+  const live = w.TC.summary(w.b).live.find(a => a.actionId === res.actionId);
+  assert.equal(live.stage, 'arrived');
+});
+
+test('a controller order is carried by Squad Command, not by the legacy fireteam slots', () => {
+  const w = moving(),
+    goal = { x: -12, z: 40 },
+    res = w.ctx.request('movement.move', w.s.id, { point: goal }),
+    CR = w.r.BattleCommandReception;
+  const first = CR.peek(w.s, w.b, 'movement', 'soldier:' + String(w.s.id));
+  w.b.time += 0.2;
+  w.r.SquadAI.updateSquad(w.q, w.b);
+  const again = CR.peek(w.s, w.b, 'movement', 'soldier:' + String(w.s.id));
+  assert.equal(again.envelopeId, first.envelopeId, 'the pending order is not replaced while he processes it');
+  assert.equal(again.data.publishKey, 'controller:' + res.actionId, 'no fireteam slot was published over it');
+});
+
+test('switching back ends the controller order at its owner; legacy fireteams publish again', () => {
+  const w = moving(),
+    res = w.ctx.request('movement.move', w.s.id, { point: { x: 5, z: 20 } }),
+    req = w.seen[w.seen.length - 1],
+    CR = w.r.BattleCommandReception;
+  assert.equal(w.TC.requestMode(w.b, w.q, 'legacy').reason, 'switched');
+  assert.equal(w.TC.summary(w.b).actions, 0);
+  assert.equal(w.OA.stage(req).stage, 'cancelled');
+  assert.equal(w.r.BattleSquadStability.controllerMovement.current(w.s, null), false);
+  w.b.time += 0.5;
+  w.r.SquadAI.updateSquad(w.q, w.b);
+  const rec = CR.peek(w.s, w.b, 'movement', 'soldier:' + String(w.s.id));
+  assert.notEqual(rec.data.publishKey, 'controller:' + res.actionId, 'Meso’s own slot replaced it');
+});
+
+test('movement.move is refused for a man in survival movement; the owner keeps it', () => {
+  const w = moving();
+  w.s._survivalMovementKey = 'survival';
+  assert.equal(w.ctx.request('movement.move', w.s.id, { point: { x: 5, z: 20 } }).reason, 'owner-rejected');
+});
+
+test('without personal adoption the order applies at once and says so', () => {
+  const w = moving('?stressAct=0&commandRelay=0&commandMovement=0'),
+    res = w.ctx.request('movement.move', w.s.id, { point: { x: 3, z: 25 } }),
+    req = w.seen[w.seen.length - 1];
+  assert.equal(res.reason, 'owner-accepted');
+  assert.equal(w.s._fireteamPublishKey, 'controller:' + res.actionId);
+  assert.deepEqual(w.OA.stage(req), { stage: 'applied', reason: 'adoption-off', at: w.b.time });
+});
+
+test('movement.hold is one native resolver hold the resolver ends itself', () => {
+  const w = moving(),
+    R = w.r.BattleMovementResolver,
+    here = { x: w.s.root.position.x, z: w.s.root.position.z };
+  const res = w.ctx.request('movement.hold', w.s.id, { point: here }),
+    req = w.seen[w.seen.length - 1],
+    p = w.s._movementResolver.combat;
+  assert.equal(res.reason, 'owner-accepted');
+  assert.equal(p.owner, 'tactical-controller');
+  assert.equal(p.kind, 'hold');
+  assert.equal(p.until, Infinity, 'no expiry of its own; nothing refreshes it');
+  R.resolve(w.s, w.b);
+  assert.equal(w.s._movementResolver.last.owner, 'tactical-controller');
+  assert.equal(w.OA.stage(req).stage, 'holding');
+  w.b.time += 60;
+  R.resolve(w.s, w.b);
+  assert.equal(w.OA.stage(req).stage, 'holding', 'still held a minute later without any refresh');
+  w.q.commandPhase = 'assault';
+  R.resolve(w.s, w.b);
+  assert.deepEqual(
+    [w.OA.stage(req).stage, w.OA.stage(req).reason],
+    ['cancelled', 'owner:replaced'],
+    'a new squad phase ended the hold at the resolver'
+  );
+  assert.equal(w.OA.lifecycle.release(req), true);
+});
+
+test('movement.hold reports when a higher authority outranks it, and cancel withdraws only its own hold', () => {
+  const w = moving(),
+    R = w.r.BattleMovementResolver,
+    here = { x: w.s.root.position.x, z: w.s.root.position.z };
+  w.ctx.request('movement.hold', w.s.id, { point: here });
+  const req = w.seen[w.seen.length - 1],
+    p = w.s._movementResolver.combat;
+  w.r.BattleTacticalPositions = { update: () => ({ position: { x: 30, z: 30 } }), waypoint: () => null };
+  R.resolve(w.s, w.b);
+  assert.deepEqual(w.OA.stage(req).reason, 'outranked:firing-station');
+  assert.equal(w.s._movementResolver.combat, p, 'the post outranks the hold without discarding it');
+  assert.equal(w.TC.requestMode(w.b, w.q, 'legacy').reason, 'switched');
+  assert.equal(w.s._movementResolver.combat, null, 'the switch withdrew the controller hold');
+  const other = w.q.members.find(m => m !== w.s && m.role === 'rifleman');
+  const theirs = R.proposeCombat(other, { x: 1, z: 1 }, w.b, 'hold', 2, { source: 'test' });
+  w.OA.lifecycle.cancel(req, 'cancelled');
+  assert.equal(other._movementResolver.combat, theirs, 'another man’s hold is untouched');
+});
+
 test('static: the adapters add no timer, RNG draw, movement writer or squad/soldier field', () => {
   const src = fs.readFileSync(path.join(H.REPO, 'battle/modules/13b-tactical-owner-adapters.js'), 'utf8');
   assert.doesNotMatch(src, /setTimeout|setInterval|requestAnimationFrame|Math\.random|\.random\(/);
-  assert.doesNotMatch(src, /\.destination\s*=(?!=)|proposeOrder|proposeCombat|\.stance\s*=(?!=)/);
+  assert.doesNotMatch(src, /\.destination\s*=(?!=)|proposeOrder|publishPersonalMovement|\.stance\s*=(?!=)/);
+  /* The one resolver proposal is the native hold, under the controller's own source name. */
+  assert.equal((src.match(/proposeCombat\(/g) || []).length, 1);
+  assert.match(
+    src,
+    /proposeCombat\(s, req\.params\.point, sim, 'hold', Infinity, \{\s*source: 'tactical-controller'/
+  );
   assert.doesNotMatch(src, /\b(sq|s|squad|soldier|man|t|m)\.[A-Za-z_$]+\s*=[^=]/);
 });
 
