@@ -121,31 +121,53 @@
       goal = back ? A.retreatGoal(ctx.squad) : root.BattleTacticalMarchProvider.target(ctx.squad),
       leader = A.leaderOf(ctx.squad),
       audit = {
-        at: ctx.sim.time, phase: ctx.squad.commandPhase, direction: back ? 'back' : 'forward',
-        contactReports: rs.length, goal: goal ? { x: goal.x, z: goal.z } : null,
-        maxBoundDistance: R && R.tuning.maxHop, teams: [], result: null
+        at: ctx.sim.time,
+        phase: ctx.squad.commandPhase,
+        direction: back ? 'back' : 'forward',
+        contactReports: rs.length,
+        goal: goal ? { x: goal.x, z: goal.z } : null,
+        maxBoundDistance: R && R.tuning.maxHop,
+        teams: [],
+        result: null
       };
     st.diagnostic = audit;
     if (!R || !R.pick || !C || !goal || !leader || !rs.length || list.length < 3) {
-      audit.result = !R ? 'contact-route-skill-missing' : !goal ? 'no-mission-goal' :
-        !leader ? 'no-live-leader' : !rs.length ? 'no-qualified-reported-contact' : 'insufficient-roster';
+      audit.result = !R
+        ? 'contact-route-skill-missing'
+        : !goal
+          ? 'no-mission-goal'
+          : !leader
+            ? 'no-live-leader'
+            : !rs.length
+              ? 'no-qualified-reported-contact'
+              : 'insufficient-roster';
       return null;
     }
-    var ready = list.filter(function (s) { return viable(s, ctx.sim); });
+    var ready = list.filter(function (s) {
+      return viable(s, ctx.sim);
+    });
     /* Preserve one live support weapon outside the mover set. This may be a
        single MG or rifleman with genuine independent discharge evidence. */
-    if (ready.length < 2) { audit.result = 'no-mover-and-supporter'; return null; }
+    if (ready.length < 2) {
+      audit.result = 'no-mover-and-supporter';
+      return null;
+    }
     var choices = [];
     ready.forEach(function (s) {
       if (A.isMachineGun(s) || (st.lastMoverId === String(s.id) && ready.length > 2)) return;
       var team = Q.teamKeyFor(s),
         result = R.pick(s, ctx.sim, rs, goal, []),
         record = {
-          team: team, moverId: String(s.id),
-          eligibleMovers: 1, eligibleSupporters: ready.length - 1,
-          candidates: result.stats.total, directionalCandidates: result.stats.progressing,
-          admittedRoutes: result.stats.safe, moverFailures: [],
-          routeRejections: result.stats.rejected, result: result.point ? 'selected-candidate' : 'no-hop'
+          team: team,
+          moverId: String(s.id),
+          eligibleMovers: 1,
+          eligibleSupporters: ready.length - 1,
+          candidates: result.stats.total,
+          directionalCandidates: result.stats.progressing,
+          admittedRoutes: result.stats.safe,
+          moverFailures: [],
+          routeRejections: result.stats.rejected,
+          result: result.point ? 'selected-candidate' : 'no-hop'
         };
       audit.teams.push(record);
       if (!result.point) return;
@@ -153,14 +175,22 @@
         effectiveHere = !!(obs && obs.inRange && obs.visualLine && obs.ballisticLine);
       /* Preserve effective shooters where possible; move men without a useful
          firing line first. When all can shoot, allow the next best cover hop. */
-      choices.push({ man: s, team: team, point: result.point,
+      choices.push({
+        man: s,
+        team: team,
+        point: result.point,
         score: result.score + (effectiveHere ? 24 : 0),
-        exposure: result.exposure, effectiveHere: effectiveHere });
+        exposure: result.exposure,
+        effectiveHere: effectiveHere
+      });
     });
     choices.sort(function (a, b) {
       return a.score - b.score || String(a.man.id).localeCompare(String(b.man.id));
     });
-    if (!choices.length) { audit.result = 'no-reachable-contact-cover'; return null; }
+    if (!choices.length) {
+      audit.result = 'no-reachable-contact-cover';
+      return null;
+    }
     var selected = choices[0];
     audit.result = 'individual-cover-hop-selected';
     return {
@@ -224,9 +254,12 @@
           var d = Math.hypot(p.man.root.position.x - p.point.x, p.man.root.position.z - p.point.z);
           /* Reevaluate capability and actual physical obstruction, but never
              revoke a nearly completed hop because endpoint sampling changed. */
-          return !viable(p.man, ctx.sim) ||
-            (d > 2 && root.BattleNavigation &&
-              !root.BattleNavigation.movementClear(p.man.root.position, p.point));
+          return (
+            !viable(p.man, ctx.sim) ||
+            (d > 2 &&
+              root.BattleNavigation &&
+              !root.BattleNavigation.movementClear(p.man.root.position, p.point))
+          );
         });
         if (
           st.supporters.length < 1 ||
@@ -258,8 +291,13 @@
         var p = st.plan[i];
         if (
           !viable(p.man, ctx.sim) ||
-          !root.BattleTacticalContactRoute.evaluate(p.man, ctx.sim, p.point,
-            C.boundThreats(p.man, ctx.sim), root.BattleEngagement.underFireNow(p.man, ctx.sim)).eligible
+          !root.BattleTacticalContactRoute.evaluate(
+            p.man,
+            ctx.sim,
+            p.point,
+            C.boundThreats(p.man, ctx.sim),
+            root.BattleEngagement.underFireNow(p.man, ctx.sim)
+          ).eligible
         ) {
           end(ctx, st, 'route-or-mover-revoked', false);
           st.blocked = b;
