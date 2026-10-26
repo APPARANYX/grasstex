@@ -4,7 +4,8 @@
 (function (root) {
   'use strict';
   var states = new WeakMap(),
-    teams = ['alpha', 'bravo', 'charlie'];
+    teams = ['alpha', 'bravo', 'charlie'],
+    MAX_PARALLEL_MOVERS = 3;
   function men(sq) {
     return (sq.members || []).filter(function (s) {
       return s && !s.dead && !s.isPlayer;
@@ -24,6 +25,7 @@
         actions: new Map(),
         routes: new Map(),
         checkins: 0,
+        arrived: new Set(),
         window: null,
         phase: 'idle',
         history: [],
@@ -56,45 +58,41 @@
     });
     if (st.history.length > 16) st.history.shift();
   }
+  /* A per-soldier owner-arrival receipt; never a synthetic whole-team arrival. */
+  function checkpoint(ctx, st, p) {
+    var id = String(p.man.id);
+    if (st.arrived.has(id)) return;
+    st.arrived.add(id);
+    st.completed++;
+    st.checkins++;
+    st.lastMoverId = id;
+    var route = st.routes.get(id);
+    if (route) {
+      var waypoint = route.waypoints[route.cursor];
+      if (waypoint && Math.hypot(p.man.root.position.x - waypoint.x,
+        p.man.root.position.z - waypoint.z) < 2) route.cursor++;
+      else st.routes.delete(id);
+    }
+    note(ctx, st, 'checkin', 'squad-leader-confirmed-physical-arrival:' + id);
+    st.phase = 'moving';
+  }
   function end(ctx, st, reason, success) {
-    st.actions.forEach(function (id) {
-      ctx.finish(id, reason);
-    });
+    st.actions.forEach(function (id) { ctx.finish(id, reason); });
     st.actions.clear();
     if (st.window) ctx.finish(st.window, reason);
     st.window = null;
-    /* Supporters keep firing. Ending a bound must not clear every squadmate's contact role. */
     if (st.direction) st.byDirection[st.direction][success ? 'completed' : 'aborted']++;
     if (success) {
-      st.completed++;
       st.lastTeam = st.team;
-      st.lastMoverId = st.plan && st.plan[0] && String(st.plan[0].man.id);
       st.turn = (st.turn + 1) % teams.length;
-      /* Only a genuine physical arrival advances the retained route. Each
-         next waypoint requires renewed Meso authorization and support fire. */
-      var arrived = st.plan && st.plan[0],
-        id = arrived && String(arrived.man.id),
-        route = id && st.routes.get(id);
-      if (route && arrived) {
-        var next = route.waypoints[route.cursor];
-        if (
-          next &&
-          Math.hypot(arrived.man.root.position.x - next.x, arrived.man.root.position.z - next.z) < 2
-        ) {
-          route.cursor++;
-          st.checkins++;
-          if (route.cursor >= route.waypoints.length) st.routes.delete(id);
-        } else st.routes.delete(id);
-      }
     } else {
       st.failed++;
-      if (st.plan && st.plan[0]) st.routes.delete(String(st.plan[0].man.id));
+      (st.plan || []).forEach(function (p) {
+        if (!st.arrived.has(String(p.man.id))) st.routes.delete(String(p.man.id));
+      });
     }
     note(ctx, st, success ? 'completed' : 'aborted', reason);
-    if (success) {
-      note(ctx, st, 'checkin', 'squad-leader-confirmed-physical-arrival');
-      st.phase = 'completed';
-    }
+    st.arrived.clear();
   }
   function viable(s, sim) {
     var E = root.BattleEngagement,
@@ -225,15 +223,27 @@
       audit.result = 'no-reachable-contact-cover';
       return null;
     }
-    var selected = choices[0];
-    audit.result = 'individual-cover-hop-selected';
+    var selected = [];
+    /* One Meso lease, up to three independent personal movement orders.
+       Preserve two live squadmates as potential covering shooters. */
+    choices.forEach(function (candidate) {
+      if (selected.length >= Math.min(MAX_PARALLEL_MOVERS, ready.length - 2)) return;
+      if (selected.some(function (p) {
+        return Math.hypot(candidate.point.x - p.point.x,
+          candidate.point.z - p.point.z) < 4;
+      })) return;
+      selected.push(candidate);
+    });
+    if (!selected.length) { audit.result = 'no-separated-cover-hops'; return null; }
+    audit.result = 'parallel-individual-cover-hops-selected';
     return {
-      team: selected.team,
-      index: teams.indexOf(selected.team),
-      moverId: String(selected.man.id),
-      plan: [{ man: selected.man, point: selected.point }],
-      route: selected.waypoints,
-      reused: selected.reused,
+      team: selected[0].team,
+      index: teams.indexOf(selected[0].team),
+      moverIds: selected.map(function (s) { return String(s.man.id); }),
+      plan: selected.map(function (s) { return { man: s.man, point: s.point }; }),
+      routes: selected.map(function (s) {
+        return { moverId: String(s.man.id), waypoints: s.waypoints, reused: s.reused };
+      }),
       direction: back ? 'back' : 'forward'
     };
   }
@@ -278,37 +288,37 @@
       }
       st.supporters = supports(ctx, st);
       if (st.phase === 'moving') {
-        var stages = Array.from(st.actions.values()).map(function (id) {
-          return ctx.stage(id);
+        var interrupted = false;
+        st.plan.forEach(function (p) {
+          var id = String(p.man.id);
+          if (st.arrived.has(id) || interrupted) return;
+          var actionId = st.actions.get(id),
+            stageForMan = actionId && ctx.stage(actionId);
+          if (!stageForMan || stageForMan.stage === 'cancelled') {
+            interrupted = true;
+            return;
+          }
+          if (stageForMan.stage === 'arrived') {
+            checkpoint(ctx, st, p);
+            return;
+          }
+          var gap = Math.hypot(p.man.root.position.x - p.point.x,
+            p.man.root.position.z - p.point.z);
+          if (!viable(p.man, ctx.sim) ||
+              (gap > 2 && root.BattleNavigation &&
+                !root.BattleNavigation.movementClear(p.man.root.position, p.point)))
+            interrupted = true;
         });
-        var revoked = st.plan.some(function (p) {
-          var d = Math.hypot(p.man.root.position.x - p.point.x, p.man.root.position.z - p.point.z);
-          /* Reevaluate capability and actual physical obstruction, but never
-             revoke a nearly completed hop because endpoint sampling changed. */
-          return (
-            !viable(p.man, ctx.sim) ||
-            (d > 2 &&
-              root.BattleNavigation &&
-              !root.BattleNavigation.movementClear(p.man.root.position, p.point))
-          );
+        var holders = men(ctx.squad).filter(function (s) {
+          return !st.plan.some(function (moving) { return moving.man === s; }) &&
+            s.hp > 0 && !s.dead && !s.incapacitated && s.weapon && !s.outOfAmmo;
         });
-        if (
-          st.supporters.length < 1 ||
-          revoked ||
-          stages.some(function (s) {
-            return !s || s.stage === 'cancelled';
-          })
-        ) {
+        if (interrupted || holders.length < 2) {
           end(ctx, st, 'support-or-mover-interrupted', false);
           st.blocked = b;
           return;
         }
-        if (
-          stages.length === st.plan.length &&
-          stages.every(function (s) {
-            return s.stage === 'arrived';
-          })
-        ) {
+        if (st.arrived.size === st.plan.length) {
           end(ctx, st, 'physical-team-arrival', true);
           st.blocked = null;
         }
@@ -358,13 +368,15 @@
       st.reason = 'no-directional-covered-team';
       return;
     }
-    root.BattleTacticalMarchProvider.releaseMan(ctx, selected.plan[0].man);
-    root.BattleTacticalContactSkills.release(ctx, selected.plan[0].man);
+    selected.plan.forEach(function (p) {
+      root.BattleTacticalMarchProvider.releaseMan(ctx, p.man);
+      root.BattleTacticalContactSkills.release(ctx, p.man);
+    });
     var result = ctx.request('maneuver.cover', null, {
       direction: selected.direction,
       team: selected.team,
       coverTeam: null,
-      moverId: selected.moverId
+      moverIds: selected.moverIds
     });
     if (!result.ok) {
       st.blocked = b;
@@ -373,18 +385,18 @@
     }
     /* This private plan never writes a destination. The native movement
        owner independently adopts and confirms every physical segment. */
-    var previous = st.routes.get(selected.moverId);
-    if (!selected.reused || !previous)
-      st.routes.set(selected.moverId, {
-        waypoints: selected.route,
-        cursor: 0,
-        mission: ctx.squad._macroMission
+    selected.routes.forEach(function (route) {
+      var previous = st.routes.get(route.moverId);
+      if (!route.reused || !previous) st.routes.set(route.moverId, {
+        waypoints: route.waypoints, cursor: 0, mission: ctx.squad._macroMission
       });
+    });
+    st.arrived.clear();
     st.plan = selected.plan;
     st.team = selected.team;
     st.turn = selected.index;
     st.direction = selected.direction;
-    st.byDirection[selected.direction].started++;
+    st.byDirection[selected.direction].started += selected.plan.length;
     st.startedAt = ctx.sim.time;
     st.supporters = [];
     st.window = result.actionId;
