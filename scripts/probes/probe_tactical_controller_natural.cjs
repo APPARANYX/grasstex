@@ -228,7 +228,9 @@ const { chromium } = require('playwright');
             active.kills = { us: b.factions?.us?.kills || 0, ge: b.factions?.ge?.kills || 0 };
             active.postures = root.BattleSquadStability?.localPlanTelemetry?.(b)?.postures || null;
             active.coveredBounds = root.BattleEngagement?.coveredBoundTelemetry?.(b) || null;
-            active.writerConflicts = root.BattleOrderProvenance?.conflicts?.(b)?.length || 0;
+            const conflicts = root.BattleOrderProvenance?.conflicts?.(b) || [];
+            active.writerConflicts = conflicts.length;
+            active.writerConflictExamples = conflicts.slice(0, 8);
             const controller = root.BattleTacticalController.summary(b);
             active.controller = { new: controller.new, legacy: controller.legacy,
               pending: controller.pending, stats: controller.stats };
@@ -289,7 +291,7 @@ const { chromium } = require('playwright');
       type, count, off: summary.arms.off, on: summary.arms.on,
       onBlockers: summary.results.filter(x => x.arm === 'on').map(x => ({
         seed: x.seed, reasons: x.maneuverReasons, firstEvents: x.maneuverEvents.slice(0, 12),
-        controller: x.controller
+        controller: x.controller, conflicts: x.writerConflictExamples?.slice(0, 2)
       }))
     }));
     assert.equal(summary.arms.off.controllerSamples, 0, 'OFF must have zero new-controller ownership');
