@@ -1,0 +1,50 @@
+name: Mini Map Balanced Meeting 676
+on:
+  pull_request:
+    paths:
+      - 'battle/scenario-generator.js'
+      - 'scripts/probes/probe_mini_meeting.cjs'
+      - '.github/workflows/mini-meeting-qa.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  meeting:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Install native browser
+        run: |
+          php -l battle_sim_local.php
+          node --check battle/scenario-generator.js
+          node --check scripts/probes/probe_mini_meeting.cjs
+          npm install --no-save --no-package-lock playwright@1.58.2
+          npx playwright install --with-deps chromium
+      - name: Start native PHP sandbox
+        run: |
+          mkdir -p /tmp/mini-meeting-site
+          ln -s "$GITHUB_WORKSPACE" /tmp/mini-meeting-site/grasstex
+          PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8765 -t /tmp/mini-meeting-site > /tmp/mini-meeting-php.log 2>&1 &
+          for i in $(seq 1 35); do
+            if curl -fsS 'http://127.0.0.1:8765/grasstex/battle_sim_local.php?seed=meeting-health' >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          tail -100 /tmp/mini-meeting-php.log
+          exit 1
+      - name: Run 210s x 2 balanced meetings
+        env:
+          MINI_MEETING_SECONDS: '210'
+          MINI_MEETING_SEEDS: 'mini-meeting-676-001,mini-meeting-676-002'
+        run: node scripts/probes/probe_mini_meeting.cjs
+      - if: failure()
+        run: tail -100 /tmp/mini-meeting-php.log || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mini-meeting-676-evidence
+          path: reports/mini-meeting/
+          if-no-files-found: warn
+          retention-days: 14
