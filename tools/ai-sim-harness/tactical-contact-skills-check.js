@@ -305,7 +305,25 @@ test('a fresh squadmate SEEN sector authorizes real area suppression from covere
       JSON.stringify({
         summary: w.S.summary(w.q),
         sightings: A.squadContactsMap(w.q, w.b),
-        shooter: { id: shooter.id, target: shooter.target && shooter.target.id }
+        shooter: {
+          id: shooter.id,
+          target: shooter.target && shooter.target.id,
+          suppressedUntil: shooter.suppressedUntil,
+          reacting: w.E.reacting(shooter),
+          weapon: !!shooter.weapon,
+          stand: w.E.suppressionStance(shooter, w.b, { x: 0, z: 77.5 }),
+          candidateDryRun: A.canSuppress(
+            Object.create(shooter, {
+              prone: { value: false },
+              crouching: { value: false },
+              tacticalCrouch: { value: false }
+            }),
+            { x: 0, z: 77.5 },
+            w.b,
+            true
+          ),
+          witness: w.q.members.map(m => ({ id: m.id, dead: !!m.dead, player: !!m.isPlayer }))
+        }
       })
   );
   assert.ok(role.reportedPoint && Number.isFinite(role.reportedPoint.z));
