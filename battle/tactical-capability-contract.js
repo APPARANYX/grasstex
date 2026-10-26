@@ -83,7 +83,7 @@
       ['team'],
       ['executing'],
       ['Meso'],
-      ['direction', 'team', 'coverTeam']
+      ['direction', 'team', 'coverTeam', 'moverId']
     ),
     'combat.bound': definition(
       'actor',
@@ -207,7 +207,7 @@
     if (
       !record(p, def.parameters) ||
       !def.parameters.every(function (k) {
-        return Object.hasOwn(p, k);
+        return k === 'moverId' && request.capability === 'maneuver.cover' ? true : Object.hasOwn(p, k);
       })
     )
       return fail('invalid-parameters');
@@ -217,6 +217,7 @@
       (Object.hasOwn(p, 'coverTeam') &&
         p.coverTeam !== null &&
         (['alpha', 'bravo', 'charlie'].indexOf(p.coverTeam) < 0 || p.coverTeam === p.team)) ||
+      (Object.hasOwn(p, 'moverId') && !text(p.moverId)) ||
       (Object.hasOwn(p, 'point') && !point(p.point)) ||
       (Object.hasOwn(p, 'threat') && !point(p.threat)) ||
       (Object.hasOwn(p, 'stationId') && !text(p.stationId)) ||
@@ -237,6 +238,7 @@
     });
     out.params = {};
     def.parameters.forEach(function (k) {
+      if (!Object.hasOwn(p, k)) return;
       out.params[k] = p[k] && typeof p[k] === 'object' ? { x: p[k].x, z: p[k].z } : p[k];
     });
     return frozen({ ok: true, reason: 'valid-shape', request: out });
