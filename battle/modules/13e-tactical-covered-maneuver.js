@@ -599,6 +599,14 @@
                 moverId: entry[0],
                 cursor: entry[1].cursor,
                 origin: entry[1].origin || null,
+                active: !!(
+                  entry[1].mission === sq._macroMission &&
+                  sq._macroMission &&
+                  (sq._macroMission.action === 'assault' ||
+                    sq.state === 'retreat' ||
+                    sq.commandPhase === 'retreat') &&
+                  entry[1].cursor < entry[1].waypoints.length
+                ),
                 waypoints: entry[1].waypoints.map(function (p) {
                   return { x: p.x, z: p.z, slotId: p.slotId };
                 })

@@ -696,7 +696,7 @@
         var soldier = (sq.members || []).find(function (s) {
           return s && String(s.id) === route.moverId && !s.dead;
         });
-        if (!soldier || !soldier.root || !route.waypoints.length) return;
+        if (!soldier || !soldier.root || !route.active || !route.waypoints.length) return;
         var colors = [
             new BABYLON.Color3(0.51, 0.92, 0.43),
             new BABYLON.Color3(1, 0.68, 0.24),
@@ -810,7 +810,9 @@
           return s.id.startsWith('us:');
         })
         .map(function (s) {
-          var lines = (s.retainedRoutes || []).map(function (route) {
+          var lines = (s.retainedRoutes || []).filter(function (route) {
+            return route.active;
+          }).map(function (route) {
             var stops = route.waypoints,
               labels = stops.map(function (p, i) {
                 return (
@@ -837,7 +839,9 @@
             '\n' +
             (lines.length
               ? lines.join('\n')
-              : '  No leader-approved multihop plan (' + (s.reason || 'no authorization') + ')')
+              : '  No active multihop order (' +
+                (s.missionAction === 'defend' ? 'DEFEND mission; previous routes are history' : s.reason || 'no authorization') +
+                ')')
           );
         })
         .join('\n') || 'No US squads';
