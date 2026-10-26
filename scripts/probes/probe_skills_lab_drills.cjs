@@ -120,6 +120,8 @@ function summarizeSamples(samples) {
     hits,
     targetDeaths: last.lab.targetDeaths,
     nativeUSGrenadeThrows: grenadeThrows,
+    friendlyGrenadeWounded: last.lab.grenades?.friendlyWounded || 0,
+    friendlyGrenadeCasualties: last.lab.grenades?.friendlyCasualties || 0,
     actorsWithRetainedCCheckin: Array.from(multiHopActors),
     movementMetersCumulative: +displacementM.toFixed(1),
     moveSamples: movingSamples,
@@ -357,6 +359,8 @@ function summarizeSamples(samples) {
           assault?.nativeUSGrenadeThrows > 0,
           'covered assault must finish with an actual native grenade release'
         );
+        assert.equal(assault?.friendlyGrenadeWounded, 0, 'AI grenades must not wound friendlies');
+        assert.equal(assault?.friendlyGrenadeCasualties, 0, 'AI grenades must not kill friendlies');
       }
     }
   } finally {
