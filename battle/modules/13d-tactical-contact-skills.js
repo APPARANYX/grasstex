@@ -97,7 +97,12 @@
   var SIGHTING_AGE = 8;
   function seenSectors(sq, sim) {
     var A = root.SquadAI,
-      men = members(sq),
+      /* The reporting eyewitness may be the player-controlled squad leader.
+         The PLAYER does not become an AI suppressor, but their actual SEEN
+         report remains valid shared intelligence for squadmates. */
+      men = (sq.members || []).filter(function (s) {
+        return s && !s.dead;
+      }),
       reports = A.squadContactsMap && A.squadContactsMap(sq, sim),
       out = [];
     (reports || []).forEach(function (rec) {
