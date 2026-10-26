@@ -70,8 +70,8 @@
     var route = st.routes.get(id);
     if (route) {
       var waypoint = route.waypoints[route.cursor];
-      if (waypoint && Math.hypot(p.man.root.position.x - waypoint.x,
-        p.man.root.position.z - waypoint.z) < 2) route.cursor++;
+      if (waypoint && Math.hypot(p.man.root.position.x - waypoint.x, p.man.root.position.z - waypoint.z) < 2)
+        route.cursor++;
       else st.routes.delete(id);
     }
     var actionId = st.actions.get(id);
@@ -93,7 +93,9 @@
     st.phase = 'moving';
   }
   function end(ctx, st, reason, success) {
-    st.actions.forEach(function (id) { ctx.finish(id, reason); });
+    st.actions.forEach(function (id) {
+      ctx.finish(id, reason);
+    });
     st.actions.clear();
     if (st.window) ctx.finish(st.window, reason);
     st.window = null;
@@ -248,19 +250,28 @@
        Preserve two live squadmates as potential covering shooters. */
     choices.forEach(function (candidate) {
       if (selected.length >= Math.min(MAX_PARALLEL_MOVERS, ready.length - 2)) return;
-      if (selected.some(function (p) {
-        return Math.hypot(candidate.point.x - p.point.x,
-          candidate.point.z - p.point.z) < 4;
-      })) return;
+      if (
+        selected.some(function (p) {
+          return Math.hypot(candidate.point.x - p.point.x, candidate.point.z - p.point.z) < 4;
+        })
+      )
+        return;
       selected.push(candidate);
     });
-    if (!selected.length) { audit.result = 'no-separated-cover-hops'; return null; }
+    if (!selected.length) {
+      audit.result = 'no-separated-cover-hops';
+      return null;
+    }
     audit.result = 'parallel-individual-cover-hops-selected';
     return {
       team: selected[0].team,
       index: teams.indexOf(selected[0].team),
-      moverIds: selected.map(function (s) { return String(s.man.id); }),
-      plan: selected.map(function (s) { return { man: s.man, point: s.point }; }),
+      moverIds: selected.map(function (s) {
+        return String(s.man.id);
+      }),
+      plan: selected.map(function (s) {
+        return { man: s.man, point: s.point };
+      }),
       routes: selected.map(function (s) {
         return { moverId: String(s.man.id), waypoints: s.waypoints, reused: s.reused };
       }),
@@ -324,17 +335,27 @@
             checkpoint(ctx, st, p);
             return;
           }
-          var gap = Math.hypot(p.man.root.position.x - p.point.x,
-            p.man.root.position.z - p.point.z);
-          if (!viable(p.man, ctx.sim) ||
-              (gap > 2 && root.BattleNavigation &&
-                !root.BattleNavigation.movementClear(p.man.root.position, p.point))) {
+          var gap = Math.hypot(p.man.root.position.x - p.point.x, p.man.root.position.z - p.point.z);
+          if (
+            !viable(p.man, ctx.sim) ||
+            (gap > 2 &&
+              root.BattleNavigation &&
+              !root.BattleNavigation.movementClear(p.man.root.position, p.point))
+          ) {
             interruptMan(ctx, st, p, 'genuine-mover-or-geometry-interruption');
           }
         });
         var holders = men(ctx.squad).filter(function (s) {
-          return !st.plan.some(function (moving) { return moving.man === s; }) &&
-            s.hp > 0 && !s.dead && !s.incapacitated && s.weapon && !s.outOfAmmo;
+          return (
+            !st.plan.some(function (moving) {
+              return moving.man === s;
+            }) &&
+            s.hp > 0 &&
+            !s.dead &&
+            !s.incapacitated &&
+            s.weapon &&
+            !s.outOfAmmo
+          );
         });
         if (holders.length < 2) {
           end(ctx, st, 'cover-team-incapable', false);
@@ -344,8 +365,12 @@
         if (st.arrived.size + st.interrupted.size === st.plan.length) {
           /* The Meso cover lease and remaining supporter roles end only after
              every personal arrival/check-in or explicit interruption. */
-          end(ctx, st, st.interrupted.size ? 'all-personal-moves-resolved' :
-            'all-physical-arrivals-checked-in', st.arrived.size > 0);
+          end(
+            ctx,
+            st,
+            st.interrupted.size ? 'all-personal-moves-resolved' : 'all-physical-arrivals-checked-in',
+            st.arrived.size > 0
+          );
           st.blocked = null;
         }
         return;
@@ -413,9 +438,12 @@
        owner independently adopts and confirms every physical segment. */
     selected.routes.forEach(function (route) {
       var previous = st.routes.get(route.moverId);
-      if (!route.reused || !previous) st.routes.set(route.moverId, {
-        waypoints: route.waypoints, cursor: 0, mission: ctx.squad._macroMission
-      });
+      if (!route.reused || !previous)
+        st.routes.set(route.moverId, {
+          waypoints: route.waypoints,
+          cursor: 0,
+          mission: ctx.squad._macroMission
+        });
     });
     st.arrived.clear();
     st.interrupted.clear();
@@ -471,8 +499,8 @@
             completed: st.completed,
             failed: st.failed,
             checkins: st.checkins,
-            movingCount: st.window && st.phase === 'moving' ?
-              st.plan.length - st.arrived.size - st.interrupted.size : 0,
+            movingCount:
+              st.window && st.phase === 'moving' ? st.plan.length - st.arrived.size - st.interrupted.size : 0,
             pendingCover: !!st.window,
             arrivedIds: Array.from(st.arrived),
             interruptedIds: Array.from(st.interrupted),
