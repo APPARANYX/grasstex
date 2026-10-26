@@ -698,7 +698,15 @@
       objectiveCount = lab ? 1 : Math.round(rr(r, 3, 6));
     var lanes = LARGE_MEETING ? [-38, 38] : lab ? [-25, 25] : [-700, -350, 0, 350, 700],
       spawnZ = MAP_D / 2 - (lab ? 30 : 90),
+      /* Preview-only paired tempo experiment. Baseline starts at +/-150m; half
+         engagement starts +/-75m while preserving the exact seeded terrain,
+         obstacles, weapons, mission and native movement owners. */
+      tempoHalfStart =
+        LARGE_MEETING &&
+        root.location &&
+        /[?&]meetingStartHalf=1(?:&|$)/.test(root.location.search || ''),
       balancedMeeting = LARGE_MEETING;
+    if (tempoHalfStart) spawnZ *= 0.5;
     var scenario = {
       version: 20,
       seed: seed,
