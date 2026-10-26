@@ -1,0 +1,21 @@
+name: Temporary final contact graph format
+on:
+  pull_request:
+    paths:
+      - .github/workflows/tmp-contact-graph-format-final.yml
+permissions:
+  contents: read
+jobs:
+  emit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - run: |
+          npx --yes prettier@3.3.3 --write battle/modules/13g-tactical-contact-route.js battle/skills-lab.js
+          node - <<'NODE'
+          const fs=require('fs');
+          for(const path of ['battle/modules/13g-tactical-contact-route.js','battle/skills-lab.js'])
+            console.log('FORMAT_HANDOFF '+JSON.stringify({path,content:fs.readFileSync(path,'utf8')}));
+          NODE
