@@ -194,12 +194,11 @@
         /* Sight over a wall is insufficient if the muzzle would hit it.
            For genuine personal targets use the ballistics owner's same
            physical line test before exposing the soldier to shoot. */
-        if (
-          (target === s.target && s.weapon
+        var line =
+          target === s.target && s.weapon
             ? firingLineClear(s, target, here, STANCE_ORDER[i], battle)
-            : seesFrom(here, STANCE_ORDER[i], target, battle))
-        )
-          return STANCE_ORDER[i];
+            : seesFrom(here, STANCE_ORDER[i], target, battle);
+        if (line) return STANCE_ORDER[i];
       }
       return want; // he sees him from no stance: nothing to lose by staying low
     }
