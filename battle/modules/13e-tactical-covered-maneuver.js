@@ -22,6 +22,8 @@
         key: k,
         turn: 0,
         actions: new Map(),
+        routes: new Map(),
+        checkins: 0,
         window: null,
         phase: 'idle',
         history: [],
@@ -68,8 +70,29 @@
       st.lastTeam = st.team;
       st.lastMoverId = st.plan && st.plan[0] && String(st.plan[0].man.id);
       st.turn = (st.turn + 1) % teams.length;
-    } else st.failed++;
+      /* Only a genuine physical arrival advances the retained route. Each
+         next waypoint requires renewed Meso authorization and support fire. */
+      var arrived = st.plan && st.plan[0],
+        id = arrived && String(arrived.man.id),
+        route = id && st.routes.get(id);
+      if (route && arrived) {
+        var next = route.waypoints[route.cursor];
+        if (next && Math.hypot(arrived.man.root.position.x - next.x,
+          arrived.man.root.position.z - next.z) < 2) {
+          route.cursor++;
+          st.checkins++;
+          if (route.cursor >= route.waypoints.length) st.routes.delete(id);
+        } else st.routes.delete(id);
+      }
+    } else {
+      st.failed++;
+      if (st.plan && st.plan[0]) st.routes.delete(String(st.plan[0].man.id));
+    }
     note(ctx, st, success ? 'completed' : 'aborted', reason);
+    if (success) {
+      note(ctx, st, 'checkin', 'squad-leader-confirmed-physical-arrival');
+      st.phase = 'completed';
+    }
   }
   function viable(s, sim) {
     var E = root.BattleEngagement,
@@ -159,7 +182,7 @@
       /* The Meso covered-window owner accepts alpha/bravo/charlie, not the
          command element. Never choose a route it cannot lease. */
       if (teams.indexOf(team) < 0) return;
-      var result = R.pick(s, ctx.sim, rs, goal, []),
+      var result = R.pick(s, ctx.sim, rs, goal, [], st.routes.get(String(s.id))),
         record = {
           team: team,
           moverId: String(s.id),
@@ -168,6 +191,10 @@
           candidates: result.stats.total,
           directionalCandidates: result.stats.progressing,
           admittedRoutes: result.stats.safe,
+          graphNodes: result.stats.graphNodes || 0,
+          routeLength: result.stats.planLength || 0,
+          terminal: result.stats.terminal || 'none',
+          reused: !!result.reused,
           moverFailures: [],
           routeRejections: result.stats.rejected,
           result: result.point ? 'selected-candidate' : 'no-hop'
@@ -182,6 +209,8 @@
         man: s,
         team: team,
         point: result.point,
+        waypoints: result.waypoints || [],
+        reused: !!result.reused,
         score: result.score + (effectiveHere ? 24 : 0),
         exposure: result.exposure,
         effectiveHere: effectiveHere
@@ -201,6 +230,8 @@
       index: teams.indexOf(selected.team),
       moverId: String(selected.man.id),
       plan: [{ man: selected.man, point: selected.point }],
+      route: selected.waypoints,
+      reused: selected.reused,
       direction: back ? 'back' : 'forward'
     };
   }
@@ -335,6 +366,12 @@
       st.reason = 'window-refused:' + result.reason;
       return;
     }
+    /* This private plan never writes a destination. The native movement
+       owner independently adopts and confirms every physical segment. */
+    var previous = st.routes.get(selected.moverId);
+    if (!selected.reused || !previous)
+      st.routes.set(selected.moverId, { waypoints: selected.route, cursor: 0,
+        mission: ctx.squad._macroMission });
     st.plan = selected.plan;
     st.team = selected.team;
     st.turn = selected.index;
@@ -386,6 +423,13 @@
             team: st.team,
             completed: st.completed,
             failed: st.failed,
+            checkins: st.checkins,
+            retainedRoutes: Array.from(st.routes.entries()).map(function (entry) {
+              return { moverId: entry[0], cursor: entry[1].cursor,
+                waypoints: entry[1].waypoints.map(function (p) {
+                  return { x: p.x, z: p.z, slotId: p.slotId };
+                }) };
+            }),
             byDirection: JSON.parse(JSON.stringify(st.byDirection)),
             supporters: (st.supporters || []).slice(),
             history: st.history.slice(),
