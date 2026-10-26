@@ -182,11 +182,13 @@ test('advance waits for real discharges, personal movement adoption, physical ar
   assert.equal(live(w, 'combat.bound').length, 0, 'readiness is not discharge');
   until(w, () => w.M.summary(w.q).phase === 'moving');
   assert.ok(w.M.summary(w.q).supporters.length >= 1);
-  const firstMover = w.M.summary(w.q).history.find(h => h.phase === 'support').movers[0].id;
-  until(w, () => w.M.summary(w.q).completed >= 1);
-  until(w, () => w.M.summary(w.q).phase === 'moving');
-  assert.notEqual(w.M.summary(w.q).history.filter(h => h.phase === 'support').slice(-1)[0].movers[0].id, firstMover);
-  until(w, () => w.M.summary(w.q).completed >= 2);
+  const moving = live(w, 'combat.bound');
+  assert.ok(moving.length >= 2, 'native orders must start concurrently');
+  assert.equal(new Set(moving.map(x => x.actorId)).size, moving.length);
+  until(w, () => w.M.summary(w.q).checkins >= 2);
+  const arrived = w.M.summary(w.q).history.filter(h => h.phase === 'checkin')
+    .map(h => h.reason);
+  assert.ok(new Set(arrived).size >= 2, 'different soldiers check in independently');
   clean(w);
 });
 test('retreat retains a real firing holder, moves backward, selects another mover and falls back on support loss', () => {
@@ -196,13 +198,12 @@ test('retreat retains a real firing holder, moves backward, selects another move
   until(w, () => w.M.summary(w.q)?.phase === 'moving');
   assert.equal(w.q.state, 'retreat');
   assert.equal(w.M.summary(w.q).direction, 'back');
-  const first = w.M.summary(w.q).history.find(h => h.phase === 'support').movers[0].id;
+  assert.ok(live(w, 'combat.bound').length >= 2, 'retreat uses individual simultaneous orders');
   const movers = live(w, 'combat.bound').map(a => w.q.members.find(s => String(s.id) === a.actorId));
   const origins = movers.map(s => s.root.position.z);
   until(w, () => w.M.summary(w.q).completed >= 1);
   assert.ok(movers.every((s, i) => s.root.position.z < origins[i]));
-  until(w, () => w.M.summary(w.q).phase === 'moving');
-  assert.notEqual(w.M.summary(w.q).history.filter(h => h.phase === 'support').slice(-1)[0].movers[0].id, first);
+  assert.ok(w.M.summary(w.q).checkins >= 1);
   for (const s of w.q.members)
     if (w.r.BattleSquadStability.controllerBound.role(s, w.b) === 'cover') s.outOfAmmo = true;
   tick(w);
