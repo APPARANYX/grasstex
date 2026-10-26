@@ -414,7 +414,8 @@
             failed: st.failed,
             byDirection: JSON.parse(JSON.stringify(st.byDirection)),
             supporters: (st.supporters || []).slice(),
-            history: st.history.slice()
+            history: st.history.slice(),
+            diagnostic: st.diagnostic ? JSON.parse(JSON.stringify(st.diagnostic)) : null
           }
         : null;
     }
