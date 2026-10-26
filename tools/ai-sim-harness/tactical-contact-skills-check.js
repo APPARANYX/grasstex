@@ -275,6 +275,43 @@ test('covered personal contact may use standing ballistic line rather than getti
   w.r.BattleBallistics = previousBallistics;
   clean(w);
 });
+test('a fresh squadmate SEEN sector authorizes real area suppression from covered stance', () => {
+  const w = world(80);
+  w.b.time = 16.1;
+  see(w);
+  const shooter = w.q.members.find(s => s.role === 'rifleman');
+  shooter.target = null;
+  shooter._beliefs = { byKey: {} }; // no personal target or firsthand belief
+  const A = w.r.SquadAI,
+    actual = A.canSuppress,
+    attempts = [];
+  // Physical cover masks prone and crouch, but the real upright muzzle
+  // line remains clear; Engagement must own the eventual stance change.
+  A.canSuppress = (s, point, battle, readOnly) =>
+    !s.prone && !s.crouching && !s.tacticalCrouch && actual(s, point, battle, readOnly);
+  squad(w);
+  assert.equal(w.q.fireControl.state, 'open');
+  assert.equal(shooter.target, null, 'shared report cannot create a personal target');
+  const role = w.S.summary(w.q).roles.find(x => x.actorId === String(shooter.id));
+  assert.equal(role?.drill, 'suppress', 'eyewitness sector supports an area-fire assignment');
+  assert.ok(role.reportedPoint && Number.isFinite(role.reportedPoint.z));
+  const actualAreaFire = A.areaFire;
+  A.areaFire = (man, point, battle) => {
+    if (man === shooter) attempts.push({ x: point.x, z: point.z });
+    return actualAreaFire(man, point, battle);
+  };
+  for (let i = 0; i < 12; i++) {
+    w.b.time += 0.15;
+    w.E.updateSoldier(shooter, w.b);
+    shooter.fireCooldown = 0;
+  }
+  assert.equal(w.E.stateOf(shooter).stance, 'stand', 'only native Engagement raises the hidden rifleman');
+  assert.ok(attempts.length > 0, 'the native area-fire primitive, not tryFire on an unseen target, is called');
+  assert.equal(shooter.target, null, 'area fire never forges a direct target');
+  A.canSuppress = actual;
+  A.areaFire = actualAreaFire;
+  clean(w);
+});
 test('contact execution fires real rounds after recognition and honors ammo/range gates', () => {
   const w = world();
   let shots = 0;
