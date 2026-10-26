@@ -16,10 +16,23 @@ const { requestPreview } = require('./preview_request.cjs');
   let evidence = {};
   try {
     const ctx = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: 1440, height: 960 } });
-    const res = await requestPreview(ctx, process.env.TACTICAL_PREVIEW);
-    assert.equal(res.status(), 302, (await res.text()).slice(-1000));
-    const url = new URL(res.headers().location, process.env.TACTICAL_PREVIEW);
-    assert.ok(url.pathname.includes('ref-' + process.env.TACTICAL_SHA.slice(0, 12)));
+    let url;
+    if (process.env.TACTICAL_DIRECT_PREVIEW) {
+      url = new URL(process.env.TACTICAL_DIRECT_PREVIEW);
+      const meta = await ctx.request.get(new URL('preview.json', url).href);
+      assert.equal(meta.status(), 200);
+      assert.equal(
+        (await meta.json()).sha,
+        process.env.TACTICAL_SHA,
+        'preview loader/runtime must share the exact head'
+      );
+    } else {
+      const res = await requestPreview(ctx, process.env.TACTICAL_PREVIEW);
+      assert.equal(res.status(), 302, (await res.text()).slice(-1000));
+      url = new URL(res.headers().location, process.env.TACTICAL_PREVIEW);
+      assert.ok(url.pathname.includes('ref-' + process.env.TACTICAL_SHA.slice(0, 12)));
+    }
+    evidence.source = { sha: process.env.TACTICAL_SHA, url: url.href, loader: 'branch preview' };
     url.searchParams.set('tacticalController', 'new');
     url.searchParams.set('seed', 'controller-contact-20261026');
     url.searchParams.set('pinSeed', '1');

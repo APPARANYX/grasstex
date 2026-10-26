@@ -95,7 +95,14 @@ jobs:
             closeups/tactical-observation/covered-bound-*.png
             closeups/tactical-observation/covered-bound-*.json
 
+  contact-preview:
+    uses: ./.github/workflows/deploy-50webs-preview.yml
+    with:
+      ref: ${{ github.event.pull_request.head.sha || github.sha }}
+    secrets: inherit
+
   tactical-contact:
+    needs: contact-preview
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -106,6 +113,7 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Flag-on natural census and native contact execution
         env:
+          TACTICAL_DIRECT_PREVIEW: ${{ needs.contact-preview.outputs.preview_url }}
           TACTICAL_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           TACTICAL_PREVIEW: https://test.ivandpopov.com/grasstex/preview.php?ref=${{ github.head_ref || github.ref_name }}
         run: node scripts/probes/probe_tactical_contact.cjs

@@ -7,6 +7,21 @@ name: ⭐ Deploy Battle Sim Branch Preview
 
 on:
   # Manual only: the production branch never deploys itself into a preview.
+  workflow_call:
+    inputs:
+      ref:
+        required: true
+        type: string
+    outputs:
+      preview_url:
+        value: ${{ jobs.preview.outputs.url }}
+    secrets:
+      FTP_HOST:
+        required: true
+      FTP_USER:
+        required: true
+      FTP_PASS:
+        required: true
   workflow_dispatch:
     inputs:
       ref:
@@ -23,7 +38,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: deploy-50webs-preview-${{ github.event.inputs.ref || github.ref_name }}
+  group: deploy-50webs-preview-${{ inputs.ref || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
@@ -31,11 +46,13 @@ jobs:
     name: Upload branch preview
     runs-on: ubuntu-latest
     timeout-minutes: 8
+    outputs:
+      url: ${{ steps.id.outputs.url }}
     steps:
       - name: Checkout preview ref
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.inputs.ref || github.ref }}
+          ref: ${{ inputs.ref || github.ref }}
 
       - name: Fetch production comparison tree
         shell: bash
@@ -49,7 +66,7 @@ jobs:
         id: id
         shell: bash
         env:
-          PREVIEW_REF: ${{ github.event.inputs.ref || github.ref_name }}
+          PREVIEW_REF: ${{ inputs.ref || github.ref_name }}
         run: |
           set -euo pipefail
           sha="$(git rev-parse HEAD)"
@@ -58,6 +75,7 @@ jobs:
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
           echo "slug=$slug" >> "$GITHUB_OUTPUT"
           echo "ref=$PREVIEW_REF" >> "$GITHUB_OUTPUT"
+          echo "url=https://test.ivandpopov.com/grasstex/preview/$slug/battle_sim.php" >> "$GITHUB_OUTPUT"
 
       - name: Validate preview runtime
         shell: bash
@@ -130,6 +148,8 @@ jobs:
           # via the preview's own .htaccess (uploaded explicitly below).
           # --delete applies only to this preview directory; sidecar JSON and
           # lab calibrations are never deleted. preview.json is uploaded last.
+          contract_upload=''
+          if [[ -f .preview/runtime-contract.php ]]; then contract_upload='put runtime-contract.php'; fi
           lftp -u "$FTP_USER","$FTP_PASSWORD" "$FTP_HOST" <<LFTP
           set cmd:fail-exit yes
           set net:max-retries 2
@@ -145,6 +165,7 @@ jobs:
           mirror -R --delete --verbose=1 --transfer-all --exclude '\.json\$' --exclude '[Ll][Aa][Bb]' --exclude '[Ss][Ii][Dd][Ee][Cc][Aa][Rr]' Assets Assets
           # lftp mirror omits hidden dotfiles; explicit upload is mandatory.
           put Assets/.htaccess -o Assets/.htaccess
+          $contract_upload
           put battle_sim.php
           put ai_flow_live.html
           put asset-overlay.json
@@ -222,11 +243,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.inputs.ref || github.ref }}
+          ref: ${{ inputs.ref || github.ref }}
       - name: Resolve preview Combat Lab URL
         shell: bash
         env:
-          PREVIEW_REF: ${{ github.event.inputs.ref || github.ref_name }}
+          PREVIEW_REF: ${{ inputs.ref || github.ref_name }}
         run: |
           set -euo pipefail
           slug="$(printf '%s' "$PREVIEW_REF" | tr '[:upper:]' '[:lower:]' | sed -E 's#^(work|preview)/##; s#[^a-z0-9]+#-#g; s#^-+|-+$##g' | cut -c1-48)"
