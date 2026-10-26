@@ -692,7 +692,12 @@
     var buildingCount = lab ? 6 : Math.round(rr(r, 12, 28)),
       objectiveCount = lab ? 1 : Math.round(rr(r, 3, 6));
     var lanes = lab ? [-25, 25] : [-700, -350, 0, 350, 700],
-      spawnZ = MAP_D / 2 - (lab ? 30 : 90);
+      spawnZ = MAP_D / 2 - (lab ? 30 : 90),
+      balancedMeeting =
+        lab &&
+        !root.SKILLS_LAB &&
+        root.location &&
+        /[?&]balancedMeeting=1(?:&|$)/.test(root.location.search || '');
     var scenario = {
       version: 20,
       seed: seed,
@@ -702,7 +707,7 @@
       settlement: { cx: round(cx, 1), cz: round(cz, 1), spanX: round(spanX, 1), spanZ: round(spanZ, 1) },
       spawnZones: {
         us: { z: -spawnZ, lanes: lanes.slice() },
-        ge: { z: spawnZ, lanes: lab && !root.SKILLS_LAB && new URLSearchParams(root.location.search).get('balancedMeeting') === '1' ? lanes.slice() : lab ? [0] : lanes.slice() }
+        ge: { z: spawnZ, lanes: balancedMeeting ? lanes.slice() : lab ? [0] : lanes.slice() }
       },
       roads: [
         { id: 'road-ns', ax: cx, az: cz - spanZ * 0.58, bx: cx, bz: cz + spanZ * 0.58, width: 10 },
