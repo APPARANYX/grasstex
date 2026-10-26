@@ -77,8 +77,10 @@
         route = id && st.routes.get(id);
       if (route && arrived) {
         var next = route.waypoints[route.cursor];
-        if (next && Math.hypot(arrived.man.root.position.x - next.x,
-          arrived.man.root.position.z - next.z) < 2) {
+        if (
+          next &&
+          Math.hypot(arrived.man.root.position.x - next.x, arrived.man.root.position.z - next.z) < 2
+        ) {
           route.cursor++;
           st.checkins++;
           if (route.cursor >= route.waypoints.length) st.routes.delete(id);
@@ -240,11 +242,14 @@
     return men(ctx.squad)
       .filter(function (s) {
         return (
-          !st.plan.some(function (p) { return p.man === s; }) &&
-          E.supportDischarged(s, ctx.sim, st.startedAt)
+          !st.plan.some(function (p) {
+            return p.man === s;
+          }) && E.supportDischarged(s, ctx.sim, st.startedAt)
         );
       })
-      .map(function (s) { return String(s.id); });
+      .map(function (s) {
+        return String(s.id);
+      });
   }
   function update(ctx) {
     var st = state(ctx),
@@ -370,8 +375,11 @@
        owner independently adopts and confirms every physical segment. */
     var previous = st.routes.get(selected.moverId);
     if (!selected.reused || !previous)
-      st.routes.set(selected.moverId, { waypoints: selected.route, cursor: 0,
-        mission: ctx.squad._macroMission });
+      st.routes.set(selected.moverId, {
+        waypoints: selected.route,
+        cursor: 0,
+        mission: ctx.squad._macroMission
+      });
     st.plan = selected.plan;
     st.team = selected.team;
     st.turn = selected.index;
@@ -425,10 +433,13 @@
             failed: st.failed,
             checkins: st.checkins,
             retainedRoutes: Array.from(st.routes.entries()).map(function (entry) {
-              return { moverId: entry[0], cursor: entry[1].cursor,
+              return {
+                moverId: entry[0],
+                cursor: entry[1].cursor,
                 waypoints: entry[1].waypoints.map(function (p) {
                   return { x: p.x, z: p.z, slotId: p.slotId };
-                }) };
+                })
+              };
             }),
             byDirection: JSON.parse(JSON.stringify(st.byDirection)),
             supporters: (st.supporters || []).slice(),
