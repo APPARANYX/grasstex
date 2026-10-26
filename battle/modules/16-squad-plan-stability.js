@@ -1114,6 +1114,47 @@
     );
   }
 
+  /* Controller movement (13b `movement.move`): a replacement controller's personal order to one man.
+     It goes through publishPersonalMovement like a fireteam slot, so Command Reception adoption and
+     the resolver's arbitration are unchanged. Under the controller updateFireteams does not run for
+     the squad, so Squad Command carries these orders on its own tick until the controller ends them.
+     Orders live here, keyed by the man; no soldier field, timer or second writer is added. */
+  var _controllerMoves = new WeakMap();
+  function carryControllerMove(sq, battle, s, order) {
+    if (s.dead || s.isPlayer || s.squad !== sq) return false;
+    return publishPersonalMovement(
+      sq,
+      battle,
+      s,
+      order.point,
+      order.key,
+      false,
+      'controller',
+      'controller order',
+      publishStats(battle)
+    );
+  }
+  function controllerMove(sq, battle, s, next, key) {
+    var p = point(next);
+    if (!sq || !battle || !s || !p || !key || s.dead || s.isPlayer || s.squad !== sq) return null;
+    if (s._survivalMovementKey) return null;
+    var order = { squad: sq, point: p, key: 'controller:' + String(key), publishedAt: +battle.time || 0 };
+    _controllerMoves.set(s, order);
+    carryControllerMove(sq, battle, s, order);
+    return order;
+  }
+  function carryControllerMoves(sq, battle) {
+    var a = sq.members || [];
+    for (var i = 0; i < a.length; i++) {
+      var order = a[i] && _controllerMoves.get(a[i]);
+      if (order && order.squad === sq) carryControllerMove(sq, battle, a[i], order);
+    }
+  }
+  function endControllerMove(s, order) {
+    if (s && _controllerMoves.get(s) === order) _controllerMoves.delete(s);
+    return !s || _controllerMoves.get(s) !== order;
+  }
+
   function tasksFor(phase) {
     if (phase === 'defend' || phase === 'hold')
       return { command: 'control', alpha: 'hold-left', bravo: 'hold-right', charlie: 'local-reserve' };
@@ -2127,7 +2168,10 @@
     /* Casualties, succession, assembly and retreat above are retained services. Under a replacement
        controller the anchor, fireteam and forward-line policy below is the provider's. */
     var TC = root.BattleTacticalController;
-    if (TC && TC.dispatch(battle, sq, 'squadCommand')) return;
+    if (TC && TC.dispatch(battle, sq, 'squadCommand')) {
+      carryControllerMoves(sq, battle);
+      return;
+    }
     advanceSquadAnchor(sq, battle);
     updateFireteams(sq, battle);
     publishForwardLine(sq, battle);
@@ -2260,6 +2304,14 @@
   });
   root.BattleSquadStability = {
     version: '1.9-m3c-leaderless-intent',
+    /* The owner entry for a controller's personal movement order (13b); see controllerMove above. */
+    controllerMovement: {
+      publish: controllerMove,
+      current: function (s, order) {
+        return !!(s && order && _controllerMoves.get(s) === order);
+      },
+      end: endControllerMove
+    },
     planSeconds: { assault: ASSAULT_LEASE, defense: DEFENSE_LEASE },
     teamOrderSeconds: TEAM_LEASE,
     boundCycle: BOUND_CYCLE,

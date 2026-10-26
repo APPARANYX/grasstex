@@ -3,15 +3,14 @@
    projection from that owner's own state and the owner's cancel and release. Adapters decide nothing:
    the provider chooses the man, the point, the station and the stance. They add no squad or soldier
    field, timer, lease or movement writer; per-action handles live in a WeakMap keyed by the frozen
-   request the controller hands to both the adapter and the lifecycle callbacks.
-
-   Movement (movement.move, movement.hold) is not bridged yet: its owner entry is private to module 16
-   (Meso personal publication) and comes in its own change. Until then `missing` lists both, and a
-   provider built on these adapters stays rejected by the controller (`missing-adapter:movement.move`). */
+   request the controller hands to both the adapter and the lifecycle callbacks. */
 (function (root) {
   'use strict';
   var handles = new WeakMap();
 
+  function dist(a, b) {
+    return !a || !b ? Infinity : Math.hypot(a.x - b.x, a.z - b.z);
+  }
   function now(sim) {
     return +(sim && sim.time) || 0;
   }
@@ -61,7 +60,103 @@
     return t !== h.ride || ['boarding', 'embarked', 'disembarking'].indexOf(t.phase) < 0;
   }
 
+  function here(s) {
+    var p = s && s.root && s.root.position;
+    return p ? { x: +p.x, z: +p.z } : null;
+  }
+  /* Execution outcome (18a) states for a Meso order, in the contract's movement.move stage names. */
+  var MOVE_STAGE = {
+    pending: 'published',
+    adopted: 'adopted',
+    held: 'applied',
+    executing: 'resolved',
+    blocked: 'resolved',
+    completed: 'arrived'
+  };
+
+  /* Ending is the same at cancel and at release: a finished action is released without a cancel, so
+     each ends only its own claim, order or hold at the owner and then confirms it is gone. */
+  function endStation(h, reason) {
+    var P = root.BattleTacticalPositions;
+    if (P && P.current(h.man) === h.task) P.release(h.man, h.sim, 'controller:' + reason);
+    return !P || P.current(h.man) !== h.task;
+  }
+  function endOrder(h) {
+    return root.BattleSquadStability.controllerMovement.end(h.man, h.order);
+  }
+  function endHold(h) {
+    var st = h.man._movementResolver;
+    if (st && st.combat === h.proposal) root.BattleMovementResolver.clearCombat(h.man);
+    return !st || st.combat !== h.proposal;
+  }
+
   var CAPS = {
+    /* Meso (module 16) publishes the man's personal order; Command Reception adopts it, Squad Command
+       applies it to the resolver and the execution outcome reader says how far it got. */
+    'movement.move': {
+      request: function (req, sim) {
+        var M = root.BattleSquadStability && root.BattleSquadStability.controllerMovement,
+          sq = squadOf(sim, req),
+          s = manOf(sq, req);
+        if (!s || !M) return false;
+        var order = M.publish(sq, sim, s, req.params.point, req.actionId);
+        if (!order) return false;
+        return keep(req, sim, { man: s, order: order });
+      },
+      stage: function (h) {
+        var M = root.BattleSquadStability.controllerMovement,
+          CR = root.BattleCommandReception,
+          X = root.BattleExecutionOutcome,
+          s = h.man;
+        if (s.dead) return mark(h, 'cancelled', 'actor-dead');
+        if (s.isPlayer) return mark(h, 'cancelled', 'player-owned');
+        if (!M.current(s, h.order)) return mark(h, 'cancelled', 'owner:ended');
+        /* Without personal adoption Squad Command applies the order at once; there is no envelope. */
+        if (!(CR && CR.movementEnabled && CR.movementEnabled()))
+          return mark(h, 'applied', 'adoption-off', h.order.publishedAt);
+        var o = X && X.man(s, h.sim);
+        if (!o || o.publishKey !== h.order.key) return;
+        var rec = CR.peek(s, h.sim, 'movement', 'soldier:' + String(s.id)),
+          stage = MOVE_STAGE[o.state];
+        if (!stage) return;
+        var reason = o.why || (o.by ? 'held:' + o.by : o.terminal ? 'blocked-terminal' : o.state),
+          at = stage === 'published' ? rec.issuedAt : stage === 'adopted' ? rec.adoptedAt : null;
+        mark(h, stage, reason, at);
+      },
+      cancel: endOrder,
+      release: endOrder
+    },
+    /* The resolver owns arbitration: a hold is one native `hold` proposal with no expiry of its own. The
+       resolver ends it when the squad's phase, plan or retreat changes or a higher authority replaces it. */
+    'movement.hold': {
+      request: function (req, sim) {
+        var R = root.BattleMovementResolver,
+          sq = squadOf(sim, req),
+          s = manOf(sq, req);
+        if (!s || !R || !R.proposeCombat) return false;
+        var p = R.proposeCombat(s, req.params.point, sim, 'hold', Infinity, {
+          source: 'tactical-controller',
+          reason: 'controller hold'
+        });
+        if (!p || p.owner !== 'tactical-controller' || s._movementResolver.combat !== p) return false;
+        return keep(req, sim, { man: s, proposal: p });
+      },
+      stage: function (h) {
+        var R = root.BattleMovementResolver,
+          s = h.man,
+          st = s._movementResolver,
+          p = h.proposal,
+          last = st && st.last;
+        if (s.dead) mark(h, 'cancelled', 'actor-dead');
+        else if (!st || st.combat !== p) mark(h, 'cancelled', 'owner:replaced');
+        else if (!last || last.owner !== p.owner || last.issuedAt !== p.issuedAt)
+          mark(h, 'accepted', last ? 'outranked:' + last.kind : 'owner-accepted');
+        else if (dist(here(s), p.point) <= R.arrival) mark(h, 'holding', 'holding');
+        else mark(h, 'resolved', 'resolved');
+      },
+      cancel: endHold,
+      release: endHold
+    },
     /* Engagement is the one stance writer; its request only lowers, for the owner's own hold time. */
     'posture.lower': {
       request: function (req, sim) {
@@ -105,15 +200,8 @@
         else if (t.occupiedAt != null) mark(h, 'occupied', 'occupied', t.occupiedAt);
         else mark(h, 'assigned', 'assigned', t.assignedAt);
       },
-      cancel: function (h, reason) {
-        var P = root.BattleTacticalPositions;
-        if (P && P.current(h.man) === h.task) P.release(h.man, h.sim, 'controller:' + reason);
-        return !P || P.current(h.man) !== h.task;
-      },
-      release: function (h) {
-        var P = root.BattleTacticalPositions;
-        return !P || P.current(h.man) !== h.task;
-      }
+      cancel: endStation,
+      release: endStation
     },
     /* The Commander owns mission status; acceptance is a transition it makes or refuses. */
     'mission.accept': {
@@ -189,7 +277,6 @@
       release: rideEnded
     }
   };
-  var MISSING = ['movement.move', 'movement.hold'];
 
   function request(req, sim) {
     var c = CAPS[req.capability];
@@ -220,9 +307,9 @@
   });
 
   root.BattleTacticalOwnerAdapters = {
-    version: '1.0-owner-bridges',
+    version: '1.1-owner-bridges-movement',
     adapters: adapters,
-    missing: MISSING.slice(),
+    missing: [],
     stage: stage,
     lifecycle: { cancel: lifecycle('cancel'), release: lifecycle('release'), stage: stage }
   };

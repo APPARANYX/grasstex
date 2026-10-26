@@ -764,6 +764,7 @@
     tolerance: tolerance,
     orderCommit: ORDER_COMMIT,
     combatTTL: COMBAT_TTL,
+    arrival: ARRIVAL,
     intentRefresh: INTENT_REFRESH,
     proposeOrder: proposeOrder,
     proposePlayer: proposePlayer,
