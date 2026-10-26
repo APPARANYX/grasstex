@@ -24,6 +24,7 @@
         turn: 0,
         actions: new Map(),
         routes: new Map(),
+        defensePosts: new Map(),
         checkins: 0,
         arrived: new Set(),
         interrupted: new Set(),
@@ -74,6 +75,12 @@
         route.cursor++;
       else st.routes.delete(id);
     }
+    if (st.defending && st.defenseSector != null)
+      st.defensePosts.set(id, {
+        x: p.man.root.position.x,
+        z: p.man.root.position.z,
+        sector: st.defenseSector
+      });
     var actionId = st.actions.get(id);
     if (actionId) ctx.finish(actionId, 'confirmed-physical-arrival:' + id);
     st.actions.delete(id);
@@ -158,6 +165,20 @@
   /* Choose a capable individual, not an indivisible fireteam. The separate
      contact-route skill ranks real physical cover waypoints by exposure, cover
      quality and progress. Meso will independently validate the chosen actor. */
+  function defenseBrief(ctx, rs) {
+    var m = ctx.squad._macroMission,
+      p = m && m.point,
+      report = rs && rs[0];
+    if (!m || m.action !== 'defend' || m.status !== 'executing' || !p ||
+        !Number.isFinite(p.x) || !Number.isFinite(p.z) || !report) return null;
+    var obj = root.BattleObjectiveSystem && root.BattleObjectiveSystem.get &&
+      root.BattleObjectiveSystem.get(ctx.sim, m.objectiveId);
+    return {
+      center: { x: p.x, z: p.z },
+      radius: +(obj && obj.def && obj.def.radius) || 30,
+      sector: Math.round(Math.atan2(report.z - p.z, report.x - p.x) / (Math.PI / 4))
+    };
+  }
   function choose(ctx, st, rs, excluded) {
     var Q = root.BattleSquadStability,
       C = root.BattleCoverPositions,
@@ -165,12 +186,15 @@
       R = root.BattleTacticalContactRoute,
       list = men(ctx.squad),
       back = ctx.squad.state === 'retreat' || ctx.squad.commandPhase === 'retreat',
-      goal = back ? A.retreatGoal(ctx.squad) : root.BattleTacticalMarchProvider.target(ctx.squad),
+      defense = !back && defenseBrief(ctx, rs),
+      goal = back ? A.retreatGoal(ctx.squad) : defense ? defense.center : root.BattleTacticalMarchProvider.target(ctx.squad),
       leader = A.leaderOf(ctx.squad),
       audit = {
         at: ctx.sim.time,
         phase: ctx.squad.commandPhase,
-        direction: back ? 'back' : 'forward',
+        direction: back ? 'back' : defense ? 'defensive-position' : 'forward',
+        protectedObjective: defense ? defense.center : null,
+        defenseRadius: defense ? defense.radius : null,
         contactReports: rs.length,
         goal: goal ? { x: goal.x, z: goal.z } : null,
         maxBoundDistance: R && R.tuning.maxHop,
@@ -209,10 +233,17 @@
       );
       if (A.isMachineGun(s) || (st.lastMoverId === String(s.id) && ready.length > 2 && !pending)) return;
       var team = Q.teamKeyFor(s);
+      if (defense) {
+        var post = st.defensePosts.get(String(s.id));
+        if (post && post.sector === defense.sector &&
+            Math.hypot(post.x - s.root.position.x, post.z - s.root.position.z) < 4) return;
+      }
       /* The Meso covered-window owner accepts alpha/bravo/charlie, not the
          command element. Never choose a route it cannot lease. */
       if (teams.indexOf(team) < 0) return;
-      var result = R.pick(s, ctx.sim, rs, goal, [], pending ? retained : null),
+      var result = defense
+          ? R.pickDefense(s, ctx.sim, rs, goal, defense.radius, team)
+          : R.pick(s, ctx.sim, rs, goal, [], pending ? retained : null),
         record = {
           team: team,
           moverId: String(s.id),
@@ -298,7 +329,9 @@
       routes: selected.map(function (s) {
         return { moverId: String(s.man.id), waypoints: s.waypoints, reused: s.reused };
       }),
-      direction: back ? 'back' : 'forward'
+      direction: back ? 'back' : 'forward',
+      defending: !!defense,
+      defenseSector: defense ? defense.sector : null
     };
   }
   /* Refill freed personal-movement slots under the same Meso authorization.
@@ -377,6 +410,7 @@
       rs = reports(ctx),
       b = basis(ctx, rs),
       a = men(ctx.squad),
+      defense = defenseBrief(ctx, rs),
       back = ctx.squad.state === 'retreat' || ctx.squad.commandPhase === 'retreat',
       eligible =
         ctx.squad.inContact &&
@@ -384,7 +418,8 @@
         a.length >= 3 &&
         (back
           ? !root.SquadAI.isExtractionToHome(ctx.squad)
-          : Q.boundPhases().indexOf(ctx.squad.commandPhase) >= 0 ||
+          : !!defense ||
+            Q.boundPhases().indexOf(ctx.squad.commandPhase) >= 0 ||
             (ctx.squad.commandPhase === 'approach' &&
               ctx.squad._macroMission &&
               ctx.squad._macroMission.action === 'assault'));
@@ -541,6 +576,8 @@
     st.arrived.clear();
     st.interrupted.clear();
     st.plan = selected.plan;
+    st.defending = !!selected.defending;
+    st.defenseSector = selected.defenseSector;
     st.team = selected.team;
     st.turn = selected.index;
     st.direction = selected.direction;
@@ -607,6 +644,7 @@
                   entry[1].mission === sq._macroMission &&
                   sq._macroMission &&
                   (sq._macroMission.action === 'assault' ||
+                    sq._macroMission.action === 'defend' ||
                     sq.state === 'retreat' ||
                     sq.commandPhase === 'retreat') &&
                   entry[1].cursor < entry[1].waypoints.length

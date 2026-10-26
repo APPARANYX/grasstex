@@ -1236,6 +1236,9 @@
         : !(
             ASSAULT_PHASES[sq.commandPhase] ||
             ((h.moverId || h.moverIds) &&
+              sq._macroMission.action === 'defend' &&
+              sq._macroMission.point) ||
+            ((h.moverId || h.moverIds) &&
               sq.commandPhase === 'approach' &&
               sq._macroMission.action === 'assault')
           ))
@@ -1304,6 +1307,9 @@
         ? A.isExtractionToHome(sq)
         : !(
             ASSAULT_PHASES[sq.commandPhase] ||
+            ((params.moverId || params.moverIds) &&
+              sq._macroMission.action === 'defend' &&
+              sq._macroMission.point) ||
             ((params.moverId || params.moverIds) &&
               sq.commandPhase === 'approach' &&
               sq._macroMission.action === 'assault')
