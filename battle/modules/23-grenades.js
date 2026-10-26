@@ -29,7 +29,7 @@
     FLIGHT_PER_M: 1 / 18,
     FLIGHT_MAX: 2.4,
     FUSE: 3.6, // seconds after landing
-    FRIEND_CLEAR: 13, // includes blast radius + scatter, and the thrower
+    FRIEND_CLEAR: 26, // 22m fragments + 3.5m scatter + 0.5m margin; see friendClear
     SUPPRESS_RADIUS: 16,
     PIN_MIN: 1.6,
     PIN_MAX: 4.2,
@@ -99,7 +99,8 @@
       friendlyWounded: 0,
       friendlyCasualties: 0,
       suppressed: 0,
-      aborted: 0
+      aborted: 0,
+      unsafeAborts: 0
     };
   }
   function state(battle) {
@@ -294,12 +295,33 @@
     var aim = { x: +c.x, z: +c.z };
     return isFinite(aim.x) && isFinite(aim.z) && dist(s.root.position, aim) <= TUNING.RANGE ? aim : null;
   }
-  function friendClear(s, battle, aim) {
-    var all = units(battle);
+  /* The old 13m exclusion was smaller than the 22m fragmentation field.
+     For AI throws, inspect the whole potential 3.5m scatter disk, including the
+     thrower. A friendly inside the danger radius is clear only when the native
+     ballistic environment blocks every sampled fragment line. No damage immunity
+     is applied: a soldier who later walks into the live hazard remains vulnerable. */
+  function friendClear(s, battle, aim, actualLanding) {
+    var all = units(battle),
+      samples = actualLanding ? 1 : 9,
+      radius = actualLanding ? TUNING.FRAG_MAX_RANGE + 0.5 : TUNING.FRIEND_CLEAR;
     for (var i = 0; i < all.length; i++) {
       var f = all[i];
-      if (!f.dead && f.faction === s.faction && f.root && dist(f.root.position, aim) < TUNING.FRIEND_CLEAR)
-        return false;
+      if (!f || f.dead || f.faction !== s.faction || !f.root) continue;
+      var p = f.root.position;
+      if (dist(p, aim) >= radius) continue;
+      var victim = { x: p.x, y: battle.heightAt(p.x, p.z) + TUNING.VICTIM_Y, z: p.z };
+      for (var j = 0; j < samples; j++) {
+        var angle = (j - 1) * Math.PI / 4,
+          shift = j === 0 ? 0 : TUNING.SCATTER,
+          landing = { x: aim.x + shift * Math.cos(angle), z: aim.z + shift * Math.sin(angle) };
+        var source = {
+          x: landing.x,
+          y: battle.heightAt(landing.x, landing.z) + TUNING.REST_Y + TUNING.BURST_Y,
+          z: landing.z
+        };
+        if (dist(landing, p) <= TUNING.FRAG_MAX_RANGE + 0.5 && !lineBlocked(battle, source, victim))
+          return false;
+      }
     }
     return true;
   }
@@ -369,8 +391,25 @@
       angle = st.rng() * Math.PI * 2,
       to = { x: plan.aim.x + radius * Math.cos(angle), z: plan.aim.z + radius * Math.sin(angle) };
     to.y = battle.heightAt(to.x, to.z) + TUNING.REST_Y;
-    var path = flightFor(hand(s, battle, plan.stance), to, battle),
-      g = freezeFlight({
+    var path = flightFor(hand(s, battle, plan.stance), to, battle);
+    /* A new friendly may enter during windup; cover or scatter may also move
+       the actual burst near a teammate. AI must decline unsafe release rather
+       than spending a grenade and hoping the originally intended aim was safe.
+       Player-thrown grenades preserve the player's existing physical risk. */
+    if (plan.source !== 'player' && !friendClear(s, battle, path.to, true)) {
+      st.stats.aborted++;
+      st.stats.unsafeAborts++;
+      record(battle, 'grenade-abort-unsafe', {
+        soldier: s.id,
+        faction: s.faction,
+        aim: plan.aim,
+        landing: path.to,
+        decidedAt: plan.decidedAt,
+        releaseAt: plan.releaseAt
+      });
+      return;
+    }
+    var g = freezeFlight({
         id: ++st.seq,
         by: s.id,
         byFaction: s.faction,
