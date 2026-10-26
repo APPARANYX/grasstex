@@ -694,6 +694,7 @@
             s.controller +
             '] ' +
             s.phase +
+            (s.missionAction ? ' · mission ' + s.missionAction : '') +
             (s.contact ? ' · CONTACT' : '') +
             (s.maneuver
               ? '\n  ' +
