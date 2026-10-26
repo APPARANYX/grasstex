@@ -331,6 +331,10 @@ test('a fresh squadmate SEEN sector authorizes real area suppression from covere
       })
   );
   assert.ok(role.reportedPoint && Number.isFinite(role.reportedPoint.z));
+  let realShots = 0;
+  w.b.onFire = man => {
+    if (man === shooter) realShots++;
+  };
   const actualAreaFire = A.areaFire;
   A.areaFire = (man, point, battle) => {
     if (man === shooter) attempts.push({ x: point.x, z: point.z });
@@ -346,6 +350,7 @@ test('a fresh squadmate SEEN sector authorizes real area suppression from covere
     attempts.length > 0,
     'the native area-fire primitive, not tryFire on an unseen target, is called'
   );
+  assert.ok(realShots > 0, 'reported-sector suppressor physically discharges rounds from cover');
   assert.equal(shooter.target, null, 'area fire never forges a direct target');
   A.canSuppress = actual;
   A.areaFire = actualAreaFire;
