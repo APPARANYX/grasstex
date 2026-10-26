@@ -97,17 +97,21 @@ egress.root.BattleNavigation.movementClear = (a, b) => {
 };
 egress.root.BattleNavigation.findPath = (a, b) => {
   nativeQueries++;
-  return [{ x: 0, z: 15.5 }, { x: b.x, z: b.z }];
+  return [
+    { x: 0, z: 15.5 },
+    { x: b.x, z: b.z }
+  ];
 };
-const ingress = egress.skill.evaluate(
-  egress.soldier, egress.sim, egressCover[0], egress.report, false
-);
+const ingress = egress.skill.evaluate(egress.soldier, egress.sim, egressCover[0], egress.report, false);
 assert.equal(ingress.eligible, true, 'B→B1→C should use valid native physical ingress/egress');
 assert.equal(ingress.detour, true);
 assert.ok(nativeQueries >= 1);
 const plannedEgress = egress.skill.pick(egress.soldier, egress.sim, egress.report, { x: 8, z: 35 }, []);
 assert.equal(plannedEgress.point?.x, 8, 'graph can choose C through native egress path');
-egress.root.BattleNavigation.findPath = () => [{ x: 999, z: 999 }, { x: 8, z: 12 }];
+egress.root.BattleNavigation.findPath = () => [
+  { x: 999, z: 999 },
+  { x: 8, z: 12 }
+];
 assert.equal(
   egress.skill.evaluate(egress.soldier, egress.sim, egressCover[0], egress.report, false).eligible,
   false,

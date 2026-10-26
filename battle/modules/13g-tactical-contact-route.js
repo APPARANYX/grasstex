@@ -62,8 +62,7 @@
         budget.queries++;
       }
       path = N.findPath(from, to);
-      if (!Array.isArray(path) || !path.length)
-        return { ok: false, reason: 'no-complete-physical-detour' };
+      if (!Array.isArray(path) || !path.length) return { ok: false, reason: 'no-complete-physical-detour' };
     }
     var cursor = point(from),
       total = 0,
@@ -76,20 +75,16 @@
         return { ok: false, reason: 'invalid-physical-detour' };
       p = point(p);
       var length = distance(cursor, p);
-      if (!N.movementClear(cursor, p))
-        return { ok: false, reason: 'blocked-physical-segment' };
+      if (!N.movementClear(cursor, p)) return { ok: false, reason: 'blocked-physical-segment' };
       total += length;
-      if (total > maxTravel)
-        return { ok: false, reason: 'overlong-physical-detour' };
+      if (total > maxTravel) return { ok: false, reason: 'overlong-physical-detour' };
       if (length > 0.01) points.push(p);
       cursor = p;
     }
-    if (distance(cursor, to) > 0.35)
-      return { ok: false, reason: 'incomplete-physical-detour' };
+    if (distance(cursor, to) > 0.35) return { ok: false, reason: 'incomplete-physical-detour' };
     /* The tactical hop still respects 26m between COVER POINTS, with a
        bounded additional physical detour around an obstacle. */
-    if (straight > MAX_HOP || total < MIN_HOP)
-      return { ok: false, reason: 'outside-contact-hop' };
+    if (straight > MAX_HOP || total < MIN_HOP) return { ok: false, reason: 'outside-contact-hop' };
     return { ok: true, distance: total, points: points, detour: points.length > 2 };
   }
   function edge(sim, from, to, reports, underFire, strict, budget) {

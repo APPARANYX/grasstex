@@ -202,7 +202,11 @@
     var choices = [];
     ready.forEach(function (s) {
       var retained = st.routes.get(String(s.id));
-      var pending = !!(retained && retained.cursor < retained.waypoints.length && retained.mission === ctx.squad._macroMission);
+      var pending = !!(
+        retained &&
+        retained.cursor < retained.waypoints.length &&
+        retained.mission === ctx.squad._macroMission
+      );
       if (A.isMachineGun(s) || (st.lastMoverId === String(s.id) && ready.length > 2 && !pending)) return;
       var team = Q.teamKeyFor(s);
       /* The Meso covered-window owner accepts alpha/bravo/charlie, not the

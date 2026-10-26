@@ -197,7 +197,9 @@ test('one eligible native mover uses the singular Meso contract and reaches phys
   const w = world();
   const original = w.r.BattleTacticalContactRoute.pick;
   const one = w.q.members.find(
-    s => !w.r.SquadAI.isMachineGun(s) && ['alpha', 'bravo', 'charlie'].includes(w.r.BattleSquadStability.teamKeyFor(s))
+    s =>
+      !w.r.SquadAI.isMachineGun(s) &&
+      ['alpha', 'bravo', 'charlie'].includes(w.r.BattleSquadStability.teamKeyFor(s))
   );
   assert.ok(one);
   w.r.BattleTacticalContactRoute.pick = (s, ...args) =>

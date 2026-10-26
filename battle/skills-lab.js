@@ -163,7 +163,7 @@
           var tall = (i + j * 2) % 6 === 3,
             atX = x + (i % 2 ? 4 : -3),
             atZ = z + (j % 2 ? 2 : -2),
-            angle = ((i + 2 * j) % 3 - 1) * 0.15;
+            angle = (((i + 2 * j) % 3) - 1) * 0.15;
           physicalCover(
             'mixed-' + i + '-' + j,
             atX,
@@ -810,28 +810,30 @@
           return s.id.startsWith('us:');
         })
         .map(function (s) {
-          var lines = (s.retainedRoutes || []).filter(function (route) {
-            return route.active;
-          }).map(function (route) {
-            var stops = route.waypoints,
-              labels = stops.map(function (p, i) {
-                return (
-                  String.fromCharCode(66 + Math.min(i, 24)) +
-                  '(' +
-                  Math.round(p.x) +
-                  ',' +
-                  Math.round(p.z) +
-                  ')' +
-                  (i < route.cursor ? ' ✓' : i === route.cursor ? ' NEXT' : '')
-                );
-              });
-            return (
-              '  ' +
-              route.moverId +
-              ': A (planned start) → ' +
-              (labels.length ? labels.join(' → ') : 'no connected waypoints')
-            );
-          });
+          var lines = (s.retainedRoutes || [])
+            .filter(function (route) {
+              return route.active;
+            })
+            .map(function (route) {
+              var stops = route.waypoints,
+                labels = stops.map(function (p, i) {
+                  return (
+                    String.fromCharCode(66 + Math.min(i, 24)) +
+                    '(' +
+                    Math.round(p.x) +
+                    ',' +
+                    Math.round(p.z) +
+                    ')' +
+                    (i < route.cursor ? ' ✓' : i === route.cursor ? ' NEXT' : '')
+                  );
+                });
+              return (
+                '  ' +
+                route.moverId +
+                ': A (planned start) → ' +
+                (labels.length ? labels.join(' → ') : 'no connected waypoints')
+              );
+            });
           return (
             s.id +
             ' · mission ' +
@@ -840,7 +842,9 @@
             (lines.length
               ? lines.join('\n')
               : '  No active multihop order (' +
-                (s.missionAction === 'defend' ? 'DEFEND mission; previous routes are history' : s.reason || 'no authorization') +
+                (s.missionAction === 'defend'
+                  ? 'DEFEND mission; previous routes are history'
+                  : s.reason || 'no authorization') +
                 ')')
           );
         })
