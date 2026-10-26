@@ -656,12 +656,12 @@
         var p = soldier.root.position,
           points = [new BABYLON.Vector3(p.x, p.y + 2.5, p.z)];
         route.waypoints.slice(route.cursor).forEach(function (waypoint) {
-          points.push(new BABYLON.Vector3(waypoint.x,
-            battle.heightAt(waypoint.x, waypoint.z) + 2.5, waypoint.z));
+          points.push(
+            new BABYLON.Vector3(waypoint.x, battle.heightAt(waypoint.x, waypoint.z) + 2.5, waypoint.z)
+          );
         });
         if (points.length < 2) return;
-        var line = BABYLON.MeshBuilder.CreateLines('skill-route-' + route.moverId,
-          { points: points }, scene);
+        var line = BABYLON.MeshBuilder.CreateLines('skill-route-' + route.moverId, { points: points }, scene);
         line.color = new BABYLON.Color3(0.51, 0.92, 0.43);
         line.isPickable = false;
         vectors.push(line);
