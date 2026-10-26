@@ -19,3 +19,5 @@ jobs:
           for(const path of ['battle/tactical-capability-contract.js','battle/modules/16-squad-plan-stability.js','battle/modules/13e-tactical-covered-maneuver.js','battle/engagement.js','battle/skills-lab.js','tools/ai-sim-harness/tactical-covered-maneuver-check.js','battle/modules/41-squad-status-overlay.js'])
             console.log('FORMAT_HANDOFF '+JSON.stringify({path,content:fs.readFileSync(path,'utf8')}));
           NODE
+
+# Format the revised individual-checkin regression fixtures at current PR head.
