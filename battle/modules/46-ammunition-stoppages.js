@@ -14,6 +14,7 @@
   'use strict';
   if (!root.BattleModules || !root.SquadAI || root.BattleAmmunition) return;
 
+  var dischargeEvidence = new WeakMap();
   var LOADOUT = {
     rifle: {
       total: 80,
@@ -134,6 +135,7 @@
   }
 
   function initialize(s, sim) {
+    dischargeEvidence.delete(s);
     if (!s || !s.weapon) return;
     var c = cfg(s),
       mag = Math.max(1, +s.weapon.magSize || (+s.weapon.stats && +s.weapon.stats.magazine) || 8),
@@ -250,6 +252,7 @@
     w.ammo = Math.max(0, (+w.ammo || 0) - 1);
     w.heat = Math.min(1, (+w.heat || 0) + c.heatPerShot);
     a.shots++;
+    dischargeEvidence.set(s, { at: battle.time, battle: battle, weapon: w, shots: a.shots });
     bump(battle, s, 'shots');
     maybeLow(s, battle);
     if (w.ammo <= 0) {
@@ -292,6 +295,7 @@
     }
   }
   function reset(sim) {
+    dischargeEvidence = new WeakMap();
     sim._ammunitionStats = fresh();
     var a = units(sim);
     for (var i = 0; i < a.length; i++) initialize(a[i], sim);
@@ -377,6 +381,12 @@
         !s.weapon.jammed &&
         (+s.weapon.ammo || 0) > 0
       );
+    },
+    shotEvidence: function (s, sim) {
+      var a = s && dischargeEvidence.get(s);
+      return a && a.battle === sim && a.weapon === s.weapon && Number.isFinite(a.at)
+        ? { at: a.at, shots: a.shots }
+        : null;
     },
     summary: function (sim) {
       return sim ? snapshot(sim) : null;

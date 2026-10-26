@@ -1,3 +1,13 @@
+## Controller covered maneuver
+
+`tactical-covered-maneuver-check.js` exercises both directional lifecycles through the shipping
+controller, Meso, personal adoption, Engagement, ammunition and movement integrator. Its named
+geometry fixture isolates lifecycle and uses long training magazines; it does not prove terrain
+or ordinary combat-load acceptance. `covered-bounds-check.js` tests the native route sampler.
+Hosted natural contact QA exports controller maneuver census/history; paired standard benchmarks
+carry the same data under `coveredBounds.controller`. Require real-map direction, independently
+qualified discharge continuity, physical arrival and role swaps before tactical acceptance.
+
 ## Test harnesses
 
 All of these run offline in seconds unless noted, and all pass on `main`.

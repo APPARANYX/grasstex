@@ -1122,7 +1122,7 @@
   var _controllerMoves = new WeakMap();
   function carryControllerMove(sq, battle, s, order) {
     if (s.dead || s.isPlayer || s.squad !== sq) return false;
-    return publishPersonalMovement(
+    var applied = publishPersonalMovement(
       sq,
       battle,
       s,
@@ -1133,6 +1133,9 @@
       'controller order',
       publishStats(battle)
     );
+    if (s._fireteamPublishKey === order.key && s._movementResolver)
+      order.proposal = s._movementResolver.order;
+    return applied;
   }
   function controllerMove(sq, battle, s, next, key) {
     var p = point(next);
@@ -1151,8 +1154,184 @@
     }
   }
   function endControllerMove(s, order) {
-    if (s && _controllerMoves.get(s) === order) _controllerMoves.delete(s);
+    if (s && _controllerMoves.get(s) === order) {
+      _controllerMoves.delete(s);
+      if (s._fireteamPublishKey === order.key) {
+        s._fireteamDestination = null;
+        s._fireteamPublishKey = null;
+        s._fireteamAdoptedEnvelope = null;
+      }
+      if (root.BattleMovementResolver) root.BattleMovementResolver.endOrder(s, order.proposal);
+    }
     return !s || _controllerMoves.get(s) !== order;
+  }
+
+  /* The selected controller chooses a team and direction. Meso alone leases a finite window;
+     the resolver and Engagement ask this owner before retaining a role during retreat. */
+  var _controllerBounds = new WeakMap();
+  function boundRoster(sq) {
+    return (sq.members || []).filter(function (s) {
+      return s && !s.dead;
+    });
+  }
+  function boundRosterKey(sq) {
+    return boundRoster(sq)
+      .map(function (s) {
+        return String(s.id) + ':' + !!s.isPlayer + ':' + (+(s.eng && s.eng.possessionEpoch) || 0);
+      })
+      .join(',');
+  }
+  function boundMember(s, battle) {
+    var E = root.BattleEngagement,
+      P = root.BattleTacticalPositions;
+    return (
+      s &&
+      !s.dead &&
+      !s.isPlayer &&
+      !s.incapacitated &&
+      s.hp > 0 &&
+      s.weapon &&
+      !s.reloading &&
+      !s.clearingStoppage &&
+      !s.outOfAmmo &&
+      !(s.suppressedUntil > battle.time) &&
+      !(E && E.reacting(s)) &&
+      !(s.eng && s.eng.urgentBound) &&
+      !(P && P.current(s)) &&
+      !s._survivalMovementKey &&
+      !(root.BattleGrenades && root.BattleGrenades.pendingOf(s, battle)) &&
+      !(root.BattleAmmunition && !root.BattleAmmunition.available(s))
+    );
+  }
+  function currentControllerBound(sq, battle) {
+    var h = sq && _controllerBounds.get(sq);
+    if (!h) return null;
+    var TC = root.BattleTacticalController,
+      A = root.SquadAI,
+      leader = sq && A.leaderOf(sq),
+      back = sq && (sq.state === 'retreat' || sq.commandPhase === 'retreat');
+    if (
+      !h ||
+      h.battle !== battle ||
+      !TC ||
+      !TC.controls(battle, sq) ||
+      L.get(sq, 'bound') !== h.lease ||
+      !L.holds(sq, 'bound', battle.time) ||
+      h.mission !== sq._macroMission ||
+      h.version !== missionVersion(sq) ||
+      !sq._macroMission ||
+      sq._macroMission.status !== 'executing' ||
+      h.scene !== battle.scene ||
+      h.navigationVersion !== (root.BattleNavigation && root.BattleNavigation.version) ||
+      h.roster !== boundRosterKey(sq) ||
+      h.leader !== leader ||
+      !leader ||
+      leader.dead ||
+      leader.isPlayer ||
+      boundRoster(sq).length < 4 ||
+      !sq.inContact ||
+      !!back !== (h.direction === 'back') ||
+      (back ? A.isExtractionToHome(sq) : !ASSAULT_PHASES[sq.commandPhase])
+    )
+      return null;
+    if (h.armed && controllerBoundSupport(h, battle) < 2) return null;
+    return h;
+  }
+  function controllerBoundSupport(h, battle) {
+    var E = root.BattleEngagement,
+      M = root.BattleAmmunition;
+    return h.holders.filter(function (s) {
+      var shot = M && M.shotEvidence && M.shotEvidence(s, battle);
+      return (
+        (!h.coverTeam || teamKeyFor(s) === h.coverTeam) &&
+        boundMember(s, battle) &&
+        E.supportReady(s, battle) &&
+        shot &&
+        shot.at >= h.lease.since &&
+        battle.time >= shot.at &&
+        battle.time - shot.at <= BOUND_DURATION
+      );
+    }).length;
+  }
+  function controllerBoundArm(sq, battle) {
+    var h = currentControllerBound(sq, battle);
+    if (!h || controllerBoundSupport(h, battle) < 2) return false;
+    h.armed = true;
+    return true;
+  }
+  function controllerBoundBegin(sq, battle, params) {
+    var A = root.SquadAI,
+      TC = root.BattleTacticalController,
+      back = sq && (sq.state === 'retreat' || sq.commandPhase === 'retreat'),
+      leader = sq && A.leaderOf(sq),
+      a = sq && boundRoster(sq),
+      C = root.BattleCoverPositions;
+    if (
+      !TC ||
+      !TC.controls(battle, sq) ||
+      !a ||
+      a.length < 4 ||
+      a.length > 32 ||
+      !leader ||
+      leader.dead ||
+      leader.isPlayer ||
+      !sq.inContact ||
+      !sq._macroMission ||
+      sq._macroMission.status !== 'executing' ||
+      !!back !== (params.direction === 'back') ||
+      (back ? A.isExtractionToHome(sq) : !ASSAULT_PHASES[sq.commandPhase]) ||
+      ['alpha', 'bravo', 'charlie'].indexOf(params.team) < 0 ||
+      currentControllerBound(sq, battle) ||
+      !C ||
+      !C.boundThreats ||
+      !C.boundThreats(leader, battle).length
+    )
+      return null;
+    var movers = a.filter(function (s) {
+      return teamKeyFor(s) === params.team && !A.isMachineGun(s) && boundMember(s, battle);
+    });
+    var holders = a.filter(function (s) {
+      return movers.indexOf(s) < 0 && boundMember(s, battle);
+    });
+    if (movers.length < 2 || holders.length < 2) return null;
+    var lease = L.grant(
+      sq,
+      'bound',
+      'squad-leader',
+      battle.time,
+      battle.time + BOUND_CYCLE + BOUND_DURATION,
+      'controller covered ' + params.direction,
+      'physical arrival, support lost, interruption or finite window expiry',
+      { team: params.team, back: !!back, controller: true }
+    );
+    var h = {
+      battle: battle,
+      squad: sq,
+      direction: params.direction,
+      team: params.team,
+      coverTeam: params.coverTeam,
+      mission: sq._macroMission,
+      version: missionVersion(sq),
+      scene: battle.scene,
+      navigationVersion: root.BattleNavigation && root.BattleNavigation.version,
+      roster: boundRosterKey(sq),
+      leader: leader,
+      lease: lease,
+      movers: movers,
+      holders: holders
+    };
+    _controllerBounds.set(sq, h);
+    return h;
+  }
+  function controllerBoundEnd(sq, battle, h) {
+    if (_controllerBounds.get(sq) === h) _controllerBounds.delete(sq);
+    if (L.get(sq, 'bound') === h.lease) L.end(sq, 'bound', battle.time, 'controller:ended');
+    return _controllerBounds.get(sq) !== h;
+  }
+  function controllerBoundRole(s, battle) {
+    var h = s && currentControllerBound(s.squad, battle);
+    if (!h || !boundMember(s, battle)) return null;
+    return h.movers.indexOf(s) >= 0 ? 'move' : h.holders.indexOf(s) >= 0 ? 'cover' : null;
   }
 
   function tasksFor(phase) {
@@ -2308,6 +2487,13 @@
     /* Meso's formation layout as a pure function (15g slotsAt); a replacement controller reuses it. */
     formationSlots: function (sq, anchor, forward, formation) {
       return _fm && _fm.slotsAt ? _fm.slotsAt(sq, anchor, forward, formation) : [];
+    },
+    controllerBound: {
+      begin: controllerBoundBegin,
+      end: controllerBoundEnd,
+      current: currentControllerBound,
+      role: controllerBoundRole,
+      arm: controllerBoundArm
     },
     controllerMovement: {
       publish: controllerMove,

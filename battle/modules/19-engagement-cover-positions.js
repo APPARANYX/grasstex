@@ -297,14 +297,20 @@
         s.incapacitated ||
         battle.winner ||
         !p ||
-        q.state === 'retreat' ||
-        q.commandPhase === 'retreat' ||
+        ((q.state === 'retreat' || q.commandPhase === 'retreat') &&
+          !(
+            e.kind === 'controller' &&
+            root.BattleSquadStability &&
+            root.BattleSquadStability.controllerBound &&
+            root.BattleSquadStability.controllerBound.role(s, battle)
+          )) ||
         q.commandPhase === 'regroup' ||
         (root.BattleTacticalPositions && root.BattleTacticalPositions.current(s))
       )
         return false;
       if (e.createdAt === battle.time) return true; // selection is committed by its caller in this tick
       var near = dist(p.x, p.z, e.slot.x, e.slot.z) <= COVER_SPACING;
+      if (e.kind === 'controller' && root.BattleSquadStability.controllerBound.role(s, battle)) return true;
       if (e.kind === 'route')
         return !!(s._tacticalRoute && s._tacticalRoute.coverSlotId === e.slot.id) || near;
       return !!(

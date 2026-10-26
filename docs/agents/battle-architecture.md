@@ -61,6 +61,27 @@ The page loads the contract beside the Commander. The only provider is the march
 (13c), registered only under `?tacticalController=new`, so a default battle never activates the
 controller; the controller keeps its state in WeakMaps and adds no squad or soldier field.
 
+
+Slice 4 (`13e-tactical-covered-maneuver.js`) chooses forward/back cover points and native
+fireteams under the same opt-in provider. `maneuver.cover` asks Meso's `controllerBound` to
+lease the existing `bound` kind for a finite preparation plus displacement budget
+(`boundCycle + boundDuration`, no renewal). `combat.bound` reserves a canonical cover slot,
+publishes through Meso/Command Reception, then executes only after personal adoption.
+Engagement reports actual arrival within 0.45 m; publication/readiness cannot finish it.
+The first move needs two current qualified shooters with actual Ammunition discharge receipts
+since the window began, no older than `boundDuration`. After arrival, two members of that
+arriving team must supply the next covering fire before another team moves. Cover routes
+are revalidated against detached perceived threats; no exposed/objective-rush fallback.
+
+A retreat window is an explicit Meso-owned exception to ordinary all-member withdrawal,
+queried by Engagement, cover reservations and the resolver. It preserves retreat state and
+never changes the retreat anchor or fire permission. Fewer than four living, extraction,
+failed support, pinning/reaction, player takeover, scene/navigation/leader/roster/mission
+change or window expiry revoke the affected authority; ordinary retreat remains available.
+The module's read-only summary/history and benchmark `coveredBounds.controller` distinguish
+started, arrived and aborted episodes by direction. This is an opt-in implementation;
+controlled harness success does not establish natural battle tactical-quality acceptance.
+
 Effect requests and receipts correlate the full tuple `battleId`, `generation`, `faction`, `squadId`,
 `actorId` (when applicable), `missionVersion`, `rosterRevision`, `controllerEpoch`, `mode`
 and `actionId`. Reconstitution, member detachment, mission supersession, controller

@@ -452,7 +452,12 @@
       sq = soldier.squad || {};
     var trance = tranceCharge(soldier, combat) && valid(soldier, combat, battle),
       fled = trance || (combat && combat.kind === 'flee' && valid(soldier, combat, battle));
-    if (!fled && (sq.state === 'retreat' || sq.commandPhase === 'retreat')) {
+    var coveredRetreat =
+      (sq.state === 'retreat' || sq.commandPhase === 'retreat') &&
+      root.BattleSquadStability &&
+      root.BattleSquadStability.controllerBound &&
+      root.BattleSquadStability.controllerBound.role(soldier, battle);
+    if (!fled && !coveredRetreat && (sq.state === 'retreat' || sq.commandPhase === 'retreat')) {
       if (st.goal && st.goal.kind !== 'retreat') count(battle, 'emergencyOverrides');
       st.combat = null;
       var extraction =
@@ -767,6 +772,13 @@
     arrival: ARRIVAL,
     intentRefresh: INTENT_REFRESH,
     proposeOrder: proposeOrder,
+    endOrder: function (s, proposal) {
+      var st = s && s._movementResolver;
+      if (proposal && st && st.order === proposal) {
+        st.order = null;
+        s.orderDestination = { x: s.root.position.x, z: s.root.position.z };
+      }
+    },
     proposePlayer: proposePlayer,
     playerIntent: function (s, battle) {
       var p = s && s._movementResolver && s._movementResolver.player;

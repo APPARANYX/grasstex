@@ -117,7 +117,8 @@
         cur = st.men.get(id),
         stage = cur && ctx.stage(cur.actionId);
       var contact = root.BattleTacticalContactSkills;
-      if (contact && contact.wants(s, ctx.sim)) {
+      var maneuver = root.BattleTacticalCoveredManeuver;
+      if ((maneuver && maneuver.wants(s, ctx.sim)) || (contact && contact.wants(s, ctx.sim))) {
         if (cur) ctx.finish(cur.actionId, 'contact-skill');
         st.men.delete(id);
         st.stopped.delete(id);
@@ -216,6 +217,8 @@
           stopped: {}
         };
         if (root.BattleTacticalContactSkills) row.contact = root.BattleTacticalContactSkills.summary(a[i]);
+        if (root.BattleTacticalCoveredManeuver)
+          row.maneuver = root.BattleTacticalCoveredManeuver.summary(a[i]);
         st.men.forEach(function (cur) {
           var l = byId[cur.actionId],
             key = cur.kind + ':' + (l ? l.stage : 'gone');
@@ -230,7 +233,17 @@
     return out;
   }
 
-  root.BattleTacticalMarchProvider = { on: ON, id: ID, summary: summary };
+  root.BattleTacticalMarchProvider = {
+    on: ON,
+    id: ID,
+    summary: summary,
+    target: function (sq) {
+      return stateOf(sq).target;
+    },
+    release: function (ctx) {
+      standDown(ctx, stateOf(ctx.squad), 'covered-maneuver');
+    }
+  };
   if (!ON) return;
   var TC = root.BattleTacticalController,
     OA = root.BattleTacticalOwnerAdapters;
@@ -242,9 +255,11 @@
       commanderTick: noop,
       fireAndMovement: function (ctx) {
         root.BattleTacticalContactSkills.update(ctx);
+        if (root.BattleTacticalCoveredManeuver) root.BattleTacticalCoveredManeuver.update(ctx);
       },
       executeMission: executeMission,
       engagement: function (ctx) {
+        if (root.BattleTacticalCoveredManeuver && root.BattleTacticalCoveredManeuver.engagement(ctx)) return;
         root.BattleTacticalContactSkills.engagement(ctx);
       },
       stationSelection: noop

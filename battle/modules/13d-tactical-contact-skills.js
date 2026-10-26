@@ -233,7 +233,10 @@
       !s ||
       s.dead ||
       s.isPlayer ||
-      retreat(s.squad) ||
+      (retreat(s.squad) &&
+        !(
+          root.BattleSquadStability.controllerBound && root.BattleSquadStability.controllerBound.role(s, sim)
+        )) ||
       E.reacting(s) ||
       (s.eng && s.eng.state === 'bound' && s.eng.urgentBound)
     )
@@ -247,11 +250,11 @@
     if (st && st.roles.has(String(s.id)) && personal(s, sim)) return 'suppress';
     return E.underFireNow(s, sim) ? 'watch' : 'march';
   }
-  function engagement(ctx) {
+  function engagement(ctx, override) {
     var st = state(ctx),
       s = ctx.facts,
       id = String(s.id),
-      desired = drill(s, ctx.sim, st),
+      desired = override || drill(s, ctx.sim, st),
       current = st.men.get(id),
       stage = current && ctx.stage(current.id),
       target = s.target && String(s.target.id);
@@ -273,6 +276,15 @@
     st.rejected[id] = result.ok ? null : result.reason;
   }
   root.BattleTacticalContactSkills = {
+    release: function (ctx, man) {
+      var st = state(ctx);
+      st.men.forEach(function (a, id) {
+        if (!man || String(man.id) === id) {
+          ctx.finish(a.id, 'covered-maneuver-role');
+          st.men.delete(id);
+        }
+      });
+    },
     update: update,
     engagement: engagement,
     wants: function (s, sim) {

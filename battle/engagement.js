@@ -1082,7 +1082,11 @@
        and a man coming off a retreat re-decides instead of resuming a stale firefight state. */
     if (e.fledPhase) return fledTick(s, battle);
     if (entranced(s) && reaction(s, battle)) return; // the trance outranks his squad's retreat, as a flee does
-    if (s.squad && s.squad.state === 'retreat') {
+    if (
+      s.squad &&
+      (s.squad.state === 'retreat' || s.squad.commandPhase === 'retreat') &&
+      !controllerBoundRole(s, battle)
+    ) {
       if (reactionState(s) === 'freeze') finishFreeze(s, battle, 'squad-retreat');
       e.withdrawPoint = null;
       transition(s, battle, 'withdraw', 0, 'squad withdrawing');
@@ -2082,6 +2086,55 @@
      Recognition, stance, personal fire permission, ammo and geometry remain the shipping services.
      Handles live outside soldiers; ending one clears only the proposal that task actually made. */
   var controllerCombatTasks = new WeakMap();
+  function controllerBoundRole(s, battle) {
+    var Q = root.BattleSquadStability;
+    return Q && Q.controllerBound && Q.controllerBound.role(s, battle);
+  }
+  function controllerBoundStart(s, battle, point, actionId) {
+    var Q = root.BattleSquadStability,
+      C = root.BattleCoverPositions;
+    if (
+      controllerBoundRole(s, battle) !== 'move' ||
+      controllerCombatTasks.has(s) ||
+      !Q.controllerBound.arm(s.squad, battle)
+    )
+      return null;
+    var threats = C.boundThreats(s, battle),
+      choices = C.candidates(s, battle, threats[0], C.boundTuning().maxDistance),
+      candidate = choices.find(function (p) {
+        return Math.hypot(p.x - point.x, p.z - point.z) < 0.01;
+      });
+    if (!candidate || !C.boundRoute(s, battle, candidate, threats).eligible) return null;
+    var claim = C.reserve(s, battle, candidate.slot, 'controller');
+    if (!claim) return null;
+    var order = Q.controllerMovement.publish(s.squad, battle, s, point, actionId);
+    if (!order) {
+      C.release(s, battle);
+      return null;
+    }
+    var task = {
+      battle: battle,
+      drill: 'bound',
+      since: battle.time,
+      at: battle.time,
+      reason: 'published:await-personal-adoption',
+      point: { x: point.x, z: point.z },
+      claim: claim,
+      order: order
+    };
+    controllerCombatTasks.set(s, task);
+    var e = state(s);
+    e.cover = { x: point.x, z: point.z, slotId: candidate.slotId };
+    return task;
+  }
+  function controllerBoundAdopted(s, battle, task) {
+    var CR = root.BattleCommandReception;
+    return (
+      !(CR && CR.movementEnabled()) ||
+      (s._fireteamPublishKey === task.order.key &&
+        CR.executionCurrent(s, battle, 'movement', 'soldier:' + String(s.id), s._fireteamAdoptedEnvelope))
+    );
+  }
   function controllerCombatStart(s, battle, drill) {
     var TC = root.BattleTacticalController;
     if (
@@ -2092,8 +2145,8 @@
       !s.squad ||
       !TC ||
       !TC.controls(battle, s.squad) ||
-      s.squad.state === 'retreat' ||
-      s.squad.commandPhase === 'retreat' ||
+      ((s.squad.state === 'retreat' || s.squad.commandPhase === 'retreat') &&
+        !controllerBoundRole(s, battle)) ||
       reacting(s) ||
       controllerCombatTasks.has(s)
     )
@@ -2117,6 +2170,12 @@
     if (task.proposal && s._movementResolver && s._movementResolver.combat === task.proposal && R)
       R.clearCombat(s);
     e.suppressOrder = false;
+    if (task.drill === 'bound') {
+      root.BattleSquadStability.controllerMovement.end(s, task.order);
+      if (root.BattleCoverPositions.current(s, battle) === task.claim)
+        root.BattleCoverPositions.release(s, battle);
+      if (e.cover && e.cover.slotId === task.claim.slot.id) e.cover = null;
+    }
     /* Cancellation can be nested inside module 44's emergency-cover transition. Release the task,
        not the Engagement state that the interrupting owner is in the middle of consuming. */
     return true;
@@ -2128,6 +2187,21 @@
         reason: s.dead ? 'actor-dead' : s.isPlayer ? 'player-owned' : 'owner:ended',
         at: battle.time
       };
+    if (task.drill === 'bound') {
+      if (controllerBoundRole(s, battle) !== 'move')
+        return { stage: 'cancelled', reason: 'bound-window-ended', at: battle.time };
+      return {
+        stage: task.arrived
+          ? 'arrived'
+          : task.executed
+            ? 'executing'
+            : controllerBoundAdopted(s, battle, task)
+              ? 'adopted'
+              : 'published',
+        reason: task.reason,
+        at: task.at
+      };
+    }
     return { stage: task.executed ? 'executing' : 'accepted', reason: task.reason, at: task.at };
   }
   function controllerCombatTick(s, battle) {
@@ -2142,7 +2216,29 @@
     var drill = fireControlPreparing(s, battle) ? 'prepare' : task.drill,
       before = s._movementResolver && s._movementResolver.combat;
     e.suppressOrder = drill === 'suppress';
-    if (drill === 'march') {
+    if (drill === 'bound') {
+      if (controllerBoundRole(s, battle) !== 'move') return;
+      if (!controllerBoundAdopted(s, battle, task)) {
+        holdPosition(s, battle);
+        task.reason = 'published:await-personal-adoption';
+      } else {
+        var reached = Math.hypot(posOf(s).x - task.point.x, posOf(s).z - task.point.z) <= 0.45;
+        if (reached) {
+          holdPosition(s, battle);
+          if (e.state === 'bound') transition(s, battle, 'engage', 0, 'controller:physical-arrival');
+          task.arrived = true;
+          task.reason = 'physical-arrival';
+        } else {
+          if (e.state !== 'bound') transition(s, battle, 'bound', 0, 'controller:covered-bound');
+          transitStance(s, battle, 'crouch', 1, 'controller:covered-bound');
+          move(s, battle, task.point, 'cover-bound');
+          s.state = 'engage';
+          s.setUp = false;
+          task.reason = 'moving:adopted-covered-bound';
+        }
+        task.executed = true;
+      }
+    } else if (drill === 'march') {
       if (e.state !== 'advance') {
         if (e.state !== 'alert') transition(s, battle, 'alert', 0, 'controller:march');
         transition(s, battle, 'advance', 0, 'controller:march');
@@ -2154,6 +2250,7 @@
       prepareFireControl(s, battle);
       task.reason = 'preparing:personal-fire-order';
     } else if (drill === 'fire') {
+      if (e.state === 'bound' && !e.urgentBound) transition(s, battle, 'alert', 0, 'controller:bound-ended');
       if (s.target) {
         if (e.state !== 'orient' && e.state !== 'engage')
           transition(s, battle, 'orient', reactTime(s, battle), 'controller:recognize');
@@ -2185,7 +2282,7 @@
     }
     var after = s._movementResolver && s._movementResolver.combat;
     if (after && after !== before) task.proposal = after;
-    task.executed = true;
+    if (task.drill !== 'bound') task.executed = true;
     task.at = battle.time;
   }
 
@@ -2228,7 +2325,9 @@
     orderBound: orderBound,
     clearBoundOrders: clearBoundOrders,
     coveredBoundTelemetry: function (battle) {
-      if (!coverImpl().coveredBoundsOn()) return null;
+      var maneuver = root.BattleTacticalCoveredManeuver,
+        controller = maneuver && maneuver.telemetry(battle);
+      if (!coverImpl().coveredBoundsOn()) return controller ? { controller: controller } : null;
       var out = { attempts: 0, accepted: 0, rejected: 0, candidates: 0, samples: 0 },
         rosters = battle._roster || {};
       ['us', 'ge'].forEach(function (f) {
@@ -2240,6 +2339,7 @@
             });
         });
       });
+      if (controller) out.controller = controller;
       return out;
     },
     reacting: reacting,
@@ -2270,6 +2370,7 @@
     fireControlPreparing: fireControlPreparing,
     controllerCombat: {
       start: controllerCombatStart,
+      bound: controllerBoundStart,
       end: controllerCombatEnd,
       stage: controllerCombatStage
     },

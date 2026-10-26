@@ -89,6 +89,7 @@ const { requestPreview } = require('./preview_request.cjs');
         initial,
         summary,
         census,
+        maneuver: BattleTacticalCoveredManeuver.telemetry(b),
         conflicts
       };
     });

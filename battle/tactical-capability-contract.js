@@ -76,6 +76,24 @@
     };
   }
   var CAPABILITIES = frozen({
+    'maneuver.cover': definition(
+      'squad',
+      'Meso',
+      'controllerBound.begin (bounded native covering window)',
+      ['team'],
+      ['executing'],
+      ['Meso'],
+      ['direction', 'team', 'coverTeam']
+    ),
+    'combat.bound': definition(
+      'actor',
+      'BattleEngagement',
+      'controllerCombat.bound (adopted covered displacement)',
+      ['locomotion', 'posture', 'weapon'],
+      ['published', 'adopted', 'executing', 'arrived'],
+      ['Meso', 'BattleCommandReception', 'BattleEngagement', 'BattleEngagement'],
+      ['point']
+    ),
     'combat.march': definition(
       'actor',
       'BattleEngagement',
@@ -194,6 +212,11 @@
     )
       return fail('invalid-parameters');
     if (
+      (Object.hasOwn(p, 'direction') && ['forward', 'back'].indexOf(p.direction) < 0) ||
+      (Object.hasOwn(p, 'team') && ['alpha', 'bravo', 'charlie'].indexOf(p.team) < 0) ||
+      (Object.hasOwn(p, 'coverTeam') &&
+        p.coverTeam !== null &&
+        (['alpha', 'bravo', 'charlie'].indexOf(p.coverTeam) < 0 || p.coverTeam === p.team)) ||
       (Object.hasOwn(p, 'point') && !point(p.point)) ||
       (Object.hasOwn(p, 'threat') && !point(p.threat)) ||
       (Object.hasOwn(p, 'stationId') && !text(p.stationId)) ||

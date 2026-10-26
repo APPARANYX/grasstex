@@ -5,6 +5,7 @@ on:
       - battle/engagement.js
       - battle/modules/13c-tactical-march-provider.js
       - battle/modules/13d-tactical-contact-skills.js
+      - battle/modules/13e-tactical-covered-maneuver.js
       - scripts/probes/probe_tactical_contact.cjs
       - battle/modules/19-engagement-cover-positions.js
       - battle/modules/19b-engagement-fire-stance.js
