@@ -204,7 +204,7 @@ test('retreat retains a real firing holder, moves backward, selects another move
   until(w, () => w.M.summary(w.q).phase === 'moving');
   assert.notEqual(w.M.summary(w.q).history.filter(h => h.phase === 'support').slice(-1)[0].movers[0].id, first);
   for (const s of w.q.members)
-    if (w.r.BattleSquadStability.controllerBound.role(s, w.b) === 'cover') s.suppressedUntil = w.b.time + 10;
+    if (w.r.BattleSquadStability.controllerBound.role(s, w.b) === 'cover') s.outOfAmmo = true;
   tick(w);
   assert.equal(live(w, 'combat.bound').length, 0);
   assert.equal(live(w, 'maneuver.cover').length, 0);
@@ -224,14 +224,35 @@ test('a movement publication cannot execute before the mover personally adopts i
   until(w, () => live(w, 'combat.bound').some(a => a.stage === 'executing'));
   clean(w);
 });
-test('window expiry releases all cover authority when no real shot can occur', () => {
+test('covering is event-driven: multiple personal moves and no lease expiry while moving', () => {
+  const w = world();
+  until(w, () => w.M.summary(w.q)?.phase === 'moving');
+  const moves = live(w, 'combat.bound');
+  assert.ok(moves.length >= 2,
+    'two or more personal movement orders must execute under one covered window');
+  assert.equal(new Set(moves.map(a => a.actorId)).size, moves.length,
+    'each soldier owns an independent native movement task');
+  const lease = w.r.BattleLeases.get(w.q, 'bound');
+  assert.equal(lease.until, Infinity, 'a native new-controller bound is event-driven, never timed');
+  const at = w.b.time;
+  w.b.time += 180;
+  assert.equal(w.r.BattleSquadStability.controllerBound.current(w.q, w.b)?.lease, lease,
+    'movement owner must survive elapsed clock time without renewing covering shots');
+  w.b.time = at;
+  until(w, () => w.M.summary(w.q).checkins >= 1);
+  assert.ok(w.M.summary(w.q).history.some(h =>
+    h.phase === 'checkin' && h.reason.startsWith('squad-leader-confirmed-physical-arrival:')));
+  clean(w);
+});
+test('no covering discharge cannot authorize any movement, regardless of elapsed time', () => {
   const w = world();
   w.q.members.forEach(s => w.r.SquadAI.setFireCooldown(s, 100));
   squad(w);
   micro(w);
-  until(w, () => w.M.summary(w.q).failed > 0);
-  assert.equal(live(w, 'maneuver.cover').length, 0);
+  for (let i = 0; i < 16; i++) tick(w);
   assert.equal(live(w, 'combat.bound').length, 0);
+  assert.equal(w.M.summary(w.q).phase, 'support');
+  assert.equal(w.r.BattleLeases.get(w.q, 'bound').until, Infinity);
   clean(w);
 });
 test('unsafe geometry, wrong direction, missing reports and non-assault phase cannot begin a window', () => {
