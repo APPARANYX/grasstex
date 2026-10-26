@@ -2,6 +2,12 @@ name: ⭐ Tactical Skills Lab Microdrills
 on:
   pull_request:
     paths:
+      - battle/modules/13g-tactical-contact-route.js
+      - battle/modules/13e-tactical-covered-maneuver.js
+      - battle/modules/19-engagement-cover-positions.js
+      - battle/skills-lab.js
+      - battle/terrain-features.js
+      - battle/battle_sim.html
       - scripts/probes/probe_skills_lab_drills.cjs
       - .github/workflows/tactical-skills-lab-drills.yml
   workflow_dispatch:
