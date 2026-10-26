@@ -149,8 +149,13 @@
         };
       audit.teams.push(record);
       if (!result.point) return;
-      choices.push({ man: s, team: team, point: result.point, score: result.score,
-        exposure: result.exposure });
+      var obs = root.BattleEngagement.fireControlObservation(s, ctx.sim),
+        effectiveHere = !!(obs && obs.inRange && obs.visualLine && obs.ballisticLine);
+      /* Preserve effective shooters where possible; move men without a useful
+         firing line first. When all can shoot, allow the next best cover hop. */
+      choices.push({ man: s, team: team, point: result.point,
+        score: result.score + (effectiveHere ? 24 : 0),
+        exposure: result.exposure, effectiveHere: effectiveHere });
     });
     choices.sort(function (a, b) {
       return a.score - b.score || String(a.man.id).localeCompare(String(b.man.id));
