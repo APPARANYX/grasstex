@@ -25,7 +25,9 @@ const CASES = [
    dispatchable or gated to ready-for-review. */
 const RUN_CASES =
   process.env.SKILLS_DRILL_PRIMARY_ONLY === '1'
-    ? CASES.filter(c => c.arm === 'new' && c.distance === 120 && !c.retreat && !c.cover)
+    ? CASES.filter(c => c.arm === 'new' && c.distance === 120 && !c.retreat && !c.cover).concat([
+        { distance: 120, arm: 'new', cover: 'mixed', retreat: false }
+      ])
     : CASES;
 if (!Number.isFinite(SIM_SECONDS) || SIM_SECONDS < 20 || SIM_SECONDS > 240)
   throw new Error('SKILLS_DRILL_SECONDS must be 20..240 seconds');
@@ -293,7 +295,9 @@ function summarizeSamples(samples) {
           0
         ),
         hedgerowArrivals: results.find(r => r.coverLayout === 'hedgerow')?.totalPhysicalArrivals ?? 0,
-        openFieldArrivals: results.find(r => r.coverLayout === 'open')?.totalPhysicalArrivals ?? 0
+        openFieldArrivals: results.find(r => r.coverLayout === 'open')?.totalPhysicalArrivals ?? 0,
+        mixedCoverArrivals: results.find(r => r.coverLayout === 'mixed')?.totalPhysicalArrivals ?? 0,
+        mixedCoverCheckins: results.find(r => r.coverLayout === 'mixed')?.squadLeaderCheckins ?? 0
       }
     };
     fs.writeFileSync(dir + '/summary.json', JSON.stringify(pass, null, 2));
@@ -325,6 +329,10 @@ function summarizeSamples(samples) {
         0,
         'empty cover field must never fabricate native physical-cover arrivals'
       );
+      if (process.env.SKILLS_DRILL_PRIMARY_ONLY === '1') {
+        assert.ok(pass.findings.mixedCoverArrivals >= 3, 'mixed low cover must permit native physical arrivals');
+        assert.ok(pass.findings.mixedCoverCheckins >= 3, 'mixed low cover must generate real leader check-ins');
+      }
     }
   } finally {
     await browser.close();

@@ -193,6 +193,31 @@ test('advance waits for real discharges, personal movement adoption, physical ar
   assert.ok(new Set(arrived).size >= 2, 'different soldiers check in independently');
   clean(w);
 });
+test('one eligible native mover uses the singular Meso contract and reaches physical cover', () => {
+  const w = world();
+  const original = w.r.BattleTacticalContactRoute.pick;
+  const one = w.q.members.find(
+    s => !w.r.SquadAI.isMachineGun(s) && ['alpha', 'bravo', 'charlie'].includes(w.r.BattleSquadStability.teamKeyFor(s))
+  );
+  assert.ok(one);
+  w.r.BattleTacticalContactRoute.pick = (s, ...args) =>
+    s === one
+      ? original(s, ...args)
+      : {
+          point: null,
+          waypoints: [],
+          score: null,
+          stats: { total: 0, progressing: 0, safe: 0, rejected: { 'controlled-one-person-case': 1 } }
+        };
+  until(w, () => w.M.summary(w.q)?.phase === 'moving', 40);
+  assert.equal(live(w, 'combat.bound').length, 1);
+  assert.equal(live(w, 'combat.bound')[0].actorId, String(one.id));
+  const cover = live(w, 'maneuver.cover');
+  assert.equal(cover.length, 1);
+  assert.equal(cover[0].stage, 'executing');
+  until(w, () => w.M.summary(w.q)?.checkins >= 1, 30);
+  clean(w);
+});
 test('retreat retains a real firing holder, moves backward, selects another mover and falls back on support loss', () => {
   const w = world();
   w.q.establishment = 25; // fixed casualty ratio keeps the native morale owner in retreat
