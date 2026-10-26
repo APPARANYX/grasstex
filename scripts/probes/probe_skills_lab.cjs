@@ -87,9 +87,10 @@ const { chromium } = require('playwright');
     );
     // CDN model assets may be unavailable in the public checkout; note but do not
     // suppress errors caused by the Skills Lab itself.
-    console.log('SKILLS_LAB_BROWSER_DIAGNOSTIC', JSON.stringify({
-      total: errors.length, first: errors.slice(0, 8)
-    }));
+    console.log(
+      'SKILLS_LAB_BROWSER_DIAGNOSTIC',
+      JSON.stringify({ total: errors.length, first: errors.slice(0, 8) })
+    );
     const ownErrors = errors.filter(e => /skills-lab\.js|BattleSkillsLab|skill-range/i.test(e));
     assert.deepEqual(ownErrors, [], 'no Skills Lab browser exceptions');
     console.log(
