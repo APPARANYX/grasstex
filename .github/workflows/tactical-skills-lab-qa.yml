@@ -1,12 +1,8 @@
 name: ⭐ Native Tactical Skills Lab QA
+# Every PR commit runs the small range gate, not only changes to lab files.
+# This preflight must pass before spending CI on full-battle benchmarks.
 on:
   pull_request:
-    paths:
-      - battle_sim_local.php
-      - battle/skills-lab.js
-      - battle/scenario-generator.js
-      - scripts/probes/probe_skills_lab.cjs
-      - .github/workflows/tactical-skills-lab-qa.yml
   workflow_dispatch:
 permissions:
   contents: read
