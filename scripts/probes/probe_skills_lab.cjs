@@ -49,6 +49,7 @@ const { chromium } = require('playwright');
     assert.equal(initial.lab.isolated, true);
     assert.equal(initial.lab.targetDeaths, 0);
     assert.equal(initial.lab.targetCount, 10);
+    assert.equal(initial.lab.rangeDistanceM, 70, 'native pre-spawn gap should match the default lab range');
     assert.ok(
       initial.targetMeshes >= initial.lab.targetCount * 3,
       'sandbox standee meshes must actually render for native targets'
@@ -91,7 +92,10 @@ const { chromium } = require('playwright');
       'SKILLS_LAB_BROWSER_DIAGNOSTIC',
       JSON.stringify({ total: errors.length, first: errors.slice(0, 8) })
     );
-    const ownErrors = errors.filter(e => /skills-lab\.js|BattleSkillsLab|skill-range/i.test(e));
+    const privateAudio404 = /^Uncaught \\(in promise\\) Error: HTTP 404 loading ['"]?\\/grasstex\\/Assets\\/audio\\//i;
+    const gameErrors = errors.filter(e => !privateAudio404.test(e));
+    assert.deepEqual(gameErrors, [], 'no browser runtime errors outside known private audio 404s');
+
     assert.deepEqual(ownErrors, [], 'no Skills Lab browser exceptions');
     console.log(
       'SKILLS_LAB_NATIVE_SMOKE',
