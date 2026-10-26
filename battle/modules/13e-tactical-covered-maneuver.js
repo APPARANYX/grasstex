@@ -115,8 +115,25 @@
       back = ctx.squad.state === 'retreat' || ctx.squad.commandPhase === 'retreat',
       goal = back ? A.retreatGoal(ctx.squad) : root.BattleTacticalMarchProvider.target(ctx.squad),
       leaders = A.leaderOf(ctx.squad),
-      r = rs[0];
-    if (!goal || !leaders || !r || a.length < 4 || a.length > 32) return null;
+      r = rs[0],
+      audit = {
+        at: ctx.sim.time,
+        phase: ctx.squad.commandPhase,
+        direction: back ? 'back' : 'forward',
+        contactReports: rs.length,
+        goal: goal ? { x: goal.x, z: goal.z } : null,
+        maxBoundDistance: C.boundTuning().maxDistance,
+        teams: [],
+        result: null
+      };
+    /* This is evidence from the actual planner pass, not a second simulated
+       decision. No eligibility, geometry, sorting or request writes change. */
+    st.diagnostic = audit;
+    if (!goal || !leaders || !r || a.length < 4 || a.length > 32) {
+      audit.result = !goal ? 'no-mission-goal' :
+        !leaders ? 'no-live-leader' : !r ? 'no-qualified-reported-contact' : 'roster-size';
+      return null;
+    }
     for (var turn = 0; turn < teams.length; turn++) {
       var index = (st.turn + turn) % teams.length,
         team = teams[index],
@@ -125,8 +142,24 @@
         }),
         holders = a.filter(function (s) {
           return movers.indexOf(s) < 0 && viable(s, ctx.sim);
-        });
-      if (st.lastTeam === team || movers.length < 2 || holders.length < 2) continue;
+        }),
+        record = {
+          team: team,
+          eligibleMovers: movers.length,
+          eligibleSupporters: holders.length,
+          candidates: 0,
+          directionalCandidates: 0,
+          admittedRoutes: 0,
+          moverFailures: [],
+          routeRejections: {},
+          result: null
+        };
+      audit.teams.push(record);
+      if (st.lastTeam === team || movers.length < 2 || holders.length < 2) {
+        record.result = st.lastTeam === team ? 'last-moving-team' :
+          movers.length < 2 ? 'insufficient-eligible-movers' : 'insufficient-eligible-supporters';
+        continue;
+      }
       var plan = [],
         used = [];
       for (var i = 0; i < movers.length; i++) {
@@ -135,10 +168,17 @@
           dx = goal.x - here.x,
           dz = goal.z - here.z,
           length = Math.hypot(dx, dz);
-        if (length <= 1) break;
+        if (length <= 1) {
+          record.moverFailures.push({ id: String(s.id), reason: 'already-near-goal' });
+          break;
+        }
         var candidates = C.candidates(s, ctx.sim, r, C.boundTuning().maxDistance);
-        if (!Array.isArray(candidates) || candidates.length > 256) break;
-        candidates = candidates
+        if (!Array.isArray(candidates) || candidates.length > 256) {
+          record.moverFailures.push({ id: String(s.id), reason: 'invalid-or-overflow-candidates' });
+          break;
+        }
+        record.candidates += candidates.length;
+        var directional = candidates
           .filter(function (p) {
             var x = p.x - here.x,
               z = p.z - here.z,
@@ -157,16 +197,35 @@
               String(p.slotId).localeCompare(String(q.slotId))
             );
           });
-        var picked = candidates.slice(0, 48).find(function (p) {
-          return C.boundRoute(s, ctx.sim, p, rs).eligible;
+        record.directionalCandidates += directional.length;
+        var picked = directional.slice(0, 48).find(function (p) {
+          var route = C.boundRoute(s, ctx.sim, p, rs);
+          if (!route.eligible)
+            record.routeRejections[route.reason] = (record.routeRejections[route.reason] || 0) + 1;
+          return route.eligible;
         });
-        if (!picked) break;
+        if (!picked) {
+          record.moverFailures.push({
+            id: String(s.id),
+            reason: !candidates.length ? 'no-nearby-cover' :
+              !directional.length ? 'no-progressing-cover' : 'no-safe-short-route',
+            rawCandidates: candidates.length,
+            directionalCandidates: directional.length
+          });
+          break;
+        }
+        record.admittedRoutes++;
         used.push(picked);
         plan.push({ man: s, point: { x: picked.x, z: picked.z } });
       }
-      if (plan.length === movers.length)
+      if (plan.length === movers.length) {
+        record.result = 'selected';
+        audit.result = 'team-selected';
         return { team: team, index: index, plan: plan, direction: back ? 'back' : 'forward' };
+      }
+      record.result = 'incomplete-team';
     }
+    audit.result = 'no-directional-covered-team';
     return null;
   }
   function supports(ctx, st) {
