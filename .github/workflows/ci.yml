@@ -155,7 +155,12 @@ jobs:
             exit 0
           fi
           echo "Checking ${#files[@]} changed JavaScript file(s) against .prettierrc.json."
+          npx --yes prettier@3.3.3 --write battle/modules/13e-tactical-covered-maneuver.js battle/modules/13g-tactical-contact-route.js battle/modules/16-squad-plan-stability.js battle/modules/11-voice-variation.js battle/skills-lab.js tools/ai-sim-harness/tactical-contact-route-check.js tools/ai-sim-harness/tactical-covered-maneuver-check.js tools/ai-sim-harness/voice-playback-check.js
+          echo TACTICAL_FORMAT_DIFF_BEGIN
+          git diff -- battle/modules/13e-tactical-covered-maneuver.js battle/modules/13g-tactical-contact-route.js battle/modules/16-squad-plan-stability.js battle/modules/11-voice-variation.js battle/skills-lab.js tools/ai-sim-harness/tactical-contact-route-check.js tools/ai-sim-harness/tactical-covered-maneuver-check.js tools/ai-sim-harness/voice-playback-check.js
+          echo TACTICAL_FORMAT_DIFF_END
           npx --yes prettier@3.3.3 --check "${files[@]}"
+          if ! git diff --quiet -- battle/modules/13e-tactical-covered-maneuver.js battle/modules/13g-tactical-contact-route.js battle/modules/16-squad-plan-stability.js battle/modules/11-voice-variation.js battle/skills-lab.js tools/ai-sim-harness/tactical-contact-route-check.js tools/ai-sim-harness/tactical-covered-maneuver-check.js tools/ai-sim-harness/voice-playback-check.js; then exit 1; fi
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
 
