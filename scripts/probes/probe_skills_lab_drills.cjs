@@ -75,6 +75,10 @@ function summarizeSamples(samples) {
     stationClaimSamples: stationClaims, supportingShotsDuringBoundMotion: supporterShootingWhileBoundMoving,
     startedCoveredWindows: maxStarts, completedCoveredWindows: maxCompleted, abortedCoveredWindows: maxAborted,
     maxOrderConflictsSnapshot: maxConflicts,
+    controllerFaults: last.lab.controllerState && last.lab.controllerState.stats
+      ? last.lab.controllerState.stats.faults : null,
+    controllerFaultExamples: last.lab.controllerState && last.lab.controllerState.stats
+      ? last.lab.controllerState.stats.faultExamples || [] : [],
     maxTargetDriftM: +maxTargetDriftM.toFixed(3),
     mainRefusalReasons: Object.entries(reasons).sort((a,b)=>b[1]-a[1]).slice(0,8),
     events: last.lab.events.slice(-30)
@@ -144,6 +148,11 @@ function summarizeSamples(samples) {
       summary.browserErrors=errors.length;
       summary.unexpectedBrowserErrors=classifyErrors(errors);
       assert.equal(summary.targetDeaths,0,'inert native target mortality');
+      if (c.arm === 'new') {
+        assert.equal(summary.controllerFaults, 0,
+          'replacement controller must have zero swallowed runtime exceptions: ' +
+          JSON.stringify(summary.controllerFaultExamples));
+      }
       assert.equal(summary.maxTargetDriftM,0,'range targets are physically stationary');
       assert.ok(summary.simulatedSeconds>=SIM_SECONDS-0.2,'full timed native drill completed');
       if(c.arm==='new')assert.ok(summary.controllerOwnedSquadSamples>0,
