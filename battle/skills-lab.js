@@ -519,6 +519,8 @@
           id: side + ':' + sq.id,
           controller: isNew ? 'new' : 'legacy',
           phase: sq.commandPhase || sq.state || '?',
+          missionAction: (sq._macroMission && sq._macroMission.action) || null,
+          missionIntent: (sq._macroMission && sq._macroMission.intent) || null,
           contact: !!sq.inContact,
           maneuver: (m && m.phase) || null,
           direction: (m && m.direction) || null,
@@ -639,6 +641,31 @@
           : new BABYLON.Color3(0.32, 0.77, 1);
       mesh.isPickable = false;
       vectors.push(mesh);
+    });
+    /* Visualize retained multihop guidance separately from the immediate
+       Movement Resolver destination arrow; visualization never issues orders. */
+    (battle.factions.us.squads || []).forEach(function (sq) {
+      var skill = root.BattleTacticalCoveredManeuver,
+        summary = skill && skill.summary(sq);
+      if (!summary || !Array.isArray(summary.retainedRoutes)) return;
+      summary.retainedRoutes.forEach(function (route) {
+        var soldier = (sq.members || []).find(function (s) {
+          return s && String(s.id) === route.moverId && !s.dead;
+        });
+        if (!soldier || !soldier.root || route.cursor >= route.waypoints.length) return;
+        var p = soldier.root.position,
+          points = [new BABYLON.Vector3(p.x, p.y + 2.5, p.z)];
+        route.waypoints.slice(route.cursor).forEach(function (waypoint) {
+          points.push(new BABYLON.Vector3(waypoint.x,
+            battle.heightAt(waypoint.x, waypoint.z) + 2.5, waypoint.z));
+        });
+        if (points.length < 2) return;
+        var line = BABYLON.MeshBuilder.CreateLines('skill-route-' + route.moverId,
+          { points: points }, scene);
+        line.color = new BABYLON.Color3(0.51, 0.92, 0.43);
+        line.isPickable = false;
+        vectors.push(line);
+      });
     });
   }
   function render() {
