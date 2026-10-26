@@ -159,7 +159,130 @@ jobs:
           mkdir -f -p preview/$SLUG
           cd preview/$SLUG
           lcd .preview
-          mirror -R --delete --verbose=1 --exclude '\.json\$' --exclude '[Ll][Aa][Bb]' --exclude '[Ss][Ii][Dd][Ee][Cc][Aa][Rr]' battle battle
+          # battle/ is a flat JS root plus modules/, never a Lab data directory.
+          # Do not exclude the unanchored /[Ll][Aa][Bb]/ pattern: it accidentally
+          # drops skills-lab.js while the local browser QA stays green.
+          mirror -R --delete --verbose=1 --exclude '\.json\
+          mirror -R --verbose=1 labs labs
+          mirror -R --delete --verbose=1 --transfer-all --exclude '\.json\$' --exclude '[Ll][Aa][Bb]' --exclude '[Ss][Ii][Dd][Ee][Cc][Aa][Rr]' Assets Assets
+          # lftp mirror omits hidden dotfiles; explicit upload is mandatory.
+          put Assets/.htaccess -o Assets/.htaccess
+          $contract_upload
+          put battle_sim.php
+          put ai_flow_live.html
+          put asset-overlay.json
+          put preview.json
+          bye
+          LFTP
+
+      - name: Verify preview is serving this commit
+        shell: bash
+        env:
+          SLUG: ${{ steps.id.outputs.slug }}
+          SHA: ${{ steps.id.outputs.sha }}
+        run: |
+          set -euo pipefail
+          url="https://test.ivandpopov.com/grasstex/preview/$SLUG/battle_sim.php"
+          body="$(curl -fsS "$url")"
+          grep -q "preview-${SHA:0:7}" <<<"$body"
+          grep -q "/grasstex/preview/$SLUG/battle/commander-ai.js" <<<"$body"
+          # The native Skills Lab must be present when its bundle is in this branch.
+          # Earlier lftp "Lab" exclusion hid skills-lab.js even though preview deploy
+          # and a local Playwright run passed. Verify the public script + PHP bootstrap.
+          if [[ -f battle/skills-lab.js ]]; then
+            lab_js_url="https://test.ivandpopov.com/grasstex/preview/$SLUG/battle/skills-lab.js"
+            curl --fail --silent --show-error --location "$lab_js_url" -o /tmp/skills-lab-preview.js
+            test "$(wc -c </tmp/skills-lab-preview.js)" -gt 15000
+            grep -Fq 'root.BattleSkillsLab = {' /tmp/skills-lab-preview.js
+            lab_html="$(curl --fail --silent --show-error --location "$url?skillsLab=1&seed=skills-preview-verify&labDistance=70&tacticalController=new")"
+            grep -Fq "window.SKILLS_LAB=true" <<<"$lab_html"
+            grep -Fq "/grasstex/preview/$SLUG/battle/skills-lab.js" <<<"$lab_html"
+            grep -Fq "window.BattleSkillsLab.attachBattle(battle,scene,camera)" <<<"$lab_html"
+            echo "Native Skills Lab preview JS and PHP bootstrap verified: $lab_js_url"
+          fi
+          # Check actual HTTP serving of an unchanged soldier FBX, not just
+          # inventory metadata; this fails if the rewrite overlay is missing.
+          overlay_test_url="https://test.ivandpopov.com/grasstex/preview/$SLUG/Assets/soldiers/ge-paratrooper.fbx"
+          curl --fail --silent --show-error --location --head "$overlay_test_url" >/dev/null
+          overlay_metadata_url="https://test.ivandpopov.com/grasstex/preview/$SLUG/asset-overlay.json"
+          overlay_metadata="$(curl -fsSL "$overlay_metadata_url")"
+          python3 -c 'import json,sys; d=json.loads(sys.argv[1]); assert d["assetOverlay"] and d["version"]==1' "$overlay_metadata"
+          echo "Preview FBX overlay verified: $overlay_test_url"
+          # The battle page is not enough: check the exact vehicle-lab URL as well.
+          # This is conditional so an unrelated historical branch without the lab
+          # remains previewable using the same generic workflow.
+          if [[ -f labs/vehicle-animation-lab.html ]]; then
+            vehicle_lab_url="https://test.ivandpopov.com/grasstex/preview/$SLUG/labs/vehicle-animation-lab.html"
+            vehicle_lab_html="$(curl -fsSL "$vehicle_lab_url")"
+            grep -q 'Vehicle Animation Lab' <<<"$vehicle_lab_html"
+            inventory_url="https://test.ivandpopov.com/grasstex/preview/$SLUG/labs/asset-list.php"
+            inventory="$(curl -fsSL "$inventory_url")"
+            grep -q 'german_transport.fbx' <<<"$inventory"
+            for clip in 'Truck - Driving.fbx' 'Truck - Sitting 1.fbx' 'Truck - Sitting 2.fbx' 'Truck - Sitting 3.fbx'; do
+              if [[ -f "Assets/animations/$clip" ]]; then
+                grep -Fq "$clip" <<<"$inventory"
+              fi
+            done
+            echo "Vehicle Animation Lab preview and vehicle/animation inventory verified: $vehicle_lab_url"
+          fi
+          if [[ "${{ inputs.lab_qa }}" == "true" ]]; then
+            lab="$(curl -fsSL "$url?combatLab=1")"
+            grep -q 'window.PHASE_C_COMBAT_LAB=true' <<<"$lab"
+            grep -q "/grasstex/preview/$SLUG/battle/phase-c-compact-range.js" <<<"$lab"
+            module_url="https://test.ivandpopov.com/grasstex/preview/$SLUG/battle/phase-c-compact-range.js"
+            curl --fail --silent --show-error --location "$module_url" -o /tmp/phase-c-preview-module.js
+            test "$(wc -c </tmp/phase-c-preview-module.js)" -gt 10000
+            grep -q 'Preview-only Phase C Combat Lab' /tmp/phase-c-preview-module.js
+            grep -q 'window.PhaseCCombatLab.attachBattle(battle,scene,camera)' <<<"$lab"
+          fi
+          {
+            echo "### Battle Sim preview"
+            echo "- Ref: \`${{ steps.id.outputs.ref }}\` @ \`${SHA:0:7}\`"
+            echo "- Meeting: $url"
+            echo "- US defending: $url?defender=us"
+            echo "- German defending: $url?defender=ge"
+            if [[ -f labs/vehicle-animation-lab.html ]]; then
+              echo "- Vehicle Animation Lab: https://test.ivandpopov.com/grasstex/preview/$SLUG/labs/vehicle-animation-lab.html"
+            fi
+            echo "- Asset upload: only branch-changed FBX/GLB/PNG/BIN; unchanged assets served from production."
+            echo "- Production untouched; preview makes no telemetry, policy or learning writes."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  combat-lab-smoke:
+    name: Native Combat Lab Chromium QA
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.lab_qa == true }}
+    needs: preview
+    runs-on: ubuntu-latest
+    timeout-minutes: 16
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+      - name: Resolve preview Combat Lab URL
+        shell: bash
+        env:
+          PREVIEW_REF: ${{ inputs.ref || github.ref_name }}
+        run: |
+          set -euo pipefail
+          slug="$(printf '%s' "$PREVIEW_REF" | tr '[:upper:]' '[:lower:]' | sed -E 's#^(work|preview)/##; s#[^a-z0-9]+#-#g; s#^-+|-+$##g' | cut -c1-48)"
+          test -n "$slug"
+          echo "PHASE_C_LAB_URL=https://test.ivandpopov.com/grasstex/preview/$slug/battle_sim.php" >> "$GITHUB_ENV"
+      - name: Install Chromium harness
+        run: |
+          npm install --no-save --no-package-lock playwright@1.58.2
+          npx playwright install --with-deps chromium
+      - name: Verify native range and isolation in hosted browser
+        run: node scripts/probes/phase_c_combat_lab_smoke.cjs
+      - name: Publish screenshots and diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase-c-native-lab-smoke
+          path: reports/phase-c-lab/
+          if-no-files-found: ignore
+ --exclude '[Ss][Ii][Dd][Ee][Cc][Aa][Rr]' battle battle
           mirror -R --verbose=1 labs labs
           mirror -R --delete --verbose=1 --transfer-all --exclude '\.json\$' --exclude '[Ll][Aa][Bb]' --exclude '[Ss][Ii][Dd][Ee][Cc][Aa][Rr]' Assets Assets
           # lftp mirror omits hidden dotfiles; explicit upload is mandatory.
