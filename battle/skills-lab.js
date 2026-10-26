@@ -11,9 +11,9 @@
   if (![1, 0.5, 0.25].includes(scale)) scale = 1;
   var distanceM = Number(params.get('labDistance') || 70);
   if (![35, 70, 120, 180].includes(distanceM)) distanceM = 70;
-  var coverLayout = params.get('labCover') || 'staggered';
-  if (['open', 'staggered', 'dense', 'hedgerow', 'original'].indexOf(coverLayout) < 0)
-    coverLayout = 'staggered';
+  var coverLayout = params.get('labCover') || 'mixed';
+  if (['open', 'mixed', 'staggered', 'dense', 'hedgerow', 'original'].indexOf(coverLayout) < 0)
+    coverLayout = 'mixed';
   var focus = params.get('labFocus') || 'all';
   if (!['all', 'fire', 'bounds', 'station'].includes(focus)) focus = 'all';
   var battle = null,
@@ -102,51 +102,82 @@
     }
     var obstacles = [],
       footprints = [],
-      meshes = [],
-      mat = new BABYLON.StandardMaterial('lab-real-hedge-material', scn);
-    mat.diffuseColor = BABYLON.Color3.FromHexString('#486638');
-    mat.specularColor = BABYLON.Color3.Black();
-    function hedge(id, x, z, width, depth, angle) {
-      var h = heightAt(x, z),
-        rot = angle || 0,
+      meshes = [];
+    /* Reuse TerrainFeatures' existing terrain-following prism renderer. Each
+       painted mesh comes from the SAME OBB, terrain endpoint heights and height
+       interval that nav, LOS and ballistics consume. No floating flat boxes. */
+    function physicalCover(id, x, z, width, depth, angle, height, type, tint) {
+      var rot = angle || 0,
         co = Math.cos(rot),
         si = Math.sin(rot),
+        ux = co,
+        uz = -si,
+        vx = si,
+        vz = co,
+        hx = width / 2,
+        hz = depth / 2,
+        y0 = heightAt(x - ux * hx, z - uz * hx) - 0.25,
+        y1 = heightAt(x + ux * hx, z + uz * hx) - 0.25,
         item = {
           id: 'lab-' + id,
           physicalId: 'lab-' + id,
-          type: 'hedge',
+          type: type,
           shape: 'obb',
           volume: 'terrain-prism',
           x: x,
           z: z,
-          hx: width / 2,
-          hz: depth / 2,
-          ux: co,
-          uz: -si,
-          vx: si,
-          vz: co,
-          y: h - 0.15,
-          y0: h - 0.15,
-          y1: h - 0.15,
-          height: 3.45,
-          visibleHeight: 3.3,
-          radius: depth / 2,
+          hx: hx,
+          hz: hz,
+          ux: ux,
+          uz: uz,
+          vx: vx,
+          vz: vz,
+          y: (y0 + y1) / 2,
+          y0: y0,
+          y1: y1,
+          height: height + 0.25,
+          visibleHeight: height,
+          radius: hz,
           cover: 0.62
         };
+      var T = root.BattleTerrainFeatures;
+      if (!T || !T.terrainPrism) throw new Error('Skills Lab requires shared terrain-prism geometry');
       footprints.push(item);
       obstacles.push(item);
-      var mesh = BABYLON.MeshBuilder.CreateBox(
-        'lab-real-cover-' + id,
-        { width: width, height: 3.3, depth: depth },
-        scn
-      );
-      mesh.position.set(x, h + 1.5, z);
-      mesh.rotation.y = rot;
-      mesh.material = mat;
+      var mesh = T.terrainPrism(scn, item, BABYLON.Color3.FromHexString(tint));
+      mesh.name = 'lab-real-cover-' + id;
       mesh.isPickable = false;
       meshes.push(mesh);
     }
-    if (coverLayout === 'hedgerow') {
+    function hedge(id, x, z, width, depth, angle) {
+      physicalCover(id, x, z, width, depth, angle, 3.3, 'hedge', '#486638');
+    }
+    if (coverLayout === 'mixed') {
+      /* Reduced-height physical cover with generous walkable corridors. A few
+         real bocage pieces break sight lines; the rest are waist/chest-high
+         stone/rubble banks. Neither cover slots nor troop paths are scripted. */
+      var bands = [-101, -80, -59, -38, -17, 4, 25];
+      bands.forEach(function (z, i) {
+        [-35, -13, 9, 31].forEach(function (x, j) {
+          if ((i * 3 + j) % 6 === 0) return;
+          var tall = (i + j * 2) % 6 === 3,
+            atX = x + (i % 2 ? 4 : -3),
+            atZ = z + (j % 2 ? 2 : -2),
+            angle = ((i + 2 * j) % 3 - 1) * 0.15;
+          physicalCover(
+            'mixed-' + i + '-' + j,
+            atX,
+            atZ,
+            tall ? 7.0 : 5.2,
+            tall ? 2.5 : 1.7,
+            angle,
+            tall ? 2.9 : 1.3 + ((i + j) % 3) * 0.16,
+            tall ? 'hedge' : 'wall',
+            tall ? '#486638' : (i + j) % 2 ? '#787568' : '#6d685b'
+          );
+        });
+      });
+    } else if (coverLayout === 'hedgerow') {
       /* Forward path blocked by broad hedge. A real gap at the eastern end
          requires a significant sideways/backwards flanking approach. */
       hedge('long-west', -19, -6, 40, 3.1, 0);
@@ -192,7 +223,6 @@
         meshes.forEach(function (m) {
           m.dispose();
         });
-        mat.dispose();
       }
     };
   }
@@ -313,8 +343,8 @@
       '<span><strong id="skillConflicts">0</strong>order conflicts</span></div>' +
       '<h3>Squad decisions &amp; covered movement</h3><pre id="skillSquads">Initializing…</pre>' +
       '<h3>Native route plan · A → B → C → D</h3><pre id="skillRoutes">No route yet</pre>' +
-      '<div class="sub">Bright green line and lettered markers on the field = real, retained cover ' +
-      'waypoints. No line means no approved route; see mission action and gates above.</div>' +
+      '<div class="sub">Colored routes mark real terrain-aligned cover slots. An old route is history, ' +
+      'not an active order when the mission changes to DEFEND. See mission and gates above.</div>' +
       '<h3>Native covered-route gates</h3><pre id="skillGates">Awaiting controller…</pre>' +
       '<h3>Individual actions (native owner)</h3><pre id="skillMen">Initializing…</pre>' +
       '<h3>Event timeline</h3><pre id="skillEvents">Waiting for events…</pre>' +
@@ -360,7 +390,8 @@
     options(
       '#skillCover',
       [
-        ['staggered', 'Staggered physical cover (default)'],
+        ['mixed', 'Mixed medium cover (default, terrain-following)'],
+        ['staggered', 'Staggered hedgerows (comparison)'],
         ['hedgerow', 'Long hedgerow / flanking detour'],
         ['dense', 'Dense cover choices'],
         ['open', 'Open ground (no cover)'],

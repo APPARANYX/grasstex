@@ -136,7 +136,7 @@
   /* Build the exact prism described by the combat-volume record. The lower edge is buried slightly
      below the sampled terrain, the same trick used by ww2fps terrain skirts, so interpolation cannot
      open a visual/LOS slit at the foot of the hedge. */
-  function buildHedgePrism(scene, fp) {
+  function buildHedgePrism(scene, fp, color) {
     var a = { ux: fp.ux, uz: fp.uz, vx: fp.vx, vz: fp.vz },
       hx = fp.hx,
       hz = fp.hz;
@@ -189,7 +189,7 @@
     vd.normals = norm;
     vd.uvs = uv;
     vd.applyToMesh(m);
-    paint(m, HEDGE);
+    paint(m, color || HEDGE);
     m.material = featureMaterial(scene);
     m.isPickable = false;
     return m;
@@ -711,6 +711,7 @@
 
   root.BattleTerrainFeatures = {
     orientGroundMesh: orientGroundMesh,
+    terrainPrism: buildHedgePrism,
     scatter: scatter,
     hedgeWidth: HEDGE_WIDTH,
     hedgeHeight: HEDGE_HEIGHT_MAX,

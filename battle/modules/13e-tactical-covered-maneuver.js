@@ -201,12 +201,14 @@
     }
     var choices = [];
     ready.forEach(function (s) {
-      if (A.isMachineGun(s) || (st.lastMoverId === String(s.id) && ready.length > 2)) return;
+      var retained = st.routes.get(String(s.id));
+      var pending = !!(retained && retained.cursor < retained.waypoints.length && retained.mission === ctx.squad._macroMission);
+      if (A.isMachineGun(s) || (st.lastMoverId === String(s.id) && ready.length > 2 && !pending)) return;
       var team = Q.teamKeyFor(s);
       /* The Meso covered-window owner accepts alpha/bravo/charlie, not the
          command element. Never choose a route it cannot lease. */
       if (teams.indexOf(team) < 0) return;
-      var result = R.pick(s, ctx.sim, rs, goal, [], st.routes.get(String(s.id))),
+      var result = R.pick(s, ctx.sim, rs, goal, [], pending ? retained : null),
         record = {
           team: team,
           moverId: String(s.id),
@@ -235,7 +237,7 @@
         point: result.point,
         waypoints: result.waypoints || [],
         reused: !!result.reused,
-        score: result.score + (effectiveHere ? 24 : 0),
+        score: result.score + (effectiveHere ? 24 : 0) - (result.reused ? 60 : 0),
         exposure: result.exposure,
         effectiveHere: effectiveHere
       });
