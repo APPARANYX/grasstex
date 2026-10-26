@@ -315,7 +315,7 @@
         z: p.z
       };
       for (var j = 0; j < samples; j++) {
-        var angle = (j - 1) * Math.PI / 4,
+        var angle = ((j - 1) * Math.PI) / 4,
           shift = j === 0 ? 0 : TUNING.SCATTER,
           landing = { x: aim.x + shift * Math.cos(angle), z: aim.z + shift * Math.sin(angle) };
         var source = {
@@ -414,20 +414,20 @@
       return;
     }
     var g = freezeFlight({
-        id: ++st.seq,
-        by: s.id,
-        byFaction: s.faction,
-        byRef: s,
-        from: path.from,
-        to: path.to,
-        points: path.points,
-        releasedAt: plan.releaseAt,
-        flight: path.flight,
-        detonateAt: plan.releaseAt + path.flight + TUNING.FUSE,
-        kind: kindOf(s.faction),
-        severity: TUNING.FRAG_SEVERITY,
-        power: TUNING.FRAG_POWER
-      });
+      id: ++st.seq,
+      by: s.id,
+      byFaction: s.faction,
+      byRef: s,
+      from: path.from,
+      to: path.to,
+      points: path.points,
+      releasedAt: plan.releaseAt,
+      flight: path.flight,
+      detonateAt: plan.releaseAt + path.flight + TUNING.FUSE,
+      kind: kindOf(s.faction),
+      severity: TUNING.FRAG_SEVERITY,
+      power: TUNING.FRAG_POWER
+    });
     s.grenades = count(s) - 1;
     s._grenadeNextAt = plan.releaseAt + TUNING.COOLDOWN;
     st.live.push(g);
