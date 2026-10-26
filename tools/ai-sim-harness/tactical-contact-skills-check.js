@@ -229,15 +229,21 @@ test('covered personal contact may use standing ballistic line rather than getti
   // Simulate authentic stance-dependent geometry: low eye/muzzle is hidden
   // behind cover, but higher stance can physically see and discharge.
   const sight = w.r.SquadAI.hasLineOfSight;
-  const ball = w.r.BattleBallistics.fireLineBlocked;
+  const previousBallistics = w.r.BattleBallistics;
+  const ball = previousBallistics && previousBallistics.fireLineBlocked;
   w.r.SquadAI.hasLineOfSight = (shooter, target, height, obstacles) =>
     shooter === man || (shooter && shooter.weapon === man.weapon)
       ? !(shooter.prone || shooter.crouching || shooter.tacticalCrouch)
       : sight(shooter, target, height, obstacles);
-  w.r.BattleBallistics.fireLineBlocked = (shooter, target, battle) =>
-    shooter && shooter.weapon === man.weapon
-      ? !!(shooter.prone || shooter.crouching || shooter.tacticalCrouch)
-      : ball(shooter, target, battle);
+  w.r.BattleBallistics = {
+    ...(previousBallistics || {}),
+    fireLineBlocked: (shooter, target, battle) =>
+      shooter && shooter.weapon === man.weapon
+        ? !!(shooter.prone || shooter.crouching || shooter.tacticalCrouch)
+        : ball
+          ? ball(shooter, target, battle)
+          : false
+  };
   man.prone = true;
   man.tacticalCrouch = false;
   w.E.commitStance(man, w.b, 'prone', 0, 'fixture-covered');
@@ -257,7 +263,7 @@ test('covered personal contact may use standing ballistic line rather than getti
   assert.equal(man.tacticalCrouch, false, 'he rises high enough for the actual firing line');
   assert.equal(w.E.firingLineClear(man, man.target, man.root.position, 'stand', w.b), true);
   w.r.SquadAI.hasLineOfSight = sight;
-  w.r.BattleBallistics.fireLineBlocked = ball;
+  w.r.BattleBallistics = previousBallistics;
   clean(w);
 });
 test('contact execution fires real rounds after recognition and honors ammo/range gates', () => {
