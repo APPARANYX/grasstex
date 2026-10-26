@@ -176,7 +176,7 @@
           !st.plan.some(function (p) {
             return p.man === s;
           }) &&
-          viable(s, ctx.sim) &&
+          !!(s && !s.dead && !s.incapacitated && s.hp > 0 && s.weapon && !s.outOfAmmo) &&
           E.supportReady(s, ctx.sim) &&
           shot &&
           shot.at >= st.startedAt &&
