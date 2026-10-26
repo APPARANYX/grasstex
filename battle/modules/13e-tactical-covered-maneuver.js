@@ -155,8 +155,11 @@
     var choices = [];
     ready.forEach(function (s) {
       if (A.isMachineGun(s) || (st.lastMoverId === String(s.id) && ready.length > 2)) return;
-      var team = Q.teamKeyFor(s),
-        result = R.pick(s, ctx.sim, rs, goal, []),
+      var team = Q.teamKeyFor(s);
+      /* The Meso covered-window owner accepts alpha/bravo/charlie, not the
+         command element. Never choose a route it cannot lease. */
+      if (teams.indexOf(team) < 0) return;
+      var result = R.pick(s, ctx.sim, rs, goal, []),
         record = {
           team: team,
           moverId: String(s.id),
