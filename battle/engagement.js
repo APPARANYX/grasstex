@@ -1935,6 +1935,40 @@
       !(G && G.blockReason && G.blockReason(s, battle))
     );
   }
+  /* Actual recent independent rounds are the receipt for covering fire.
+     Do NOT require supportReady() on the *same* tick: after a lawful shot,
+     normal weapon cycling sets fireReadyAt in the future, so a firing
+     supporter otherwise becomes paradoxically 'not ready'. Read only. */
+  function supportDischarged(s, battle, since) {
+    var A = root.BattleAmmunition,
+      shot = A && A.shotEvidence && A.shotEvidence(s, battle),
+      e = s && s.eng;
+    return !!(
+      s &&
+      battle &&
+      e &&
+      shot &&
+      Number.isFinite(shot.at) &&
+      shot.at >= since &&
+      shot.at <= battle.time &&
+      battle.time - shot.at <= 3 &&
+      !s.dead &&
+      !s.isPlayer &&
+      !s.incapacitated &&
+      s.hp > 0 &&
+      s.weapon &&
+      !s.outOfAmmo &&
+      !s.reloading &&
+      !s.clearingStoppage &&
+      !s.moving &&
+      !s.crawling &&
+      !(s.suppressedUntil > battle.time) &&
+      !reacting(s) &&
+      !fledPhase(s) &&
+      fireAuthorized(s, battle) &&
+      (e.state === 'engage' || e.state === 'station' || e.suppressOrder)
+    );
+  }
   /* Squad contact report. Micro state flows up: who can see the enemy, who is pinned, who is
      actually putting rounds out (the base of fire). The Squad Leader (16-squad-plan-stability.js) reads
      this report to decide fire and movement; Engagement only executes a bound it is ordered to. */
@@ -2377,6 +2411,7 @@
     fireAllowed: fireAllowed,
     fireAuthorized: fireAuthorized,
     supportReady: supportReady,
+    supportDischarged: supportDischarged,
     effectiveFireOn: function () {
       return EFFECTIVE_FIRE;
     },
