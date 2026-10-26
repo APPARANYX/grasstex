@@ -243,6 +243,19 @@
     choices.sort(function (a, b) {
       return a.score - b.score || String(a.man.id).localeCompare(String(b.man.id));
     });
+    /* Do not draft the sole active rifleman into the moving party! A genuine
+       shot in the preceding few seconds is proof this actor has been firing,
+       and the current effective line-of-fire makes him a precious supporter. */
+    var E = root.BattleEngagement,
+      firing = new Set(
+        ready
+          .filter(function (s) {
+            return E.supportDischarged(s, ctx.sim, Math.max(0, ctx.sim.time - 3));
+          })
+          .map(function (s) {
+            return String(s.id);
+          })
+      );
     if (!choices.length) {
       audit.result = 'no-reachable-contact-cover';
       return null;
@@ -252,6 +265,7 @@
        Preserve two live squadmates as potential covering shooters. */
     choices.forEach(function (candidate) {
       if (selected.length >= Math.min(MAX_PARALLEL_MOVERS, ready.length - 2)) return;
+      if (firing.has(String(candidate.man.id))) return;
       if (
         selected.some(function (p) {
           return Math.hypot(candidate.point.x - p.point.x, candidate.point.z - p.point.z) < 4;
@@ -342,7 +356,7 @@
         return (
           !st.plan.some(function (p) {
             return p.man === s;
-          }) && E.supportDischarged(s, ctx.sim, st.startedAt)
+          }) && E.supportDischarged(s, ctx.sim, st.startedAt - 3)
         );
       })
       .map(function (s) {

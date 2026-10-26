@@ -1265,7 +1265,7 @@
           ? !!(s && !s.dead && !s.incapacitated && s.hp > 0 && s.weapon && !s.outOfAmmo)
           : boundMember(s, battle)) &&
         (h.moverId || h.moverIds
-          ? E.supportDischarged(s, battle, h.lease.since)
+          ? E.supportDischarged(s, battle, h.lease.since - 3)
           : E.supportReady(s, battle) &&
             shot &&
             shot.at >= h.lease.since &&
