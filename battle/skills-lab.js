@@ -11,6 +11,9 @@
   if (![1, 0.5, 0.25].includes(scale)) scale = 1;
   var distanceM = Number(params.get('labDistance') || 70);
   if (![35, 70, 120, 180].includes(distanceM)) distanceM = 70;
+  var coverLayout = params.get('labCover') || 'staggered';
+  if (['open', 'staggered', 'dense', 'hedgerow', 'original'].indexOf(coverLayout) < 0)
+    coverLayout = 'staggered';
   var focus = params.get('labFocus') || 'all';
   if (!['all', 'fire', 'bounds', 'station'].includes(focus)) focus = 'all';
   var battle = null,
@@ -81,6 +84,76 @@
     m.diffuseColor = BABYLON.Color3.FromHexString(color);
     m.specularColor = BABYLON.Color3.Black();
     return m;
+  }
+  /* True physical coverage: a visual hedge AND its shared nav/LOS/ballistic
+     footprint are the very same object supplied to BattleSim. The standee
+     target sandbags remain decoration and are never cover. No scene RNG. */
+  function scatterCover(scn, heightAt, opts) {
+    if (coverLayout === 'original') {
+      /* Preserve original procedural layout as an explicit comparison mode.
+         Avoid recursive calls by bypassing this Skills Lab hook just here. */
+      var original = root.BattleSkillsLab.scatterCover;
+      root.BattleSkillsLab.scatterCover = null;
+      try { return root.BattleTerrainFeatures.scatter(scn, heightAt, opts); }
+      finally { root.BattleSkillsLab.scatterCover = original; }
+    }
+    var obstacles = [], footprints = [], meshes = [],
+      mat = new BABYLON.StandardMaterial('lab-real-hedge-material', scn);
+    mat.diffuseColor = BABYLON.Color3.FromHexString('#486638');
+    mat.specularColor = BABYLON.Color3.Black();
+    function hedge(id, x, z, width, depth, angle) {
+      var h = heightAt(x, z), rot = angle || 0,
+        co = Math.cos(rot), si = Math.sin(rot),
+        item = {
+          id: 'lab-' + id, physicalId: 'lab-' + id, type: 'hedge',
+          shape: 'obb', volume: 'terrain-prism',
+          x: x, z: z, hx: width / 2, hz: depth / 2,
+          ux: co, uz: -si, vx: si, vz: co,
+          y: h - 0.15, y0: h - 0.15, y1: h - 0.15,
+          height: 3.45, visibleHeight: 3.3, radius: depth / 2, cover: 0.62
+        };
+      footprints.push(item);
+      obstacles.push(item);
+      var mesh = BABYLON.MeshBuilder.CreateBox('lab-real-cover-' + id,
+        { width: width, height: 3.3, depth: depth }, scn);
+      mesh.position.set(x, h + 1.5, z);
+      mesh.rotation.y = rot;
+      mesh.material = mat;
+      mesh.isPickable = false;
+      meshes.push(mesh);
+    }
+    if (coverLayout === 'hedgerow') {
+      /* Forward path blocked by broad hedge. A real gap at the eastern end
+         requires a significant sideways/backwards flanking approach. */
+      hedge('long-west', -19, -6, 40, 3.1, 0);
+      hedge('long-east', 19, -6, 29, 3.1, 0);
+      [[-30,-70],[-14,-55],[4,-43],[23,-36],[41,-25],[55,-14],
+        [55,5],[41,19],[22,30],[8,41]].forEach(function (p,i) {
+        hedge('flank-'+i,p[0],p[1],9,3.2,i%2 ? 0.16 : -0.12);
+      });
+    } else if (coverLayout !== 'open') {
+      /* 20 m staggered authentic cover legs. Dense adds side choices, not
+         synthetic route hints or orders to the soldier. */
+      var lines = [-108,-88,-68,-48,-28,-8,12,32];
+      lines.forEach(function (z,i) {
+        var cols = coverLayout === 'dense' ? [-40,-20,0,20,40] : [-27,-3,22];
+        cols.forEach(function (x,j) {
+          hedge('row-'+i+'-'+j,
+            x + ((i%2) ? 6 : -5), z + ((i+j)%2 ? 2 : -2),
+            coverLayout === 'dense' ? 9 : 10, 3.0,
+            ((i+j)%3-1)*0.13);
+        });
+      });
+    }
+    obstacles.__physicalFootprints = footprints;
+    obstacles.__physicalVersion = 4;
+    return {
+      obstacles: obstacles, physicalFootprints: footprints,
+      dispose: function () {
+        meshes.forEach(function (m) { m.dispose(); });
+        mat.dispose();
+      }
+    };
   }
   function buildMaterials() {
     if (materials) return;
@@ -182,6 +255,7 @@
       '<label for="skillController">Controller</label><select id="skillController"></select>' +
       '<label for="skillFocus">Inspect skill (observational filter; no forced AI actions)</label>' +
       '<select id="skillFocus"></select>' +
+      '<label for="skillCover">Real cover layout (native collision and LOS)</label><select id="skillCover"></select>' +
       '<label for="skillDistance">Starting range (native spawn positions)</label><select id="skillDistance"></select>' +
       '<label for="skillRange">Native weapon and visual detection range</label><select id="skillRange"></select>' +
       '<div class="buttons"><button class="primary" id="skillPlay">Play</button>' +
@@ -238,6 +312,17 @@
       focus = this.value;
       render();
     };
+    options(
+      '#skillCover',
+      [
+        ['staggered', 'Staggered physical cover (default)'],
+        ['hedgerow', 'Long hedgerow / flanking detour'],
+        ['dense', 'Dense cover choices'],
+        ['open', 'Open ground (no cover)'],
+        ['original', 'Original procedural terrain']
+      ],
+      coverLayout
+    ).onchange = function () { configure('labCover', this.value); };
     options(
       '#skillRange',
       [
@@ -398,6 +483,8 @@
           reason: (m && m.reason) || null,
           supporters: (m && m.supporters && m.supporters.length) || 0,
           completed: (m && m.completed) || 0,
+          checkins: (m && m.checkins) || 0,
+          retainedRoutes: (m && m.retainedRoutes) || [],
           failed: (m && m.failed) || 0,
           diagnostic: (m && m.diagnostic) || null
         });
@@ -459,6 +546,7 @@
       focus: focus,
       rangeScale: scale,
       rangeDistanceM: distanceM,
+      coverLayout: coverLayout,
       time: +battle.time.toFixed(2),
       paused: !!battle.paused,
       shots: shots,
@@ -698,6 +786,7 @@
     advance: advance,
     reset: reset,
     stageRetreat: stageRetreat,
+    scatterCover: scatterCover,
     setRunning: setRunning
   };
 })(window);
