@@ -7,18 +7,20 @@
   /* BattleSim can load before scenario-generator on the hosted page. Resolve
      the same default-on strategic gate directly so world geometry matches the
      generated scenario; explicit ?strategicInterception=0 restores legacy. */
+  var LARGE_MEETING = !!(root.PHASE_C_COMBAT_LAB && !root.SKILLS_LAB && root.location &&
+    /[?&]balancedMeeting=1(?:&|$)/.test(root.location.search || ''));
   var STRATEGIC_FIELD =
     !root.PHASE_C_COMBAT_LAB &&
     root.STRATEGIC_INTERCEPTION_ENABLED !== false &&
     root.BattleStrategicConfig.flag('strategicInterception');
-  var FIELD_W = root.PHASE_C_COMBAT_LAB ? 280 : STRATEGIC_FIELD ? 5000 : 2000,
-    FIELD_D = root.PHASE_C_COMBAT_LAB ? 240 : STRATEGIC_FIELD ? 5000 : 1200,
+  var FIELD_W = LARGE_MEETING ? 480 : root.PHASE_C_COMBAT_LAB ? 280 : STRATEGIC_FIELD ? 5000 : 2000,
+    FIELD_D = LARGE_MEETING ? 360 : root.PHASE_C_COMBAT_LAB ? 240 : STRATEGIC_FIELD ? 5000 : 1200,
     SPAWN_Z = 510,
     LANES = [-700, -350, 0, 350, 700];
   var AI_TICK = 0.15,
     DEFAULT_TIME_LIMIT = STRATEGIC_FIELD ? 1800 : 600,
-    SUB_X = STRATEGIC_FIELD ? 288 : 160,
-    SUB_Z = STRATEGIC_FIELD ? 288 : 96,
+    SUB_X = STRATEGIC_FIELD ? 288 : LARGE_MEETING ? 200 : 160,
+    SUB_Z = STRATEGIC_FIELD ? 288 : LARGE_MEETING ? 144 : 96,
     GRIDX = SUB_X + 1,
     GRIDZ = SUB_Z + 1,
     gridH = null,

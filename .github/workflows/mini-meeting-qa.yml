@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - 'battle/scenario-generator.js'
+      - 'battle/battle-sim.js'
+      - 'battle/town-objectives.js'
       - 'battle/modules/21d-mini-meeting-reinforcements.js'
       - 'battle/phase-c-compact-range.js'
       - 'scripts/probes/probe_mini_meeting.cjs'
@@ -22,6 +24,8 @@ jobs:
         run: |
           php -l battle_sim_local.php
           node --check battle/scenario-generator.js
+          node --check battle/battle-sim.js
+          node --check battle/town-objectives.js
           node --check battle/phase-c-compact-range.js
           node --check battle/modules/21d-mini-meeting-reinforcements.js
           node --check scripts/probes/probe_mini_meeting.cjs

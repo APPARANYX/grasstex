@@ -149,7 +149,7 @@
       '<button type="button" class="drawerClose" id="labClose" aria-label="Close Combat Lab controls">✕ Close</button></div>' +
       '<div class="sub">' +
       (params.get('balancedMeeting') === '1'
-        ? '280 × 240 m · 2 US squads / 2 German squads · two finite reinforcement waves'
+        ? '480 × 360 m · 2 US squads / 2 German squads · two finite reinforcement waves'
         : '280 × 240 m native arena · 2 US squads / 1 German squad') +
       ' · 0.15s AI ticks</div>' +
       '<div class="sub good">Objective-hold victory OFF · objective ownership tracked · 600s limit</div>' +
@@ -338,12 +338,12 @@
       'phase-c-overhead',
       -Math.PI / 2,
       0.2,
-      265,
+      params.get('balancedMeeting') === '1' ? 405 : 265,
       new BABYLON.Vector3(0, 0, 0),
       options.scene
     );
     c.lowerRadiusLimit = 105;
-    c.upperRadiusLimit = 430;
+    c.upperRadiusLimit = params.get('balancedMeeting') === '1' ? 710 : 430;
     c.lowerBetaLimit = 0.09;
     c.upperBetaLimit = 1.2;
     c.wheelPrecision = 6;
@@ -518,7 +518,7 @@
         : null,
       objectiveHold: battle.objectiveHold ? Object.assign({}, battle.objectiveHold) : null,
       paused: battle.paused,
-      boundsM: [280, 240],
+      boundsM: [root.BattleSim.FIELD_W, root.BattleSim.FIELD_D],
       counts: JSON.parse(JSON.stringify(counts)),
       usAlive: battle.factions.us.alive,
       geAlive: battle.factions.ge.alive,

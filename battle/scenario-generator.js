@@ -5,8 +5,10 @@
 (function (root) {
   'use strict';
 
-  var MAP_W = root.PHASE_C_COMBAT_LAB ? 280 : 2000,
-    MAP_D = root.PHASE_C_COMBAT_LAB ? 240 : 1200;
+  var LARGE_MEETING = !!(root.PHASE_C_COMBAT_LAB && !root.SKILLS_LAB && root.location &&
+    /[?&]balancedMeeting=1(?:&|$)/.test(root.location.search || ''));
+  var MAP_W = LARGE_MEETING ? 480 : root.PHASE_C_COMBAT_LAB ? 280 : 2000,
+    MAP_D = LARGE_MEETING ? 360 : root.PHASE_C_COMBAT_LAB ? 240 : 1200;
   var FEATURE_KEYS = [
     'buildingDensity',
     'objectiveCount',
@@ -685,19 +687,15 @@
         : createStrategic(seed, opts);
     var r = rngFor(seed, 'scenario');
     var lab = !!root.PHASE_C_COMBAT_LAB,
-      spanX = lab ? 205 : rr(r, 430, 720),
-      spanZ = lab ? 166 : rr(r, 300, 500),
+      spanX = LARGE_MEETING ? 406 : lab ? 205 : rr(r, 430, 720),
+      spanZ = LARGE_MEETING ? 268 : lab ? 166 : rr(r, 300, 500),
       cx = lab ? 0 : rr(r, -180, 180),
       cz = lab ? 0 : rr(r, -85, 85);
-    var buildingCount = lab ? 6 : Math.round(rr(r, 12, 28)),
+    var buildingCount = LARGE_MEETING ? 13 : lab ? 6 : Math.round(rr(r, 12, 28)),
       objectiveCount = lab ? 1 : Math.round(rr(r, 3, 6));
-    var lanes = lab ? [-25, 25] : [-700, -350, 0, 350, 700],
+    var lanes = LARGE_MEETING ? [-38, 38] : lab ? [-25, 25] : [-700, -350, 0, 350, 700],
       spawnZ = MAP_D / 2 - (lab ? 30 : 90),
-      balancedMeeting =
-        lab &&
-        !root.SKILLS_LAB &&
-        root.location &&
-        /[?&]balancedMeeting=1(?:&|$)/.test(root.location.search || '');
+      balancedMeeting = LARGE_MEETING;
     var scenario = {
       version: 20,
       seed: seed,

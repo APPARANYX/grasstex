@@ -299,7 +299,10 @@
         },
         scenario.profile === 'strategic'
           ? { clumpCount: 180, lowCoverCount: 580, hedgeRowGap: 700, hedgeColGap: 950 }
-          : {}
+          : root.PHASE_C_COMBAT_LAB && !root.SKILLS_LAB &&
+              root.location && /[?&]balancedMeeting=1(?:&|$)/.test(root.location.search || '')
+            ? { clumpCount: 24, lowCoverCount: 110, hedgeRowGap: 92, hedgeColGap: 148 }
+            : {}
       )
     );
   }

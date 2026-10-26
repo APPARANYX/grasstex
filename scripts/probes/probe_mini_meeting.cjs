@@ -39,6 +39,15 @@ fs.mkdirSync(DIR, { recursive: true });
         const engine = b.scene?.getEngine?.();
         if (engine && root.__battleRenderLoop__) engine.stopRenderLoop(root.__battleRenderLoop__);
         b.pause();
+        const footprints = b.obstacles?.__physicalFootprints || [];
+        const initialCover = {
+          buildings: sc.buildings?.length || 0,
+          tacticalObstacles: b.obstacles?.length || 0,
+          physicalFootprints: footprints.length,
+          hedgeVolumes: footprints.filter(f => f.type === 'hedge').length,
+          wallVolumes: footprints.filter(f => f.type === 'wall').length,
+          trees: footprints.filter(f => f.type === 'tree').length
+        };
         const initialSquads = { us: b.factions.us.squads.length, ge: b.factions.ge.squads.length };
         const initialSoldiers = { us: b._roster.us.length, ge: b._roster.ge.length };
         const start = new Map();
@@ -103,6 +112,7 @@ fs.mkdirSync(DIR, { recursive: true });
         b.pause();
         const last = records[records.length-1];
         return { seed: sc.seed, dimension: [sc.map.width, sc.map.depth],
+          groundDimension: [root.BattleSim.FIELD_W, root.BattleSim.FIELD_D], initialCover,
           initialSquads, initialSoldiers,
           spawnLanes: { us: sc.spawnZones.us.lanes, ge: sc.spawnZones.ge.lanes },
           meeting: b._sides?.meeting === true, preset: root.PhaseCCombatLab.snapshot()?.preset,
@@ -121,12 +131,17 @@ fs.mkdirSync(DIR, { recursive: true });
       data.browserErrors = errors.filter(e => !/HTTP 404 loading [^\n]*\/Assets\/audio\//i.test(e));
       fs.writeFileSync(DIR + '/' + seed + '.json', JSON.stringify(data, null, 2));
       results.push(data);
-      console.log('MINI_MEETING', JSON.stringify({ seed, t: data.t, alive: data.alive,
+      console.log('MINI_MEETING', JSON.stringify({ seed, t: data.t, bounds: data.dimension,
+        cover: data.initialCover, alive: data.alive,
         shots: data.shots, supportShots: data.supportShots, moved5m: data.moved5m,
         contactSquads: data.contactSquads, grenade: data.grenade,
         reinforcements: data.reinforcements, totalUnits: data.totalUnits,
         maxima: data.maxima, winner: data.winner, errors: data.browserErrors }));
-      assert.deepEqual(data.dimension, [280,240], 'compact map');
+      assert.deepEqual(data.dimension, [480,360], 'expanded meeting map');
+      assert.deepEqual(data.groundDimension, data.dimension, 'rendered terrain matches scenario');
+      assert.ok(data.initialCover.buildings >= 10, 'expanded urban/building clutter');
+      assert.ok(data.initialCover.tacticalObstacles >= 60, 'native tactical cover density');
+      assert.ok(data.initialCover.physicalFootprints >= 40, 'real nav/LOS/ballistic cover volumes');
       assert.deepEqual(data.initialSquads, { us:2, ge:2 }, 'balanced squads');
       assert.deepEqual(data.initialSoldiers, { us:20, ge:20 }, 'balanced soldiers');
       assert.equal(data.meeting, true, 'unprepared meeting engagement');
@@ -150,7 +165,7 @@ fs.mkdirSync(DIR, { recursive: true });
       await page.close();
     }
     fs.writeFileSync(DIR + '/summary.json', JSON.stringify(results.map(r => ({
-      seed:r.seed,t:r.t,alive:r.alive,shots:r.shots,
+      seed:r.seed,t:r.t,bounds:r.dimension,cover:r.initialCover,alive:r.alive,shots:r.shots,
       supporting:r.supportShots,moved:r.moved5m,grenades:r.grenade,
       reinforcements:r.reinforcements,totalUnits:r.totalUnits,maxima:r.maxima
     })),null,2));

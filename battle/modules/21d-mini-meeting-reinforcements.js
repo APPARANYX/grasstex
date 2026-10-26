@@ -1,4 +1,4 @@
-/* Preview-only 280x240m balanced meeting reinforcements.
+/* Preview-only expanded-map balanced meeting reinforcements.
    Two finite matched waves of native infantry (one 10-man squad PER side each
    wave), not revived actors or fabricated AI orders. Real combat stays native. */
 (function (root) {
