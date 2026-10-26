@@ -9,6 +9,8 @@
   var params = new URLSearchParams(root.location.search);
   var scale = Number(params.get('labRange') || 1);
   if (![1, 0.5, 0.25].includes(scale)) scale = 1;
+  var distanceM = Number(params.get('labDistance') || 70);
+  if (![35, 70, 120, 180].includes(distanceM)) distanceM = 70;
   var focus = params.get('labFocus') || 'all';
   if (!['all', 'fire', 'bounds', 'station'].includes(focus)) focus = 'all';
   var battle = null,
@@ -180,6 +182,7 @@
       '<label for="skillController">Controller</label><select id="skillController"></select>' +
       '<label for="skillFocus">Inspect skill (observational filter; no forced AI actions)</label>' +
       '<select id="skillFocus"></select>' +
+      '<label for="skillDistance">Starting range (native spawn positions)</label><select id="skillDistance"></select>' +
       '<label for="skillRange">Native weapon and visual detection range</label><select id="skillRange"></select>' +
       '<div class="buttons"><button class="primary" id="skillPlay">Play</button>' +
       '<button id="skillStep">+0.15s</button><button id="skillSecond">+1s</button>' +
@@ -244,6 +247,18 @@
       String(scale)
     ).onchange = function () {
       configure('labRange', this.value);
+    };
+    options(
+      '#skillDistance',
+      [
+        ['35', '35 m · close range'],
+        ['70', '70 m · contact range (default)'],
+        ['120', '120 m · rifle range'],
+        ['180', '180 m · open field']
+      ],
+      String(distanceM)
+    ).onchange = function () {
+      configure('labDistance', this.value);
     };
     play = panel.querySelector('#skillPlay');
     play.onclick = function () {
@@ -405,6 +420,7 @@
       controller: params.get('tacticalController') || 'legacy',
       focus: focus,
       rangeScale: scale,
+      rangeDistanceM: distanceM,
       time: +battle.time.toFixed(2),
       paused: !!battle.paused,
       shots: shots,
