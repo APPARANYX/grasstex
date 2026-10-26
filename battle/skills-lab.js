@@ -196,6 +196,7 @@
       '<span><strong id="skillHits">0</strong>hits</span>' +
       '<span><strong id="skillConflicts">0</strong>order conflicts</span></div>' +
       '<h3>Squad decisions &amp; covered movement</h3><pre id="skillSquads">Initializing…</pre>' +
+      '<h3>Native covered-route gates</h3><pre id="skillGates">Awaiting controller…</pre>' +
       '<h3>Individual actions (native owner)</h3><pre id="skillMen">Initializing…</pre>' +
       '<h3>Event timeline</h3><pre id="skillEvents">Waiting for events…</pre>' +
       '<p class="sub">Same-seed replay. Experimental range only; green range drills do not prove natural combat acceptance.</p>';
@@ -384,7 +385,8 @@
           reason: (m && m.reason) || null,
           supporters: (m && m.supporters && m.supporters.length) || 0,
           completed: (m && m.completed) || 0,
-          failed: (m && m.failed) || 0
+          failed: (m && m.failed) || 0,
+          diagnostic: (m && m.diagnostic) || null
         });
         if (m && Array.isArray(m.history))
           m.history.forEach(function (e) {
@@ -537,6 +539,27 @@
           );
         })
         .join('\n') || 'No active squads';
+    panel.querySelector('#skillGates').textContent =
+      d.squads
+        .filter(function (s) { return s.id.startsWith('us:') && s.diagnostic; })
+        .map(function (s) {
+          var plan = s.diagnostic;
+          return s.id + ' · ' + (plan.result || 'checking') +
+            ' · goal ' + (plan.goal ? Math.round(plan.goal.x) + ',' + Math.round(plan.goal.z) : 'none') +
+            ' · reports ' + plan.contactReports + '\\n' +
+            (plan.teams || []).map(function (t) {
+              return '  ' + t.team + ': ' + (t.result || '-') +
+                ' · movers ' + t.eligibleMovers +
+                ' · supporters ' + t.eligibleSupporters +
+                ' · raw/forward cover ' + t.candidates + '/' + t.directionalCandidates +
+                ' · accepted routes ' + t.admittedRoutes +
+                (t.moverFailures.length ? '\\n    ' + t.moverFailures.map(function (failure) {
+                  return '#' + failure.id + ' ' + failure.reason;
+                }).join(', ') : '') +
+                (Object.keys(t.routeRejections).length ? '\\n    blocked ' +
+                  JSON.stringify(t.routeRejections) : '');
+            }).join('\\n');
+        }).join('\\n') || 'No attempt yet (see squad phase above)';
     panel.querySelector('#skillMen').textContent =
       d.units
         .filter(function (s) {
