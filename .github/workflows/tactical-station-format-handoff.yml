@@ -1,0 +1,27 @@
+name: Temporary station formatting handoff
+on:
+  pull_request:
+    paths:
+      - .github/workflows/tactical-station-format-handoff.yml
+      - battle/modules/13c-tactical-march-provider.js
+      - battle/modules/13f-tactical-station-skill.js
+      - tools/ai-sim-harness/tactical-station-skill-check.js
+permissions:
+  contents: read
+jobs:
+  formatted-source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Print exact Prettier output for authoring handoff
+        run: |
+          npx --yes prettier@3.3.3 --write battle/modules/13c-tactical-march-provider.js battle/modules/13f-tactical-station-skill.js tools/ai-sim-harness/tactical-station-skill-check.js
+          node - <<'NODE'
+          const fs = require('fs');
+          for (const path of [
+            'battle/modules/13c-tactical-march-provider.js',
+            'battle/modules/13f-tactical-station-skill.js',
+            'tools/ai-sim-harness/tactical-station-skill-check.js'
+          ]) console.log('FORMAT_HANDOFF ' + JSON.stringify({path, content:fs.readFileSync(path, 'utf8')}));
+          NODE
