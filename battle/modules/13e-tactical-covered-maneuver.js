@@ -246,11 +246,12 @@
     /* Do not draft the sole active rifleman into the moving party! A genuine
        shot in the preceding few seconds is proof this actor has been firing,
        and the current effective line-of-fire makes him a precious supporter. */
-    var E = root.BattleEngagement,
+    var Ammo = root.BattleAmmunition,
       firing = new Set(
         ready
           .filter(function (s) {
-            return E.supportDischarged(s, ctx.sim, Math.max(0, ctx.sim.time - 3));
+            var shot = Ammo && Ammo.shotEvidence && Ammo.shotEvidence(s, ctx.sim);
+            return !!(shot && shot.at >= ctx.sim.time - 3 && shot.at <= ctx.sim.time);
           })
           .map(function (s) {
             return String(s.id);

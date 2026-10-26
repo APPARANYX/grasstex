@@ -175,6 +175,14 @@
         reason = 'line-ready';
       }
     }
+    /* The covered-maneuver owner cannot obtain authentic supporting fire
+       while the contact owner keeps every rifle under a preparation HOLD.
+       Publish native OPEN fire permission for a valid covering assignment;
+       Engagement still owns actual shooting, target and ballistics. */
+    if (Q.controllerBound && Q.controllerBound.current(sq, sim)) {
+      desired = 'open';
+      reason = 'cover-assignment-needs-live-fire';
+    }
     st.discipline = desired;
     st.reason = reason;
     st.ready = ready;
