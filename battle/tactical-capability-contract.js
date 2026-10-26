@@ -207,7 +207,9 @@
     if (
       !record(p, def.parameters) ||
       !def.parameters.every(function (k) {
-        return (k === 'moverId' || k === 'moverIds') && request.capability === 'maneuver.cover' ? true : Object.hasOwn(p, k);
+        return (k === 'moverId' || k === 'moverIds') && request.capability === 'maneuver.cover'
+          ? true
+          : Object.hasOwn(p, k);
       })
     )
       return fail('invalid-parameters');
@@ -222,7 +224,9 @@
         (!Array.isArray(p.moverIds) ||
           p.moverIds.length < 2 ||
           p.moverIds.length > 3 ||
-          p.moverIds.some(function (id) { return !text(id); }) ||
+          p.moverIds.some(function (id) {
+            return !text(id);
+          }) ||
           new Set(p.moverIds).size !== p.moverIds.length ||
           Object.hasOwn(p, 'moverId'))) ||
       (Object.hasOwn(p, 'point') && !point(p.point)) ||
@@ -246,7 +250,8 @@
     out.params = {};
     def.parameters.forEach(function (k) {
       if (!Object.hasOwn(p, k)) return;
-      out.params[k] = k === 'moverIds' ? p[k].slice() : p[k] && typeof p[k] === 'object' ? { x: p[k].x, z: p[k].z } : p[k];
+      out.params[k] =
+        k === 'moverIds' ? p[k].slice() : p[k] && typeof p[k] === 'object' ? { x: p[k].x, z: p[k].z } : p[k];
     });
     return frozen({ ok: true, reason: 'valid-shape', request: out });
   }
