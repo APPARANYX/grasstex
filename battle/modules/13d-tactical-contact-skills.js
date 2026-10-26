@@ -233,6 +233,7 @@
       !s ||
       s.dead ||
       s.isPlayer ||
+      (root.BattleTacticalPositions && root.BattleTacticalPositions.current(s)) ||
       (retreat(s.squad) &&
         !(
           root.BattleSquadStability.controllerBound && root.BattleSquadStability.controllerBound.role(s, sim)
