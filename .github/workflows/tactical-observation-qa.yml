@@ -106,6 +106,7 @@ jobs:
     uses: ./.github/workflows/deploy-50webs-preview.yml
     with:
       ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      preview_slug: ${{ github.event.pull_request.number && format('pr-{0}', github.event.pull_request.number) || github.ref_name }}
     secrets: inherit
 
   tactical-contact:

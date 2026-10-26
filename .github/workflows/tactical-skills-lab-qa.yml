@@ -53,7 +53,10 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
   preview:
+    # On ready-for-review observation QA owns the single hosted upload.
+    if: github.event.action != 'ready_for_review'
     uses: ./.github/workflows/deploy-50webs-preview.yml
     with:
       ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      preview_slug: ${{ github.event.pull_request.number && format('pr-{0}', github.event.pull_request.number) || github.ref_name }}
     secrets: inherit
