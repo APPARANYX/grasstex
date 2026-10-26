@@ -1,7 +1,7 @@
-# Benchmark run #1360 · 3 seeds from `phase-c-natural-20261012` (ge-defend), windows `contact+60,every60`
+# Benchmark run #1391 · 3 seeds from `phase-c-natural-20261012` (ge-defend), windows `contact+60,every60`
 
 - **OFF** flags: `none` · **ON** flags: `localPlan=1&localAmbush=1&localManeuver=1&coveredBounds=1`
-- claude/project-thread-a5sq10 @ 1f61da3 · [run](https://github.com/APPARANYX/grasstex/actions/runs/40241194720) · build v29-dev
+- work/controller-covered-maneuver-20261026 @ dd1f1fa · [run](https://github.com/APPARANYX/grasstex/actions/runs/40261950244) · build v29-dev
 
 ## Verdict
 
@@ -12,7 +12,7 @@
 
 ## Paired comparison (off against on)
 
-- **23** pairs (unpaired: off 0, on 0) · identical in every field: **0** · runtime errors off 0 / on 0 · wall time on/off x1.06 (gate 1.25)
+- **23** pairs (unpaired: off 0, on 0) · identical in every field: **0** · runtime errors off 0 / on 0 · wall time on/off x1.018 (gate 1.25)
 - the 10 changed records first part at simulated second: min 340.05, p10 340.05, median 348.07500000000005, p90 356.1, max 356.1
 
 | counter | off | on | mean diff per pair | pairs changed | on more | on fewer | sign p |
@@ -68,7 +68,7 @@ phase-c-natural-20261012-0002 340.05 s (timeline) · phase-c-natural-20261012-00
 
 ## Viewer
 
-[Open both arms in the 3D map](https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=1360&view=brain3d)
+[Open both arms in the 3D map](https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=1391&view=brain3d) · [the same on this branch's viewer](https://test.ivandpopov.com/grasstex/preview/controller-covered-maneuver-20261026/ai_flow_live.html?bench=1391&view=brain3d) (it has the change before it reaches main)
 
-The viewer loads `off.json` and `on.json` from the `benchmark-results` branch (`?bench=1360`); it opens the seed that parts earliest, and the dropdowns choose another.
+The viewer loads `off.json` and `on.json` from the `benchmark-results` branch (`?bench=1391`); it opens the seed that parts earliest, and the dropdowns choose another.
 
