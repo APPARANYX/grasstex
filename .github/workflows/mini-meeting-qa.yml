@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - 'battle/scenario-generator.js'
+      - 'battle/modules/21d-mini-meeting-reinforcements.js'
+      - 'battle/phase-c-compact-range.js'
       - 'scripts/probes/probe_mini_meeting.cjs'
       - '.github/workflows/mini-meeting-qa.yml'
   workflow_dispatch:
@@ -20,6 +22,8 @@ jobs:
         run: |
           php -l battle_sim_local.php
           node --check battle/scenario-generator.js
+          node --check battle/phase-c-compact-range.js
+          node --check battle/modules/21d-mini-meeting-reinforcements.js
           node --check scripts/probes/probe_mini_meeting.cjs
           npm install --no-save --no-package-lock playwright@1.58.2
           npx playwright install --with-deps chromium

@@ -147,7 +147,7 @@
     panel.innerHTML =
       '<div class="drawerHeader"><h2>PHASE C · COMBAT LAB</h2>' +
       '<button type="button" class="drawerClose" id="labClose" aria-label="Close Combat Lab controls">✕ Close</button></div>' +
-      '<div class="sub">280 × 240 m native arena · 2 US squads / 1 German squad · 0.15s AI ticks</div>' +
+      '<div class="sub">' + (params.get('balancedMeeting') === '1' ? '280 × 240 m · 2 US squads / 2 German squads · two finite reinforcement waves' : '280 × 240 m native arena · 2 US squads / 1 German squad') + ' · 0.15s AI ticks</div>' +
       '<div class="sub good">Objective-hold victory OFF · objective ownership tracked · 600s limit</div>' +
       '<label for="labScenario">Scenario</label><select id="labScenario"></select>' +
       '<label for="labRange">Weapon + visual spotting range</label><select id="labRange">' +
@@ -180,7 +180,7 @@
       '<div class="kpi"><strong id="labUsShots">0</strong><span>US SHOTS</span></div>' +
       '<div class="kpi"><strong id="labGeShots">0</strong><span>GERMAN SHOTS</span></div>' +
       '<div class="kpi"><strong id="labUS">20</strong><span>US ALIVE</span></div>' +
-      '<div class="kpi"><strong id="labGE">10</strong><span>GE ALIVE</span></div>' +
+      '<div class="kpi"><strong id="labGE">' + (params.get('balancedMeeting') === '1' ? '20' : '10') + '</strong><span>GE ALIVE</span></div>' +
       '<div class="kpi"><strong id="labSuppressed">0</strong><span>GE SUPPRESSED</span></div></div>' +
       '<h3>Movement &amp; posture (live)</h3><pre id="labMobility">Starting battle…</pre>' +
       '<h3>Native fire control &amp; maneuver</h3><pre id="labStatus">Starting battle…</pre>' +
@@ -411,7 +411,7 @@
     };
     record(
       'native range',
-      '20 US / 10 GE · real squads, cover and ballistics · ' + preset + ' · weapon/sight ' + rangeScale + '×',
+      (params.get('balancedMeeting') === '1' ? '20 US / 20 GE · finite native reinforcement waves' : '20 US / 10 GE') + ' · real squads, cover and ballistics · ' + preset + ' · weapon/sight ' + rangeScale + '×',
       0
     );
     render();
@@ -480,6 +480,7 @@
     return {
       lab: 'phase-c-native-v2',
       preview: root.BATTLE_PREVIEW,
+      balancedMeetingReinforcements: root.BattleMiniMeetingReinforcements?.summary?.(battle) || null,
       seed:
         battle.scene.metadata &&
         battle.scene.metadata.battleScenario &&

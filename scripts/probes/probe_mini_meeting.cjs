@@ -62,11 +62,14 @@ fs.mkdirSync(DIR, { recursive: true });
             contactSquads: { us: 0, ge: 0 }, maneuvers: { us: [], ge: [] },
             controller: root.BattleTacticalController.summary(b),
             grenade: root.BattleGrenades?.summary?.(b) || null,
+            reinforcements: root.BattleMiniMeetingReinforcements?.summary?.(b) || null,
+            cumulativeUnits: { us: b._roster.us.length, ge: b._roster.ge.length },
             writerConflicts: root.BattleOrderProvenance?.conflicts?.(b)?.length || 0
           };
           for (const f of ['us','ge']) {
             for (const s of b._roster[f]) {
-              const a = start.get(s.id);
+              let a = start.get(s.id);
+              if (!a) { a = { x: s.root.position.x, z: s.root.position.z }; start.set(s.id, a); }
               const d = Math.hypot(s.root.position.x - a.x, s.root.position.z - a.z);
               if (d >= 5) out.moved5m[f]++;
               out.totalDisplacementM[f] += d;
@@ -104,6 +107,8 @@ fs.mkdirSync(DIR, { recursive: true });
           spawnLanes: { us: sc.spawnZones.us.lanes, ge: sc.spawnZones.ge.lanes },
           meeting: b._sides?.meeting === true, preset: root.PhaseCCombatLab.snapshot()?.preset,
           controllerOn: root.BattleTacticalMarchProvider?.on === true,
+          reinforcements: root.BattleMiniMeetingReinforcements?.summary?.(b) || null,
+          totalUnits: { us: b._roster.us.length, ge: b._roster.ge.length },
           winner: b.winner || null, winReason: b.winReason || null,
           ...last, timeline: records,
           maxima: { faults: Math.max(...records.map(r => r.controller.stats?.faults || 0)),
@@ -119,6 +124,7 @@ fs.mkdirSync(DIR, { recursive: true });
       console.log('MINI_MEETING', JSON.stringify({ seed, t: data.t, alive: data.alive,
         shots: data.shots, supportShots: data.supportShots, moved5m: data.moved5m,
         contactSquads: data.contactSquads, grenade: data.grenade,
+        reinforcements: data.reinforcements, totalUnits: data.totalUnits,
         maxima: data.maxima, winner: data.winner, errors: data.browserErrors }));
       assert.deepEqual(data.dimension, [280,240], 'compact map');
       assert.deepEqual(data.initialSquads, { us:2, ge:2 }, 'balanced squads');
@@ -126,6 +132,17 @@ fs.mkdirSync(DIR, { recursive: true });
       assert.equal(data.meeting, true, 'unprepared meeting engagement');
       assert.equal(data.preset, 'A', 'full lethal combat');
       assert.equal(data.controllerOn, true, 'replacement enabled');
+      assert.ok(data.reinforcements?.enabled, 'finite meeting reinforcement owner active');
+      assert.equal(data.reinforcements.error, null, 'native spawner remains functional');
+      assert.ok(data.reinforcements.wavesCompleted <= 2, 'at most two waves');
+      for (const wave of data.reinforcements.entries) {
+        assert.equal(wave.squads.length, 2, 'one squad for each army');
+        assert.equal(wave.squads[0].soldiers, 10);
+        assert.equal(wave.squads[1].soldiers, 10);
+      }
+      assert.equal(data.totalUnits.us, data.totalUnits.ge, 'matched total reinforcements');
+      if (!data.winner && data.t >= 166 && !data.reinforcements.blockedSince)
+        assert.equal(data.reinforcements.wavesCompleted, 2, 'both reinforcements delivered');
       assert.equal(data.timeline[0].controller.new, 4, 'all four original squads owned on first sample');
       assert.equal(data.maxima.faults, 0, 'controller faults');
       assert.equal(data.maxima.conflicts, 0, 'competing movement writers');
@@ -134,7 +151,8 @@ fs.mkdirSync(DIR, { recursive: true });
     }
     fs.writeFileSync(DIR + '/summary.json', JSON.stringify(results.map(r => ({
       seed:r.seed,t:r.t,alive:r.alive,shots:r.shots,
-      supporting:r.supportShots,moved:r.moved5m,grenades:r.grenade,maxima:r.maxima
+      supporting:r.supportShots,moved:r.moved5m,grenades:r.grenade,
+      reinforcements:r.reinforcements,totalUnits:r.totalUnits,maxima:r.maxima
     })),null,2));
   } finally { await browser.close(); }
 })().catch(e => { console.error(e); process.exitCode = 1; });
