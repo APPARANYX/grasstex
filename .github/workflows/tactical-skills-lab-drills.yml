@@ -1,0 +1,56 @@
+name: ⭐ Tactical Skills Lab Microdrills
+on:
+  pull_request:
+    paths:
+      - scripts/probes/probe_skills_lab_drills.cjs
+      - .github/workflows/tactical-skills-lab-drills.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native-drills:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Verify exact source and script
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          php -l battle_sim_local.php
+          node --check scripts/probes/probe_skills_lab.cjs
+          node --check scripts/probes/probe_skills_lab_drills.cjs
+          npm install --no-save --no-package-lock playwright@1.58.2
+          npx playwright install --with-deps chromium
+      - name: Serve exact branch native runtime
+        run: |
+          mkdir -p /tmp/native-skill-drills-site
+          ln -s "$GITHUB_WORKSPACE" /tmp/native-skill-drills-site/grasstex
+          PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8765 -t /tmp/native-skill-drills-site > /tmp/skills-drills-php.log 2>&1 &
+          for i in $(seq 1 40); do
+            if curl -fsS 'http://127.0.0.1:8765/grasstex/battle_sim_local.php?skillsLab=1&seed=skills-health' >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          tail -100 /tmp/skills-drills-php.log
+          exit 1
+      - name: Mandatory Skills Lab native preflight
+        run: node scripts/probes/probe_skills_lab.cjs
+      - name: Paired 35, 70 and 120 m native skill drills
+        env:
+          SKILLS_DRILL_SECONDS: '75'
+          SKILLS_DRILL_REQUIRE_TACTICS: '1'
+        run: node scripts/probes/probe_skills_lab_drills.cjs
+      - if: failure()
+        run: tail -100 /tmp/skills-drills-php.log || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: skills-lab-paired-microdrill-evidence
+          path: |
+            reports/skills-lab/
+            reports/skills-lab-drills/
+          if-no-files-found: warn
+          retention-days: 21
