@@ -61,11 +61,12 @@
     st.actions.clear();
     if (st.window) ctx.finish(st.window, reason);
     st.window = null;
-    root.BattleTacticalContactSkills.release(ctx);
+    /* Supporters keep firing. Ending a bound must not clear every squadmate's contact role. */
     if (st.direction) st.byDirection[st.direction][success ? 'completed' : 'aborted']++;
     if (success) {
       st.completed++;
       st.lastTeam = st.team;
+      st.lastMoverId = st.plan && st.plan[0] && String(st.plan[0].man.id);
       st.turn = (st.turn + 1) % teams.length;
     } else st.failed++;
     note(ctx, st, success ? 'completed' : 'aborted', reason);
@@ -107,148 +108,71 @@
       })
     ]);
   }
+  /* Choose a capable individual, not an indivisible fireteam. The separate
+     contact-route skill ranks real physical cover waypoints by exposure, cover
+     quality and progress. Meso will independently validate the chosen actor. */
   function choose(ctx, st, rs) {
     var Q = root.BattleSquadStability,
       C = root.BattleCoverPositions,
       A = root.SquadAI,
-      a = men(ctx.squad),
+      R = root.BattleTacticalContactRoute,
+      list = men(ctx.squad),
       back = ctx.squad.state === 'retreat' || ctx.squad.commandPhase === 'retreat',
       goal = back ? A.retreatGoal(ctx.squad) : root.BattleTacticalMarchProvider.target(ctx.squad),
-      leaders = A.leaderOf(ctx.squad),
-      r = rs[0],
+      leader = A.leaderOf(ctx.squad),
       audit = {
-        at: ctx.sim.time,
-        phase: ctx.squad.commandPhase,
-        direction: back ? 'back' : 'forward',
-        contactReports: rs.length,
-        goal: goal ? { x: goal.x, z: goal.z } : null,
-        maxBoundDistance: C.boundTuning().maxDistance,
-        teams: [],
-        result: null
+        at: ctx.sim.time, phase: ctx.squad.commandPhase, direction: back ? 'back' : 'forward',
+        contactReports: rs.length, goal: goal ? { x: goal.x, z: goal.z } : null,
+        maxBoundDistance: R && R.tuning.maxHop, teams: [], result: null
       };
-    /* This is evidence from the actual planner pass, not a second simulated
-       decision. No eligibility, geometry, sorting or request writes change. */
     st.diagnostic = audit;
-    if (!goal || !leaders || !r || a.length < 4 || a.length > 32) {
-      audit.result = !goal
-        ? 'no-mission-goal'
-        : !leaders
-          ? 'no-live-leader'
-          : !r
-            ? 'no-qualified-reported-contact'
-            : 'roster-size';
+    if (!R || !R.pick || !C || !goal || !leader || !rs.length || list.length < 3) {
+      audit.result = !R ? 'contact-route-skill-missing' : !goal ? 'no-mission-goal' :
+        !leader ? 'no-live-leader' : !rs.length ? 'no-qualified-reported-contact' : 'insufficient-roster';
       return null;
     }
-    for (var turn = 0; turn < teams.length; turn++) {
-      var index = (st.turn + turn) % teams.length,
-        team = teams[index],
-        movers = a.filter(function (s) {
-          return Q.teamKeyFor(s) === team && !A.isMachineGun(s) && viable(s, ctx.sim);
-        }),
-        holders = a.filter(function (s) {
-          return movers.indexOf(s) < 0 && viable(s, ctx.sim);
-        }),
+    var ready = list.filter(function (s) { return viable(s, ctx.sim); });
+    /* Preserve one live support weapon outside the mover set. This may be a
+       single MG or rifleman with genuine independent discharge evidence. */
+    if (ready.length < 2) { audit.result = 'no-mover-and-supporter'; return null; }
+    var choices = [];
+    ready.forEach(function (s) {
+      if (A.isMachineGun(s) || (st.lastMoverId === String(s.id) && ready.length > 2)) return;
+      var team = Q.teamKeyFor(s),
+        result = R.pick(s, ctx.sim, rs, goal, []),
         record = {
-          team: team,
-          eligibleMovers: movers.length,
-          eligibleSupporters: holders.length,
-          candidates: 0,
-          directionalCandidates: 0,
-          admittedRoutes: 0,
-          moverFailures: [],
-          routeRejections: {},
-          result: null
+          team: team, moverId: String(s.id),
+          eligibleMovers: 1, eligibleSupporters: ready.length - 1,
+          candidates: result.stats.total, directionalCandidates: result.stats.progressing,
+          admittedRoutes: result.stats.safe, moverFailures: [],
+          routeRejections: result.stats.rejected, result: result.point ? 'selected-candidate' : 'no-hop'
         };
       audit.teams.push(record);
-      if (st.lastTeam === team || movers.length < 2 || holders.length < 2) {
-        record.result =
-          st.lastTeam === team
-            ? 'last-moving-team'
-            : movers.length < 2
-              ? 'insufficient-eligible-movers'
-              : 'insufficient-eligible-supporters';
-        continue;
-      }
-      var plan = [],
-        used = [];
-      for (var i = 0; i < movers.length; i++) {
-        var s = movers[i],
-          here = s.root.position,
-          dx = goal.x - here.x,
-          dz = goal.z - here.z,
-          length = Math.hypot(dx, dz);
-        if (length <= 1) {
-          record.moverFailures.push({ id: String(s.id), reason: 'already-near-goal' });
-          break;
-        }
-        var candidates = C.candidates(s, ctx.sim, r, C.boundTuning().maxDistance);
-        if (!Array.isArray(candidates) || candidates.length > 256) {
-          record.moverFailures.push({ id: String(s.id), reason: 'invalid-or-overflow-candidates' });
-          break;
-        }
-        record.candidates += candidates.length;
-        var directional = candidates
-          .filter(function (p) {
-            var x = p.x - here.x,
-              z = p.z - here.z,
-              progress = (x * dx + z * dz) / length;
-            return (
-              progress > 1 &&
-              (!back || x * (r.x - here.x) + z * (r.z - here.z) < 0) &&
-              used.every(function (q) {
-                return Math.hypot(p.x - q.x, p.z - q.z) >= 1;
-              })
-            );
-          })
-          .sort(function (p, q) {
-            return (
-              Math.hypot(p.x - goal.x, p.z - goal.z) - Math.hypot(q.x - goal.x, q.z - goal.z) ||
-              String(p.slotId).localeCompare(String(q.slotId))
-            );
-          });
-        record.directionalCandidates += directional.length;
-        var picked = directional.slice(0, 48).find(function (p) {
-          var route = C.boundRoute(s, ctx.sim, p, rs);
-          if (!route.eligible)
-            record.routeRejections[route.reason] = (record.routeRejections[route.reason] || 0) + 1;
-          return route.eligible;
-        });
-        if (!picked) {
-          record.moverFailures.push({
-            id: String(s.id),
-            reason: !candidates.length
-              ? 'no-nearby-cover'
-              : !directional.length
-                ? 'no-progressing-cover'
-                : 'no-safe-short-route',
-            rawCandidates: candidates.length,
-            directionalCandidates: directional.length
-          });
-          break;
-        }
-        record.admittedRoutes++;
-        used.push(picked);
-        plan.push({ man: s, point: { x: picked.x, z: picked.z } });
-      }
-      if (plan.length === movers.length) {
-        record.result = 'selected';
-        audit.result = 'team-selected';
-        return { team: team, index: index, plan: plan, direction: back ? 'back' : 'forward' };
-      }
-      record.result = 'incomplete-team';
-    }
-    audit.result = 'no-directional-covered-team';
-    return null;
+      if (!result.point) return;
+      choices.push({ man: s, team: team, point: result.point, score: result.score,
+        exposure: result.exposure });
+    });
+    choices.sort(function (a, b) {
+      return a.score - b.score || String(a.man.id).localeCompare(String(b.man.id));
+    });
+    if (!choices.length) { audit.result = 'no-reachable-contact-cover'; return null; }
+    var selected = choices[0];
+    audit.result = 'individual-cover-hop-selected';
+    return {
+      team: selected.team,
+      index: teams.indexOf(selected.team),
+      moverId: String(selected.man.id),
+      plan: [{ man: selected.man, point: selected.point }],
+      direction: back ? 'back' : 'forward'
+    };
   }
   function supports(ctx, st) {
     var E = root.BattleEngagement,
-      M = root.BattleAmmunition,
-      Q = root.BattleSquadStability;
+      M = root.BattleAmmunition;
     return men(ctx.squad)
       .filter(function (s) {
         var shot = M && M.shotEvidence && M.shotEvidence(s, ctx.sim);
         return (
-          (!st.lastTeam || Q.teamKeyFor(s) === st.lastTeam) &&
           !st.plan.some(function (p) {
             return p.man === s;
           }) &&
@@ -275,7 +199,7 @@
       eligible =
         ctx.squad.inContact &&
         rs.length &&
-        a.length >= 4 &&
+        a.length >= 3 &&
         (back
           ? !root.SquadAI.isExtractionToHome(ctx.squad)
           : Q.boundPhases().indexOf(ctx.squad.commandPhase) >= 0);
@@ -291,18 +215,16 @@
         var stages = Array.from(st.actions.values()).map(function (id) {
           return ctx.stage(id);
         });
-        var revoked = st.plan.some(function (p, i) {
+        var revoked = st.plan.some(function (p) {
           var d = Math.hypot(p.man.root.position.x - p.point.x, p.man.root.position.z - p.point.z);
-          return (
-            !viable(p.man, ctx.sim) ||
-            (d > C.boundTuning().sampleSpacing &&
-              stages[i] &&
-              stages[i].stage !== 'arrived' &&
-              !C.boundRoute(p.man, ctx.sim, p.point, C.boundThreats(p.man, ctx.sim)).eligible)
-          );
+          /* Reevaluate capability and actual physical obstruction, but never
+             revoke a nearly completed hop because endpoint sampling changed. */
+          return !viable(p.man, ctx.sim) ||
+            (d > 2 && root.BattleNavigation &&
+              !root.BattleNavigation.movementClear(p.man.root.position, p.point));
         });
         if (
-          st.supporters.length < 2 ||
+          st.supporters.length < 1 ||
           revoked ||
           stages.some(function (s) {
             return !s || s.stage === 'cancelled';
@@ -323,15 +245,16 @@
         }
         return;
       }
-      if (st.supporters.length < 2) {
-        st.reason = 'await-two-independent-discharges';
+      if (st.supporters.length < 1) {
+        st.reason = 'await-independent-support-discharge';
         return;
       }
       for (var i = 0; i < st.plan.length; i++) {
         var p = st.plan[i];
         if (
           !viable(p.man, ctx.sim) ||
-          !C.boundRoute(p.man, ctx.sim, p.point, C.boundThreats(p.man, ctx.sim)).eligible
+          !root.BattleTacticalContactRoute.evaluate(p.man, ctx.sim, p.point,
+            C.boundThreats(p.man, ctx.sim), root.BattleEngagement.underFireNow(p.man, ctx.sim)).eligible
         ) {
           end(ctx, st, 'route-or-mover-revoked', false);
           st.blocked = b;
@@ -346,7 +269,7 @@
         }
         st.actions.set(String(p.man.id), result.actionId);
       }
-      note(ctx, st, 'moving', 'two-independent-discharges');
+      note(ctx, st, 'moving', 'real-independent-support-discharge');
       return;
     }
     if (!eligible) {
@@ -361,12 +284,13 @@
       st.reason = 'no-directional-covered-team';
       return;
     }
-    root.BattleTacticalMarchProvider.release(ctx);
-    root.BattleTacticalContactSkills.release(ctx);
+    root.BattleTacticalMarchProvider.releaseMan(ctx, selected.plan[0].man);
+    root.BattleTacticalContactSkills.release(ctx, selected.plan[0].man);
     var result = ctx.request('maneuver.cover', null, {
       direction: selected.direction,
       team: selected.team,
-      coverTeam: st.lastTeam || null
+      coverTeam: null,
+      moverId: selected.moverId
     });
     if (!result.ok) {
       st.blocked = b;
