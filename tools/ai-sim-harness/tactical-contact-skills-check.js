@@ -108,6 +108,9 @@ function clean(w) {
 
 test('a selected grenade finisher commits and releases through native owners without a rifle-line veto', () => {
   const w = world(24);
+  /* Authentic waist-height physical cover shields the close assault's own
+     firing team from the 22m grenade fragment field, while the throw arc clears. */
+  w.b.obstacles = [{ shape: 'obb', x: 0, z: 12, hx: 40, hz: 0.35, y: 0, height: 2.5, type: 'wall' }];
   const systems = {};
   w.r.BattleModules.registerSystem = (id, s) => (systems[id] = s);
   loadModule(w.r, 'battle/modules/14-z-ballistic-raycast.js', { location: w.r.location });
