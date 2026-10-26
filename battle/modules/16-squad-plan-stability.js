@@ -2411,6 +2411,42 @@
     fireControl: function (sq) {
       return sq && sq.fireControl ? Object.assign({}, sq.fireControl) : null;
     },
+    /* Publication only. The selected controller decides; 15a remains the single writer and
+       Command Reception still decides when each man adopts the posture/fire order. */
+    controllerFireControl: {
+      publish: function (sq, battle, order) {
+        var TC = root.BattleTacticalController,
+          E = root.BattleEngagement,
+          contact = firstHandContact(sq, battle);
+        if (
+          !TC ||
+          !TC.controls(battle, sq) ||
+          sq.state === 'retreat' ||
+          sq.commandPhase === 'retreat' ||
+          ['hold', 'precision', 'open'].indexOf(order.state) < 0
+        )
+          return null;
+        if (order.state !== 'open' && (!contact || String(contact.unit.id) !== order.targetId)) return null;
+        if (order.state === 'precision') {
+          var shooter = commanded(sq).find(function (s) {
+            return !s.isPlayer && String(s.id) === order.shooterId;
+          });
+          if (
+            !shooter ||
+            !shooter.weapon ||
+            root.SquadAI.isMachineGun(shooter) ||
+            !E ||
+            !E.fireControlReady(shooter, battle)
+          )
+            return null;
+        }
+        return setFireControl(sq, battle, sq.fireControl, order.state, 'controller:' + order.state, order);
+      },
+      end: function (sq, battle, order) {
+        if (sq.fireControl === order) clearFireControl(sq, battle, 'controller:ended');
+        return sq.fireControl !== order;
+      }
+    },
     updateFireControl: updateFireControl,
     clearFireControl: clearFireControl,
     advanceSquadAnchor: advanceSquadAnchor,

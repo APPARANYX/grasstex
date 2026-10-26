@@ -76,6 +76,33 @@
     };
   }
   var CAPABILITIES = frozen({
+    'combat.march': definition(
+      'actor',
+      'BattleEngagement',
+      'controllerCombat.start (native transit posture, Meso owns locomotion)',
+      ['posture', 'weapon'],
+      ['executing'],
+      ['BattleEngagement'],
+      []
+    ),
+    'fire.control': definition(
+      'squad',
+      'Meso',
+      'controllerFireControl.publish (personal posture/fire adoption)',
+      ['fire-control'],
+      ['published'],
+      ['Meso'],
+      ['state', 'targetId', 'shooterId']
+    ),
+    'combat.contact': definition(
+      'actor',
+      'BattleEngagement',
+      'controllerCombat.start (native contact execution, no tactical selection)',
+      ['locomotion', 'posture', 'weapon'],
+      ['executing'],
+      ['BattleEngagement'],
+      ['drill']
+    ),
     'movement.move': definition(
       'actor',
       'Meso',
@@ -171,7 +198,14 @@
       (Object.hasOwn(p, 'threat') && !point(p.threat)) ||
       (Object.hasOwn(p, 'stationId') && !text(p.stationId)) ||
       (Object.hasOwn(p, 'stance') && ['crouch', 'prone', 'crawl'].indexOf(p.stance) < 0) ||
-      (Object.hasOwn(p, 'version') && p.version !== request.missionVersion)
+      (Object.hasOwn(p, 'version') && p.version !== request.missionVersion) ||
+      (Object.hasOwn(p, 'drill') &&
+        ['prepare', 'fire', 'suppress', 'watch', 'pinned'].indexOf(p.drill) < 0) ||
+      (request.capability === 'fire.control' &&
+        (['hold', 'precision', 'open'].indexOf(p.state) < 0 ||
+          !(p.targetId === null || text(p.targetId)) ||
+          !(p.shooterId === null || text(p.shooterId)) ||
+          (p.state === 'precision' ? !text(p.shooterId) || !text(p.targetId) : p.shooterId !== null)))
     )
       return fail('invalid-parameters');
     var out = {};
@@ -180,7 +214,7 @@
     });
     out.params = {};
     def.parameters.forEach(function (k) {
-      out.params[k] = typeof p[k] === 'object' ? { x: p[k].x, z: p[k].z } : p[k];
+      out.params[k] = p[k] && typeof p[k] === 'object' ? { x: p[k].x, z: p[k].z } : p[k];
     });
     return frozen({ ok: true, reason: 'valid-shape', request: out });
   }

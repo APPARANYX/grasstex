@@ -145,8 +145,7 @@ selection or arrival, so those stages carry the first read that saw them.
 
 `battle/modules/13c-tactical-march-provider.js` (`BattleTacticalMarchProvider`) is slice 2 of the
 replacement: the first provider, on only under `?tacticalController=new` (one flag for both sides).
-It takes every squad at battle start and on each commander tick through `requestMode`, and only
-marches. `executeMission` advances its own leg index along the retained `sq.route` once the
+It takes every squad at battle start and on each commander tick through `requestMode`, and runs foundational march/contact skills. `executeMission` advances its own leg index along the retained `sq.route` once the
 squad's centre is within the doctrine's `routeArrivalRadius`; `squadCommand` asks each man once
 per leg for `movement.move` to his slot in Meso's formation layout (`BattleSquadStability.
 formationSlots`, the pure form of 15g's team offsets and in-team slots) around the leg point,
@@ -158,8 +157,26 @@ nothing, so it is asked again after the next mission tick and listed as stopped 
 on a retreat the provider finishes every order and hold at its owner and asks again once the retreat
 ends. The preview launcher forwards the flag; with the flag but no contract on the page, the
 provider warns and legacy keeps every squad. Mission acceptance, transport, casualties, succession, retreat, rally
-recovery, physiology and reactions stay with their owners; contact drills, fire control and
-station selection are not in this slice, so a squad it owns does not fight (slice 3).
+recovery, physiology and reactions stay with their owners.
+
+Slice 3 adds the independent `13d-tactical-contact-skills.js` module. It selects HOLD, PRECISION,
+OPEN and personal suppressor roles without calling legacy `updateFireControl`, `assignSuppressors`
+or `decide`. Target changes preserve the current preparation episode clock; HOLD and PRECISION
+end at the existing `maxHold` deadline. A missing firing line releases locomotion to the route
+provider. This is foundational firing, not coordinated covered-bound acceptance.
+
+`fire.control` asks `controllerFireControl.publish` in Meso to use 15a's existing publisher;
+`published` explicitly does not imply personal adoption. Engagement still uses each man's adopted
+order and retains immediate return fire. `combat.contact` holds locomotion/posture/weapon resources
+and executes native recognition, preparation, firing, suppression or pinning through Engagement.
+`combat.march` holds only posture/weapon resources and reuses native transit posture while Meso
+owns locomotion. Native recognition, march posture and pinning executors are shared with legacy;
+controlled firing never invokes legacy cover/assault selection. The contact module releases a
+changed role before the route provider can acquire its locomotion. Survival bounds keep their
+native execution, while subsequent ordinary choices return to the controller. All three capabilities
+release only their own owner handles on cancellation; mission, roster, retreat, possession and
+restart preserve the controller lifecycle contract. No automatic station selection or directional
+covered bounds are introduced.
 `BattleTacticalMarchProvider.summary(sim)` lists per squad the leg, each man's action and owner
 stage, and why any man was stopped. Without the flag the module registers nothing.
 

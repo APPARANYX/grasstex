@@ -31,6 +31,7 @@ function world(search) {
   loadModule(r, 'battle/modules/13a-tactical-controller.js');
   loadModule(r, 'battle/modules/13b-tactical-owner-adapters.js');
   loadModule(r, 'battle/modules/13c-tactical-march-provider.js', { location: r.location });
+  loadModule(r, 'battle/modules/13d-tactical-contact-skills.js');
   r.BattleCommanderAI = { policyFor: () => ({ routeArrivalRadius: 8 }) };
   const b = H.makeBattle(r, { seed: 57 });
   b.time = 10;
