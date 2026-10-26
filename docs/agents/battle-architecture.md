@@ -152,9 +152,12 @@ per leg for `movement.move` to his slot in Meso's formation layout (`BattleSquad
 formationSlots`, the pure form of 15g's team offsets and in-team slots) around the leg point,
 finishes the old leg's orders when the leg changes, and on the last leg turns an `arrived` move
 into a `movement.hold` at the slot. It reads each action's stage through the dispatch context's
-`stage(actionId)`, the same owner read as `summary().live`. An order the owner ended or refused
-is not asked for again on that leg; the man is listed as stopped with the reason. A retreating
-squad gets no new orders. Mission acceptance, transport, casualties, succession, retreat, rally
+`stage(actionId)`, the same owner read as `summary().live`. An order the owner ended is not asked
+for again on that leg, and the man is listed as stopped with the owner's reason; a refusal changed
+nothing, so it is asked again on the next tick and listed as stopped while it lasts. Retreat wins:
+on a retreat the provider finishes every order and hold at its owner and asks again once the retreat
+ends. The preview launcher forwards the flag; with the flag but no contract on the page, the
+provider warns and legacy keeps every squad. Mission acceptance, transport, casualties, succession, retreat, rally
 recovery, physiology and reactions stay with their owners; contact drills, fire control and
 station selection are not in this slice, so a squad it owns does not fight (slice 3).
 `BattleTacticalMarchProvider.summary(sim)` lists per squad the leg, each man's action and owner

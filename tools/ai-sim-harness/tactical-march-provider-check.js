@@ -150,26 +150,84 @@ test('on the last leg a man who arrives holds there with a native resolver hold'
   assert.equal(row(w).stages['hold:holding'] || row(w).stages['hold:accepted'] || 0, 1);
 });
 
-test('a man the owner refuses is listed as stopped with the reason, and not asked again on that leg', () => {
+test('a refusal is listed while it lasts and asked again once it clears, with no retry of accepted orders', () => {
   const w = world();
   w.systems['tactical-march-provider'].onBattleStart(w.b);
   const man = alive(w)[2];
   man._survivalMovementKey = 'survival';
   tick(w);
   assert.equal(row(w).stopped['refused:owner-rejected'], 1);
-  const requests = w.TC.summary(w.b).actions;
+  const accepted = w.TC.summary(w.b).actions;
   w.b.time += 0.2;
   tick(w);
-  assert.equal(w.TC.summary(w.b).actions, requests, 'no retry loop');
+  assert.equal(w.TC.summary(w.b).actions, accepted, 'still refused: nothing new accepted');
+  man._survivalMovementKey = null;
+  w.b.time += 0.2;
+  tick(w);
+  assert.equal(w.TC.summary(w.b).actions, accepted + 1, 'asked again once the owner can take it');
+  assert.deepEqual(row(w).stopped, {});
+  assert.ok(/^controller:/.test(record(w, man).data.publishKey));
 });
 
-test('a retreating squad gets no new orders from the provider; retreat stays with its owner', () => {
+test('a hold the owner ended is listed with its reason and not asked for again on that leg', () => {
+  const w = world();
+  w.q.route = [{ x: 0, z: 30 }];
+  w.systems['tactical-march-provider'].onBattleStart(w.b);
+  tick(w);
+  const man = alive(w)[3],
+    r = record(w, man);
+  w.b.time = Math.max(...alive(w).map(s => record(w, s).adoptedAt)) + 0.01;
+  tick(w);
+  w.r.BattleMovementResolver.resolve(man, w.b);
+  place(man, r.point);
+  tick(w);
+  assert.equal(man._movementResolver.combat.owner, 'tactical-controller');
+  w.q.commandPhase = 'assault';
+  w.r.BattleMovementResolver.resolve(man, w.b);
+  tick(w);
+  assert.equal(row(w).stopped['owner:replaced'], 1, 'the resolver ended it; the reason is listed');
+  const live = w.TC.summary(w.b).live.filter(a => a.actorId === String(man.id));
+  assert.equal(live.length, 0, 'not asked for again: reissuing is not recovery');
+});
+
+test('retreat wins: every order is finished at its owner, nothing is published, and the march resumes after', () => {
   const w = world();
   w.systems['tactical-march-provider'].onBattleStart(w.b);
+  tick(w);
+  const men = alive(w),
+    keys = men.map(s => record(w, s).envelopeId);
+  assert.equal(w.TC.summary(w.b).actions, men.length);
   w.q.state = 'retreat';
-  w.TC.dispatch(w.b, w.q, 'executeMission');
   w.TC.dispatch(w.b, w.q, 'squadCommand');
-  assert.equal(w.TC.summary(w.b).actions, 0);
+  assert.equal(w.TC.summary(w.b).actions, 0, 'every controller order finished on the retreat');
+  assert.equal(w.TC.summary(w.b).pending, 0);
+  men.forEach(s => assert.equal(w.r.BattleSquadStability.controllerMovement.current(s, null), false));
+  w.b.time += 0.5;
+  w.TC.dispatch(w.b, w.q, 'squadCommand');
+  assert.deepEqual(
+    men.map(s => record(w, s).envelopeId),
+    keys,
+    'nothing is published for a retreating squad'
+  );
+  w.q.state = 'advance';
+  w.b.time += 0.5;
+  tick(w);
+  assert.equal(w.TC.summary(w.b).actions, men.length, 'the men are asked again once the retreat ends');
+});
+
+test('with the flag but no contract, the provider says so and legacy keeps the squad', () => {
+  const w = world(),
+    warnings = [],
+    warn = console.warn;
+  delete w.r.BattleTacticalCapabilityContract;
+  console.warn = m => warnings.push(String(m));
+  try {
+    w.systems['tactical-march-provider'].onBattleStart(w.b);
+  } finally {
+    console.warn = warn;
+  }
+  assert.equal(w.TC.controls(w.b, w.q), false);
+  assert.ok(warnings.some(m => /capability contract is not loaded/.test(m)));
 });
 
 test('static: the provider adds no timer, RNG draw, movement writer or squad/soldier field', () => {

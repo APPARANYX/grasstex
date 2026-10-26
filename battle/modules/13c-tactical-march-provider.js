@@ -15,7 +15,8 @@
   var SEARCH = typeof location !== 'undefined' ? location.search || '' : '',
     ON = /[?&]tacticalController=new(?:&|#|$)/i.test(SEARCH),
     ID = 'march';
-  var squads = new WeakMap();
+  var squads = new WeakMap(),
+    warned = false;
 
   function point(v) {
     return v && isFinite(+v.x) && isFinite(+v.z) ? { x: +v.x, z: +v.z } : null;
@@ -94,13 +95,17 @@
   }
 
   /* squadCommand: each man walks to his formation slot around the leg point, then holds there on the
-     last leg. An order is asked for once per leg; one the owner ended is not asked for again on the
-     same leg, and the man is listed as stopped with the owner's reason. */
+     last leg. An accepted order is asked for once per leg; one the owner ended is not asked for again
+     on the same leg, and the man is listed as stopped with the owner's reason. A refusal changed
+     nothing, so it is asked again on the next tick (a rider still seated, a cleanup still pending)
+     and listed as stopped while it lasts. Retreat is a retained service and wins: on a retreat every
+     order and hold is finished at its owner, and the men are asked again once the retreat ends. */
   function squadCommand(ctx) {
     var sq = ctx.squad,
       st = stateOf(sq),
       Q = root.BattleSquadStability;
-    if (!st.target || sq.state === 'retreat' || !Q || !Q.formationSlots) return;
+    if (sq.state === 'retreat') return standDown(ctx, st, 'retreat');
+    if (!st.target || !Q || !Q.formationSlots) return;
     var slots = Q.formationSlots(sq, st.target, st.forward);
     for (var i = 0; i < slots.length; i++) {
       var s = slots[i].man;
@@ -126,19 +131,28 @@
         continue;
       }
       st.men.delete(id);
-      if (!st.stopped.has(id)) ask(ctx, st, id, 'movement.move', slot);
+      var why = st.stopped.get(id);
+      if (!why || why.indexOf('refused:') === 0) ask(ctx, st, id, 'movement.move', slot);
     }
+  }
+  function standDown(ctx, st, reason) {
+    st.men.forEach(function (cur) {
+      ctx.finish(cur.actionId, reason);
+    });
+    st.men.clear();
+    if (st.stopped) st.stopped.clear();
   }
   function ask(ctx, st, id, capability, at) {
     var res = ctx.request(capability, id, { point: at });
-    if (res && res.ok)
+    if (res && res.ok) {
+      st.stopped.delete(id);
       st.men.set(id, {
         actionId: res.actionId,
         kind: capability === 'movement.hold' ? 'hold' : 'move',
         point: at,
         target: st.target
       });
-    else {
+    } else {
       st.men.delete(id);
       st.stopped.set(id, 'refused:' + ((res && res.reason) || 'unknown'));
     }
@@ -149,6 +163,14 @@
   function takeAll(sim) {
     var TC = root.BattleTacticalController;
     if (!TC || !sim || !sim.factions) return;
+    /* A page that did not load the contract cannot hand over a squad; say so instead of marching nobody. */
+    if (!root.BattleTacticalCapabilityContract && !warned) {
+      warned = true;
+      if (typeof console !== 'undefined' && console.warn)
+        console.warn(
+          '[TACTICAL] ?tacticalController=new but the capability contract is not loaded: legacy keeps every squad'
+        );
+    }
     ['us', 'ge'].forEach(function (f) {
       var a = (sim.factions[f] && sim.factions[f].squads) || [];
       for (var i = 0; i < a.length; i++) if (!TC.controls(sim, a[i])) TC.requestMode(sim, a[i], 'new', ID);
