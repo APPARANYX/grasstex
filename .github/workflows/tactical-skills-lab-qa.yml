@@ -1,0 +1,54 @@
+name: ⭐ Native Tactical Skills Lab QA
+# Every PR commit runs the small range gate, not only changes to lab files.
+# This preflight must pass before spending CI on full-battle benchmarks.
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native-skills-lab:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Check exact branch, syntax and install browser
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          php -l battle_sim_local.php
+          node --check battle/skills-lab.js
+          node --check battle/scenario-generator.js
+          node --check scripts/probes/probe_skills_lab.cjs
+          npm install --no-save --no-package-lock playwright@1.58.2
+          npx playwright install --with-deps chromium
+      - name: Start sandbox PHP runtime
+        run: |
+          mkdir -p /tmp/skills-lab-site
+          ln -s "$GITHUB_WORKSPACE" /tmp/skills-lab-site/grasstex
+          PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8765 -t /tmp/skills-lab-site > /tmp/skills-lab-php.log 2>&1 &
+          for i in $(seq 1 35); do
+            if curl -fsS 'http://127.0.0.1:8765/grasstex/battle_sim_local.php?seed=skills-health' >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          tail -100 /tmp/skills-lab-php.log
+          exit 1
+      - name: Live real-BattleSim range smoke
+        run: node scripts/probes/probe_skills_lab.cjs
+      - if: failure()
+        run: tail -120 /tmp/skills-lab-php.log || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tactical-skills-lab-evidence
+          path: reports/skills-lab/
+          if-no-files-found: warn
+          retention-days: 14
+  preview:
+    uses: ./.github/workflows/deploy-50webs-preview.yml
+    with:
+      ref: ${{ github.event.pull_request.head.sha || github.sha }}
+    secrets: inherit
