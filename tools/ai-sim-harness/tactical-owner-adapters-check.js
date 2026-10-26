@@ -526,6 +526,57 @@ test('movement.hold reports when a higher authority outranks it, and cancel with
   assert.equal(other._movementResolver.combat, theirs, 'another man’s hold is untouched');
 });
 
+test('finishing an action ends its order, hold or post at the owner, so nothing stays pending', () => {
+  const w = moving(),
+    R = w.r.BattleMovementResolver,
+    M = w.r.BattleSquadStability.controllerMovement,
+    other = w.q.members.find(m => m !== w.s && m.role === 'rifleman');
+  const move = w.ctx.request('movement.move', w.s.id, { point: { x: 5, z: 20 } }),
+    order = w.seen[w.seen.length - 1];
+  const hold = w.ctx.request('movement.hold', other.id, {
+      point: { x: other.root.position.x, z: other.root.position.z }
+    }),
+    proposal = other._movementResolver.combat;
+  assert.equal(w.ctx.finish(move.actionId, 'completed'), true);
+  assert.equal(w.ctx.finish(hold.actionId, 'completed'), true);
+  assert.equal(w.TC.summary(w.b).pending, 0, 'nothing left waiting for cleanup');
+  assert.equal(M.current(w.s, order.order), false);
+  assert.notEqual(other._movementResolver.combat, proposal, 'the hold was withdrawn at the resolver');
+  assert.equal(
+    w.ctx.request('movement.hold', w.s.id, { point: { x: 1, z: 1 } }).reason,
+    'owner-accepted',
+    'the man’s locomotion is free again'
+  );
+  assert.equal(w.TC.requestMode(w.b, w.q, 'legacy').reason, 'switched');
+  assert.equal(R.arrival, 1.8);
+});
+
+test('finishing a station claim releases the post at module 20', () => {
+  const w = world(),
+    post = { id: 'w-4', x: 4, z: 6, building: 'b-1', facing: 0 };
+  w.r.BattleNavigation = {
+    firingStations: [post],
+    movementClear: () => true,
+    rejectedWindows: [],
+    invalidateNavPath() {}
+  };
+  w.r.BattleTacticalRoute = { createIngress: () => ({ door: 'd-1' }), cancel() {} };
+  loadModule(w.r, 'battle/modules/20-building-hardpoints.js');
+  w.systems['building-hardpoints'].onBattleStart(w.b);
+  w.us.state = 'engaged';
+  const ctx = owned(w),
+    s = rifleman(w),
+    P = w.r.BattleTacticalPositions;
+  const res = ctx.request('station.claim', s.id, { stationId: 'w-4', threat: { x: 0, z: 90 } });
+  const task = P.current(s);
+  task.occupiedAt = w.b.time;
+  assert.equal(ctx.finish(res.actionId, 'completed'), true);
+  assert.equal(P.current(s), null, 'the owner released the post');
+  assert.equal(task.releaseReason, 'controller:completed');
+  assert.equal(w.TC.summary(w.b).pending, 0);
+  assert.equal(w.TC.requestMode(w.b, w.us, 'legacy').reason, 'switched');
+});
+
 test('static: the adapters add no timer, RNG draw, movement writer or squad/soldier field', () => {
   const src = fs.readFileSync(path.join(H.REPO, 'battle/modules/13b-tactical-owner-adapters.js'), 'utf8');
   assert.doesNotMatch(src, /setTimeout|setInterval|requestAnimationFrame|Math\.random|\.random\(/);

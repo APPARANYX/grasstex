@@ -74,6 +74,22 @@
     completed: 'arrived'
   };
 
+  /* Ending is the same at cancel and at release: a finished action is released without a cancel, so
+     each ends only its own claim, order or hold at the owner and then confirms it is gone. */
+  function endStation(h, reason) {
+    var P = root.BattleTacticalPositions;
+    if (P && P.current(h.man) === h.task) P.release(h.man, h.sim, 'controller:' + reason);
+    return !P || P.current(h.man) !== h.task;
+  }
+  function endOrder(h) {
+    return root.BattleSquadStability.controllerMovement.end(h.man, h.order);
+  }
+  function endHold(h) {
+    var st = h.man._movementResolver;
+    if (st && st.combat === h.proposal) root.BattleMovementResolver.clearCombat(h.man);
+    return !st || st.combat !== h.proposal;
+  }
+
   var CAPS = {
     /* Meso (module 16) publishes the man's personal order; Command Reception adopts it, Squad Command
        applies it to the resolver and the execution outcome reader says how far it got. */
@@ -107,12 +123,8 @@
           at = stage === 'published' ? rec.issuedAt : stage === 'adopted' ? rec.adoptedAt : null;
         mark(h, stage, reason, at);
       },
-      cancel: function (h) {
-        return root.BattleSquadStability.controllerMovement.end(h.man, h.order);
-      },
-      release: function (h) {
-        return !root.BattleSquadStability.controllerMovement.current(h.man, h.order);
-      }
+      cancel: endOrder,
+      release: endOrder
     },
     /* The resolver owns arbitration: a hold is one native `hold` proposal with no expiry of its own. The
        resolver ends it when the squad's phase, plan or retreat changes or a higher authority replaces it. */
@@ -142,16 +154,8 @@
         else if (dist(here(s), p.point) <= R.arrival) mark(h, 'holding', 'holding');
         else mark(h, 'resolved', 'resolved');
       },
-      cancel: function (h) {
-        var R = root.BattleMovementResolver,
-          st = h.man._movementResolver;
-        if (st && st.combat === h.proposal) R.clearCombat(h.man);
-        return true;
-      },
-      release: function (h) {
-        var st = h.man._movementResolver;
-        return !st || st.combat !== h.proposal;
-      }
+      cancel: endHold,
+      release: endHold
     },
     /* Engagement is the one stance writer; its request only lowers, for the owner's own hold time. */
     'posture.lower': {
@@ -196,15 +200,8 @@
         else if (t.occupiedAt != null) mark(h, 'occupied', 'occupied', t.occupiedAt);
         else mark(h, 'assigned', 'assigned', t.assignedAt);
       },
-      cancel: function (h, reason) {
-        var P = root.BattleTacticalPositions;
-        if (P && P.current(h.man) === h.task) P.release(h.man, h.sim, 'controller:' + reason);
-        return !P || P.current(h.man) !== h.task;
-      },
-      release: function (h) {
-        var P = root.BattleTacticalPositions;
-        return !P || P.current(h.man) !== h.task;
-      }
+      cancel: endStation,
+      release: endStation
     },
     /* The Commander owns mission status; acceptance is a transition it makes or refuses. */
     'mission.accept': {
