@@ -130,8 +130,13 @@
        decision. No eligibility, geometry, sorting or request writes change. */
     st.diagnostic = audit;
     if (!goal || !leaders || !r || a.length < 4 || a.length > 32) {
-      audit.result = !goal ? 'no-mission-goal' :
-        !leaders ? 'no-live-leader' : !r ? 'no-qualified-reported-contact' : 'roster-size';
+      audit.result = !goal
+        ? 'no-mission-goal'
+        : !leaders
+          ? 'no-live-leader'
+          : !r
+            ? 'no-qualified-reported-contact'
+            : 'roster-size';
       return null;
     }
     for (var turn = 0; turn < teams.length; turn++) {
@@ -156,8 +161,12 @@
         };
       audit.teams.push(record);
       if (st.lastTeam === team || movers.length < 2 || holders.length < 2) {
-        record.result = st.lastTeam === team ? 'last-moving-team' :
-          movers.length < 2 ? 'insufficient-eligible-movers' : 'insufficient-eligible-supporters';
+        record.result =
+          st.lastTeam === team
+            ? 'last-moving-team'
+            : movers.length < 2
+              ? 'insufficient-eligible-movers'
+              : 'insufficient-eligible-supporters';
         continue;
       }
       var plan = [],
@@ -207,8 +216,11 @@
         if (!picked) {
           record.moverFailures.push({
             id: String(s.id),
-            reason: !candidates.length ? 'no-nearby-cover' :
-              !directional.length ? 'no-progressing-cover' : 'no-safe-short-route',
+            reason: !candidates.length
+              ? 'no-nearby-cover'
+              : !directional.length
+                ? 'no-progressing-cover'
+                : 'no-safe-short-route',
             rawCandidates: candidates.length,
             directionalCandidates: directional.length
           });
