@@ -317,7 +317,17 @@
         st.blocked = b;
         return;
       }
-      st.supporters = supports(ctx, st);
+      /* Confirm a genuine discharge only to START the bound. During motion,
+         preserve that receipt and the live covering assignment instead of
+         dropping visible supporters after the three-second shot evidence age. */
+      if (st.phase === 'moving') {
+        st.supporters = (st.confirmedSupporters || []).filter(function (id) {
+          return men(ctx.squad).some(function (s) {
+            return String(s.id) === id && !s.incapacitated &&
+              s.hp > 0 && s.weapon && !s.outOfAmmo;
+          });
+        });
+      } else st.supporters = supports(ctx, st);
       if (st.phase === 'moving') {
         /* Every person advances/checks in independently. One blocked actor
            cannot cancel the other native movement orders or their covering
@@ -404,6 +414,7 @@
         }
         st.actions.set(String(p.man.id), result.actionId);
       }
+      st.confirmedSupporters = st.supporters.slice();
       note(ctx, st, 'moving', 'real-independent-support-discharge');
       return;
     }
@@ -454,6 +465,7 @@
     st.byDirection[selected.direction].started += selected.plan.length;
     st.startedAt = ctx.sim.time;
     st.supporters = [];
+    st.confirmedSupporters = [];
     st.window = result.actionId;
     note(ctx, st, 'support', 'await-independent-support-discharge');
   }
