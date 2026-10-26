@@ -464,8 +464,8 @@
       return false;
     return fireStanceImpl().suppress(s, battle, point);
   }
-  function firingLineClear(target, pt, stance, battle) {
-    return fireStanceImpl().firingLineClear(target, pt, stance, battle);
+  function firingLineClear(s, target, pt, stance, battle) {
+    return fireStanceImpl().firingLineClear(s, target, pt, stance, battle);
   }
   function crestPrepPoint(s, target, battle) {
     return fireStanceImpl().crestPrepPoint(s, target, battle);

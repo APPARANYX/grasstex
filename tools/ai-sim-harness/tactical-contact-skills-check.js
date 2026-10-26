@@ -220,6 +220,46 @@ test('OPEN publication stays stable through changing reports so personal adoptio
   assert.equal(w.E.fireAuthorized(s, w.b), true);
   clean(w);
 });
+test('covered personal contact may use standing ballistic line rather than getting stuck in MARCH', () => {
+  const w = world(55);
+  const man = w.q.members.find(s => s.role === 'rifleman');
+  w.b.time = 18;
+  see(w);
+  squad(w);
+  // Simulate authentic stance-dependent geometry: low eye/muzzle is hidden
+  // behind cover, but higher stance can physically see and discharge.
+  const sight = w.r.SquadAI.hasLineOfSight;
+  const ball = w.r.BattleBallistics.fireLineBlocked;
+  w.r.SquadAI.hasLineOfSight = (shooter, target, height, obstacles) =>
+    shooter === man || (shooter && shooter.weapon === man.weapon)
+      ? !(shooter.prone || shooter.crouching || shooter.tacticalCrouch)
+      : sight(shooter, target, height, obstacles);
+  w.r.BattleBallistics.fireLineBlocked = (shooter, target, battle) =>
+    shooter && shooter.weapon === man.weapon
+      ? !!(shooter.prone || shooter.crouching || shooter.tacticalCrouch)
+      : ball(shooter, target, battle);
+  man.prone = true;
+  man.tacticalCrouch = false;
+  w.E.commitStance(man, w.b, 'prone', 0, 'fixture-covered');
+  squad(w);
+  w.TC.dispatch(w.b, w.q, 'engagement', man);
+  assert.equal(
+    w.S.summary(w.q).roles.find(r => r.actorId === String(man.id))?.drill,
+    'fire',
+    'available standing sight and muzzle line is a fire drill, not perpetual march'
+  );
+  for (let i = 0; i < 12; i++) {
+    w.b.time += 0.15;
+    w.TC.dispatch(w.b, w.q, 'engagement', man);
+    w.E.updateSoldier(man, w.b);
+  }
+  assert.equal(man.prone, false, 'only the existing Engagement stance owner raises him');
+  assert.equal(man.tacticalCrouch, false, 'he rises high enough for the actual firing line');
+  assert.equal(w.E.firingLineClear(man, man.target, man.root.position, 'stand', w.b), true);
+  w.r.SquadAI.hasLineOfSight = sight;
+  w.r.BattleBallistics.fireLineBlocked = ball;
+  clean(w);
+});
 test('contact execution fires real rounds after recognition and honors ammo/range gates', () => {
   const w = world();
   let shots = 0;

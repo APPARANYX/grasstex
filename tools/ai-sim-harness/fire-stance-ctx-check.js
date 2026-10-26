@@ -134,7 +134,7 @@ test('the parent seam keeps the pre-split names and arities and the tuning expor
   assert.equal(E.fireAuthorized.length, 2, 'BattleEngagement.fireAuthorized(s, battle)');
   assert.equal(E.fireControlReady.length, 2, 'BattleEngagement.fireControlReady(s, battle)');
   assert.equal(E.fireControlObservation.length, 2, 'BattleEngagement.fireControlObservation(s, battle)');
-  assert.equal(E.firingLineClear.length, 4, 'BattleEngagement.firingLineClear(target, pt, stance, battle)');
+  assert.equal(E.firingLineClear.length, 5, 'BattleEngagement.firingLineClear(s, target, pt, stance, battle)');
   assert.equal(E.crestPrepPoint.length, 3, 'BattleEngagement.crestPrepPoint(s, target, battle)');
   assert.equal(E.commitStance.length, 5, 'BattleEngagement.commitStance(s, battle, stance, seconds, reason)');
   assert.equal(E.requestStance.length, 4, 'BattleEngagement.requestStance(s, battle, stance, seconds)');
