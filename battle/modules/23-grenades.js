@@ -309,7 +309,11 @@
       if (!f || f.dead || f.faction !== s.faction || !f.root) continue;
       var p = f.root.position;
       if (dist(p, aim) >= radius) continue;
-      var victim = { x: p.x, y: battle.heightAt(p.x, p.z) + TUNING.VICTIM_Y, z: p.z };
+      var victim = {
+        x: p.x,
+        y: battle.heightAt(p.x, p.z) + TUNING.VICTIM_Y,
+        z: p.z
+      };
       for (var j = 0; j < samples; j++) {
         var angle = (j - 1) * Math.PI / 4,
           shift = j === 0 ? 0 : TUNING.SCATTER,
