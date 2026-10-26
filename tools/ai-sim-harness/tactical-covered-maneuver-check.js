@@ -100,9 +100,10 @@ function world(range = 100, flags = '&commandPosture=0') {
       const points = cover.candidates(soldier, sim, reports[0], 26);
       const current = soldier.root.position;
       const remaining = Math.hypot(current.x - goal.x, current.z - goal.z);
-      const toward = points.filter(p =>
-        Math.hypot(p.x - goal.x, p.z - goal.z) < remaining - 1 &&
-        cover.boundRoute(soldier, sim, p, reports).eligible
+      const toward = points.filter(
+        p =>
+          Math.hypot(p.x - goal.x, p.z - goal.z) < remaining - 1 &&
+          cover.boundRoute(soldier, sim, p, reports).eligible
       );
       const point = toward[0];
       return {
@@ -186,7 +187,8 @@ test('advance waits for real discharges, personal movement adoption, physical ar
   assert.ok(moving.length >= 2, 'native orders must start concurrently');
   assert.equal(new Set(moving.map(x => x.actorId)).size, moving.length);
   until(w, () => w.M.summary(w.q).checkins >= 2);
-  const arrived = w.M.summary(w.q).history.filter(h => h.phase === 'checkin')
+  const arrived = w.M.summary(w.q)
+    .history.filter(h => h.phase === 'checkin')
     .map(h => h.reason);
   assert.ok(new Set(arrived).size >= 2, 'different soldiers check in independently');
   clean(w);
@@ -229,20 +231,28 @@ test('covering is event-driven: multiple personal moves and no lease expiry whil
   const w = world();
   until(w, () => w.M.summary(w.q)?.phase === 'moving');
   const moves = live(w, 'combat.bound');
-  assert.ok(moves.length >= 2,
-    'two or more personal movement orders must execute under one covered window');
-  assert.equal(new Set(moves.map(a => a.actorId)).size, moves.length,
-    'each soldier owns an independent native movement task');
+  assert.ok(moves.length >= 2, 'two or more personal movement orders must execute under one covered window');
+  assert.equal(
+    new Set(moves.map(a => a.actorId)).size,
+    moves.length,
+    'each soldier owns an independent native movement task'
+  );
   const lease = w.r.BattleLeases.get(w.q, 'bound');
   assert.equal(lease.until, Infinity, 'a native new-controller bound is event-driven, never timed');
   const at = w.b.time;
   w.b.time += 180;
-  assert.equal(w.r.BattleSquadStability.controllerBound.current(w.q, w.b)?.lease, lease,
-    'movement owner must survive elapsed clock time without renewing covering shots');
+  assert.equal(
+    w.r.BattleSquadStability.controllerBound.current(w.q, w.b)?.lease,
+    lease,
+    'movement owner must survive elapsed clock time without renewing covering shots'
+  );
   w.b.time = at;
   until(w, () => w.M.summary(w.q).checkins >= 1);
-  assert.ok(w.M.summary(w.q).history.some(h =>
-    h.phase === 'checkin' && h.reason.startsWith('squad-leader-confirmed-physical-arrival:')));
+  assert.ok(
+    w.M.summary(w.q).history.some(
+      h => h.phase === 'checkin' && h.reason.startsWith('squad-leader-confirmed-physical-arrival:')
+    )
+  );
   clean(w);
 });
 test('no covering discharge cannot authorize any movement, regardless of elapsed time', () => {
