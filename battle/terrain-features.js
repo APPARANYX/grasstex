@@ -344,6 +344,11 @@
   }
   function scatter(scene, heightAt, opts) {
     opts = opts || {};
+    /* In isolated Skills Lab only, use deliberately placed genuine nav/LOS/
+       ballistic hedge volumes instead of unpredictable procedural cover.
+       Production scatter is completely untouched. */
+    if (root.SKILLS_LAB && root.BattleSkillsLab && root.BattleSkillsLab.scatterCover)
+      return root.BattleSkillsLab.scatterCover(scene, heightAt, opts);
     var fieldW = opts.fieldW || 360,
       fieldD = opts.fieldD || (opts.keepoutZ ? opts.keepoutZ * 2.2 : 190),
       keepoutZ = opts.keepoutZ || fieldD * 0.46;
