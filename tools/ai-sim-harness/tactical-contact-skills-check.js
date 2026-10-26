@@ -289,12 +289,25 @@ test('a fresh squadmate SEEN sector authorizes real area suppression from covere
   // Physical cover masks prone and crouch, but the real upright muzzle
   // line remains clear; Engagement must own the eventual stance change.
   A.canSuppress = (s, point, battle, readOnly) =>
-    !s.prone && !s.crouching && !s.tacticalCrouch && actual(s, point, battle, readOnly);
+    String(s.id) === String(shooter.id) &&
+    !s.prone &&
+    !s.crouching &&
+    !s.tacticalCrouch &&
+    actual(s, point, battle, readOnly);
   squad(w);
   assert.equal(w.q.fireControl.state, 'open');
   assert.equal(shooter.target, null, 'shared report cannot create a personal target');
   const role = w.S.summary(w.q).roles.find(x => x.actorId === String(shooter.id));
-  assert.equal(role?.drill, 'suppress', 'eyewitness sector supports an area-fire assignment');
+  assert.equal(
+    role?.drill,
+    'suppress',
+    'eyewitness sector supports an area-fire assignment: ' +
+      JSON.stringify({
+        summary: w.S.summary(w.q),
+        sightings: A.squadContactsMap(w.q, w.b),
+        shooter: { id: shooter.id, target: shooter.target && shooter.target.id }
+      })
+  );
   assert.ok(role.reportedPoint && Number.isFinite(role.reportedPoint.z));
   const actualAreaFire = A.areaFire;
   A.areaFire = (man, point, battle) => {
