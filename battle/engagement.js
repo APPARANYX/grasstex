@@ -473,6 +473,9 @@
   function fireControlObservation(s, battle) {
     return fireStanceImpl().fireControlObservation(s, battle);
   }
+  function suppressionStance(s, battle, point) {
+    return fireStanceImpl().suppressionStance(s, battle, point);
+  }
   function fireControlReady(s, battle) {
     return fireStanceImpl().fireControlReady(s, battle);
   }
@@ -2197,10 +2200,12 @@
         CR.executionCurrent(s, battle, 'movement', 'soldier:' + String(s.id), s._fireteamAdoptedEnvelope))
     );
   }
-  function controllerCombatStart(s, battle, drill) {
+  function controllerCombatStart(s, battle, drill, reportedPoint) {
     var TC = root.BattleTacticalController;
     if (
       ['march', 'prepare', 'fire', 'suppress', 'watch', 'pinned'].indexOf(drill) < 0 ||
+      (drill === 'suppress' &&
+        (!reportedPoint || !Number.isFinite(reportedPoint.x) || !Number.isFinite(reportedPoint.z))) ||
       !s ||
       s.dead ||
       s.isPlayer ||
@@ -2216,6 +2221,7 @@
     var task = {
       battle: battle,
       drill: drill,
+      reportedPoint: drill === 'suppress' ? { x: reportedPoint.x, z: reportedPoint.z } : null,
       since: battle.time,
       at: battle.time,
       reason: 'owner-accepted',
@@ -2333,14 +2339,27 @@
       if (e.state !== 'alert') transition(s, battle, 'alert', 0, 'controller:' + drill);
       s.state = drill === 'suppress' ? 'suppress' : 'alert';
       s.setUp = false;
-      var aim = knownThreat(s, battle);
+      var aim = drill === 'suppress' ? task.reportedPoint : knownThreat(s, battle);
       holdPosition(s, battle);
-      if (!holdStance(s, battle))
+      if (drill === 'suppress' && aim) {
+        var post = root.BattleEngagement.suppressionStance(s, battle, aim);
+        if (post)
+          commitStanceRespectHold(s, battle, post, 0.55, 'controller:reported-sector-suppress');
+        else if (!holdStance(s, battle))
+          commitStance(s, battle, 'crouch', 0.8, 'reported-sector-line-blocked');
+      } else if (!holdStance(s, battle))
         commitStance(s, battle, seeingStance(s, battle, 'crouch', aim && { root: { position: aim } }), 2);
       s._faceHint = aim;
-      /* canSuppress and suppress recheck the man's own belief, range and physical line. */
-      if (drill === 'suppress' && aim) suppress(s, battle, aim);
-      task.reason = aim ? drill : 'blocked:no-personal-intel';
+      /* Native fire-control, ammo, muzzle, shock and ballistic gates still
+         decide whether a real area round may leave this cover post. */
+      var emitted = drill === 'suppress' && aim ? suppress(s, battle, aim) : false;
+      task.reason = !aim
+        ? 'blocked:no-fresh-reported-sector'
+        : drill === 'suppress'
+          ? emitted
+            ? 'reported-sector-suppression'
+            : 'reported-sector:shot-not-authorized'
+          : drill;
     }
     var after = s._movementResolver && s._movementResolver.combat;
     if (after && after !== before) task.proposal = after;
@@ -2438,6 +2457,7 @@
       stage: controllerCombatStage
     },
     fireControlObservation: fireControlObservation,
+    suppressionStance: suppressionStance,
     firingLineClear: firingLineClear,
     crestPrepPoint: crestPrepPoint,
     commitStance: commitStance,

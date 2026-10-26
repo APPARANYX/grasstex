@@ -93,6 +93,7 @@ const API = [
   'fireAllowed',
   'tryFire',
   'suppress',
+  'suppressionStance',
   'firingLineClear',
   'crestPrepPoint',
   'fireControlObservation',

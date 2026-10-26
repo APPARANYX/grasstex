@@ -375,6 +375,23 @@
 
     /* Rounds into a known position. Facing and settling still gate it, so a man turns onto the
      sector before he fires into it. */
+    /* A dry-run of the real suppression muzzle line at the current physical
+       slot. It alters neither the soldier stance nor the target. */
+    function suppressionStance(s, battle, point) {
+      if (!s || !s.root || !s.weapon || !point || s.suppressedUntil > battle.time) return null;
+      var A = SA();
+      if (!A || !A.canSuppress) return null;
+      for (var i = 0; i < STANCE_ORDER.length; i++) {
+        var pose = STANCE_ORDER[i],
+          proxy = Object.create(s);
+        proxy.root = s.root;
+        proxy.prone = pose === 'prone';
+        proxy.crouching = pose === 'crouch';
+        proxy.tacticalCrouch = pose === 'crouch';
+        if (A.canSuppress(proxy, point, battle, true)) return pose;
+      }
+      return null;
+    }
     function suppress(s, battle, point) {
       var e = state(s);
       if (!point || s.reloading || movingTooFast(s) || s.crawling) return false;
@@ -827,6 +844,7 @@
       fireAllowed: fireAllowed,
       tryFire: tryFire,
       suppress: suppress,
+      suppressionStance: suppressionStance,
       firingLineClear: firingLineClear,
       crestPrepPoint: crestPrepPoint,
       fireControlObservation: fireControlObservation,
