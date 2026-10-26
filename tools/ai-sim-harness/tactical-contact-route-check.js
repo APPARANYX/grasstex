@@ -80,6 +80,39 @@ assert.equal(
   null,
   'no uncovered active bound when all starting segments are exposed'
 );
+/* From a sheltered B the direct segment to C runs through the same
+   shelter. A genuine navigator must supply a B1 exit and safe C ingress;
+   a straight-line-only tactical graph would reject this reachable slot. */
+const egressCover = [
+  { x: 8, z: 12, quality: 0.1, slotId: 'C-behind-hedge' },
+  { x: 8, z: 30, quality: 0.1, slotId: 'D-next-cover' }
+];
+const egress = fixture(egressCover);
+egress.soldier.root.position.x = 0;
+egress.soldier.root.position.z = 12;
+let nativeQueries = 0;
+egress.root.BattleNavigation.movementClear = (a, b) => {
+  // Real blocking cover between the sheltered B and the forward C.
+  return !(Math.abs(a.z - 12) < 0.01 && b.x >= 7 && b.z <= 15 && a.x < 1);
+};
+egress.root.BattleNavigation.findPath = (a, b) => {
+  nativeQueries++;
+  return [{ x: 0, z: 15.5 }, { x: b.x, z: b.z }];
+};
+const ingress = egress.skill.evaluate(
+  egress.soldier, egress.sim, egressCover[0], egress.report, false
+);
+assert.equal(ingress.eligible, true, 'B→B1→C should use valid native physical ingress/egress');
+assert.equal(ingress.detour, true);
+assert.ok(nativeQueries >= 1);
+const plannedEgress = egress.skill.pick(egress.soldier, egress.sim, egress.report, { x: 8, z: 35 }, []);
+assert.equal(plannedEgress.point?.x, 8, 'graph can choose C through native egress path');
+egress.root.BattleNavigation.findPath = () => [{ x: 999, z: 999 }, { x: 8, z: 12 }];
+assert.equal(
+  egress.skill.evaluate(egress.soldier, egress.sim, egressCover[0], egress.report, false).eligible,
+  false,
+  'navigation cannot invent a detour that fails physical segment checks'
+);
 const open = fixture([]);
 assert.equal(
   open.skill.pick(open.soldier, open.sim, open.report, { x: 0, z: 80 }, []).point,

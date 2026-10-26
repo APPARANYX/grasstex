@@ -13,6 +13,10 @@
     MAX_NODES = 160,
     MAX_EXPANSIONS = 155,
     MAX_EDGE_QUERIES = 1700,
+    /* Native exact path queries are expensive; cap them per squad plan. They
+       model real ingress/egress from a sheltered slot, not invented cover. */
+    MAX_PHYSICAL_DETOURS = 20,
+    MAX_DETOUR_RATIO = 1.8,
     MAX_DETOUR = 110,
     GOAL_REACH = 24,
     failedPlans = new WeakMap();
@@ -40,9 +44,56 @@
     }
     return false;
   }
-  function edge(sim, from, to, reports, underFire, strict) {
+  /* A cover slot is a TACTICAL destination, not a route junction the man must
+     cross in a straight line. The physical navigator plans the exit from the
+     previous shelter, travel around its real volume, and entry behind the next.
+     Only that native owner supplies transit points (B1 in A→B→B1→C). */
+  function physicalLeg(sim, from, to, budget) {
     var N = root.BattleNavigation,
-      out = { eligible: false, reason: 'unknown', distance: distance(from, to), exposure: 1 };
+      straight = distance(from, to),
+      path = null;
+    if (!N || !N.movementClear) return { ok: false, reason: 'navigation-unavailable' };
+    if (N.movementClear(from, to)) path = [point(to)];
+    else {
+      if (!N.findPath) return { ok: false, reason: 'no-native-ingress-egress' };
+      if (budget && budget.left <= 0) return { ok: false, reason: 'nav-detour-budget' };
+      if (budget) {
+        budget.left--;
+        budget.queries++;
+      }
+      path = N.findPath(from, to);
+      if (!Array.isArray(path) || !path.length)
+        return { ok: false, reason: 'no-complete-physical-detour' };
+    }
+    var cursor = point(from),
+      total = 0,
+      points = [cursor],
+      maxTravel = MAX_HOP * MAX_DETOUR_RATIO;
+    if (path.length > 96) return { ok: false, reason: 'overlong-physical-detour' };
+    for (var i = 0; i < path.length; i++) {
+      var p = path[i];
+      if (!p || !Number.isFinite(p.x) || !Number.isFinite(p.z))
+        return { ok: false, reason: 'invalid-physical-detour' };
+      p = point(p);
+      var length = distance(cursor, p);
+      if (!N.movementClear(cursor, p))
+        return { ok: false, reason: 'blocked-physical-segment' };
+      total += length;
+      if (total > maxTravel)
+        return { ok: false, reason: 'overlong-physical-detour' };
+      if (length > 0.01) points.push(p);
+      cursor = p;
+    }
+    if (distance(cursor, to) > 0.35)
+      return { ok: false, reason: 'incomplete-physical-detour' };
+    /* The tactical hop still respects 26m between COVER POINTS, with a
+       bounded additional physical detour around an obstacle. */
+    if (straight > MAX_HOP || total < MIN_HOP)
+      return { ok: false, reason: 'outside-contact-hop' };
+    return { ok: true, distance: total, points: points, detour: points.length > 2 };
+  }
+  function edge(sim, from, to, reports, underFire, strict, budget) {
+    var out = { eligible: false, reason: 'unknown', distance: distance(from, to), exposure: 1 };
     if (!reports || !reports.length) {
       out.reason = 'missing-reported-contact';
       return out;
@@ -51,39 +102,45 @@
       out.reason = 'outside-contact-hop';
       return out;
     }
-    if (!N || !N.movementClear || !N.movementClear(from, to)) {
-      out.reason = 'blocked-physical-segment';
+    var transit = physicalLeg(sim, from, to, budget);
+    if (!transit.ok) {
+      out.reason = transit.reason;
       return out;
     }
-    var steps = Math.max(2, Math.ceil(out.distance / SAMPLE)),
+    var samples = 0,
       exposed = 0;
-    for (var i = 0; i <= steps; i++) {
-      var t = i / steps;
-      if (
-        threatVisible(
-          sim,
-          {
-            x: from.x + (to.x - from.x) * t,
-            z: from.z + (to.z - from.z) * t
-          },
-          reports
-        )
-      )
-        exposed++;
+    /* Measure exposure ALONG the actual traversable route, including B1
+       egress and C ingress, not through the solid obstacle between B and C. */
+    for (var k = 1; k < transit.points.length; k++) {
+      var a = transit.points[k - 1],
+        b = transit.points[k],
+        leg = distance(a, b),
+        steps = Math.max(1, Math.ceil(leg / SAMPLE));
+      for (var i = k === 1 ? 0 : 1; i <= steps; i++) {
+        var t = i / steps,
+          at = { x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t };
+        samples++;
+        if (threatVisible(sim, at, reports)) exposed++;
+      }
     }
-    out.exposure = exposed / (steps + 1);
+    out.distance = transit.distance;
+    out.exposure = samples ? exposed / samples : 1;
     if (strict && out.exposure > (underFire ? MAX_UNDER_FIRE_EXPOSURE : MAX_EXPOSURE)) {
       out.reason = 'excessive-observed-exposure';
       return out;
     }
     out.eligible = true;
-    out.reason = 'traversable-real-cover-leg';
+    out.detour = transit.detour;
+    out.reason = transit.detour ? 'native-egress-ingress-detour' : 'traversable-real-cover-leg';
     return out;
   }
   function evaluate(s, sim, dest, reports, underFire) {
     if (!s || !s.root || !dest)
       return { eligible: false, reason: 'missing-actor-or-waypoint', distance: Infinity, exposure: 1 };
-    return edge(sim, s.root.position, dest, reports, underFire, true);
+    /* A live movement request is validated independently, never throttled by
+       the planning graph's performance budget. The actual physical mover will
+       then revalidate and navigate its own B→B1→C sequence. */
+    return edge(sim, s.root.position, dest, reports, underFire, true, null);
   }
   function crossTrack(p, start, goal) {
     var dx = goal.x - start.x,
@@ -105,6 +162,8 @@
         rejected: {},
         graphNodes: 0,
         evaluatedEdges: 0,
+        nativePathQueries: 0,
+        admittedDetours: 0,
         expanded: 0,
         planLength: 0,
         terminal: 'none'
@@ -162,6 +221,7 @@
           root.BattleEngagement.underFireNow(s, sim)
         );
     d[0] = 0;
+    var detourBudget = { left: MAX_PHYSICAL_DETOURS, queries: 0 };
     /* Positive edge costs permit detours/backtracking. A first edge must pass
        the same strict safety rule Engagement will enforce before adoption.
        Later edges are estimated using their own actual nav/LOS geometry and
@@ -178,7 +238,8 @@
         var leg = distance(nodes[from], nodes[k]);
         if (leg < MIN_HOP || leg > MAX_HOP) continue;
         if (++stats.evaluatedEdges > MAX_EDGE_QUERIES) break;
-        var result = edge(sim, nodes[from], nodes[k], reports, underFire, from === 0);
+        var result = edge(sim, nodes[from], nodes[k], reports, underFire, from === 0, detourBudget);
+        if (result.detour && result.eligible) stats.admittedDetours++;
         if (!result.eligible) {
           stats.rejected[result.reason] = (stats.rejected[result.reason] || 0) + 1;
           continue;
@@ -195,6 +256,7 @@
       }
       if (stats.evaluatedEdges >= MAX_EDGE_QUERIES) break;
     }
+    stats.nativePathQueries = detourBudget.queries;
     var best = -1,
       rating = Infinity,
       complete = false,
@@ -343,7 +405,8 @@
       maxExposure: MAX_EXPOSURE,
       maxUnderFireExposure: MAX_UNDER_FIRE_EXPOSURE,
       graphNodes: MAX_NODES,
-      graphEdgeBudget: MAX_EDGE_QUERIES
+      graphEdgeBudget: MAX_EDGE_QUERIES,
+      physicalDetourBudget: MAX_PHYSICAL_DETOURS
     }
   };
 })(typeof window !== 'undefined' ? window : globalThis);
