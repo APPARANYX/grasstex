@@ -252,7 +252,9 @@
       standDown(ctx, stateOf(ctx.squad), 'covered-maneuver');
     },
     releaseMan: function (ctx, man) {
-      var st = stateOf(ctx.squad), id = String(man.id), cur = st.men.get(id);
+      var st = stateOf(ctx.squad),
+        id = String(man.id),
+        cur = st.men.get(id);
       if (cur) ctx.finish(cur.actionId, 'station-selection');
       st.men.delete(id);
       if (st.stopped) st.stopped.delete(id);
