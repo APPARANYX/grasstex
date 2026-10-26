@@ -161,6 +161,8 @@ fs.mkdirSync(DIR, { recursive: true });
       assert.equal(data.timeline[0].controller.new, 4, 'all four original squads owned on first sample');
       assert.equal(data.maxima.faults, 0, 'controller faults');
       assert.equal(data.maxima.conflicts, 0, 'competing movement writers');
+      assert.equal(data.grenade?.friendlyWounded || 0, 0, 'no friendly grenade wounds in live meeting');
+      assert.equal(data.grenade?.friendlyCasualties || 0, 0, 'no friendly grenade deaths in live meeting');
       assert.deepEqual(data.browserErrors, [], 'unexpected browser faults');
       await page.close();
     }
