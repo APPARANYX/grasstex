@@ -154,7 +154,7 @@ finishes the old leg's orders when the leg changes, and on the last leg turns an
 into a `movement.hold` at the slot. It reads each action's stage through the dispatch context's
 `stage(actionId)`, the same owner read as `summary().live`. An order the owner ended is not asked
 for again on that leg, and the man is listed as stopped with the owner's reason; a refusal changed
-nothing, so it is asked again on the next tick and listed as stopped while it lasts. Retreat wins:
+nothing, so it is asked again after the next mission tick and listed as stopped while it lasts. Retreat (squad state or command phase) wins:
 on a retreat the provider finishes every order and hold at its owner and asks again once the retreat
 ends. The preview launcher forwards the flag; with the flag but no contract on the page, the
 provider warns and legacy keeps every squad. Mission acceptance, transport, casualties, succession, retreat, rally

@@ -161,6 +161,14 @@ test('a refusal is listed while it lasts and asked again once it clears, with no
   w.b.time += 0.2;
   tick(w);
   assert.equal(w.TC.summary(w.b).actions, accepted, 'still refused: nothing new accepted');
+  const rejected = w.TC.summary(w.b).stats.rejected['owner-rejected'] || 0;
+  w.TC.dispatch(w.b, w.q, 'squadCommand');
+  w.TC.dispatch(w.b, w.q, 'squadCommand');
+  assert.equal(
+    w.TC.summary(w.b).stats.rejected['owner-rejected'] || 0,
+    rejected,
+    'squad ticks between mission ticks do not re-ask'
+  );
   man._survivalMovementKey = null;
   w.b.time += 0.2;
   tick(w);
@@ -213,6 +221,15 @@ test('retreat wins: every order is finished at its owner, nothing is published, 
   w.b.time += 0.5;
   tick(w);
   assert.equal(w.TC.summary(w.b).actions, men.length, 'the men are asked again once the retreat ends');
+});
+
+test('a retreat phase alone also stands the provider down, as it does the resolver', () => {
+  const w = world();
+  w.systems['tactical-march-provider'].onBattleStart(w.b);
+  tick(w);
+  w.q.commandPhase = 'retreat';
+  w.TC.dispatch(w.b, w.q, 'squadCommand');
+  assert.equal(w.TC.summary(w.b).actions, 0);
 });
 
 test('with the flag but no contract, the provider says so and legacy keeps the squad', () => {

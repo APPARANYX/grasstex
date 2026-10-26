@@ -79,6 +79,7 @@
       return;
     }
     st.idle = null;
+    st.retry = true; // refusals are asked again once per mission tick, not every squad tick
     var last = legs.length - 1,
       here = centroid(men(sq)),
       r = legRadius(sim, sq);
@@ -97,14 +98,15 @@
   /* squadCommand: each man walks to his formation slot around the leg point, then holds there on the
      last leg. An accepted order is asked for once per leg; one the owner ended is not asked for again
      on the same leg, and the man is listed as stopped with the owner's reason. A refusal changed
-     nothing, so it is asked again on the next tick (a rider still seated, a cleanup still pending)
-     and listed as stopped while it lasts. Retreat is a retained service and wins: on a retreat every
+     nothing, so it is asked again after the next mission tick (a rider still seated, a cleanup still
+     pending) and listed as stopped while it lasts. Retreat is a retained service and wins: on a retreat every
      order and hold is finished at its owner, and the men are asked again once the retreat ends. */
   function squadCommand(ctx) {
     var sq = ctx.squad,
       st = stateOf(sq),
       Q = root.BattleSquadStability;
-    if (sq.state === 'retreat') return standDown(ctx, st, 'retreat');
+    /* The resolver treats either as retreat; so does the provider. */
+    if (sq.state === 'retreat' || sq.commandPhase === 'retreat') return standDown(ctx, st, 'retreat');
     if (!st.target || !Q || !Q.formationSlots) return;
     var slots = Q.formationSlots(sq, st.target, st.forward);
     for (var i = 0; i < slots.length; i++) {
@@ -132,8 +134,9 @@
       }
       st.men.delete(id);
       var why = st.stopped.get(id);
-      if (!why || why.indexOf('refused:') === 0) ask(ctx, st, id, 'movement.move', slot);
+      if (!why || (st.retry && why.indexOf('refused:') === 0)) ask(ctx, st, id, 'movement.move', slot);
     }
+    st.retry = false;
   }
   function standDown(ctx, st, reason) {
     st.men.forEach(function (cur) {
