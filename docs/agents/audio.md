@@ -79,8 +79,12 @@ The clip manifest's `prompt`s are kept for any clip regenerated with ElevenLabs
 Runtime: `manifest.json` category `weapon.<model>` holds each model's actions. `battle-sim.js`
 `buildWeaponAudio` keys shots by `weapon.profile`: one `fire` per round (automatic fire is retriggered
 per round, never a recorded burst), `fireDistant` from `DISTANT_FROM` (90 m: the near voices' linear
-roll-off is silent by ~97 m). Distant shots extend to 3500 m and automatic-weapon tails to 1500 m; these are simple gameplay distance limits, not weather/terrain-aware propagation. The 90 m switch remains abrupt, and nearby weapon handling stays at 30 m. Longer-range atmospheric filtering, terrain occlusion and near/far crossfading require separate work. Voice pools of `ceil(cyclic x 0.9 s) + 2` so a fast gun never cuts off
-its own last round; a model with no clips falls back to the kind's `SFX_FILES`. Module
+roll-off is silent by ~97 m). Distant shots extend to 3500 m and automatic-weapon tails to 1500 m; these are simple gameplay distance limits, not weather/terrain-aware propagation. The 90 m switch remains abrupt, and nearby weapon handling stays at 30 m. Longer-range atmospheric filtering, terrain occlusion and near/far crossfading require separate work. Voice pools use `ceil(cyclic x 0.9 s) + 2` slots; only ready, non-playing Sounds are reused.
+Babylon 9 can overlap instances on a single Sound, so busy slots must be skipped before changing
+their position/gain, and excess reports are omitted while the shared model pool is full. Locked
+audio also drops new reports rather than accumulating delayed starts. Inspect
+`__battle__._weaponAudio.summary()` for active slots, capacity, play requests, busy/not-ready/locked
+drops and errors. A model with no clips falls back to the kind's `SFX_FILES`. Module
 `15-weapon-foley-audio.js` plays the rest (reload stages, stoppages, bipod, bolt cycle, clip ping,
 burst tails; see its harness row). File layout keys the mastering targets: `weapons/<model>/<action>-NN.mp3`
 (smallArms -16 dBFS) and `weapons/foley/<model>-<action>-NN.mp3` (-26 dBFS). Each clip also has two Opus twins
