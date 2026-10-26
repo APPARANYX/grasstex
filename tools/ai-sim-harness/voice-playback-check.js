@@ -108,6 +108,19 @@ function runModule(rel, invalidate) {
   assert.equal(handle.started, true, rel + ': playback handle starts after ready');
   assert.equal(sounds[0].played, 1, rel + ': Babylon Sound.play called');
   assert.equal(sounds[0].attached, mesh, rel + ': sound follows the soldier mesh');
+  if (rel.includes('11-voice-variation')) {
+    ctx.performance.now = () => 6000;
+    const overlapped = ctx.BattleVoiceScheduler.enqueue(soldier, 'engage', null, { priority: 'tactical' });
+    assert.ok(overlapped && overlapped.ended, 'same cached sound cannot restart while playing');
+    assert.equal(overlapped.started, false);
+    assert.equal(sounds[0].played, 1, 'overlapping speaker does not cut the original voice');
+    sounds[0].onEnded();
+    assert.equal(handle.ended, true, 'physical end frees the active voice slot');
+    ctx.performance.now = () => 7000;
+    const resumed = ctx.BattleVoiceScheduler.enqueue(soldier, 'engage', null, { priority: 'tactical' });
+    assert.ok(resumed && resumed.started, 'speaker can reuse the clip after actual completion');
+    assert.equal(sounds[0].played, 2);
+  }
   assert.deepEqual(errors, [], rel + ': playback does not fall into the error handler');
 }
 

@@ -16,6 +16,13 @@
 
   var cache = {},
     failed = {},
+    activeSounds = 0,
+    MAX_VOICES = 4,
+    debugVoice = /[?&]voiceDebug=(?:1|on|true)(?:&|#|$)/i.test((root.location && root.location.search) || '');
+  function voiceLog(s) {
+    if (debugVoice && root.GTLog) root.GTLog(s);
+  }
+  var
     lastSocialGlobal = 0,
     socialSquadLast = {},
     lastTacticalGlobal = 0,
@@ -71,7 +78,7 @@
       }
     }
     soldier._voicePitchProfile = p;
-    root.GTLog('[VOICE] ' + soldier.id + ' profile ' + p.id + ' (' + (+p.semitones || 0) + ' st)');
+    voiceLog('[VOICE] ' + soldier.id + ' profile ' + p.id + ' (' + (+p.semitones || 0) + ' st)');
     return p;
   }
   function variantPath(file, profile) {
@@ -177,6 +184,10 @@
       try {
         if (entry.sound && typeof entry.sound.detachFromMesh === 'function') entry.sound.detachFromMesh();
       } catch (_) {}
+      if (entry.playing) {
+        entry.playing = false;
+        activeSounds = Math.max(0, activeSounds - 1);
+      }
       finish(req);
     }
     var o = entry && entry.sound && entry.sound.onEndedObservable;
@@ -213,6 +224,16 @@
       finish(req);
       return req.handle;
     }
+    /* A cached Babylon Sound can play only one file instance at a time.
+       Replaying the same object interrupts the previous speaker and can
+       stack stale end callbacks. Drop only the redundant presentation
+       request; the caller's playback handle still completes correctly. */
+    if (entry.playing || activeSounds >= MAX_VOICES) {
+      finish(req);
+      return req.handle;
+    }
+    entry.playing = true;
+    activeSounds++;
     try {
       var soldier = req.soldier,
         mesh = soldier.root,
@@ -242,10 +263,11 @@
         );
       s.play();
       req.handle.started = true;
-      root.GTLog(
-        '[VOICE] play ' + entry.file + ' profile=' + (entry.profileId || 'neutral') + ' lane=' + req.lane
-      );
+      voiceLog('[VOICE] play ' + entry.file + ' profile=' +
+        (entry.profileId || 'neutral') + ' lane=' + req.lane);
     } catch (e) {
+      entry.playing = false;
+      activeSounds = Math.max(0, activeSounds - 1);
       console.error('[VOICE] play failed ' + entry.file + ': ' + ((e && e.message) || e));
       finish(req);
     }
@@ -308,18 +330,19 @@
     if (entry) {
       if (entry.ready) return playAt(entry, req);
       entry.pending.push(req);
-      root.GTLog('[VOICE] waiting ' + file);
+      voiceLog('[VOICE] waiting ' + file);
       return handle;
     }
     var base = window.BATTLE_AUDIO_BASE || 'https://test.ivandpopov.com/grasstex/Assets/audio/',
       url = window.BattleAudioFormat ? window.BattleAudioFormat.url(base + file) : base + file;
-    root.GTLog('[VOICE] request ' + url + ' profile=' + (profile.id || 'neutral'));
+    voiceLog('[VOICE] request ' + url + ' profile=' + (profile.id || 'neutral'));
     entry = cache[file] = {
       file: file,
       baseFile: baseFile,
       profileId: profile.id || 'neutral',
       sound: null,
       ready: false,
+      playing: false,
       pending: [req]
     };
     try {
@@ -330,7 +353,7 @@
         scene,
         function () {
           entry.ready = true;
-          root.GTLog('[VOICE] ready ' + file);
+          voiceLog('[VOICE] ready ' + file);
           var pending = entry.pending.splice(0);
           for (var i = 0; i < pending.length; i++) playAt(entry, pending[i]);
         },
