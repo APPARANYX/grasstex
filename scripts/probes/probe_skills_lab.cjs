@@ -59,8 +59,10 @@ const { chromium } = require('playwright');
     const advanced = await page.evaluate(() => BattleSkillsLab.snapshot());
     assert.ok(advanced.time > initial.lab.time, 'real native steps must advance');
     const commanderAt = await page.evaluate(() => __battle__._generals?.us?.lastTickAt || 0);
-    assert.ok(commanderAt > 0,
-      'stepped Skills Lab must tick the real Commander/Meso clock alongside the soldiers');
+    assert.ok(
+      commanderAt > 0,
+      'stepped Skills Lab must tick the real Commander/Meso clock alongside the soldiers'
+    );
     assert.equal(advanced.targetDeaths, 0, 'inert targets cannot die');
     await page.screenshot({ path: out + '/range.png' });
     await page.evaluate(() => BattleSkillsLab.stageRetreat());
