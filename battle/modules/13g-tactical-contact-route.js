@@ -20,11 +20,15 @@
     var h = sim.heightAt(at.x, at.z);
     for (var k = 0; k < reports.length; k++) {
       var p = reports[k];
-      if (A.hasLineOfSight(
-        { root: { position: { x: at.x, z: at.z, y: h + 1.0 } }, crouching: true },
-        { root: { position: { x: p.x, z: p.z, y: sim.heightAt(p.x, p.z) + 1.6 } } },
-        sim.heightAt, sim.obstacles
-      )) return true;
+      if (
+        A.hasLineOfSight(
+          { root: { position: { x: at.x, z: at.z, y: h + 1.0 } }, crouching: true },
+          { root: { position: { x: p.x, z: p.z, y: sim.heightAt(p.x, p.z) + 1.6 } } },
+          sim.heightAt,
+          sim.obstacles
+        )
+      )
+        return true;
     }
     return false;
   }
@@ -79,7 +83,12 @@
     stats.total = candidates.length;
     for (var i = 0; i < Math.min(candidates.length, 96); i++) {
       var p = candidates[i];
-      if ((taken || []).some(function (q) { return distance(q, p) < 2; })) continue;
+      if (
+        (taken || []).some(function (q) {
+          return distance(q, p) < 2;
+        })
+      )
+        continue;
       var gain = oldDist - distance(p, goal);
       /* A one-time lateral move to much better cover is allowed, but never a
          long backwards detour in an advance. The next turn replans from cover. */
@@ -96,8 +105,7 @@
       }
       stats.safe++;
       /* Hazard dominates directness; retain meaningful progress and short legs. */
-      var score = safe.exposure * 100 + p.quality * 28 + safe.distance * 0.25 -
-        Math.max(-3, gain) * 0.55;
+      var score = safe.exposure * 100 + p.quality * 28 + safe.distance * 0.25 - Math.max(-3, gain) * 0.55;
       if (score < bestScore || (score === bestScore && String(p.slotId) < String(best.slotId))) {
         best = p;
         bestScore = score;
