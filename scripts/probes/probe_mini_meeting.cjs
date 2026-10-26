@@ -39,6 +39,8 @@ fs.mkdirSync(DIR, { recursive: true });
         const engine = b.scene?.getEngine?.();
         if (engine && root.__battleRenderLoop__) engine.stopRenderLoop(root.__battleRenderLoop__);
         b.pause();
+        const initialSquads = { us: b.factions.us.squads.length, ge: b.factions.ge.squads.length };
+        const initialSoldiers = { us: b._roster.us.length, ge: b._roster.ge.length };
         const start = new Map();
         for (const f of ['us', 'ge']) for (const s of b._roster[f])
           start.set(s.id, { x: s.root.position.x, z: s.root.position.z });
@@ -98,8 +100,7 @@ fs.mkdirSync(DIR, { recursive: true });
         b.pause();
         const last = records[records.length-1];
         return { seed: sc.seed, dimension: [sc.map.width, sc.map.depth],
-          initialSquads: { us: b.factions.us.squads.length, ge: b.factions.ge.squads.length },
-          initialSoldiers: { us: b._roster.us.length, ge: b._roster.ge.length },
+          initialSquads, initialSoldiers,
           spawnLanes: { us: sc.spawnZones.us.lanes, ge: sc.spawnZones.ge.lanes },
           meeting: b._sides?.meeting === true, preset: root.PhaseCCombatLab.snapshot()?.preset,
           controllerOn: root.BattleTacticalMarchProvider?.on === true,
@@ -125,7 +126,7 @@ fs.mkdirSync(DIR, { recursive: true });
       assert.equal(data.meeting, true, 'unprepared meeting engagement');
       assert.equal(data.preset, 'A', 'full lethal combat');
       assert.equal(data.controllerOn, true, 'replacement enabled');
-      assert.equal(data.controller.new, 4, 'both sides owned by replacement');
+      assert.equal(data.timeline[0].controller.new, 4, 'all four original squads owned on first sample');
       assert.equal(data.maxima.faults, 0, 'controller faults');
       assert.equal(data.maxima.conflicts, 0, 'competing movement writers');
       assert.deepEqual(data.browserErrors, [], 'unexpected browser faults');
