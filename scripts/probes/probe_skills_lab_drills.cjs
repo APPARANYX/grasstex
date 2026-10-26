@@ -20,6 +20,13 @@ const CASES = [
   { distance: 120, arm: 'new', cover: 'hedgerow', retreat: false },
   { distance: 120, arm: 'new', cover: 'open', retreat: false }
 ];
+/* A single same-seed, full-native 120 m physical-movement acceptance gate
+   runs during draft preflight; the full nine-case matrix remains manually
+   dispatchable or gated to ready-for-review. */
+const RUN_CASES =
+  process.env.SKILLS_DRILL_PRIMARY_ONLY === '1'
+    ? CASES.filter(c => c.arm === 'new' && c.distance === 120 && !c.retreat && !c.cover)
+    : CASES;
 if (!Number.isFinite(SIM_SECONDS) || SIM_SECONDS < 20 || SIM_SECONDS > 240)
   throw new Error('SKILLS_DRILL_SECONDS must be 20..240 seconds');
 const dir = 'reports/skills-lab-drills';
@@ -143,7 +150,7 @@ function summarizeSamples(samples) {
   });
   const results = [];
   try {
-    for (const c of CASES) {
+    for (const c of RUN_CASES) {
       const page = await browser.newPage({ viewport: { width: 1280, height: 900 }, ignoreHTTPSErrors: true });
       page.setDefaultTimeout(120000);
       const errors = [];
