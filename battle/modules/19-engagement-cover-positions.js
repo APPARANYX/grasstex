@@ -779,6 +779,11 @@
       releaseCover: releaseCover,
       reserveCover: reserveCover,
       coverCandidates: coverCandidates,
+      /* Same native obstacle/cover-slot eligibility at tactical graph radius.
+         No new cover geometry and no independent claim or destination writer. */
+      routeCandidates: function (s, battle, threat, radius) {
+        return coverCandidates(s, battle, threat, Math.min(450, Math.max(26, radius || 180)));
+      },
       coverSnapshot: coverSnapshot,
       findCover: findCover,
       boundThreats: boundThreats,
