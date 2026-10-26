@@ -1252,11 +1252,13 @@
         (h.moverId
           ? !!(s && !s.dead && !s.incapacitated && s.hp > 0 && s.weapon && !s.outOfAmmo)
           : boundMember(s, battle)) &&
-        E.supportReady(s, battle) &&
-        shot &&
-        shot.at >= h.lease.since &&
-        battle.time >= shot.at &&
-        battle.time - shot.at <= BOUND_DURATION
+        (h.moverId
+          ? E.supportDischarged(s, battle, h.lease.since)
+          : E.supportReady(s, battle) &&
+            shot &&
+            shot.at >= h.lease.since &&
+            battle.time >= shot.at &&
+            battle.time - shot.at <= BOUND_DURATION)
       );
     }).length;
   }
