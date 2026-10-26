@@ -31,11 +31,11 @@ const { requestPreview } = require('./preview_request.cjs');
     await page.waitForFunction(() => window.__battle__ && window.BattleTacticalContactSkills, null, {
       timeout: 180000
     });
+    await page.locator('#startBtn').click();
+    await page.waitForFunction(() => __battle__.factions.us.squads.length > 0, null, { timeout: 120000 });
     evidence.natural = await page.evaluate(() => {
       const b = __battle__,
         TC = BattleTacticalController;
-      b.pause();
-      b.restart();
       b.pause();
       const initial = TC.summary(b),
         started = b.time;
@@ -97,6 +97,8 @@ const { requestPreview } = require('./preview_request.cjs');
         target = b.factions.us.squads[0].members[2];
       q.state = 'advance';
       q.commandPhase = 'assault';
+      const activation = TC.requestMode(b, q, 'new', 'march');
+      if (!activation.ok) throw Error('staged guarded activation refused: ' + activation.reason);
       let lane = null;
       for (const z of [-400, -300, -200, 0, 200, 300, 400]) {
         for (const x of [-700, -400, 0, 400, 700]) {
