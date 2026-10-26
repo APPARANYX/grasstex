@@ -259,6 +259,11 @@ test('covered personal contact may use standing ballistic line rather than getti
     'fire',
     'available standing sight and muzzle line is a fire drill, not perpetual march'
   );
+  assert.equal(
+    w.E.firingLineClear(man, man.target, man.root.position, 'stand', w.b),
+    true,
+    'the personal target has a legitimate standing ballistic line before stance change'
+  );
   for (let i = 0; i < 12; i++) {
     w.b.time += 0.15;
     w.TC.dispatch(w.b, w.q, 'engagement', man);
@@ -266,7 +271,6 @@ test('covered personal contact may use standing ballistic line rather than getti
   }
   assert.equal(man.prone, false, 'only the existing Engagement stance owner raises him');
   assert.equal(man.tacticalCrouch, false, 'he rises high enough for the actual firing line');
-  assert.equal(w.E.firingLineClear(man, man.target, man.root.position, 'stand', w.b), true);
   w.r.SquadAI.hasLineOfSight = sight;
   w.r.BattleBallistics = previousBallistics;
   clean(w);
