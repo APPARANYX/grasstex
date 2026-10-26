@@ -199,6 +199,27 @@ test('incoming fire opens the squad and preserves individual return-fire authori
   assert.equal(w.q.members[3].eng.state, 'pinned');
   clean(w);
 });
+test('OPEN publication stays stable through changing reports so personal adoption can finish', () => {
+  const w = world(100, '&commandPosture=1'),
+    s = w.q.members[4],
+    CR = w.r.BattleCommandReception;
+  squad(w);
+  w.b.time = 16.1;
+  see(w);
+  squad(w);
+  const first = CR.snapshot(s, w.b).records['posture-fire|squad'];
+  assert.equal(first.data.state, 'open');
+  for (let i = 0; i < 5; i++) {
+    w.b.time += 0.15;
+    see(w, w.ge.members[i]);
+    squad(w);
+  }
+  const latest = CR.snapshot(s, w.b).records['posture-fire|squad'];
+  assert.equal(latest.envelopeId, first.envelopeId);
+  w.b.time = Math.max(w.b.time, latest.adoptedAt + 0.001);
+  assert.equal(w.E.fireAuthorized(s, w.b), true);
+  clean(w);
+});
 test('contact execution fires real rounds after recognition and honors ammo/range gates', () => {
   const w = world();
   let shots = 0;

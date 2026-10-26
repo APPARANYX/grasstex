@@ -180,7 +180,13 @@
     st.ready = ready;
     st.requiredReady = needed;
     st.shooterId = desired === 'precision' ? String(shooter.id) : null;
-    var params = { state: desired, targetId: threat ? String(c.unit.id) : null, shooterId: st.shooterId },
+    /* OPEN is permission, not target assignment. Keep its envelope stable so a changing report
+       cannot perpetually supersede the order before personal adoption completes. */
+    var params = {
+        state: desired,
+        targetId: desired !== 'open' && threat ? String(c.unit.id) : null,
+        shooterId: st.shooterId
+      },
       signature = JSON.stringify(params),
       stage = st.fire && ctx.stage(st.fire.id);
     if (!stage || stage.stage === 'cancelled' || st.fire.signature !== signature) {
