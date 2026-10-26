@@ -1,12 +1,12 @@
 {
   "meta": {
     "mode": "seeds",
-    "run": "1359",
-    "runId": "40226883497",
+    "run": "1392",
+    "runId": "40261951194",
     "repo": "APPARANYX/grasstex",
-    "ref": "work/tactical-controller-handoff-reviewfix-20261025",
-    "sha": "6033293924fc282c091d5b50c199afdd12eccec1",
-    "runUrl": "https://github.com/APPARANYX/grasstex/actions/runs/40226883497",
+    "ref": "work/controller-covered-maneuver-20261026",
+    "sha": "dd1f1fa3737b0cd09495b3d7a44aea45fabd387b",
+    "runUrl": "https://github.com/APPARANYX/grasstex/actions/runs/40261951194",
     "seed": "phase-c-natural-20261012",
     "seeds": 3,
     "windows": "contact+60,every60",
@@ -79,9 +79,9 @@
       "b": 0
     },
     "wallSeconds": {
-      "medianA": 17.7735,
-      "medianB": 18.521,
-      "ratio": 1.042,
+      "medianA": 15.857,
+      "medianB": 16.634,
+      "ratio": 1.049,
       "gate": 1.25
     },
     "counters": {
@@ -475,8 +475,8 @@
     "pass": true
   },
   "viewer": {
-    "url": "https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=1359&view=brain3d",
-    "previewUrl": "https://test.ivandpopov.com/grasstex/preview/tactical-controller-handoff-reviewfix-20261025/ai_flow_live.html?bench=1359&view=brain3d",
+    "url": "https://test.ivandpopov.com/grasstex/ai_flow_live.html?bench=1392&view=brain3d",
+    "previewUrl": "https://test.ivandpopov.com/grasstex/preview/controller-covered-maneuver-20261026/ai_flow_live.html?bench=1392&view=brain3d",
     "seeds": [
       {
         "seed": "phase-c-natural-20261012-0002",
