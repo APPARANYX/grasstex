@@ -107,6 +107,11 @@
       Q = root.BattleSquadStability;
     /* The resolver treats either as retreat; so does the provider. */
     if (sq.state === 'retreat' || sq.commandPhase === 'retreat') return standDown(ctx, st, 'retreat');
+    /* While native squad contact is live, the contact/covered-bound skills own tactical
+       locomotion. Do not reissue far route-leg slots to men who momentarily lack a
+       personal target: contact flicker otherwise restores those slots between drills,
+       bouncing orderDestination between squad-orders and squad-stability. */
+    if (sq.inContact) return standDown(ctx, st, 'contact-owns-locomotion');
     if (!st.target || !Q || !Q.formationSlots) return;
     var slots = Q.formationSlots(sq, st.target, st.forward);
     for (var i = 0; i < slots.length; i++) {
