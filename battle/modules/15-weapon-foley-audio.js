@@ -215,7 +215,7 @@
       later((d / SPEED_OF_SOUND) * 1000, function () {
         var t = now(),
           free = pool.filter(function (v) {
-            return v.endsAt <= t;
+            return v.endsAt <= t && !(v.sound && v.sound.isPlaying === true);
           });
         if (!free.length) return;
         var v = free[(hash01(((+s.id || 0) * 7919) ^ count++) * free.length) | 0];

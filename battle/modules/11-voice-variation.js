@@ -17,7 +17,7 @@
   var cache = {},
     failed = {},
     activeSounds = 0,
-    MAX_VOICES = 8,
+    MAX_VOICES = 4,
     voiceStats = { played: 0, droppedBusyClip: 0, droppedCapacity: 0, staleRecovered: 0 },
     debugVoice = /[?&]voiceDebug=(?:1|on|true)(?:&|#|$)/i.test((root.location && root.location.search) || '');
   function voiceLog(s) {
