@@ -247,7 +247,12 @@ test('covered personal contact may use standing ballistic line rather than getti
   man.prone = true;
   man.tacticalCrouch = false;
   w.E.commitStance(man, w.b, 'prone', 0, 'fixture-covered');
+  // Wait for the existing native fire-control preparation deadline; the
+  // cover-peek test does not bypass leader authorization or force OPEN.
+  w.b.time = 26;
+  see(w);
   squad(w);
+  assert.equal(w.q.fireControl.state, 'open');
   w.TC.dispatch(w.b, w.q, 'engagement', man);
   assert.equal(
     w.S.summary(w.q).roles.find(r => r.actorId === String(man.id))?.drill,
