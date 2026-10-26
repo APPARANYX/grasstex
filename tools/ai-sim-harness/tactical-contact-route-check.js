@@ -117,6 +117,23 @@ assert.equal(
   false,
   'navigation cannot invent a detour that fails physical segment checks'
 );
+const defending = fixture([
+  { x: -6, z: 12, slotId: 'west-defender-post', quality: 0.1 },
+  { x: 6, z: 12, slotId: 'east-defender-post', quality: 0.1 },
+  { x: 0, z: 47, slotId: 'outside-objective', quality: 0.1 }
+]);
+const post = defending.skill.pickDefense(
+  defending.soldier, defending.sim, defending.report, { x: 0, z: 0 }, 30, 'bravo'
+);
+assert.ok(post.point, 'defense admits genuine cover inside the objective perimeter');
+assert.ok(Math.hypot(post.point.x, post.point.z) <= 28.5);
+assert.equal(post.waypoints.length, 1, 'defense moves to a post, not toward the enemy');
+const outside = fixture([{ x: 0, z: 35, slotId: 'enemy-post' }]);
+assert.equal(
+  outside.skill.pickDefense(outside.soldier, outside.sim, outside.report, { x: 0, z: 0 }, 30, 'alpha').point,
+  null,
+  'defending cannot pursue enemy outside the protected objective'
+);
 const open = fixture([]);
 assert.equal(
   open.skill.pick(open.soldier, open.sim, open.report, { x: 0, z: 80 }, []).point,

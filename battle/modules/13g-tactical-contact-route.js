@@ -392,8 +392,72 @@
     else if (s) failedPlans.delete(s);
     return result;
   }
+  /* Objective defense selects genuine sheltered positions facing a reported
+     contact. The goal is the captured objective's protective sector, never the
+     enemy. Movement Resolver supplies egress/ingress without a second writer. */
+  function pickDefense(s, sim, reports, center, radius, team) {
+    var C = root.BattleCoverPositions,
+      pos = s && s.root && s.root.position,
+      threat = reports && reports[0],
+      stats = { total: 0, progressing: 0, safe: 0, rejected: {}, graphNodes: 0,
+        planLength: 0, terminal: 'defensive-hold' };
+    if (!C || !C.candidates || !pos || !center || !threat)
+      return { point: null, waypoints: [], stats: stats };
+    var dx = threat.x - center.x,
+      dz = threat.z - center.z,
+      length = Math.hypot(dx, dz);
+    if (length < 0.5) return { point: null, waypoints: [], stats: stats };
+    var ux = dx / length,
+      uz = dz / length,
+      side = team === 'alpha' ? -1 : team === 'bravo' ? 1 : 0,
+      ring = Math.min(22, Math.max(9, radius * 0.63)),
+      desired = {
+        x: center.x + (ux - uz * side * 0.6) * ring,
+        z: center.z + (uz + ux * side * 0.6) * ring
+      },
+      limit = Math.min(30, Math.max(12, radius * 0.95)),
+      underFire =
+        (+s.suppressedUntil || 0) > sim.time ||
+        !!(root.BattleEngagement && root.BattleEngagement.underFireNow &&
+          root.BattleEngagement.underFireNow(s, sim)),
+      candidates = C.candidates(s, sim, threat, MAX_HOP) || [],
+      best = null,
+      rating = Infinity;
+    stats.total = candidates.length;
+    candidates.forEach(function (candidate) {
+      if (!candidate || !Number.isFinite(candidate.x) || !Number.isFinite(candidate.z)) return;
+      /* No unbounded pursuit; even reachable cover beyond the protected
+         perimeter is not a defensive destination. */
+      if (distance(candidate, center) > limit ||
+          distance(candidate, pos) < MIN_HOP ||
+          distance(candidate, desired) > limit * 1.25) return;
+      stats.progressing++;
+      var route = evaluate(s, sim, candidate, reports, underFire);
+      if (!route.eligible) {
+        stats.rejected[route.reason] = (stats.rejected[route.reason] || 0) + 1;
+        return;
+      }
+      stats.safe++;
+      var score = distance(candidate, desired) * 2 +
+        route.distance * 0.75 + route.exposure * 28 +
+        Math.max(0, +candidate.quality || 0) * 5;
+      if (score < rating) {
+        best = candidate;
+        rating = score;
+      }
+    });
+    if (!best) return { point: null, waypoints: [], stats: stats };
+    stats.planLength = 1;
+    stats.terminal = 'objective-defense-post';
+    return {
+      point: point(best),
+      waypoints: [{ x: best.x, z: best.z, slotId: String(best.slotId || '') }],
+      score: rating, exposure: 0, stats: stats
+    };
+  }
   root.BattleTacticalContactRoute = {
     pick: pick,
+    pickDefense: pickDefense,
     evaluate: evaluate,
     tuning: {
       maxHop: MAX_HOP,
