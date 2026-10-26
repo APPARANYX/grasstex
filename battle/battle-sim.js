@@ -7,8 +7,11 @@
   /* BattleSim can load before scenario-generator on the hosted page. Resolve
      the same default-on strategic gate directly so world geometry matches the
      generated scenario; explicit ?strategicInterception=0 restores legacy. */
-  var LARGE_MEETING = !!(root.PHASE_C_COMBAT_LAB && !root.SKILLS_LAB && root.location &&
-    /[?&]balancedMeeting=1(?:&|$)/.test(root.location.search || ''));
+  function expandedMiniMeeting() {
+    if (!root.PHASE_C_COMBAT_LAB || root.SKILLS_LAB || !root.location) return false;
+    return /[?&]balancedMeeting=1(?:&|$)/.test(root.location.search || '');
+  }
+  var LARGE_MEETING = expandedMiniMeeting();
   var STRATEGIC_FIELD =
     !root.PHASE_C_COMBAT_LAB &&
     root.STRATEGIC_INTERCEPTION_ENABLED !== false &&

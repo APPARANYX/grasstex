@@ -5,8 +5,11 @@
 (function (root) {
   'use strict';
 
-  var LARGE_MEETING = !!(root.PHASE_C_COMBAT_LAB && !root.SKILLS_LAB && root.location &&
-    /[?&]balancedMeeting=1(?:&|$)/.test(root.location.search || ''));
+  function expandedMiniMeeting() {
+    if (!root.PHASE_C_COMBAT_LAB || root.SKILLS_LAB || !root.location) return false;
+    return /[?&]balancedMeeting=1(?:&|$)/.test(root.location.search || '');
+  }
+  var LARGE_MEETING = expandedMiniMeeting();
   var MAP_W = LARGE_MEETING ? 480 : root.PHASE_C_COMBAT_LAB ? 280 : 2000,
     MAP_D = LARGE_MEETING ? 360 : root.PHASE_C_COMBAT_LAB ? 240 : 1200;
   var FEATURE_KEYS = [
