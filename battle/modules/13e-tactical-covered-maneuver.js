@@ -70,13 +70,17 @@
     var route = st.routes.get(id);
     if (route) {
       var waypoint = route.waypoints[route.cursor];
-      if (waypoint && Math.hypot(p.man.root.position.x - waypoint.x, p.man.root.position.z - waypoint.z) < 2)
+      if (
+        waypoint &&
+        Math.hypot(p.man.root.position.x - waypoint.x, p.man.root.position.z - waypoint.z) < 2
+      )
         route.cursor++;
       else st.routes.delete(id);
     }
     var actionId = st.actions.get(id);
     if (actionId) ctx.finish(actionId, 'confirmed-physical-arrival:' + id);
     st.actions.delete(id);
+    root.BattleSquadStability.controllerBound.resolveMover(ctx.squad, ctx.sim, p.man);
     note(ctx, st, 'checkin', 'squad-leader-confirmed-physical-arrival:' + id);
     st.phase = 'moving';
   }
@@ -87,6 +91,7 @@
     var actionId = st.actions.get(id);
     if (actionId) ctx.finish(actionId, reason);
     st.actions.delete(id);
+    root.BattleSquadStability.controllerBound.resolveMover(ctx.squad, ctx.sim, p.man);
     st.routes.delete(id);
     st.failed++;
     note(ctx, st, 'interrupted', reason + ':' + id);
@@ -156,7 +161,7 @@
   /* Choose a capable individual, not an indivisible fireteam. The separate
      contact-route skill ranks real physical cover waypoints by exposure, cover
      quality and progress. Meso will independently validate the chosen actor. */
-  function choose(ctx, st, rs) {
+  function choose(ctx, st, rs, excluded) {
     var Q = root.BattleSquadStability,
       C = root.BattleCoverPositions,
       A = root.SquadAI,
@@ -189,7 +194,7 @@
       return null;
     }
     var ready = list.filter(function (s) {
-      return viable(s, ctx.sim);
+      return viable(s, ctx.sim) && (!excluded || !excluded.has(String(s.id)));
     });
     /* Preserve one live support weapon outside the mover set. This may be a
        single MG or rifleman with genuine independent discharge evidence. */
@@ -278,6 +283,61 @@
       direction: back ? 'back' : 'forward'
     };
   }
+  /* Refill freed personal-movement slots under the same Meso authorization.
+     Never stop a man already bound just because another arrived. */
+  function replenish(ctx, st, rs) {
+    var Q = root.BattleSquadStability,
+      h = Q.controllerBound.current(ctx.squad, ctx.sim),
+      active = st.plan.filter(function (p) {
+        var id = String(p.man.id);
+        return !st.arrived.has(id) && !st.interrupted.has(id);
+      });
+    if (!h || !h.armed || !h.moverIds || active.length >= MAX_PARALLEL_MOVERS) return;
+    var excluded = new Set(
+      st.plan.map(function (p) {
+        return String(p.man.id);
+      })
+    );
+    var choice = choose(ctx, st, rs, excluded);
+    if (!choice) return;
+    for (var i = 0; i < choice.plan.length && active.length < MAX_PARALLEL_MOVERS; i++) {
+      var p = choice.plan[i],
+        id = String(p.man.id);
+      if (h.holders.indexOf(p.man) < 0) continue;
+      if (
+        active.some(function (other) {
+          return Math.hypot(other.point.x - p.point.x, other.point.z - p.point.z) < 4;
+        })
+      )
+        continue;
+      if (!Q.controllerBound.enroll(ctx.squad, ctx.sim, p.man)) continue;
+      root.BattleTacticalMarchProvider.releaseMan(ctx, p.man);
+      root.BattleTacticalContactSkills.release(ctx, p.man);
+      var result = ctx.request('combat.bound', id, { point: p.point });
+      if (!result.ok) {
+        Q.controllerBound.resolveMover(ctx.squad, ctx.sim, p.man);
+        st.failed++;
+        note(ctx, st, 'interrupted', 'replacement-order-refused:' + id + ':' + result.reason);
+        st.phase = 'moving';
+        continue;
+      }
+      st.actions.set(id, result.actionId);
+      st.plan.push(p);
+      active.push(p);
+      var route = choice.routes.find(function (r) {
+        return r.moverId === id;
+      });
+      if (route && (!route.reused || !st.routes.has(id)))
+        st.routes.set(id, {
+          origin: { x: p.man.root.position.x, z: p.man.root.position.z },
+          waypoints: route.waypoints,
+          cursor: 0,
+          mission: ctx.squad._macroMission
+        });
+      st.byDirection[st.direction].started++;
+      note(ctx, st, 'moving', 'replacement-native-mover:' + id);
+    }
+  }
   function supports(ctx, st) {
     var E = root.BattleEngagement;
     return men(ctx.squad)
@@ -350,14 +410,10 @@
             checkpoint(ctx, st, p);
             return;
           }
-          var gap = Math.hypot(p.man.root.position.x - p.point.x, p.man.root.position.z - p.point.z);
-          if (
-            !viable(p.man, ctx.sim) ||
-            (gap > 2 &&
-              root.BattleNavigation &&
-              !root.BattleNavigation.movementClear(p.man.root.position, p.point))
-          ) {
-            interruptMan(ctx, st, p, 'genuine-mover-or-geometry-interruption');
+          /* Detour and blockage detection remain with the native movement
+             owner. A straight line from an en-route soldier is not a nav test. */
+          if (!viable(p.man, ctx.sim)) {
+            interruptMan(ctx, st, p, 'genuine-mover-interruption');
           }
         });
         var holders = men(ctx.squad).filter(function (s) {
@@ -387,7 +443,7 @@
             st.arrived.size > 0
           );
           st.blocked = null;
-        }
+        } else replenish(ctx, st, rs);
         return;
       }
       if (st.supporters.length < 1) {
@@ -453,9 +509,13 @@
     /* This private plan never writes a destination. The native movement
        owner independently adopts and confirms every physical segment. */
     selected.routes.forEach(function (route) {
+      var mover = selected.plan.find(function (p) {
+        return String(p.man.id) === route.moverId;
+      });
       var previous = st.routes.get(route.moverId);
       if (!route.reused || !previous)
         st.routes.set(route.moverId, {
+          origin: { x: mover.man.root.position.x, z: mover.man.root.position.z },
           waypoints: route.waypoints,
           cursor: 0,
           mission: ctx.squad._macroMission
@@ -525,6 +585,7 @@
               return {
                 moverId: entry[0],
                 cursor: entry[1].cursor,
+                origin: entry[1].origin || null,
                 waypoints: entry[1].waypoints.map(function (p) {
                   return { x: p.x, z: p.z, slotId: p.slotId };
                 })

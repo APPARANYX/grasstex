@@ -303,7 +303,8 @@
       '<button id="skillStep">+0.15s</button><button id="skillSecond">+1s</button>' +
       '<button id="skillSpeed">1×</button><button id="skillReset">Reset seed</button></div>' +
       '<div class="buttons"><button id="skillRetreat">Stage US retreat</button>' +
-      '<button id="skillTrace">Vectors ON</button><button id="skillExport">Export JSON</button></div>' +
+      '<button id="skillTrace">Vectors ON</button><button id="skillRoutesToggle">Routes ON</button>' +
+      '<button id="skillExport">Export JSON</button></div>' +
       '<div class="sub">Stage retreat sets only the initial squad retreat state; it does NOT inject bounds, ' +
       'target reports or firing receipts. Never count it as autonomous retreat authorization.</div>' +
       '<div class="stats"><span><strong id="skillTime">0</strong>sim sec</span>' +
@@ -415,6 +416,11 @@
       this.textContent = drawVectors ? 'Vectors ON' : 'Vectors OFF';
       draw();
     };
+    panel.querySelector('#skillRoutesToggle').onclick = function () {
+      drawRoutes = !drawRoutes;
+      this.textContent = drawRoutes ? 'Routes ON' : 'Routes OFF';
+      draw();
+    };
     panel.querySelector('#skillExport').onclick = function () {
       var result = snapshot();
       if (!result) return;
@@ -429,7 +435,8 @@
       }, 500);
     };
   }
-  var drawVectors = true;
+  var drawVectors = true,
+    drawRoutes = true;
   function setRunning(want) {
     if (!battle || battle.winner) return;
     if (want) battle.resume();
@@ -625,11 +632,11 @@
   function draw() {
     if (!battle || !scene) return;
     vectors.forEach(function (v) {
-      v.dispose();
+      v.dispose(false, true);
     });
     vectors = [];
-    if (!drawVectors) return;
-    (battle._roster.us || []).forEach(function (s) {
+    if (drawVectors)
+      (battle._roster.us || []).forEach(function (s) {
       if (s.dead || !s.root) return;
       var next = s.destination || s.orderDestination;
       if (!next || !Number.isFinite(next.x) || !Number.isFinite(next.z)) return;
@@ -645,7 +652,8 @@
       mesh.isPickable = false;
       vectors.push(mesh);
     });
-    /* True retained route overlay: A=current soldier position; B,C,D...
+    if (!drawRoutes) return;
+    /* True retained route overlay: A=planned origin; B,C,D...
        are successive native physical-cover slots, never invented points.
        The route remains visible throughout the concurrent bound and between
        check-ins; per-mover labels make simultaneous orders inspectable. */
@@ -653,33 +661,46 @@
       var skill = root.BattleTacticalCoveredManeuver,
         summary = skill && skill.summary(sq);
       if (!summary || !Array.isArray(summary.retainedRoutes)) return;
-      summary.retainedRoutes.forEach(function (route) {
+      summary.retainedRoutes.forEach(function (route, routeIndex) {
         var soldier = (sq.members || []).find(function (s) {
           return s && String(s.id) === route.moverId && !s.dead;
         });
-        if (!soldier || !soldier.root || route.cursor >= route.waypoints.length) return;
-        var p = soldier.root.position,
-          remaining = route.waypoints.slice(route.cursor),
-          points = [new BABYLON.Vector3(p.x, p.y + 2.5, p.z)];
-        remaining.forEach(function (waypoint) {
-          points.push(
-            new BABYLON.Vector3(waypoint.x, battle.heightAt(waypoint.x, waypoint.z) + 2.5, waypoint.z)
-          );
-        });
-        if (points.length < 2) return;
-        var line = BABYLON.MeshBuilder.CreateLines('skill-route-' + route.moverId, { points: points }, scene);
-        line.color = new BABYLON.Color3(0.51, 0.92, 0.43);
-        line.isPickable = false;
-        vectors.push(line);
-        points.forEach(function (at, index) {
+        if (!soldier || !soldier.root || !route.waypoints.length) return;
+        var colors = [
+            new BABYLON.Color3(0.51, 0.92, 0.43),
+            new BABYLON.Color3(1, 0.68, 0.24),
+            new BABYLON.Color3(0.7, 0.52, 1),
+            new BABYLON.Color3(0.32, 0.82, 1)
+          ],
+          color = colors[routeIndex % colors.length],
+          path = [route.origin || soldier.root.position].concat(route.waypoints);
+        for (var leg = 0; leg < path.length - 1; leg++) {
+          var from = leg === route.cursor ? soldier.root.position : path[leg],
+            to = path[leg + 1],
+            fromLine = new BABYLON.Vector3(from.x, battle.heightAt(from.x, from.z) + 2.5, from.z),
+            toLine = new BABYLON.Vector3(to.x, battle.heightAt(to.x, to.z) + 2.5, to.z),
+            segment = BABYLON.MeshBuilder.CreateLines(
+              'skill-route-' + route.moverId + '-' + leg,
+              { points: [fromLine, toLine] },
+              scene
+            );
+          segment.color =
+            leg < route.cursor
+              ? new BABYLON.Color3(0.32, 0.42, 0.42)
+              : leg === route.cursor
+                ? color
+                : new BABYLON.Color3(color.r * 0.6, color.g * 0.6, color.b * 0.6);
+          segment.isPickable = false;
+          vectors.push(segment);
+        }
+        path.forEach(function (point, index) {
           var label = String.fromCharCode(65 + Math.min(index, 25)),
             face = BABYLON.MeshBuilder.CreatePlane(
               'skill-stop-' + route.moverId + '-' + label,
               { size: 3.3 },
               scene
             );
-          face.position.copyFrom(at);
-          face.position.y += 1.8;
+          face.position.set(point.x, battle.heightAt(point.x, point.z) + 4.3, point.z);
           face.billboardMode = BABYLON.Mesh.BILLBOARDMODE_ALL;
           face.isPickable = false;
           var texture = new BABYLON.DynamicTexture(
@@ -696,7 +717,7 @@
           );
           markerMaterial.diffuseTexture = texture;
           markerMaterial.opacityTexture = texture;
-          markerMaterial.emissiveColor = new BABYLON.Color3(0.7, 1, 0.5);
+          markerMaterial.emissiveColor = color;
           markerMaterial.disableLighting = true;
           markerMaterial.backFaceCulling = false;
           face.material = markerMaterial;
@@ -759,7 +780,7 @@
         })
         .map(function (s) {
           var lines = (s.retainedRoutes || []).map(function (route) {
-            var stops = route.waypoints.slice(route.cursor),
+            var stops = route.waypoints,
               labels = stops.map(function (p, i) {
                 return (
                   String.fromCharCode(66 + Math.min(i, 24)) +
@@ -767,11 +788,15 @@
                   Math.round(p.x) +
                   ',' +
                   Math.round(p.z) +
-                  ')'
+                  ')' +
+                  (i < route.cursor ? ' ✓' : i === route.cursor ? ' NEXT' : '')
                 );
               });
             return (
-              '  ' + route.moverId + ': A (current) → ' + (labels.length ? labels.join(' → ') : 'arrived')
+              '  ' +
+              route.moverId +
+              ': A (planned start) → ' +
+              (labels.length ? labels.join(' → ') : 'no connected waypoints')
             );
           });
           return (

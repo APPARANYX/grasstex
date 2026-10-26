@@ -1383,6 +1383,62 @@
     _controllerBounds.set(sq, h);
     return h;
   }
+  /* Native arrivals return individual movers to the authorized support pool.
+     An incapacitated mover is removed without being counted as a shooter. */
+  function controllerBoundResolveMover(sq, battle, man) {
+    var h = currentControllerBound(sq, battle);
+    if (!h || !h.moverIds || h.movers.indexOf(man) < 0) return false;
+    h.movers.splice(h.movers.indexOf(man), 1);
+    h.moverIds = h.movers.map(function (s) {
+      return String(s.id);
+    });
+    if (
+      man &&
+      !man.dead &&
+      !man.isPlayer &&
+      !man.incapacitated &&
+      man.hp > 0 &&
+      man.weapon &&
+      !man.outOfAmmo &&
+      h.holders.indexOf(man) < 0
+    )
+      h.holders.push(man);
+    return true;
+  }
+  /* A freed movement slot can be adopted only with two capable supporters
+     still available and an actual recent supporting shot, not a fabricated
+     receipt or a renewed squad timer. */
+  function controllerBoundEnroll(sq, battle, man) {
+    var h = currentControllerBound(sq, battle),
+      A = root.SquadAI,
+      E = root.BattleEngagement;
+    if (
+      !h ||
+      !h.armed ||
+      !h.moverIds ||
+      h.movers.length >= 3 ||
+      !man ||
+      A.isMachineGun(man) ||
+      !boundMember(man, battle)
+    )
+      return false;
+    var index = h.holders.indexOf(man);
+    if (index < 0) return false;
+    var remaining = h.holders.filter(function (s) {
+      return s !== man && !s.dead && !s.incapacitated && s.hp > 0 && s.weapon && !s.outOfAmmo;
+    });
+    if (
+      remaining.length < 2 ||
+      !remaining.some(function (s) {
+        return E.supportDischarged(s, battle, h.lease.since);
+      })
+    )
+      return false;
+    h.holders.splice(index, 1);
+    h.movers.push(man);
+    h.moverIds.push(String(man.id));
+    return true;
+  }
   function controllerBoundEnd(sq, battle, h) {
     if (_controllerBounds.get(sq) === h) _controllerBounds.delete(sq);
     if (L.get(sq, 'bound') === h.lease) L.end(sq, 'bound', battle.time, 'controller:ended');
@@ -2562,7 +2618,9 @@
       end: controllerBoundEnd,
       current: currentControllerBound,
       role: controllerBoundRole,
-      arm: controllerBoundArm
+      arm: controllerBoundArm,
+      resolveMover: controllerBoundResolveMover,
+      enroll: controllerBoundEnroll
     },
     controllerMovement: {
       publish: controllerMove,
