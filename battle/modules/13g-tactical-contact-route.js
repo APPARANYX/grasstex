@@ -289,25 +289,49 @@
     var N = root.BattleNavigation,
       A = root.SquadAI,
       pos = s && s.root && s.root.position,
-      underFire = s && ((+s.suppressedUntil || 0) > sim.time ||
-        (root.BattleEngagement && root.BattleEngagement.underFireNow &&
-         root.BattleEngagement.underFireNow(s, sim))),
-      key = pos && goal && [
-        Math.round(pos.x), Math.round(pos.z),
-        Math.round(goal.x), Math.round(goal.z),
-        (reports || []).map(function (p) { return Math.round(p.x) + ',' + Math.round(p.z); }).join(';'),
-        !!underFire, N && N.version,
-        (taken || []).length
-      ].join('|'),
+      underFire =
+        s &&
+        ((+s.suppressedUntil || 0) > sim.time ||
+          (root.BattleEngagement &&
+            root.BattleEngagement.underFireNow &&
+            root.BattleEngagement.underFireNow(s, sim))),
+      key =
+        pos &&
+        goal &&
+        [
+          Math.round(pos.x),
+          Math.round(pos.z),
+          Math.round(goal.x),
+          Math.round(goal.z),
+          (reports || [])
+            .map(function (p) {
+              return Math.round(p.x) + ',' + Math.round(p.z);
+            })
+            .join(';'),
+          !!underFire,
+          N && N.version,
+          (taken || []).length
+        ].join('|'),
       prior = s && failedPlans.get(s);
-    if (prior && prior.battle === sim && prior.key === key &&
-        prior.until >= sim.time && prior.movementClear === (N && N.movementClear) &&
-        prior.lineOfSight === (A && A.hasLineOfSight)) return prior.result;
+    if (
+      prior &&
+      prior.battle === sim &&
+      prior.key === key &&
+      prior.until >= sim.time &&
+      prior.movementClear === (N && N.movementClear) &&
+      prior.lineOfSight === (A && A.hasLineOfSight)
+    )
+      return prior.result;
     var result = findRoute(s, sim, reports, goal, taken);
     if (s && !result.point && key)
-      failedPlans.set(s, { battle: sim, key: key, until: sim.time + 2,
+      failedPlans.set(s, {
+        battle: sim,
+        key: key,
+        until: sim.time + 2,
         movementClear: N && N.movementClear,
-        lineOfSight: A && A.hasLineOfSight, result: result });
+        lineOfSight: A && A.hasLineOfSight,
+        result: result
+      });
     else if (s) failedPlans.delete(s);
     return result;
   }
