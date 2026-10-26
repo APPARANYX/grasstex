@@ -1235,7 +1235,9 @@
         ? A.isExtractionToHome(sq)
         : !(
             ASSAULT_PHASES[sq.commandPhase] ||
-            ((h.moverId || h.moverIds) && sq.commandPhase === 'approach' && sq._macroMission.action === 'assault')
+            ((h.moverId || h.moverIds) &&
+              sq.commandPhase === 'approach' &&
+              sq._macroMission.action === 'assault')
           ))
     )
       return null;
@@ -1243,9 +1245,12 @@
        an underway physical hop every 3s solely because the supporter's rifle
        cycles; loss of all physically capable supporters still interrupts. */
     if (h.armed && (h.moverId || h.moverIds)) {
-      if (!h.holders.some(function (s) {
-        return s && !s.dead && !s.incapacitated && s.hp > 0 && s.weapon && !s.outOfAmmo;
-      })) return null;
+      if (
+        !h.holders.some(function (s) {
+          return s && !s.dead && !s.incapacitated && s.hp > 0 && s.weapon && !s.outOfAmmo;
+        })
+      )
+        return null;
     } else if (h.armed && controllerBoundSupport(h, battle) < 2) return null;
     return h;
   }
@@ -1299,7 +1304,9 @@
         ? A.isExtractionToHome(sq)
         : !(
             ASSAULT_PHASES[sq.commandPhase] ||
-            ((params.moverId || params.moverIds) && sq.commandPhase === 'approach' && sq._macroMission.action === 'assault')
+            ((params.moverId || params.moverIds) &&
+              sq.commandPhase === 'approach' &&
+              sq._macroMission.action === 'assault')
           )) ||
       ['alpha', 'bravo', 'charlie'].indexOf(params.team) < 0 ||
       currentControllerBound(sq, battle) ||
@@ -1312,8 +1319,11 @@
        owns the sole bound lease. Legacy team requests retain their old semantics. */
     var movers = a.filter(function (s) {
       return (
-        (params.moverIds ? params.moverIds.indexOf(String(s.id)) >= 0 :
-          params.moverId ? String(s.id) === params.moverId : teamKeyFor(s) === params.team) &&
+        (params.moverIds
+          ? params.moverIds.indexOf(String(s.id)) >= 0
+          : params.moverId
+            ? String(s.id) === params.moverId
+            : teamKeyFor(s) === params.team) &&
         !A.isMachineGun(s) &&
         boundMember(s, battle)
       );
@@ -1327,9 +1337,19 @@
       );
     });
     if (params.moverId && (movers.length !== 1 || teamKeyFor(movers[0]) !== params.team)) return null;
-    if (params.moverIds && (movers.length !== params.moverIds.length ||
-      !movers.some(function (s) { return teamKeyFor(s) === params.team; }))) return null;
-    if (movers.length < (params.moverId || params.moverIds ? 1 : 2) || holders.length < (params.moverIds ? 2 : params.moverId ? 1 : 2)) return null;
+    if (
+      params.moverIds &&
+      (movers.length !== params.moverIds.length ||
+        !movers.some(function (s) {
+          return teamKeyFor(s) === params.team;
+        }))
+    )
+      return null;
+    if (
+      movers.length < (params.moverId || params.moverIds ? 1 : 2) ||
+      holders.length < (params.moverIds ? 2 : params.moverId ? 1 : 2)
+    )
+      return null;
     var lease = L.grant(
       sq,
       'bound',
@@ -1374,8 +1394,12 @@
     if (h.movers.indexOf(s) >= 0) return boundMember(s, battle) ? 'move' : null;
     if (h.holders.indexOf(s) >= 0)
       return h.moverId || h.moverIds
-        ? (s && !s.dead && !s.incapacitated && s.hp > 0 && s.weapon && !s.outOfAmmo ? 'cover' : null)
-        : boundMember(s, battle) ? 'cover' : null;
+        ? s && !s.dead && !s.incapacitated && s.hp > 0 && s.weapon && !s.outOfAmmo
+          ? 'cover'
+          : null
+        : boundMember(s, battle)
+          ? 'cover'
+          : null;
     return null;
   }
 
