@@ -236,7 +236,7 @@
       (Object.hasOwn(p, 'stance') && ['crouch', 'prone', 'crawl'].indexOf(p.stance) < 0) ||
       (Object.hasOwn(p, 'version') && p.version !== request.missionVersion) ||
       (Object.hasOwn(p, 'drill') &&
-        ['prepare', 'fire', 'suppress', 'watch', 'pinned'].indexOf(p.drill) < 0) ||
+        ['prepare', 'fire', 'suppress', 'watch', 'pinned', 'grenade'].indexOf(p.drill) < 0) ||
       (request.capability === 'combat.contact' &&
         ((p.drill === 'suppress' && !point(p.point)) ||
           (p.drill !== 'suppress' && Object.hasOwn(p, 'point')))) ||

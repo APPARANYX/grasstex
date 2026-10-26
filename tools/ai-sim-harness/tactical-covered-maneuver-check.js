@@ -189,6 +189,33 @@ test('new-controller formation authorizations have one movement writer; legacy s
   assert.notDeepEqual(s.orderDestination, original, 'ordinary legacy publisher is unchanged in legacy mode');
   clean(w);
 });
+test('Meso publication and cleanup keep their real owner inside another module hook; real foreign writes remain visible', () => {
+  const w = world(100, '&commandMovement=0&commandPosture=0');
+  w.r.BattleModules.listSystems = () => [];
+  loadModule(w.r, 'battle/modules/36-order-provenance.js', { location: w.r.location });
+  const P = w.r.BattleOrderProvenance,
+    Q = w.r.BattleSquadStability.controllerMovement,
+    s = w.q.members[4];
+  P.instrument(w.b);
+  let order;
+  P.withOwner('building-hardpoints', 'station policy calls controller cleanup', () => {
+    order = Q.publish(w.q, w.b, s, { x: 20, z: 10 }, 'owner-test');
+    Q.end(s, order);
+  });
+  const history = P.history(s, 'orderDestination', 20);
+  assert.ok(history.length >= 2);
+  assert.ok(
+    history.every(e => e.owner === 'squad-stability'),
+    'the actual Meso service owns both writes'
+  );
+  assert.equal(P.conflicts(w.b).length, 0, 'a call through another module is not a competing writer');
+  Q.publish(w.q, w.b, s, { x: 22, z: 12 }, 'owner-test-2');
+  P.withOwner('building-hardpoints', 'genuine foreign mutation', () => {
+    s.orderDestination = { x: -30, z: -20 };
+  });
+  Q.publish(w.q, w.b, s, { x: 24, z: 14 }, 'owner-test-3');
+  assert.ok(P.conflicts(w.b).length > 0, 'a genuine intervening foreign destination is still detected');
+});
 test('advance waits for real discharges, personal movement adoption, physical arrival and alternates teams', () => {
   const w = world();
   squad(w);
@@ -205,6 +232,75 @@ test('advance waits for real discharges, personal movement adoption, physical ar
     .history.filter(h => h.phase === 'checkin')
     .map(h => h.reason);
   assert.ok(new Set(arrived).size >= 2, 'different soldiers check in independently');
+  clean(w);
+});
+test('recently firing riflemen can continue covered movement while two real shooters remain', () => {
+  const w = world();
+  const pick = w.r.BattleTacticalContactRoute.pick;
+  w.r.BattleTacticalContactRoute.pick = () => ({
+    point: null,
+    score: 0,
+    stats: { total: 0, progressing: 0, safe: 0, rejected: {} }
+  });
+  const firing = () =>
+    w.q.members.filter(s => {
+      const shot = w.r.BattleAmmunition.shotEvidence(s, w.b);
+      return shot && shot.at >= w.b.time - 3;
+    });
+  until(w, () => firing().length >= 7, 30);
+  w.r.BattleTacticalContactRoute.pick = pick;
+  // Change the real decision basis, as a contact/position/readiness change would.
+  w.q.members[2].root.position.x += 1.1;
+  until(w, () => live(w, 'combat.bound').length >= 1, 20);
+  const movers = new Set(live(w, 'combat.bound').map(a => a.actorId));
+  assert.ok(firing().filter(s => !movers.has(String(s.id))).length >= 2);
+  assert.ok(
+    live(w, 'combat.bound').some(a => firing().some(s => String(s.id) === a.actorId)),
+    'a previous shooter is allowed to become the next covered mover'
+  );
+  clean(w);
+});
+test('a defensive staging arrival at B continues to its retained C through native adoption and check-in', () => {
+  const w = world();
+  w.q._macroMission = {
+    version: 2,
+    action: 'defend',
+    intent: 'defend',
+    status: 'executing',
+    point: { x: 0, z: 0 },
+    objectiveId: 'captured'
+  };
+  w.q.commandPhase = 'defend';
+  w.r.BattleObjectiveSystem = { get: () => ({ def: { radius: 30 } }) };
+  const origins = new Map(w.q.members.map(s => [s, { x: s.root.position.x, z: s.root.position.z }]));
+  w.r.BattleCoverPositions.candidates = s =>
+    [6, 12].map(step => {
+      const origin = origins.get(s),
+        p = { x: origin.x, z: origin.z + step };
+      const slot = { ...p, id: 'retained:' + s.id + ':' + step, normalX: 0, normalZ: -1 };
+      return { ...p, slot, slotId: slot.id };
+    });
+  w.r.BattleTacticalContactRoute.pickDefense = (s, sim, reports, center, radius, team, retained) => {
+    const points = w.r.BattleCoverPositions.candidates(s),
+      cursor = retained ? retained.cursor : 0;
+    return {
+      point: { x: points[cursor].x, z: points[cursor].z },
+      waypoints: points,
+      reused: !!retained,
+      score: 1,
+      exposure: 0,
+      stats: { total: 2, progressing: 2, safe: 2, rejected: {} }
+    };
+  };
+  until(w, () => w.M.summary(w.q)?.retainedRoutes.some(r => r.cursor >= 2), 60);
+  const route = w.M.summary(w.q).retainedRoutes.find(r => r.cursor >= 2);
+  const man = w.q.members.find(s => String(s.id) === route.moverId);
+  assert.ok(
+    Math.hypot(man.root.position.x - route.waypoints[1].x, man.root.position.z - route.waypoints[1].z) <=
+      0.45,
+    'C is physically reached, not just selected'
+  );
+  assert.equal(w.q._macroMission.action, 'defend');
   clean(w);
 });
 test('one eligible native mover uses the singular Meso contract and reaches physical cover', () => {

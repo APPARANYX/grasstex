@@ -395,7 +395,7 @@
   /* Objective defense selects genuine sheltered positions facing a reported
      contact. The goal is the captured objective's protective sector, never the
      enemy. Movement Resolver supplies egress/ingress without a second writer. */
-  function pickDefense(s, sim, reports, center, radius, team) {
+  function pickDefense(s, sim, reports, center, radius, team, retained) {
     var C = root.BattleCoverPositions,
       pos = s && s.root && s.root.position,
       threat = reports && reports[0],
@@ -410,6 +410,15 @@
       };
     if (!C || !C.candidates || !pos || !center || !threat)
       return { point: null, waypoints: [], stats: stats };
+    /* A staging arrival inside the perimeter is still B when the approved
+       chain has a safe C inside that perimeter. Revalidate through the same
+       physical route owner before choosing a different defensive post. */
+    var next = retained && retained.waypoints && retained.waypoints[retained.cursor],
+      perimeter = Math.min(30, Math.max(12, radius * 0.95));
+    if (next && distance(next, center) <= perimeter) {
+      var continued = pick(s, sim, reports, center, [], retained);
+      if (continued.reused) return continued;
+    }
     var dx = threat.x - center.x,
       dz = threat.z - center.z,
       length = Math.hypot(dx, dz);

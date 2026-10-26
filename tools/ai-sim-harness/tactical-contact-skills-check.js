@@ -106,6 +106,41 @@ function clean(w) {
   assert.equal(s.pending, 0);
 }
 
+test('a selected grenade finisher commits and releases through native owners without a rifle-line veto', () => {
+  const w = world(24);
+  const systems = {};
+  w.r.BattleModules.registerSystem = (id, s) => (systems[id] = s);
+  loadModule(w.r, 'battle/modules/14-z-ballistic-raycast.js', { location: w.r.location });
+  delete w.r.BattleGrenades;
+  loadModule(w.r, 'battle/modules/23-grenades.js', { location: w.r.location });
+  const G = w.r.BattleGrenades;
+  squad(w);
+  w.b.time = 26;
+  see(w);
+  squad(w);
+  micro(w);
+  const pending = w.q.members.filter(s => G.pendingOf(s, w.b));
+  assert.equal(pending.length, 1, 'one grenade commitment per squad');
+  const s = pending[0],
+    plan = G.pendingOf(s, w.b),
+    carried = G.count(s);
+  assert.equal(plan.source, 'covered-assault');
+  assert.equal(w.E.stateOf(s).state, 'throw');
+  assert.ok(Math.hypot(s.root.position.x - plan.aim.x, s.root.position.z - plan.aim.z) <= G.TUNING.RANGE);
+  w.b.time = plan.releaseAt + 0.01;
+  systems.grenades.onSimulationStep(w.b, { dt: G.TUNING.WINDUP });
+  assert.equal(G.summary(w.b).throws, 1, 'actual native clock emitted the grenade');
+  assert.equal(G.count(s), carried - 1);
+  assert.equal(G.projectiles(w.b).length, 1);
+  squad(w);
+  micro(w);
+  assert.equal(
+    w.q.members.filter(man => G.pendingOf(man, w.b)).length,
+    0,
+    'the live projectile prevents a simultaneous second squad grenade'
+  );
+  clean(w);
+});
 test('controller publishes HOLD through Meso and the native per-man preparation keeps fire closed', () => {
   const w = world();
   squad(w);

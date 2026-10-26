@@ -2203,7 +2203,7 @@
   function controllerCombatStart(s, battle, drill, reportedPoint) {
     var TC = root.BattleTacticalController;
     if (
-      ['march', 'prepare', 'fire', 'suppress', 'watch', 'pinned'].indexOf(drill) < 0 ||
+      ['march', 'prepare', 'fire', 'suppress', 'watch', 'pinned', 'grenade'].indexOf(drill) < 0 ||
       (drill === 'suppress' &&
         (!reportedPoint || !Number.isFinite(reportedPoint.x) || !Number.isFinite(reportedPoint.z))) ||
       !s ||
@@ -2331,6 +2331,16 @@
           task.reason = supportReady(s, battle) ? 'firing-line-ready' : 'blocked:personal-fire-gate';
         }
       } else task.reason = 'blocked:no-personal-target';
+    } else if (drill === 'grenade') {
+      var G = root.BattleGrenades,
+        plan = G && G.assaultThrow(s, battle);
+      if (plan) {
+        if (['orient', 'bound', 'engage', 'pinned', 'alert'].indexOf(e.state) < 0)
+          transition(s, battle, 'alert', 0, 'controller:grenade-ready');
+        transition(s, battle, 'throw', G.TUNING.WINDUP, 'controller:covered-assault-grenade');
+        throwing(s, battle);
+        task.reason = 'grenade-committed:await-native-release';
+      } else task.reason = 'blocked:grenade-owner-gates';
     } else if (drill === 'pinned') {
       if (e.state !== 'pinned') transition(s, battle, 'pinned', 0, 'controller:pinned');
       pinnedExecution(s, battle);

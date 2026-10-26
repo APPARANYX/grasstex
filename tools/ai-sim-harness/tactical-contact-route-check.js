@@ -147,6 +147,24 @@ const staged = staging.skill.pickDefense(
   'alpha'
 );
 assert.ok(staged.point && staged.point.z > -43, 'outer defender can close on objective via real cover');
+staging.soldier.root.position.z = -28;
+const continuedDefense = staging.skill.pickDefense(
+  staging.soldier,
+  staging.sim,
+  staging.report,
+  { x: 0, z: 0 },
+  30,
+  'alpha',
+  {
+    waypoints: [
+      { x: 0, z: -28, slotId: 'approach-one' },
+      { x: 0, z: -12, slotId: 'approach-two' }
+    ],
+    cursor: 1
+  }
+);
+assert.equal(continuedDefense.reused, true, 'B inside the perimeter must not discard the safe retained C');
+assert.equal(continuedDefense.point.z, -12);
 const outside = fixture([{ x: 0, z: 35, slotId: 'enemy-post' }]);
 assert.equal(
   outside.skill.pickDefense(outside.soldier, outside.sim, outside.report, { x: 0, z: 0 }, 30, 'alpha').point,

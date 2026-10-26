@@ -59,12 +59,15 @@ function summarizeSamples(samples) {
     hits = 0,
     maxTargetDriftM = 0;
   let maxArrivals = 0,
-    maxCheckins = 0;
+    maxCheckins = 0,
+    grenadeThrows = 0;
+  const multiHopActors = new Set();
   const usMovementConflicts = new Map();
   samples.forEach(item => {
     const d = item.lab;
     shots = Math.max(shots, d.shots || 0);
     hits = Math.max(hits, d.hits || 0);
+    grenadeThrows = Math.max(grenadeThrows, d.grenades?.byFaction?.us || 0);
     maxConflicts = Math.max(maxConflicts, d.writerConflicts || 0);
     (d.writerConflictDetails || [])
       .filter(e => e.faction === 'us' && e.field === 'orderDestination')
@@ -85,6 +88,9 @@ function summarizeSamples(samples) {
       item.maneuvers.reduce((n, z) => n + (z.checkins || 0), 0)
     );
     item.maneuvers.forEach(z => {
+      (z.retainedRoutes || []).forEach(r => {
+        if (r.cursor >= 2) multiHopActors.add(r.moverId);
+      });
       maxCompleted = Math.max(maxCompleted, z.completed || 0);
       maxAborted = Math.max(maxAborted, z.failed || 0);
       maxStarts = Math.max(maxStarts, (z.history || []).filter(e => e.phase === 'support').length);
@@ -113,6 +119,8 @@ function summarizeSamples(samples) {
     usShots: shots,
     hits,
     targetDeaths: last.lab.targetDeaths,
+    nativeUSGrenadeThrows: grenadeThrows,
+    actorsWithRetainedCCheckin: Array.from(multiHopActors),
     movementMetersCumulative: +displacementM.toFixed(1),
     moveSamples: movingSamples,
     targetAcquisitionsSampled: engagingSamples,
@@ -330,8 +338,25 @@ function summarizeSamples(samples) {
         'empty cover field must never fabricate native physical-cover arrivals'
       );
       if (process.env.SKILLS_DRILL_PRIMARY_ONLY === '1') {
-        assert.ok(pass.findings.mixedCoverArrivals >= 3, 'mixed low cover must permit native physical arrivals');
-        assert.ok(pass.findings.mixedCoverCheckins >= 3, 'mixed low cover must generate real leader check-ins');
+        assert.ok(
+          pass.findings.mixedCoverArrivals >= 3,
+          'mixed low cover must permit native physical arrivals'
+        );
+        assert.ok(
+          pass.findings.mixedCoverCheckins >= 3,
+          'mixed low cover must generate real leader check-ins'
+        );
+      }
+      if (process.env.SKILLS_DRILL_REQUIRE_GRENADES === '1') {
+        const assault = results.find(r => r.arm === 'new' && r.coverLayout === 'mixed');
+        assert.ok(
+          assault?.actorsWithRetainedCCheckin.length > 0,
+          'same soldier must physically check in at retained C'
+        );
+        assert.ok(
+          assault?.nativeUSGrenadeThrows > 0,
+          'covered assault must finish with an actual native grenade release'
+        );
       }
     }
   } finally {

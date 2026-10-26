@@ -157,6 +157,14 @@
          real bocage pieces break sight lines; the rest are waist/chest-high
          stone/rubble banks. Neither cover slots nor troop paths are scripted. */
       var bands = [-101, -80, -59, -38, -17, 4, 25];
+      /* Physical final shelters for the assault/grenade drill, not route
+         hints. No slots or movement receipts are invented for these walls. */
+      var finalBand = distanceM / 2 - 22;
+      while (bands[bands.length - 1] < finalBand) {
+        var nextBand = Math.min(bands[bands.length - 1] + 21, finalBand);
+        if (nextBand - bands[bands.length - 1] < 8) bands[bands.length - 1] = nextBand;
+        else bands.push(nextBand);
+      }
       bands.forEach(function (z, i) {
         [-35, -13, 9, 31].forEach(function (x, j) {
           if ((i * 3 + j) % 6 === 0) return;
@@ -341,6 +349,7 @@
       '<span><strong id="skillShots">0</strong>US shots</span>' +
       '<span><strong id="skillHits">0</strong>hits</span>' +
       '<span><strong id="skillConflicts">0</strong>order conflicts</span></div>' +
+      '<p id="skillGrenades">Assault finish: close through cover → safe native grenade throw</p>' +
       '<h3>Squad decisions &amp; covered movement</h3><pre id="skillSquads">Initializing…</pre>' +
       '<h3>Native route plan · A → B → C → D</h3><pre id="skillRoutes">No route yet</pre>' +
       '<div class="sub">Colored routes mark real terrain-aligned cover slots. An old route is history, ' +
@@ -637,6 +646,7 @@
       paused: !!battle.paused,
       shots: shots,
       hits: hits,
+      grenades: root.BattleGrenades ? root.BattleGrenades.summary(battle) : null,
       supporters: supporters,
       targetCount: battle._roster.ge.length,
       targetDeaths: battle._roster.ge.filter(function (s) {
@@ -770,6 +780,11 @@
     panel.querySelector('#skillShots').textContent = String(d.shots);
     panel.querySelector('#skillHits').textContent = String(d.hits);
     panel.querySelector('#skillConflicts').textContent = String(d.writerConflicts ?? '?');
+    panel.querySelector('#skillGrenades').textContent =
+      'Assault finish · US grenades thrown ' +
+      String(d.grenades && d.grenades.byFaction ? d.grenades.byFaction.us : 0) +
+      ' · bursts ' +
+      String(d.grenades ? d.grenades.bursts : 0);
     play.textContent = battle.paused ? '▶ Play' : 'Ⅱ Pause';
     panel.querySelector('#skillSquads').textContent =
       d.squads
@@ -956,6 +971,12 @@
           );
       }
       if (previousShot) return previousShot.apply(this, arguments);
+    };
+    var previousGrenade = battle.onGrenade;
+    battle.onGrenade = function (g, s) {
+      if (s && s.faction === 'us')
+        log('grenade release', 'US soldier ' + s.id + ' released native grenade #' + g.id);
+      if (previousGrenade) return previousGrenade.apply(this, arguments);
     };
     decorate();
     log('range ready', 'Real native soldiers; German target actors cannot move, shoot, die or wound US');

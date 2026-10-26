@@ -44,6 +44,7 @@
     st.men.clear();
     st.roles.clear();
     st.points.clear();
+    st.grenadier = null;
     st.active = false;
     st.startedAt = null;
     st.discipline = null;
@@ -171,6 +172,7 @@
       st.discipline = null;
       st.roles.clear();
       st.points.clear();
+      st.grenadier = null;
       st.reason = 'contact-clear';
       reconcile(ctx, st);
       return;
@@ -305,6 +307,34 @@
         return id;
       })
     );
+    /* One native grenade at a time per squad. This is a controller decision;
+       the grenade owner supplies the read-only personal-intel/arc/safety query
+       and revalidates at execution. A mover finishes his physical hop first. */
+    var G = root.BattleGrenades,
+      pendingGrenadier =
+        G &&
+        members(sq).find(function (s) {
+          return G.pendingOf(s, sim);
+        });
+    st.grenadier = pendingGrenadier ? String(pendingGrenadier.id) : null;
+    if (
+      G &&
+      G.assaultOpportunity &&
+      !st.grenadier &&
+      !retreat(sq) &&
+      !G.projectiles(sim).some(function (g) {
+        return g.byRef && g.byRef.squad === sq;
+      })
+    ) {
+      var grenadier = members(sq).find(function (s) {
+        return (
+          !A.isMachineGun(s) &&
+          !(Q.controllerBound && Q.controllerBound.role(s, sim) === 'move') &&
+          G.assaultOpportunity(s, sim)
+        );
+      });
+      if (grenadier) st.grenadier = String(grenadier.id);
+    }
     reconcile(ctx, st);
   }
   /* No shared report becomes a personal target or a permission to shoot. A man without a usable
@@ -326,6 +356,13 @@
       return null;
     if (s.suppressedUntil > sim.time) return 'pinned';
     if (E.fireControlPreparing(s, sim)) return 'prepare';
+    if (
+      st &&
+      st.grenadier === String(s.id) &&
+      root.BattleGrenades &&
+      (root.BattleGrenades.pendingOf(s, sim) || root.BattleGrenades.assaultOpportunity(s, sim))
+    )
+      return 'grenade';
     if (s.target) {
       var o = observation(s, sim, st);
       /* A crouched/prone man may still have a legitimate firing line above

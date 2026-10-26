@@ -1126,22 +1126,31 @@
      the squad, so Squad Command carries these orders on its own tick until the controller ends them.
      Orders live here, keyed by the man; no soldier field, timer or second writer is added. */
   var _controllerMoves = new WeakMap();
+  function controllerMovementOwner(reason, fn) {
+    var P = root.BattleOrderProvenance;
+    /* These are Meso owner services even when a station-selection hook calls
+       controller cleanup. Attribute the real publication/release here, where
+       it happens, rather than to that unrelated outer caller. */
+    return P && P.withOwner ? P.withOwner('squad-stability', reason, fn) : fn();
+  }
   function carryControllerMove(sq, battle, s, order) {
     if (s.dead || s.isPlayer || s.squad !== sq) return false;
-    var applied = publishPersonalMovement(
-      sq,
-      battle,
-      s,
-      order.point,
-      order.key,
-      false,
-      'controller',
-      'controller order',
-      publishStats(battle)
-    );
-    if (s._fireteamPublishKey === order.key && s._movementResolver)
-      order.proposal = s._movementResolver.order;
-    return applied;
+    return controllerMovementOwner('Meso controller personal movement', function () {
+      var applied = publishPersonalMovement(
+        sq,
+        battle,
+        s,
+        order.point,
+        order.key,
+        false,
+        'controller',
+        'controller order',
+        publishStats(battle)
+      );
+      if (s._fireteamPublishKey === order.key && s._movementResolver)
+        order.proposal = s._movementResolver.order;
+      return applied;
+    });
   }
   function controllerMove(sq, battle, s, next, key) {
     var p = point(next);
@@ -1160,16 +1169,18 @@
     }
   }
   function endControllerMove(s, order) {
-    if (s && _controllerMoves.get(s) === order) {
-      _controllerMoves.delete(s);
-      if (s._fireteamPublishKey === order.key) {
-        s._fireteamDestination = null;
-        s._fireteamPublishKey = null;
-        s._fireteamAdoptedEnvelope = null;
+    return controllerMovementOwner('Meso controller movement release', function () {
+      if (s && _controllerMoves.get(s) === order) {
+        _controllerMoves.delete(s);
+        if (s._fireteamPublishKey === order.key) {
+          s._fireteamDestination = null;
+          s._fireteamPublishKey = null;
+          s._fireteamAdoptedEnvelope = null;
+        }
+        if (root.BattleMovementResolver) root.BattleMovementResolver.endOrder(s, order.proposal);
       }
-      if (root.BattleMovementResolver) root.BattleMovementResolver.endOrder(s, order.proposal);
-    }
-    return !s || _controllerMoves.get(s) !== order;
+      return !s || _controllerMoves.get(s) !== order;
+    });
   }
 
   /* The selected controller chooses a team and direction. Meso alone leases a finite window;

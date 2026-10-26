@@ -132,6 +132,32 @@ test('grenades are on by default and only an absent or complete grenades=1 value
   assert.equal(setup({ search: '' }).G.on(), true, 'an empty query string is the default battle');
 });
 
+test('explicit covered-assault opportunity preserves personal intel, range, friendly safety and native throw gates', () => {
+  const ctx = setup();
+  const { r, b, s, G } = ctx;
+  r.BattleTacticalController = { controls: () => true };
+  const enemy = victim(ctx, 24, 0);
+  s.target = enemy;
+  r.SquadAI.rememberSeen(s, enemy, b, true, 'grenade-assault-fixture');
+  assert.ok(G.assaultOpportunity(s, b), 'a visible close target is legal even with a usable rifle line');
+  const before = ctx.ownDraws.count;
+  G.assaultOpportunity(s, b);
+  assert.equal(ctx.ownDraws.count, before, 'planning draws no scatter RNG');
+  s.reloading = true;
+  assert.equal(G.assaultOpportunity(s, b), null);
+  s.reloading = false;
+  s.suppressedUntil = b.time + 1;
+  assert.equal(G.assaultThrow(s, b), null);
+  s.suppressedUntil = 0;
+  const friend = man(ctx, 'us', 23, 0);
+  assert.equal(G.assaultThrow(s, b), null, 'friendly clearance is never bypassed');
+  friend.root.position.x = -20;
+  b.time += G.TUNING.CONTACT_FRESH + 1;
+  s.target = null;
+  assert.equal(G.assaultOpportunity(s, b), null, 'stale contact cannot authorize the finisher');
+  r.BattleTacticalController.controls = () => false;
+  assert.equal(G.assaultThrow(s, b), null, 'legacy controller cannot invoke the explicit finisher');
+});
 test('OFF has no registered grenade clock, field writes or RNG draws, including read APIs', () => {
   const ctx = setup({ search: '?grenades=0&log=0' });
   const { r, b, s, G } = ctx;

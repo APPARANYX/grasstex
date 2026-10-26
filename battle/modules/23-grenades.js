@@ -311,6 +311,36 @@
     var path = preview(s, battle, aim);
     return path && path.legal ? commit(s, battle, aim, 'contact') : null;
   }
+  /* Read-only opportunity for an explicitly selected close-assault drill.
+     Unlike the legacy opportunistic choice, a clear rifle line does not veto
+     the requested grenade. Personal intel, ROE and all physical/safety gates
+     still belong to this owner; callers cannot supply an unseen aim point. */
+  function assaultOpportunity(s, battle) {
+    var E = root.BattleEngagement,
+      TC = root.BattleTacticalController,
+      sq = s && s.squad;
+    if (
+      !sq ||
+      !TC ||
+      !TC.controls(battle, sq) ||
+      s.isPlayer ||
+      s.incapacitated ||
+      sq.state === 'retreat' ||
+      sq.commandPhase === 'retreat' ||
+      s.suppressedUntil > battle.time ||
+      !available(s, battle) ||
+      (E && (E.reacting(s) || !E.fireAuthorized(s, battle)))
+    )
+      return null;
+    var aim = aimFor(s, battle);
+    if (!aim || !friendClear(s, battle, aim)) return null;
+    var path = preview(s, battle, aim);
+    return path && path.legal ? aim : null;
+  }
+  function assaultThrow(s, battle) {
+    var aim = assaultOpportunity(s, battle);
+    return aim ? commit(s, battle, aim, 'covered-assault') : null;
+  }
   function reviewDue(s, battle) {
     if (!ON || !s || !battle) return false;
     var times = state(battle).reviewAt;
@@ -519,6 +549,8 @@
     projectiles: projectiles,
     playerThrow: playerThrow,
     consider: consider,
+    assaultOpportunity: assaultOpportunity,
+    assaultThrow: assaultThrow,
     reviewDue: reviewDue,
     preview: preview,
     position: position,

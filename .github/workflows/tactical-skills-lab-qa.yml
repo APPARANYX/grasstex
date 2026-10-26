@@ -45,9 +45,11 @@ jobs:
         run: node scripts/probes/probe_skills_lab.cjs
       - name: Primary 120m physical-movement acceptance (one native scenario)
         env:
-          SKILLS_DRILL_SECONDS: '75'
+          SKILLS_DRILL_SECONDS: '210'
+          SKILLS_DRILL_SEED: 'skills-range-0001'
           SKILLS_DRILL_REQUIRE_TACTICS: '1'
           SKILLS_DRILL_PRIMARY_ONLY: '1'
+          SKILLS_DRILL_REQUIRE_GRENADES: '1'
         run: node scripts/probes/probe_skills_lab_drills.cjs
       - if: failure()
         run: tail -120 /tmp/skills-lab-php.log || true

@@ -738,6 +738,12 @@
       scenario.spawnZones.ge.z = gap / 2;
     }
     scenario.objectives = generateObjectives(r, cx, cz, spanX, spanZ, objectiveCount);
+    if (root.SKILLS_LAB) {
+      /* This drill assaults the target line. A midpoint capture incorrectly
+         switched Macro to DEFEND before the covered approach was complete. */
+      scenario.objectives[0].z = scenario.spawnZones.ge.z;
+      scenario.objectives[0].label = 'Target-line assault';
+    }
     scenario.sectors = scenario.objectives;
     scenario.center = { x: cx, z: cz };
     scenario.radius = Math.max(spanX, spanZ) * 0.62;

@@ -83,7 +83,7 @@
         p.man.root.position.x - st.defenseCenter.x,
         p.man.root.position.z - st.defenseCenter.z
       );
-      if (distanceToPoint <= st.defenseLimit)
+      if (distanceToPoint <= st.defenseLimit && (!route || route.cursor >= route.waypoints.length))
         st.defensePosts.set(id, {
           x: p.man.root.position.x,
           z: p.man.root.position.z,
@@ -261,6 +261,7 @@
         var post = st.defensePosts.get(String(s.id));
         if (
           post &&
+          !pending &&
           post.sector === defense.sector &&
           Math.hypot(post.x - s.root.position.x, post.z - s.root.position.z) < 4
         )
@@ -270,7 +271,7 @@
          command element. Never choose a route it cannot lease. */
       if (teams.indexOf(team) < 0) return;
       var result = defense
-          ? R.pickDefense(s, ctx.sim, rs, goal, defense.radius, team)
+          ? R.pickDefense(s, ctx.sim, rs, goal, defense.radius, team, pending ? retained : null)
           : R.pick(s, ctx.sim, rs, goal, [], pending ? retained : null),
         record = {
           team: team,
@@ -326,12 +327,15 @@
       audit.result = 'no-reachable-contact-cover';
       return null;
     }
-    var selected = [];
+    var selected = [],
+      movingShooters = 0,
+      keepShooters = Math.min(2, firing.size);
     /* One Meso lease, up to three independent personal movement orders.
        Preserve two live squadmates as potential covering shooters. */
     choices.forEach(function (candidate) {
       if (selected.length >= Math.min(MAX_PARALLEL_MOVERS, ready.length - 2)) return;
-      if (firing.has(String(candidate.man.id))) return;
+      var wasFiring = firing.has(String(candidate.man.id));
+      if (wasFiring && firing.size - movingShooters <= keepShooters) return;
       if (
         selected.some(function (p) {
           return Math.hypot(candidate.point.x - p.point.x, candidate.point.z - p.point.z) < 4;
@@ -339,6 +343,7 @@
       )
         return;
       selected.push(candidate);
+      if (wasFiring) movingShooters++;
     });
     if (!selected.length) {
       audit.result = 'no-separated-cover-hops';
@@ -373,9 +378,11 @@
       });
     if (!h || !h.armed || !h.moverIds || active.length >= MAX_PARALLEL_MOVERS) return;
     var excluded = new Set(
-      st.plan.map(function (p) {
-        return String(p.man.id);
-      })
+      active
+        .map(function (p) {
+          return String(p.man.id);
+        })
+        .concat(Array.from(st.interrupted))
     );
     var choice = choose(ctx, st, rs, excluded);
     if (!choice) return;
@@ -401,7 +408,12 @@
         continue;
       }
       st.actions.set(id, result.actionId);
-      st.plan.push(p);
+      st.arrived.delete(id);
+      var previousIndex = st.plan.findIndex(function (old) {
+        return String(old.man.id) === id;
+      });
+      if (previousIndex >= 0) st.plan[previousIndex] = p;
+      else st.plan.push(p);
       active.push(p);
       var route = choice.routes.find(function (r) {
         return r.moverId === id;
@@ -494,7 +506,7 @@
         var holders = men(ctx.squad).filter(function (s) {
           return (
             !st.plan.some(function (moving) {
-              return moving.man === s;
+              return moving.man === s && !st.arrived.has(String(s.id)) && !st.interrupted.has(String(s.id));
             }) &&
             s.hp > 0 &&
             !s.dead &&
