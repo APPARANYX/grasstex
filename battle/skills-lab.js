@@ -541,25 +541,54 @@
         .join('\n') || 'No active squads';
     panel.querySelector('#skillGates').textContent =
       d.squads
-        .filter(function (s) { return s.id.startsWith('us:') && s.diagnostic; })
+        .filter(function (s) {
+          return s.id.startsWith('us:') && s.diagnostic;
+        })
         .map(function (s) {
           var plan = s.diagnostic;
-          return s.id + ' · ' + (plan.result || 'checking') +
-            ' · goal ' + (plan.goal ? Math.round(plan.goal.x) + ',' + Math.round(plan.goal.z) : 'none') +
-            ' · reports ' + plan.contactReports + '\n' +
-            (plan.teams || []).map(function (t) {
-              return '  ' + t.team + ': ' + (t.result || '-') +
-                ' · movers ' + t.eligibleMovers +
-                ' · supporters ' + t.eligibleSupporters +
-                ' · raw/forward cover ' + t.candidates + '/' + t.directionalCandidates +
-                ' · accepted routes ' + t.admittedRoutes +
-                (t.moverFailures.length ? '\n    ' + t.moverFailures.map(function (failure) {
-                  return '#' + failure.id + ' ' + failure.reason;
-                }).join(', ') : '') +
-                (Object.keys(t.routeRejections).length ? '\n    blocked ' +
-                  JSON.stringify(t.routeRejections) : '');
-            }).join('\n');
-        }).join('\n') || 'No attempt yet (see squad phase above)';
+          return (
+            s.id +
+            ' · ' +
+            (plan.result || 'checking') +
+            ' · goal ' +
+            (plan.goal ? Math.round(plan.goal.x) + ',' + Math.round(plan.goal.z) : 'none') +
+            ' · reports ' +
+            plan.contactReports +
+            '\n' +
+            (plan.teams || [])
+              .map(function (t) {
+                return (
+                  '  ' +
+                  t.team +
+                  ': ' +
+                  (t.result || '-') +
+                  ' · movers ' +
+                  t.eligibleMovers +
+                  ' · supporters ' +
+                  t.eligibleSupporters +
+                  ' · raw/forward cover ' +
+                  t.candidates +
+                  '/' +
+                  t.directionalCandidates +
+                  ' · accepted routes ' +
+                  t.admittedRoutes +
+                  (t.moverFailures.length
+                    ? '\n    ' +
+                      t.moverFailures
+                        .map(function (failure) {
+                          return '#' + failure.id + ' ' + failure.reason;
+                        })
+                        .join(', ')
+                    : '') +
+                  (Object.keys(t.routeRejections).length
+                    ? '\n    blocked ' + JSON.stringify(t.routeRejections)
+                    : '')
+                );
+              })
+              .join('\n')
+          );
+        })
+        .join('\n') || 'No attempt yet (see squad phase above)';
     panel.querySelector('#skillMen').textContent =
       d.units
         .filter(function (s) {
