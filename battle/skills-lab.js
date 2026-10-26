@@ -637,21 +637,21 @@
     vectors = [];
     if (drawVectors)
       (battle._roster.us || []).forEach(function (s) {
-      if (s.dead || !s.root) return;
-      var next = s.destination || s.orderDestination;
-      if (!next || !Number.isFinite(next.x) || !Number.isFinite(next.z)) return;
-      var start = s.root.position,
-        a = new BABYLON.Vector3(start.x, start.y + 1.8, start.z),
-        b = new BABYLON.Vector3(next.x, battle.heightAt(next.x, next.z) + 1.8, next.z);
-      if (BABYLON.Vector3.Distance(a, b) < 0.4) return;
-      var mesh = BABYLON.MeshBuilder.CreateLines('skill-order-' + s.id, { points: [a, b] }, scene);
-      mesh.color =
-        s.eng && s.eng.state === 'bound'
-          ? new BABYLON.Color3(1, 0.68, 0.2)
-          : new BABYLON.Color3(0.32, 0.77, 1);
-      mesh.isPickable = false;
-      vectors.push(mesh);
-    });
+        if (s.dead || !s.root) return;
+        var next = s.destination || s.orderDestination;
+        if (!next || !Number.isFinite(next.x) || !Number.isFinite(next.z)) return;
+        var start = s.root.position,
+          a = new BABYLON.Vector3(start.x, start.y + 1.8, start.z),
+          b = new BABYLON.Vector3(next.x, battle.heightAt(next.x, next.z) + 1.8, next.z);
+        if (BABYLON.Vector3.Distance(a, b) < 0.4) return;
+        var mesh = BABYLON.MeshBuilder.CreateLines('skill-order-' + s.id, { points: [a, b] }, scene);
+        mesh.color =
+          s.eng && s.eng.state === 'bound'
+            ? new BABYLON.Color3(1, 0.68, 0.2)
+            : new BABYLON.Color3(0.32, 0.77, 1);
+        mesh.isPickable = false;
+        vectors.push(mesh);
+      });
     if (!drawRoutes) return;
     /* True retained route overlay: A=planned origin; B,C,D...
        are successive native physical-cover slots, never invented points.

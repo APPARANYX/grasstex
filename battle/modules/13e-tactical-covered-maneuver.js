@@ -70,10 +70,7 @@
     var route = st.routes.get(id);
     if (route) {
       var waypoint = route.waypoints[route.cursor];
-      if (
-        waypoint &&
-        Math.hypot(p.man.root.position.x - waypoint.x, p.man.root.position.z - waypoint.z) < 2
-      )
+      if (waypoint && Math.hypot(p.man.root.position.x - waypoint.x, p.man.root.position.z - waypoint.z) < 2)
         route.cursor++;
       else st.routes.delete(id);
     }
@@ -383,13 +380,7 @@
       if (st.phase === 'moving') {
         st.supporters = (st.confirmedSupporters || []).filter(function (id) {
           return men(ctx.squad).some(function (s) {
-            return (
-              String(s.id) === id &&
-              !s.incapacitated &&
-              s.hp > 0 &&
-              s.weapon &&
-              !s.outOfAmmo
-            );
+            return String(s.id) === id && !s.incapacitated && s.hp > 0 && s.weapon && !s.outOfAmmo;
           });
         });
       } else st.supporters = supports(ctx, st);

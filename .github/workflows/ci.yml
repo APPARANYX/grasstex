@@ -155,16 +155,7 @@ jobs:
             exit 0
           fi
           echo "Checking ${#files[@]} changed JavaScript file(s) against .prettierrc.json."
-          # Diagnostic-only: expose the exact canonical formatter delta.
-          npx --yes prettier@3.3.3 --write battle/modules/13e-tactical-covered-maneuver.js battle/skills-lab.js
-          echo TACTICAL_FORMAT_DIFF_BEGIN
-          git diff -- battle/modules/13e-tactical-covered-maneuver.js battle/skills-lab.js
-          echo TACTICAL_FORMAT_DIFF_END
           npx --yes prettier@3.3.3 --check "${files[@]}"
-          if ! git diff --quiet -- battle/modules/13e-tactical-covered-maneuver.js battle/skills-lab.js; then
-            echo "Uncommitted canonical formatting changes; preserving CI failure."
-            exit 1
-          fi
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
 
