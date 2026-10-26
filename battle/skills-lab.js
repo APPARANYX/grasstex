@@ -311,6 +311,9 @@
       '<span><strong id="skillHits">0</strong>hits</span>' +
       '<span><strong id="skillConflicts">0</strong>order conflicts</span></div>' +
       '<h3>Squad decisions &amp; covered movement</h3><pre id="skillSquads">Initializing…</pre>' +
+      '<h3>Native route plan · A → B → C → D</h3><pre id="skillRoutes">No route yet</pre>' +
+      '<div class="sub">Bright green line and lettered markers on the field = real, retained cover ' +
+      'waypoints. No line means no approved route; see mission action and gates above.</div>' +
       '<h3>Native covered-route gates</h3><pre id="skillGates">Awaiting controller…</pre>' +
       '<h3>Individual actions (native owner)</h3><pre id="skillMen">Initializing…</pre>' +
       '<h3>Event timeline</h3><pre id="skillEvents">Waiting for events…</pre>' +
@@ -463,7 +466,7 @@
     history = [];
     seenEvents.clear();
     vectors.forEach(function (v) {
-      v.dispose();
+      v.dispose(false, true);
     });
     vectors = [];
     battle.restart();
@@ -642,8 +645,10 @@
       mesh.isPickable = false;
       vectors.push(mesh);
     });
-    /* Visualize retained multihop guidance separately from the immediate
-       Movement Resolver destination arrow; visualization never issues orders. */
+    /* True retained route overlay: A=current soldier position; B,C,D...
+       are successive native physical-cover slots, never invented points.
+       The route remains visible throughout the concurrent bound and between
+       check-ins; per-mover labels make simultaneous orders inspectable. */
     (battle.factions.us.squads || []).forEach(function (sq) {
       var skill = root.BattleTacticalCoveredManeuver,
         summary = skill && skill.summary(sq);
@@ -654,17 +659,41 @@
         });
         if (!soldier || !soldier.root || route.cursor >= route.waypoints.length) return;
         var p = soldier.root.position,
+          remaining = route.waypoints.slice(route.cursor),
           points = [new BABYLON.Vector3(p.x, p.y + 2.5, p.z)];
-        route.waypoints.slice(route.cursor).forEach(function (waypoint) {
-          points.push(
-            new BABYLON.Vector3(waypoint.x, battle.heightAt(waypoint.x, waypoint.z) + 2.5, waypoint.z)
-          );
+        remaining.forEach(function (waypoint) {
+          points.push(new BABYLON.Vector3(waypoint.x,
+            battle.heightAt(waypoint.x, waypoint.z) + 2.5, waypoint.z));
         });
         if (points.length < 2) return;
-        var line = BABYLON.MeshBuilder.CreateLines('skill-route-' + route.moverId, { points: points }, scene);
+        var line = BABYLON.MeshBuilder.CreateLines('skill-route-' + route.moverId,
+          { points: points }, scene);
         line.color = new BABYLON.Color3(0.51, 0.92, 0.43);
         line.isPickable = false;
         vectors.push(line);
+        points.forEach(function (at, index) {
+          var label = String.fromCharCode(65 + Math.min(index, 25)),
+            face = BABYLON.MeshBuilder.CreatePlane('skill-stop-' + route.moverId +
+              '-' + label, { size: 3.3 }, scene);
+          face.position.copyFrom(at);
+          face.position.y += 1.8;
+          face.billboardMode = BABYLON.Mesh.BILLBOARDMODE_ALL;
+          face.isPickable = false;
+          var texture = new BABYLON.DynamicTexture('skill-stop-label-' + route.moverId +
+            '-' + label, { width: 128, height: 128 }, scene, false);
+          texture.hasAlpha = true;
+          texture.drawText(label, 34, 93, 'bold 88px Arial', '#ffffff',
+            'rgba(31,90,28,0.9)', true, true);
+          var markerMaterial = new BABYLON.StandardMaterial('skill-stop-ink-' +
+            route.moverId + '-' + label, scene);
+          markerMaterial.diffuseTexture = texture;
+          markerMaterial.opacityTexture = texture;
+          markerMaterial.emissiveColor = new BABYLON.Color3(0.7, 1, 0.5);
+          markerMaterial.disableLighting = true;
+          markerMaterial.backFaceCulling = false;
+          face.material = markerMaterial;
+          vectors.push(face);
+        });
       });
     });
   }
@@ -715,6 +744,22 @@
           );
         })
         .join('\n') || 'No active squads';
+    panel.querySelector('#skillRoutes').textContent =
+      d.squads.filter(function (s) { return s.id.startsWith('us:'); })
+        .map(function (s) {
+          var lines = (s.retainedRoutes || []).map(function (route) {
+            var stops = route.waypoints.slice(route.cursor),
+              labels = stops.map(function (p, i) {
+                return String.fromCharCode(66 + Math.min(i, 24)) +
+                  '(' + Math.round(p.x) + ',' + Math.round(p.z) + ')';
+              });
+            return '  ' + route.moverId + ': A (current) → ' +
+              (labels.length ? labels.join(' → ') : 'arrived');
+          });
+          return s.id + ' · mission ' + (s.missionAction || 'none') +
+            '\\n' + (lines.length ? lines.join('\\n') :
+              '  No leader-approved multihop plan (' + (s.reason || 'no authorization') + ')');
+        }).join('\\n') || 'No US squads';
     panel.querySelector('#skillGates').textContent =
       d.squads
         .filter(function (s) {
