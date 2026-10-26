@@ -190,8 +190,17 @@
       if (!COVER_FIRE || !combatThreat(target) || want === 'stand' || s.suppressedUntil > battle.time)
         return want;
       var here = posOf(s);
-      for (var i = STANCE_ORDER.indexOf(want); i < STANCE_ORDER.length; i++)
-        if (seesFrom(here, STANCE_ORDER[i], target, battle)) return STANCE_ORDER[i];
+      for (var i = STANCE_ORDER.indexOf(want); i < STANCE_ORDER.length; i++) {
+        /* Sight over a wall is insufficient if the muzzle would hit it.
+           For genuine personal targets use the ballistics owner's same
+           physical line test before exposing the soldier to shoot. */
+        if (
+          (target === s.target && s.weapon
+            ? firingLineClear(s, target, here, STANCE_ORDER[i], battle)
+            : seesFrom(here, STANCE_ORDER[i], target, battle))
+        )
+          return STANCE_ORDER[i];
+      }
       return want; // he sees him from no stance: nothing to lose by staying low
     }
 

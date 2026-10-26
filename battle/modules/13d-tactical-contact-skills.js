@@ -254,7 +254,19 @@
     if (E.fireControlPreparing(s, sim)) return 'prepare';
     if (s.target) {
       var o = observation(s, sim, st);
-      return o.inRange && o.visualLine && o.ballisticLine ? 'fire' : 'march';
+      /* A crouched/prone man may still have a legitimate firing line above
+         cover. Let Engagement (the sole stance and shot owner) raise him,
+         rather than labelling him MARCH and never giving him that chance. */
+      var here = s.root && s.root.position,
+        peek =
+          o.inRange &&
+          here &&
+          !(s.suppressedUntil > sim.time) &&
+          !s.moving &&
+          E.firingLineClear &&
+          (E.firingLineClear(s, s.target, here, 'crouch', sim) ||
+            E.firingLineClear(s, s.target, here, 'stand', sim));
+      return o.inRange && ((o.visualLine && o.ballisticLine) || peek) ? 'fire' : 'march';
     }
     if (st && st.roles.has(String(s.id)) && personal(s, sim)) return 'suppress';
     return E.underFireNow(s, sim) ? 'watch' : 'march';

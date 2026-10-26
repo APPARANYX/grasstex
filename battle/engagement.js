@@ -1530,8 +1530,19 @@
     /* A man who sees a head he cannot hit (fireLineLive) is observing, not fighting: he proposes no hold,
        so the Squad Leader's published order (the anchor's advance, a clearing move) takes him up to a
        position with a line instead of pinning him behind the crest for the rest of the battle. */
-    var fighting = fireLineLive(s, e, battle);
-    if (fighting) holdPosition(s, battle);
+    var fighting = fireLineLive(s, e, battle),
+      /* Behind low/medium cover the existing shot may be blocked only by
+         the soldier's low stance. No enemy transform is invented: a live
+         personal target and a true LOS + ballistic ray from the actual
+         position are required before Engagement considers standing. */
+      canPeek =
+        controlled &&
+        !suppressed &&
+        combatThreat(s.target) &&
+        dist(p.x, p.z, posOf(s.target).x, posOf(s.target).z) <= SA().engageRange(s) &&
+        (firingLineClear(s, s.target, p, 'crouch', battle) ||
+          firingLineClear(s, s.target, p, 'stand', battle));
+    if (fighting || canPeek) holdPosition(s, battle);
     /* A blocked firing ray deliberately releases Micro's hold so the man
        can advance to a workable place. Do not repeatedly re-impose crouch
        while his autonomous transit owns both stance and gait. */
@@ -1548,9 +1559,9 @@
       commitStance(
         s,
         battle,
-        fighting ? seeingStance(s, battle, fightingStance(s, battle, d, here)) : 'crouch',
+        fighting || canPeek ? seeingStance(s, battle, fightingStance(s, battle, d, here)) : 'crouch',
         undefined,
-        fighting ? undefined : 'engage:observing'
+        fighting || canPeek ? undefined : 'engage:observing'
       );
     if (SA().isMachineGun(s)) {
       if (!e.setUpSince) e.setUpSince = battle.time;
