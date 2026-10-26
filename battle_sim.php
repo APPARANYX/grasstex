@@ -269,7 +269,7 @@ if ($body !== false && strlen($body) > 100 && stripos($body, '<html') !== false)
     $cameraReplacement = "  var cameraSetup=window.BattleDesktopCamera.create({canvas:canvas,scene:scene,scenario:scenario,engine:engine,battleSim:BattleSim}),camera=cameraSetup.camera;document.getElementById('cameraHint').textContent=cameraSetup.hint;";
     $body = preg_replace($cameraPattern, $cameraReplacement, $body, 1, $cameraCount);
     $extras = '';
-    foreach (array('camera-controls.js','acoustics.js','scenario-generator.js','battle-navigation.js','town-objectives.js','module-registry.js','ai-policy.js','objective-system.js','battle-telemetry.js','commander-doctrine.js','commander-routes.js','commander-ai.js') as $file) $extras .= '<script src="'.$base.'battle/'.$file.'?v='.$version.'"></script>' . "\n";
+    foreach (array('camera-controls.js','acoustics.js','scenario-generator.js','battle-navigation.js','town-objectives.js','module-registry.js','ai-policy.js','objective-system.js','battle-telemetry.js','commander-doctrine.js','commander-routes.js','commander-ai.js','tactical-capability-contract.js') as $file) $extras .= '<script src="'.$base.'battle/'.$file.'?v='.$version.'"></script>' . "\n";
     foreach ($activeModuleFiles as $file) $extras .= '<script src="'.$base.'battle/modules/'.rawurlencode($file).'?v='.$version.'"></script>' . "\n";
     foreach (array('ai-trainer.js','battle-control.js') as $file) $extras .= '<script src="'.$base.'battle/'.$file.'?v='.$version.'"></script>' . "\n";
     $body = preg_replace('#<script>\s*/\* Extra runtimes[\s\S]*?</script>#', $extras, $body, 1, $replacementCount);

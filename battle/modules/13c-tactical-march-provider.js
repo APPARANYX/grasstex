@@ -1,0 +1,222 @@
+/* March provider (slice 2 of the legacy replacement, `?tacticalController=new`). The first provider on
+   the tactical controller (13a): it takes every squad on both sides and only marches. Each squad walks
+   its brief's route legs in Meso's formation layout and holds at the last leg; acceptance, transport,
+   casualties, succession, retreat, rally recovery, physiology and reactions stay with their owners.
+   Contact drills, fire control and station selection are not here yet (slice 3), so a squad it owns
+   does not fight: this slice proves exclusive ownership and readable stalls, not tactics.
+
+   It decides and asks; it writes nothing. Every effect is a capability request through the owner
+   adapters (13b), and every man's progress is the stage his owner reports. A man the provider
+   stopped asking for says why in summary(). State lives in a WeakMap keyed by the squad; no squad or
+   soldier field, timer, RNG draw or movement writer is added. Without the flag the module does
+   nothing, so a default battle is unchanged. */
+(function (root) {
+  'use strict';
+  var SEARCH = typeof location !== 'undefined' ? location.search || '' : '',
+    ON = /[?&]tacticalController=new(?:&|#|$)/i.test(SEARCH),
+    ID = 'march';
+  var squads = new WeakMap();
+
+  function point(v) {
+    return v && isFinite(+v.x) && isFinite(+v.z) ? { x: +v.x, z: +v.z } : null;
+  }
+  function dist(a, b) {
+    return !a || !b ? Infinity : Math.hypot(a.x - b.x, a.z - b.z);
+  }
+  function men(sq) {
+    return (sq.members || []).filter(function (s) {
+      return s && !s.dead && !s.isPlayer;
+    });
+  }
+  function centroid(list) {
+    var x = 0,
+      z = 0,
+      n = 0;
+    list.forEach(function (s) {
+      var p = s.root && s.root.position;
+      if (!p) return;
+      x += +p.x;
+      z += +p.z;
+      n++;
+    });
+    return n ? { x: x / n, z: z / n } : null;
+  }
+  function unit(from, to) {
+    var dx = to.x - from.x,
+      dz = to.z - from.z,
+      l = Math.hypot(dx, dz);
+    return l > 1e-6 ? { x: dx / l, z: dz / l } : null;
+  }
+  /* The leg arrival radius is the doctrine's own (the radius Squad Leader execution uses on a route leg). */
+  function legRadius(sim, sq) {
+    var C = root.BattleCommanderAI,
+      cfg = C && C.policyFor ? C.policyFor(sim, sq.faction) : null;
+    return +(cfg && cfg.routeArrivalRadius) || 8;
+  }
+  function stateOf(sq) {
+    var st = squads.get(sq);
+    if (!st) squads.set(sq, (st = { mission: null, leg: 0, target: null, forward: null, men: new Map() }));
+    return st;
+  }
+
+  /* executeMission: route progression. The squad moves to its next leg once its centre is within the
+     leg radius; the last leg is where it holds. The brief's legs are the retained `sq.route`. */
+  function executeMission(ctx) {
+    var sq = ctx.squad,
+      sim = ctx.sim,
+      st = stateOf(sq),
+      legs = sq.route || [],
+      m = sq._macroMission || null;
+    if (st.mission !== m) {
+      st.mission = m;
+      st.leg = 0;
+      st.target = null;
+    }
+    if (!legs.length) {
+      st.target = null;
+      st.idle = 'no-route';
+      return;
+    }
+    st.idle = null;
+    var last = legs.length - 1,
+      here = centroid(men(sq)),
+      r = legRadius(sim, sq);
+    st.leg = Math.min(st.leg, last);
+    while (st.leg < last && dist(here, point(legs[st.leg])) <= r) st.leg++;
+    var target = point(legs[st.leg]);
+    if (!st.target || dist(st.target, target) > 1e-6) {
+      var from = st.leg > 0 ? point(legs[st.leg - 1]) : here;
+      st.forward = (from && unit(from, target)) || st.forward || { x: 0, z: 1 };
+      st.target = target;
+      st.final = st.leg === last;
+      st.stopped = new Map();
+    }
+  }
+
+  /* squadCommand: each man walks to his formation slot around the leg point, then holds there on the
+     last leg. An order is asked for once per leg; one the owner ended is not asked for again on the
+     same leg, and the man is listed as stopped with the owner's reason. */
+  function squadCommand(ctx) {
+    var sq = ctx.squad,
+      st = stateOf(sq),
+      Q = root.BattleSquadStability;
+    if (!st.target || sq.state === 'retreat' || !Q || !Q.formationSlots) return;
+    var slots = Q.formationSlots(sq, st.target, st.forward);
+    for (var i = 0; i < slots.length; i++) {
+      var s = slots[i].man;
+      if (s.dead || s.isPlayer) continue;
+      var id = String(s.id),
+        slot = slots[i].point,
+        cur = st.men.get(id),
+        stage = cur && ctx.stage(cur.actionId);
+      if (cur && !stage) cur = null; // the controller ended it (mission, roster, interrupt)
+      if (cur && cur.target !== st.target) {
+        ctx.finish(cur.actionId, 'superseded');
+        cur = null;
+      }
+      if (cur) {
+        if (stage.stage === 'cancelled') {
+          ctx.finish(cur.actionId, 'cancelled');
+          st.men.delete(id);
+          st.stopped.set(id, stage.reason);
+        } else if (cur.kind === 'move' && st.final && stage.stage === 'arrived') {
+          ctx.finish(cur.actionId, 'completed');
+          ask(ctx, st, id, 'movement.hold', cur.point);
+        }
+        continue;
+      }
+      st.men.delete(id);
+      if (!st.stopped.has(id)) ask(ctx, st, id, 'movement.move', slot);
+    }
+  }
+  function ask(ctx, st, id, capability, at) {
+    var res = ctx.request(capability, id, { point: at });
+    if (res && res.ok)
+      st.men.set(id, {
+        actionId: res.actionId,
+        kind: capability === 'movement.hold' ? 'hold' : 'move',
+        point: at,
+        target: st.target
+      });
+    else {
+      st.men.delete(id);
+      st.stopped.set(id, 'refused:' + ((res && res.reason) || 'unknown'));
+    }
+  }
+  function noop() {}
+
+  /* Take every squad on both sides; a refused switch is retried by the controller's own backoff. */
+  function takeAll(sim) {
+    var TC = root.BattleTacticalController;
+    if (!TC || !sim || !sim.factions) return;
+    ['us', 'ge'].forEach(function (f) {
+      var a = (sim.factions[f] && sim.factions[f].squads) || [];
+      for (var i = 0; i < a.length; i++) if (!TC.controls(sim, a[i])) TC.requestMode(sim, a[i], 'new', ID);
+    });
+  }
+  /* Per squad: the leg it is on, and each man's action with the stage its owner reports, or why the
+     provider stopped asking for him. */
+  function summary(sim) {
+    var TC = root.BattleTacticalController,
+      live = (TC && TC.summary(sim).live) || [],
+      byId = {},
+      out = [];
+    live.forEach(function (a) {
+      byId[a.actionId] = a;
+    });
+    ['us', 'ge'].forEach(function (f) {
+      var a = (sim.factions && sim.factions[f] && sim.factions[f].squads) || [];
+      for (var i = 0; i < a.length; i++) {
+        var st = squads.get(a[i]);
+        if (!st) continue;
+        var row = {
+          squad: f + ':' + a[i].id,
+          controlled: !!(TC && TC.controls(sim, a[i])),
+          leg: st.leg,
+          legs: (a[i].route || []).length,
+          idle: st.idle || null,
+          stages: {},
+          stopped: {}
+        };
+        st.men.forEach(function (cur) {
+          var l = byId[cur.actionId],
+            key = cur.kind + ':' + (l ? l.stage : 'gone');
+          row.stages[key] = (row.stages[key] || 0) + 1;
+        });
+        (st.stopped || new Map()).forEach(function (why) {
+          row.stopped[why] = (row.stopped[why] || 0) + 1;
+        });
+        out.push(row);
+      }
+    });
+    return out;
+  }
+
+  root.BattleTacticalMarchProvider = { on: ON, id: ID, summary: summary };
+  if (!ON) return;
+  var TC = root.BattleTacticalController,
+    OA = root.BattleTacticalOwnerAdapters;
+  if (!TC || !OA) throw new Error('The march provider needs the tactical controller and its owner adapters');
+  var reg = TC.registerProvider({
+    id: ID,
+    policies: {
+      squadCommand: squadCommand,
+      commanderTick: noop,
+      fireAndMovement: noop,
+      executeMission: executeMission,
+      engagement: noop,
+      stationSelection: noop
+    },
+    adapters: OA.adapters,
+    lifecycle: OA.lifecycle
+  });
+  if (!reg.ok) throw new Error('March provider rejected: ' + reg.reason);
+  if (root.BattleModules)
+    root.BattleModules.registerSystem('tactical-march-provider', {
+      version: '1-march-only',
+      onBattleStart: takeAll,
+      onCommanderTick: takeAll
+    });
+  if (root.GTLog)
+    root.GTLog('[TACTICAL] march provider on (?tacticalController=new): squads march, no contact drills');
+})(typeof window !== 'undefined' ? window : globalThis);

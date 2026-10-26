@@ -171,6 +171,7 @@ jobs:
             battle/commander-doctrine.js \
             battle/commander-routes.js \
             battle/commander-ai.js \
+            battle/tactical-capability-contract.js \
             battle/ai-trainer.js \
             battle/battle-control.js; do
             test -s "$f"

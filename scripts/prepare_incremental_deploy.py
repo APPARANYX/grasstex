@@ -37,7 +37,7 @@ BATTLE_FILES = [
     "squad-ai.js","movement-resolver.js","engagement.js","battle-sim.js","camera-controls.js","acoustics.js",
     "scenario-generator.js","battle-navigation.js","town-objectives.js","module-registry.js",
     "ai-policy.js","objective-system.js","battle-telemetry.js","commander-doctrine.js",
-    "commander-routes.js","commander-ai.js","ai-trainer.js","battle-control.js",
+    "commander-routes.js","commander-ai.js","tactical-capability-contract.js","ai-trainer.js","battle-control.js",
 ]
 # Imported soldier models, animation masters, the prepared clip pack (Assets/animations/prepared-clips.bin) and weapon
 # models (source .zip packs stay out). The FBX soldier backend (battle/modules/53-fbx-soldier-backend.js) reads them

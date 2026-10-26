@@ -2305,6 +2305,10 @@
   root.BattleSquadStability = {
     version: '1.9-m3c-leaderless-intent',
     /* The owner entry for a controller's personal movement order (13b); see controllerMove above. */
+    /* Meso's formation layout as a pure function (15g slotsAt); a replacement controller reuses it. */
+    formationSlots: function (sq, anchor, forward, formation) {
+      return _fm && _fm.slotsAt ? _fm.slotsAt(sq, anchor, forward, formation) : [];
+    },
     controllerMovement: {
       publish: controllerMove,
       current: function (s, order) {
