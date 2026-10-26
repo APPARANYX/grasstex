@@ -337,19 +337,30 @@
        Use one squad so other squads retain normal fire/cover opportunities. */
     var sq = battle.factions.us.squads[0];
     if (!sq || !sq.members || !sq.members.length) return;
-    var alive = sq.members.filter(function (man) { return !man.dead; });
+    var alive = sq.members.filter(function (man) {
+      return !man.dead;
+    });
     var leave = Math.max(2, Math.floor(sq.members.length * 0.4));
     var toRemove = Math.max(0, alive.length - leave);
     /* Keep leader and machine gun if possible for observation after attrition. */
-    var candidates = alive.filter(function (man) {
-      return man.role !== 'sergeant' && man.role !== 'gunner';
-    }).concat(alive.filter(function (man) {
-      return man.role === 'sergeant' || man.role === 'gunner';
-    }));
+    var candidates = alive
+      .filter(function (man) {
+        return man.role !== 'sergeant' && man.role !== 'gunner';
+      })
+      .concat(
+        alive.filter(function (man) {
+          return man.role === 'sergeant' || man.role === 'gunner';
+        })
+      );
     for (var i = 0; i < toRemove; i++) battle.killSoldier(candidates[i], null);
-    log('scripted premise',
-      'Native casualty owner removed ' + toRemove + ' members of ' + sq.id +
-      '; retreat decision belongs to squad AI (no fake commander order)');
+    log(
+      'scripted premise',
+      'Native casualty owner removed ' +
+        toRemove +
+        ' members of ' +
+        sq.id +
+        '; retreat decision belongs to squad AI (no fake commander order)'
+    );
     render();
   }
   function diagnostics() {
