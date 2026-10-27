@@ -25,6 +25,8 @@ assert.match(lab, /us:\s*\['rifle'/);
 assert.match(lab, /ge:\s*\['rifle'/);
 assert.match(lab, /Number\(query\.get\('squads'\)\) \|\| 5/, 'default five squads per side');
 assert.match(lab, /root\.BattleAudioScheduler\.stats/, 'real scheduler admission statistics sampled');
+assert.match(lab, /audio\.detail\(\)/, 'per-model near and distant audio pool pressure included');
+assert.match(sim, /detail: function \(\)/, 'shipping model pool exposes read-only detail snapshot');
 for (const property of ['simulatedShots', 'audioContextState', 'activeVoices', 'droppedBusy',
   'squadsPerSide', 'schedulerEvictedPrimary', 'schedulerCulled', 'occlusionMode',
   'droppedNotReady', 'propagationQueue', 'rms', 'peak', 'longTasks'])
