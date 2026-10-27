@@ -82,14 +82,14 @@ function setup(search = '?projectileFlight=1') {
     faction: 'us',
     weapon: { kind: 'rifle', profile: 'm1-garand', stats: { model: 'm1-garand', range: 450, power: 1 } }
   };
-  function fire() {
+  function fire(player = false) {
     const shot = {
       origin: { x: 0, y: 1.55, z: 0 },
       dir: { x: 0, y: 0, z: 1 },
       aim: { x: 0, y: 1.55, z: sim.target.z },
       sigma: 0.001
     };
-    return root.BattleProjectileFlight.launch(shooter, sim.target, sim, 0, 0, shot, false);
+    return root.BattleProjectileFlight.launch(shooter, sim.target, sim, 0, 0, shot, player);
   }
   function advance(time) {
     sim.time = time;
@@ -133,10 +133,17 @@ function setup(search = '?projectileFlight=1') {
 {
   const x = setup();
   x.sim.target.z = 300;
-  x.fire();
+  x.fire(true);
   for (let t = 0.05; t <= 0.65; t += 0.05) x.advance(t);
   assert.ok(x.crossing.length, 'sample crosses the 300m target');
-  assert.ok(x.crossing[0].y < 1.3, 'gravity drops the path below zeroed center at 300m');
+  assert.ok(x.crossing[0].y < 1.3, 'player zeroed sight falls below 300m center without holdover');
+}
+{
+  const x = setup();
+  x.sim.target.z = 300;
+  x.fire();
+  for (let t = 0.05; t <= 0.65; t += 0.05) x.advance(t);
+  assert.equal(x.hits.length, 1, 'AI estimates ballistic drop at long range, within imperfect range error');
 }
 {
   const x = setup('?projectileFlight=0');
