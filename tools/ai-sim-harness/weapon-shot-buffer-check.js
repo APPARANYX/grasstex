@@ -175,4 +175,9 @@ for (const [distance, capacity] of [
   assert.equal(w.audio.detail()['m:m1-garand:far'].capacity, 64,
     'even an untrusted override cannot exceed the 64-slot cap');
 }
+{
+  const w = poolFixture();
+  assert.equal(w.audio.detail()['m:m1-garand:far'].capacity, 32,
+    'normal battle default uses measured 32-voice distant model pool');
+}
 console.log('weapon-shot-buffer-check: format, sharing and bounded dense playback passed');
