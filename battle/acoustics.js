@@ -59,10 +59,18 @@
       MAX_QUEUE = 18;
     // Diagnostic accounting only; the existing admission and playback rules are unchanged.
     var stats = {
-      received: 0, enqueuedPrimary: 0, enqueuedEcho: 0,
-      culledDistance: 0, skippedFar: 0, throttledFar: 0,
-      evictedPrimary: 0, evictedEcho: 0,
-      startedPrimary: 0, startedEcho: 0, playExceptions: 0, maxQueued: 0
+      received: 0,
+      enqueuedPrimary: 0,
+      enqueuedEcho: 0,
+      culledDistance: 0,
+      skippedFar: 0,
+      throttledFar: 0,
+      evictedPrimary: 0,
+      evictedEcho: 0,
+      startedPrimary: 0,
+      startedEcho: 0,
+      playExceptions: 0,
+      maxQueued: 0
     };
     function push(e) {
       if (q.length >= MAX_QUEUE) {
