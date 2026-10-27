@@ -100,7 +100,22 @@
       fire = s && s.squad && s.squad.fireControl;
     // A movement-plan change cannot turn an active HOLD/PRECISION firing line
     // into upright transit. Keep Engagement's native preparation posture.
-    if (fire && (fire.state === 'hold' || fire.state === 'precision')) plan = null;
+    /* An actually adopted native cover-bound already passed Meso, personal
+       command adoption and independent support-fire gates. The squad's HOLD
+       preparation applies to stationary shooters, not this committed mover.
+       All other locomotion and speculative bound plans still fail closed. */
+    var nativeMover = !!(
+      plan &&
+      plan.reason === 'native-covered-bound' &&
+      pending &&
+      pending.reason === 'controller:covered-bound' &&
+      s.eng &&
+      s.eng.state === 'bound' &&
+      s._movementResolver &&
+      s._movementResolver.goal &&
+      s._movementResolver.goal.kind === 'cover-bound'
+    );
+    if (fire && (fire.state === 'hold' || fire.state === 'precision') && !nativeMover) plan = null;
     if (s.eng) s.eng.transitStance = null;
     if (plan) commitStance(s, battle, plan.stance, 0.45, 'body-autonomy:' + plan.reason);
     else if (pending) commitStance(s, battle, pending.stance, pending.seconds, pending.reason);

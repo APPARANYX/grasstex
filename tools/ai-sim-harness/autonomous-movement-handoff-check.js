@@ -152,6 +152,50 @@ function tick(f) {
 }
 
 {
+  const f = fixture();
+  const e = f.s.eng;
+  f.q.fireControl = { state: 'hold' };
+  e.state = 'bound';
+  f.s._movementResolver.goal = { kind: 'cover-bound' };
+  e.transitStance = {
+    at: f.b.time,
+    state: 'bound',
+    stance: 'crouch',
+    reason: 'controller:covered-bound'
+  };
+  const plan = {
+    stance: 'crouch',
+    gait: 'crouchSprint',
+    reason: 'native-covered-bound'
+  };
+  assert.equal(
+    f.r.BattleEngagement.settleTransitStance(f.s, f.b, plan),
+    plan,
+    'a genuinely adopted covered mover can crouch-sprint during squad HOLD'
+  );
+  assert.equal(f.s.eng.stance, 'crouch');
+  assert.equal(f.s.eng.transitStance, null);
+  e.transitStance = { at: f.b.time, state: 'bound', stance: 'crouch', reason: 'ordinary-bound' };
+  assert.equal(
+    f.r.BattleEngagement.settleTransitStance(f.s, f.b, plan),
+    null,
+    'a non-controller request cannot bypass HOLD'
+  );
+  f.q.fireControl.state = 'precision';
+  e.transitStance = { at: f.b.time, state: 'bound', stance: 'stand', reason: 'controller:covered-bound' };
+  f.s._movementResolver.goal = { kind: 'formation' };
+  assert.equal(
+    f.r.BattleEngagement.settleTransitStance(f.s, f.b, {
+      stance: 'stand',
+      gait: 'sprint',
+      reason: 'native-covered-bound'
+    }),
+    null,
+    'stale cover posture cannot accelerate an ordinary formation move'
+  );
+}
+
+{
   const f = fixture(),
     r = f.r,
     b = f.b;
