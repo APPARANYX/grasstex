@@ -15,8 +15,7 @@
   var SEARCH = typeof location !== 'undefined' ? location.search || '' : '',
     ON = /[?&]tacticalController=new(?:&|#|$)/i.test(SEARCH),
     ID = 'march',
-    QUIET_CONTACT_RECOVERY =
-      !!root.BATTLE_PREVIEW && /[?&]firstContactResponse=1(?:&|#|$)/.test(SEARCH);
+    QUIET_CONTACT_RECOVERY = !!root.BATTLE_PREVIEW && /[?&]firstContactResponse=1(?:&|#|$)/.test(SEARCH);
   var squads = new WeakMap(),
     warned = false;
 
@@ -69,8 +68,7 @@
     for (var i = 0; i < members.length; i++) {
       var s = members[i];
       if (!s || s.dead) continue;
-      if (s.target && (!A.threatDisposition || A.threatDisposition(s.target).combatThreat))
-        return true;
+      if (s.target && (!A.threatDisposition || A.threatDisposition(s.target).combatThreat)) return true;
       if (E && E.underFireNow && E.underFireNow(s, sim)) return true;
     }
     var leader = A.leaderOf && A.leaderOf(sq);
@@ -140,8 +138,7 @@
     var sq = ctx.squad,
       st = stateOf(sq),
       Q = root.BattleSquadStability,
-      contactHazard =
-        sq.inContact && (!QUIET_CONTACT_RECOVERY || contactStillCredible(sq, ctx.sim));
+      contactHazard = sq.inContact && (!QUIET_CONTACT_RECOVERY || contactStillCredible(sq, ctx.sim));
     /* The resolver treats either as retreat; so does the provider. */
     if (sq.state === 'retreat' || sq.commandPhase === 'retreat') return standDown(ctx, st, 'retreat');
     if (!st.target || !Q || !Q.formationSlots) return;
