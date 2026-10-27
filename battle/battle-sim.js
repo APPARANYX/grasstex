@@ -239,7 +239,10 @@
       Math.max(files.length, cyclic > 0 ? Math.ceil(cyclic * FIRE_CLIP_S) + 2 : POOL_SIZE)
     );
   }
-  function buildWeaponAudio(scene, audioBase) {
+  function buildWeaponAudio(scene, audioBase, policy) {
+    // Optional, bounded diagnostic override. Unset keeps the shipping 4-voice far floor.
+    var farFloor = policy && policy.farVoices != null
+      ? Math.max(4, Math.min(12, Math.floor(+policy.farVoices) || 4)) : 4;
     var pools = {},
       cursors = {},
       poolStats = {},
@@ -318,7 +321,7 @@
           if (!fire || pools['m:' + model]) return;
           pool('m:' + model, fire, voicesFor(fire, +w.cyclic || 0), false);
           var far = modelClips(model, 'fireDistant');
-          if (far) pool('m:' + model + ':far', far, Math.max(far.length, 4), true);
+          if (far) pool('m:' + model + ':far', far, Math.max(far.length, farFloor), true);
         });
       });
     }
