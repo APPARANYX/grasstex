@@ -6,7 +6,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const { chromium } = require('playwright');
 const BASE = process.env.MINI_MEETING_URL || 'http://127.0.0.1:8765/grasstex/battle_sim_local.php';
-const SEEDS = (process.env.FLIGHT_MEETING_SEEDS || 'mini-meeting-676-001').split(',');
+const SEEDS = (process.env.FLIGHT_MEETING_SEEDS || 'mini-meeting-676-001,mini-meeting-676-002').split(',');
 const SECONDS = Number(process.env.FLIGHT_MEETING_SECONDS || 210);
 const DIR = 'reports/mini-flight-tempo';
 fs.mkdirSync(DIR, { recursive: true });
@@ -51,6 +51,7 @@ fs.mkdirSync(DIR, { recursive: true });
             null,
             { timeout: 120000 }
           );
+          const wallStart = Date.now();
           const data = await page.evaluate(
             ({ seconds, variant, physics }) => {
               const root = window,
@@ -383,6 +384,7 @@ fs.mkdirSync(DIR, { recursive: true });
             },
             { seconds: SECONDS, variant, physics }
           );
+          data.wallMs = Date.now() - wallStart;
           data.browserErrors = errors.filter(e => !/HTTP 404 loading [^\n]*\/Assets\/audio\//i.test(e));
           fs.writeFileSync(
             DIR + '/' + physics + '-' + variant + '-' + seed + '.json',
@@ -397,6 +399,7 @@ fs.mkdirSync(DIR, { recursive: true });
               seed,
               t: data.t,
               flight: data.flight,
+            wallMs: data.wallMs,
               separationM: data.spawnSeparationM,
               tempo: data.tempo,
               bounds: data.dimension,
@@ -470,6 +473,7 @@ fs.mkdirSync(DIR, { recursive: true });
           variant: r.variant,
           physics: r.physics,
           flight: r.flight,
+        wallMs: r.wallMs,
           seed: r.seed,
           t: r.t,
           separationM: r.spawnSeparationM,
