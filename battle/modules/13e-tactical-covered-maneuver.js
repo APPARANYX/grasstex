@@ -184,6 +184,7 @@
     return JSON.stringify([
       ctx.squad.state === 'retreat' || ctx.squad.commandPhase === 'retreat',
       ctx.squad.commandPhase,
+      !!ctx.squad.inContact,
       root.BattleNavigation && root.BattleNavigation.version,
       rs.map(function (r) {
         return [Math.round(r.x), Math.round(r.z)];

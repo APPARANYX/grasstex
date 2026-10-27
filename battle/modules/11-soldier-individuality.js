@@ -275,6 +275,16 @@
        by Engagement/Command Reception, and a short crawl remains a live choice. */
     var E = root.BattleEngagement,
       nativeStance = E && E.transitStanceOf && E.transitStanceOf(s, sim);
+    /* A new-controller covered mover has one certified transit stance from
+       Engagement. Reuse it here for gait rather than independently promoting
+       a crouched route to a standing sprint. No second stance writer. */
+    if (bound && nativeStance && nativeStance.reason === 'controller:covered-bound')
+      return {
+        stance: nativeStance.stance,
+        gait: nativeStance.stance === 'stand' ? 'sprint' : 'crouchRun',
+        reason: 'native-covered-bound',
+        caution: 'certified-contact-route'
+      };
     if (bound && suppressed && (s.crawling || (nativeStance && nativeStance.stance === 'crawl')))
       return { stance: 'crawl', gait: 'proneFast', reason: 'suppressed-short-crawl', caution: 'suppressed' };
     if (bound) {

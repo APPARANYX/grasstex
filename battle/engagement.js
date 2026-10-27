@@ -2306,7 +2306,29 @@
           task.reason = 'physical-arrival';
         } else {
           if (e.state !== 'bound') transition(s, battle, 'bound', 0, 'controller:covered-bound');
-          transitStance(s, battle, 'crouch', 1, 'controller:covered-bound');
+          /* Only Engagement commits the stance. Certify the native B→C physical
+             route at standing height once, from the mover's OWN reported contacts.
+             A threatened/uncertified route stays a crouch-run, never an unsafe
+             standing sprint. This does not create a movement/speed writer. */
+          if (!task.transitGait) {
+            var reports = root.BattleCoverPositions.boundThreats(s, battle),
+              route = root.BattleTacticalContactRoute,
+              unsafe = (s.suppressedUntil || 0) > battle.time || underFireNow(s, battle);
+            task.transitGait =
+              !unsafe &&
+              reports.length &&
+              route &&
+              route.evaluate(s, battle, task.point, reports, false, 'stand').eligible
+                ? 'sprint'
+                : 'crouchRun';
+          }
+          transitStance(
+            s,
+            battle,
+            task.transitGait === 'sprint' ? 'stand' : 'crouch',
+            1,
+            'controller:covered-bound'
+          );
           move(s, battle, task.point, 'cover-bound');
           s.state = 'engage';
           s.setUp = false;
