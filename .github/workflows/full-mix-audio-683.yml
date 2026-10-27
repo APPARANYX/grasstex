@@ -32,6 +32,15 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Capture Prettier's exact full-mix source formatting for audit
+        run: |
+          npx --yes prettier@3.3.3 --write battle/full-audio-stress.js battle/modules/00a-audio-mix.js battle/modules/00-audio-format.js tools/ai-sim-harness/audio-format-check.js
+          for file in battle/full-audio-stress.js battle/modules/00a-audio-mix.js battle/modules/00-audio-format.js tools/ai-sim-harness/audio-format-check.js; do
+            echo "FORMATTED_SOURCE_START:$file"
+            base64 -w0 "$file"
+            echo
+            echo "FORMATTED_SOURCE_END:$file"
+          done
       - name: Install real Chromium playback runner
         run: |
           npm install --no-save --no-package-lock playwright@1.56.1

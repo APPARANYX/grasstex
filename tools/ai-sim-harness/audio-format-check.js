@@ -109,14 +109,22 @@ test('Safari (decodes both) stops at CAF; a browser that decodes neither stays M
 test('the shipped manifest declares opusTwins "all" (every clip is in grasstex-audio with both twins)', () => {
   assert.equal(MANIFEST.opusTwins, 'all');
 });
-test('opusTwins "all" swaps every MP3 the page loads, not only the weapon clips', async () => {
+test('unverified opusTwins all does not assume effects and voice files exist', async () => {
   const r = { BATTLE_AUDIO_MANIFEST: Object.assign({}, MANIFEST, { opusTwins: 'all' }), BATTLE_AUDIO_BASE: '/a/' };
   new Function('window', 'globalThis', 'location', SRC)(r, r, undefined);
   const F = r.BattleAudioFormat;
   assert.equal(await F.probe({ fetch: okFetch(), Ctx: decoder('ogg') }), 'ogg');
-  assert.equal(F.url('voices/us/cover-set-01.pitch-low.mp3'), 'voices/us/cover-set-01.pitch-low.ogg');
-  assert.equal(F.url('/a/combat/flyby/crack-01.mp3'), '/a/combat/flyby/crack-01.ogg');
+  assert.equal(F.url('voices/us/cover-set-01.pitch-low.mp3'), 'voices/us/cover-set-01.pitch-low.mp3');
+  assert.equal(F.url('/a/combat/flyby/crack-01.mp3'), '/a/combat/flyby/crack-01.mp3');
+  assert.equal(F.url('/a/' + fire), '/a/' + fire.replace(/\.mp3$/, '.ogg'));
   assert.equal(F.url('acoustics.json'), 'acoustics.json');
+});
+test('a deploy-verified complete opus twin inventory can opt back in to all containers', async () => {
+  const r = { BATTLE_AUDIO_MANIFEST: Object.assign({}, MANIFEST, { opusTwinsVerified: true }), BATTLE_AUDIO_BASE: '/a/' };
+  new Function('window', 'globalThis', 'location', SRC)(r, r, undefined);
+  const F = r.BattleAudioFormat;
+  assert.equal(await F.probe({ fetch: okFetch(), Ctx: decoder('ogg') }), 'ogg');
+  assert.equal(F.url('voices/us/cover-set-01.pitch-low.mp3'), 'voices/us/cover-set-01.pitch-low.ogg');
 });
 test('?audioFormat=ogg probes Ogg only', async () => {
   const F = load('?audioFormat=ogg'),
