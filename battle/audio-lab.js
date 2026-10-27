@@ -160,6 +160,7 @@
       schedulerReceived: scheduling.received, schedulerCulled: scheduling.culledDistance,
       schedulerFarSkipped: scheduling.skippedFar, schedulerThrottled: scheduling.throttledFar,
       schedulerEvictedPrimary: scheduling.evictedPrimary, schedulerEvictedEcho: scheduling.evictedEcho,
+      schedulerRejectedPrimary: scheduling.rejectedPrimary, schedulerRejectedEcho: scheduling.rejectedEcho,
       schedulerStartedPrimary: scheduling.startedPrimary, schedulerStartedEcho: scheduling.startedEcho,
       simulatedShots: shotCount, shotsSinceLast: shotCount - previousShotCount,
       acousticActive: root.BattleListenerAcoustics ? root.BattleListenerAcoustics.active : null,
@@ -173,7 +174,8 @@
     dom('progress').textContent = Math.round(simSeconds) + '/' + duration + ' sim s · ' + shotCount + ' shots · ' +
       s.active + ' active · ' + s.droppedBusy + ' busy drops · ' + s.droppedNotReady + ' not ready';
     dom('meter').textContent = 'RMS ' + entry.rms + ' · peak ' + entry.peak + ' · queue ' + entry.propagationQueue +
-      ' · AudioContext ' + entry.audioContextState;
+      ' · AudioContext ' + entry.audioContextState + ' · primary starts ' + entry.schedulerStartedPrimary +
+      ' · queue rejects ' + entry.schedulerRejectedPrimary + ' · evicted ' + entry.schedulerEvictedPrimary;
   }
   function tapOutput() {
     var ae = BABYLON.Engine && BABYLON.Engine.audioEngine;
@@ -220,6 +222,8 @@
         playbackErrors: last && last.errors || 0,
         schedulerPrimaryEvictions: last && last.schedulerEvictedPrimary || 0,
         schedulerEchoEvictions: last && last.schedulerEvictedEcho || 0,
+        schedulerPrimaryRejections: last && last.schedulerRejectedPrimary || 0,
+        schedulerEchoRejections: last && last.schedulerRejectedEcho || 0,
         schedulerDistanceCulled: last && last.schedulerCulled || 0,
         schedulerFarSkipped: last && last.schedulerFarSkipped || 0,
         schedulerFarThrottled: last && last.schedulerThrottled || 0,
