@@ -1294,9 +1294,32 @@
   }
   function controllerBoundArm(sq, battle) {
     var h = currentControllerBound(sq, battle);
-    if (!h || controllerBoundSupport(h, battle) < (h.moverId || h.moverIds ? 1 : 2)) return false;
+    if (!h || controllerBoundSupport(h, battle) < (h.supportRelocation ? 2 : h.moverId || h.moverIds ? 1 : 2))
+      return false;
     h.armed = true;
     return true;
+  }
+  /* A gunner or squad leader may displace only after a pair of forward
+     riflemen has physically moved ahead and recently fired independently.
+     The squad must keep its ordinary Meso lease and owner receipts. */
+  function forwardSupportForRelocation(sq, battle, man) {
+    var A = root.SquadAI,
+      E = root.BattleEngagement,
+      legs = sq.route || [],
+      goal = (sq._macroMission && sq._macroMission.point) || legs[legs.length - 1];
+    if (!goal || !Number.isFinite(goal.x) || !Number.isFinite(goal.z)) return [];
+    var remaining = Math.hypot(man.root.position.x - goal.x, man.root.position.z - goal.z);
+    return boundRoster(sq).filter(function (s) {
+      return (
+        s !== man &&
+        s !== A.leaderOf(sq) &&
+        (special ? s === supportMan : !A.isMachineGun(s)) &&
+        boundMember(s, battle) &&
+        Math.hypot(s.root.position.x - goal.x, s.root.position.z - goal.z) <= remaining - 24 &&
+        Math.hypot(s.root.position.x - man.root.position.x, s.root.position.z - man.root.position.z) >= 20 &&
+        E.supportDischarged(s, battle, battle.time - 3)
+      );
+    });
   }
   function controllerBoundBegin(sq, battle, params) {
     var A = root.SquadAI,
@@ -1304,7 +1327,14 @@
       back = sq && (sq.state === 'retreat' || sq.commandPhase === 'retreat'),
       leader = sq && A.leaderOf(sq),
       a = sq && boundRoster(sq),
-      C = root.BattleCoverPositions;
+      C = root.BattleCoverPositions,
+      special = params.supportRelocation === true,
+      supportMan =
+        special &&
+        a &&
+        a.find(function (s) {
+          return String(s.id) === params.moverId;
+        });
     if (
       !TC ||
       !TC.controls(battle, sq) ||
@@ -1333,7 +1363,15 @@
       currentControllerBound(sq, battle) ||
       !C ||
       !C.boundThreats ||
-      !C.boundThreats(leader, battle).length
+      !C.boundThreats(leader, battle).length ||
+      (special &&
+        (back ||
+          !params.moverId ||
+          params.moverIds ||
+          !supportMan ||
+          !(supportMan === leader || A.isMachineGun(supportMan)) ||
+          !boundMember(supportMan, battle) ||
+          forwardSupportForRelocation(sq, battle, supportMan).length < 2))
     )
       return null;
     /* Optional flexible selection: Meso still validates the exact live actor and
@@ -1357,7 +1395,8 @@
           : boundMember(s, battle))
       );
     });
-    if (params.moverId && (movers.length !== 1 || teamKeyFor(movers[0]) !== params.team)) return null;
+    if (params.moverId && (movers.length !== 1 || (!special && teamKeyFor(movers[0]) !== params.team)))
+      return null;
     if (
       params.moverIds &&
       (movers.length !== params.moverIds.length ||
@@ -1389,6 +1428,7 @@
       direction: params.direction,
       team: params.team,
       coverTeam: params.coverTeam,
+      supportRelocation: special,
       moverId: params.moverId || null,
       moverIds: params.moverIds ? params.moverIds.slice() : null,
       mission: sq._macroMission,

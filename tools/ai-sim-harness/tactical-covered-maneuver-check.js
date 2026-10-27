@@ -175,6 +175,30 @@ function until(w, predicate, seconds = 20) {
     'condition did not occur: ' + JSON.stringify(w.M.summary(w.q)) + ' ' + JSON.stringify(w.TC.summary(w.b))
   );
 }
+test('leader and machine gun require two real forward firing riflemen before a single covered relocation', () => {
+  const w = world();
+  const Q = w.r.BattleSquadStability;
+  const A = w.r.SquadAI;
+  const gunner = w.q.members.find(s => A.isMachineGun(s));
+  const leader = A.leaderOf(w.q);
+  const shooters = w.q.members.filter(s => s !== leader && !A.isMachineGun(s)).slice(0, 2);
+  const param = { direction: 'forward', team: 'alpha', moverId: String(gunner.id), supportRelocation: true };
+  assert.equal(Q.controllerBound.begin(w.q, w.b, param), null, 'no forward riflemen yet');
+  shooters.forEach(s => (s.root.position.z += 65));
+  assert.equal(Q.controllerBound.begin(w.q, w.b, param), null, 'positions alone are not shooting receipts');
+  const original = w.E.supportDischarged;
+  w.E.supportDischarged = (s, sim, since) => shooters.includes(s);
+  const h = Q.controllerBound.begin(w.q, w.b, param);
+  assert.ok(h && h.supportRelocation, 'one rear MG can relocate behind two independently firing riflemen');
+  assert.equal(h.movers.length, 1);
+  assert.equal(h.movers[0], gunner);
+  assert.ok(h.holders.includes(leader), 'the squad leader remains available to command');
+  assert.equal(Q.controllerBound.begin(w.q, w.b, { ...param, moverId: String(leader.id) }), null,
+    'one support move at a time');
+  assert.ok(Q.controllerBound.end(w.q, w.b, h));
+  w.E.supportDischarged = original;
+  clean(w);
+});
 test('new-controller formation authorizations have one movement writer; legacy stays unchanged', () => {
   const w = world();
   const s = w.q.members[4];

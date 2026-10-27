@@ -155,6 +155,7 @@
     st.arrived.clear();
     st.interrupted.clear();
     st.rejectedReplacementIds.clear();
+    st.supportRelocation = false;
   }
   function viable(s, sim) {
     var E = root.BattleEngagement,
@@ -221,6 +222,89 @@
       sector: Math.round(Math.atan2(report.z - p.z, report.x - p.x) / (Math.PI / 4))
     };
   }
+  /* Command and the MG are NOT normal fireteam movers. Once two advanced
+     riflemen have actually discharged, reposition ONE rear support element
+     through the same Meso lease and exact real-cover route, then restore it
+     to the support pool on physical check-in. No forward fire = no relocation. */
+  function supportRelocation(ctx, st, ready, goal, audit) {
+    var A = root.SquadAI,
+      E = root.BattleEngagement,
+      C = root.BattleCoverPositions,
+      R = root.BattleTacticalContactRoute,
+      leader = A.leaderOf(ctx.squad);
+    if (!goal || !R || !R.pick) return null;
+    var options = ready.filter(function (s) {
+      return s === leader || A.isMachineGun(s);
+    });
+    options.sort(function (a, b) {
+      return (A.isMachineGun(a) ? 0 : 1) - (A.isMachineGun(b) ? 0 : 1);
+    });
+    for (var i = 0; i < options.length; i++) {
+      var mover = options[i],
+        here = mover.root.position,
+        remaining = Math.hypot(here.x - goal.x, here.z - goal.z),
+        front = ready.filter(function (s) {
+          return (
+            s !== leader &&
+            !A.isMachineGun(s) &&
+            Math.hypot(s.root.position.x - goal.x, s.root.position.z - goal.z) <= remaining - 24 &&
+            Math.hypot(s.root.position.x - here.x, s.root.position.z - here.z) >= 20 &&
+            E.supportDischarged(s, ctx.sim, ctx.sim.time - 3)
+          );
+        });
+      if (front.length < 2) continue;
+      var anchor = {
+        x: (front[0].root.position.x + front[1].root.position.x) / 2,
+        z: (front[0].root.position.z + front[1].root.position.z) / 2
+      };
+      if (Math.hypot(anchor.x - here.x, anchor.z - here.z) < 35) continue;
+      var reports = C.boundThreats(mover, ctx.sim);
+      if (!reports.length) continue;
+      var retained = st.routes.get(String(mover.id)),
+        route = R.pick(
+          mover,
+          ctx.sim,
+          reports,
+          anchor,
+          [],
+          retained && retained.mission === ctx.squad._macroMission ? retained : null
+        );
+      if (!route.point ||
+          !C.candidates(mover, ctx.sim, reports[0], R.tuning.maxHop).some(function (p) {
+            return Math.hypot(p.x - route.point.x, p.z - route.point.z) < 0.01;
+          }))
+        continue;
+      audit.teams.push({
+        team: 'alpha',
+        moverId: String(mover.id),
+        eligibleMovers: 1,
+        eligibleSupporters: front.length,
+        candidates: route.stats.total,
+        directionalCandidates: route.stats.progressing,
+        admittedRoutes: route.stats.safe,
+        graphNodes: route.stats.graphNodes || 0,
+        routeLength: route.stats.planLength || 0,
+        terminal: route.stats.terminal || 'none',
+        reused: !!route.reused,
+        moverFailures: [],
+        routeRejections: route.stats.rejected,
+        result: 'support-element-relocation'
+      });
+      audit.result = 'forward-rifles-cover-single-support-relocation';
+      return {
+        team: 'alpha',
+        index: 0,
+        moverIds: [String(mover.id)],
+        plan: [{ man: mover, point: route.point }],
+        routes: [{ moverId: String(mover.id), waypoints: route.waypoints || [], reused: !!route.reused }],
+        direction: 'forward',
+        defending: false,
+        defenseSector: null,
+        supportRelocation: true
+      };
+    }
+    return null;
+  }
   function choose(ctx, st, rs, excluded) {
     var Q = root.BattleSquadStability,
       C = root.BattleCoverPositions,
@@ -268,6 +352,12 @@
     if (ready.length < 2) {
       audit.result = 'no-mover-and-supporter';
       return null;
+    }
+    /* Only the assault approach may shift its support echelon. Ordinary
+       defense and retreat keep their separate owner-defined posture. */
+    if (!back && !defense && ctx.squad._macroMission.action === 'assault') {
+      var shift = supportRelocation(ctx, st, ready, goal, audit);
+      if (shift) return shift;
     }
     var choices = [];
     ready.forEach(function (s) {
@@ -430,7 +520,8 @@
         var id = String(p.man.id);
         return !st.arrived.has(id) && !st.interrupted.has(id);
       });
-    if (!h || !h.armed || !h.moverIds || active.length >= MAX_PARALLEL_MOVERS) return;
+    if (!h || !h.armed || !h.moverIds || st.supportRelocation || active.length >= MAX_PARALLEL_MOVERS)
+      return;
     var excluded = new Set(
       active
         .map(function (p) {
@@ -590,7 +681,7 @@
         } else replenish(ctx, st, rs);
         return;
       }
-      if (st.supporters.length < 1) {
+      if (st.supporters.length < (st.supportRelocation ? 2 : 1)) {
         st.reason = 'await-independent-support-discharge';
         return;
       }
@@ -653,6 +744,7 @@
       team: selected.team,
       coverTeam: null
     };
+    if (selected.supportRelocation) coverRequest.supportRelocation = true;
     if (selected.moverIds.length === 1) coverRequest.moverId = selected.moverIds[0];
     else coverRequest.moverIds = selected.moverIds;
     var result = ctx.request('maneuver.cover', null, coverRequest);
@@ -680,6 +772,7 @@
     st.interrupted.clear();
     st.rejectedReplacementIds.clear();
     st.plan = selected.plan;
+    st.supportRelocation = !!selected.supportRelocation;
     st.defending = !!selected.defending;
     st.defenseSector = selected.defenseSector;
     st.defenseCenter = defense ? defense.center : null;
@@ -747,6 +840,7 @@
             checkins: st.checkins,
             movingCount:
               st.window && st.phase === 'moving' ? st.plan.length - st.arrived.size - st.interrupted.size : 0,
+            supportRelocation: !!st.supportRelocation,
             pendingCover: !!st.window,
             arrivedIds: Array.from(st.arrived),
             interruptedIds: Array.from(st.interrupted),
