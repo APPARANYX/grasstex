@@ -261,4 +261,31 @@ function world(mode, withGraph, flags) {
   assert.equal(w.api.stats.replacedCapacity, 1);
   assert.equal(w.api.active, 24);
 }
+// Research-only source processing budgets: exercise the actual acoustic tracker
+// at 24, 48, 96 and 192 records without altering the 24-slot shipping baseline.
+// prettier-ignore
+for (const slots of [24, 48, 96, 192]) {
+  const w = world('standard', true, '&acousticPriority=1&acousticSlots=' + slots);
+  assert.equal(w.api.defaultMaxActive, 24);
+  assert.equal(w.api.maxActive, slots);
+  assert.equal(w.api.tickIntervalMs, 200);
+  const near = { x: 30, y: 1.6, z: 0 };
+  for (let i = 0; i < slots; i++) {
+    const sound = { getSoundGain: w.sound.getSoundGain,
+      _soundPanner: w.sound._soundPanner, setVolume() {} };
+    assert.equal(w.api.prepare(sound, { x: near.x + i / 50, y: near.y, z: near.z },
+      'gun', 0.12, w.scene), true);
+  }
+  assert.equal(w.api.active, slots);
+  const extra = { getSoundGain: w.sound.getSoundGain, _soundPanner: w.sound._soundPanner, setVolume() {} };
+  assert.equal(w.api.prepare(extra, { x: 900, y: 1.6, z: 0 },
+    'gunDistant', 0.001, w.scene), false, 'low-priority overflow cannot evict high-value records');
+  assert.equal(w.api.stats.skippedCapacity, 1);
+  w.tick();
+  assert.equal(w.api.stats.acousticTicks, 1);
+  assert.ok(w.api.stats.sampled >= slots * 2, 'all tracked sounds receive periodic sampling');
+}
+assert.equal(world('high', true).api.maxActive, 36);
+assert.equal(world('standard', true, '&acousticSlots=50000').api.maxActive, 192);
+assert.equal(world('standard', true, '&acousticSlots=1').api.maxActive, 1);
 console.log('listener-acoustics-check: PASS');
