@@ -95,7 +95,8 @@
       /* TC.summary().live has no faction. Never ascribe a colliding enemy ID. */
       var actors = units.filter(function (u) {
         return (
-          u && u.squad &&
+          u &&
+          u.squad &&
           String(u.id) === String(man.id) &&
           String(u.squad.id) === String(man.squad.id)
         );
@@ -149,7 +150,14 @@
             coverCause: null,
             coverArrivalEvidence: null,
             coverOrigin: null,
-            handoffs: { request: null, accepted: null, adopted: null, selected: null, physicalStart: null, arrived: null },
+            handoffs: {
+              request: null,
+              accepted: null,
+              adopted: null,
+              selected: null,
+              physicalStart: null,
+              arrived: null
+            },
             blockers: [],
             _lastBlocker: null,
             firstCoverSearch: null,
@@ -180,17 +188,33 @@
         +e._urgentCoverSearchAt > t
       )
         r.firstCoverSearch = stamp(t);
-      if (early && r.firstLow == null && !r.initialLow && (s.prone || s.tacticalCrouch || s.crouching))
+      if (
+        early &&
+        r.firstLow == null &&
+        !r.initialLow &&
+        (s.prone || s.tacticalCrouch || s.crouching)
+      )
         r.firstLow = +t.toFixed(3);
-      if (early && r.firstHold == null && (e.state === 'orient' || kind === 'hold' || kind === 'contact-reaction'))
+      if (
+        early &&
+        r.firstHold == null &&
+        (e.state === 'orient' || kind === 'hold' || kind === 'contact-reaction')
+      )
         r.firstHold = +t.toFixed(3);
       var A = root.BattleAmmunition,
         shot = A && A.shotEvidence && A.shotEvidence(s, b);
-      if (early && r.firstShot == null && shot && Number.isFinite(+shot.at) && +shot.at >= r.at - 0.001) {
+      if (
+        early &&
+        r.firstShot == null &&
+        shot &&
+        Number.isFinite(+shot.at) &&
+        +shot.at >= r.at - 0.001
+      ) {
         r.firstShot = +(+shot.at).toFixed(3);
         r.movingAtShot = !!s.moving;
       }
-      if (early && r.firstMotion == null && s.moving && dist(r.cuePosition, p) > 0.35) r.firstMotion = +t.toFixed(3);
+      if (early && r.firstMotion == null && s.moving && dist(r.cuePosition, p) > 0.35)
+        r.firstMotion = +t.toFixed(3);
       if (
         early &&
         r.firstCoverOrder == null &&
@@ -247,8 +271,14 @@
         blocker(r, t, 'command', 'pending:' + result.why);
       if (s._movementStopReason && r.firstCoverMotion == null)
         blocker(r, t, 'execution', s._movementStopReason);
-      if (r.coverArrival == null && r.firstCoverMotion != null && r.coverPoint && p &&
-          dist(p, r.coverPoint) <= 1.3 && !s.moving) {
+      if (
+        r.coverArrival == null &&
+        r.firstCoverMotion != null &&
+        r.coverPoint &&
+        p &&
+        dist(p, r.coverPoint) <= 1.3 &&
+        !s.moving
+      ) {
         r.coverArrival = stamp(t);
         r.coverArrivalEvidence = 'physical-proximity';
         mark(r, 'arrived', t);
@@ -262,8 +292,7 @@
         r.coverArrivalEvidence = 'engagement:urgent-arrival';
         mark(r, 'arrived', +e._urgentCoverArrivedAt);
       }
-      if (r.coverArrival == null && !bound && !e._urgentCover &&
-          r.handoffs.accepted != null)
+      if (r.coverArrival == null && !bound && !e._urgentCover && r.handoffs.accepted != null)
         blocker(r, t, 'engagement', 'order-ended:' + (e.state || 'unknown'));
     }
   }

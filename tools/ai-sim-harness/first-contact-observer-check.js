@@ -32,7 +32,10 @@ function harness(search) {
       }
     },
     BattleEngagement: { underFireNow: s => !!s.incoming },
-    SquadAI: { threatDisposition: () => ({ combatThreat: true }), soldierContact: s => s.report || null },
+    SquadAI: {
+      threatDisposition: () => ({ combatThreat: true }),
+      soldierContact: s => s.report || null
+    },
     BattleAmmunition: { shotEvidence: s => s.shot || null },
     BattleObstacleField: { coverPotentialAt: () => 0.96 }
   };
