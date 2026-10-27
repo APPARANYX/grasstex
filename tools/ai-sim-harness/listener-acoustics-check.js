@@ -187,7 +187,7 @@ function world(mode, withGraph, flags) {
 }
 {
   const w = world('standard', true);
-  for (let i = 0; i < 45; i++) {
+  for (let i = 0; i < 110; i++) {
     const s = { getSoundGain: w.sound.getSoundGain, _soundPanner: w.sound._soundPanner, setVolume() {} };
     w.api.prepare(s, { x: i + 15, y: 1.6, z: 0 }, 'gun', 0.2, w.scene);
   }
@@ -195,7 +195,7 @@ function world(mode, withGraph, flags) {
 }
 // prettier-ignore
 {
-  const w = world('standard', true, '&acousticPriority=1');
+  const w = world('standard', true, '&acousticPriority=1&acousticSlots=24');
   assert.equal(w.api.priorityEnabled, true, 'priority admission is an explicit experiment');
   const sounds = [];
   for (let i = 0; i < 24; i++) {
@@ -230,7 +230,7 @@ function world(mode, withGraph, flags) {
 }
 // prettier-ignore
 {
-  const w = world('standard', true);
+  const w = world('standard', true, '&acousticSlots=24');
   assert.equal(w.api.priorityEnabled, false, 'shipping default retains FIFO acoustics');
   for (let i = 0; i < 24; i++) {
     const far = { getSoundGain: w.sound.getSoundGain, _soundPanner: w.sound._soundPanner, setVolume() {} };
@@ -243,7 +243,7 @@ function world(mode, withGraph, flags) {
 // A/B minimum-residence guard: no audio steal or filter rebuild under churn.
 // prettier-ignore
 {
-  const w = world('standard', true, '&acousticPriority=1&acousticHoldMs=250');
+  const w = world('standard', true, '&acousticPriority=1&acousticHoldMs=250&acousticSlots=24');
   assert.equal(w.api.acousticHoldMs, 250, 'hold guard is controlled by query option');
   for (let i = 0; i < 24; i++) {
     w.api.prepare(
@@ -262,7 +262,7 @@ function world(mode, withGraph, flags) {
   assert.equal(w.api.active, 24);
 }
 // Research-only source processing budgets: exercise the actual acoustic tracker
-// at 24, 48, 96 and 192 records without altering the 24-slot shipping baseline.
+// at 24, 48, 96 and 192 records with a 96-slot shipping baseline.
 // prettier-ignore
 for (const slots of [24, 48, 96, 192]) {
   const w = world('standard', true, '&acousticPriority=1&acousticSlots=' + slots);
