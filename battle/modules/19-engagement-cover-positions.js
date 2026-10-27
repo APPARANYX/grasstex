@@ -587,7 +587,10 @@
       var c = coverRegistry(battle),
         p = posOf(s),
         t = threat.root ? posOf(threat) : threat;
-      var obs = F.nearby(battle.obstacles, p.x, p.z, maxRange),
+      /* An obstacle's footprint may be outside the hop radius while a
+           legal standoff slot is within it. Pad discovery only; exact slot
+           distance, shielding, route and reservation checks remain intact. */
+        var obs = F.nearby(battle.obstacles, p.x, p.z, maxRange + slotPad()),
         out = [],
         seen = new Set(),
         P = root.BattleNavigationPhysicality;

@@ -33,6 +33,15 @@
         history: [],
         completed: 0,
         failed: 0,
+        windowsStarted: 0,
+        windowsCompleted: 0,
+        windowsPartiallyCompleted: 0,
+        windowsAborted: 0,
+        personalOrdersAccepted: 0,
+        personalOrdersRejected: 0,
+        personalOrdersInterrupted: 0,
+        plannedNeverSubmitted: 0,
+        rejectedReplacementIds: new Set(),
         byDirection: {
           forward: { started: 0, completed: 0, aborted: 0 },
           back: { started: 0, completed: 0, aborted: 0 }
@@ -103,7 +112,10 @@
     if (st.arrived.has(id) || st.interrupted.has(id)) return;
     st.interrupted.add(id);
     var actionId = st.actions.get(id);
-    if (actionId) ctx.finish(actionId, reason);
+    if (actionId) {
+      st.personalOrdersInterrupted++;
+      ctx.finish(actionId, reason);
+    }
     st.actions.delete(id);
     root.BattleSquadStability.controllerBound.resolveMover(ctx.squad, ctx.sim, p.man);
     st.routes.delete(id);
@@ -112,6 +124,13 @@
     st.phase = 'moving';
   }
   function end(ctx, st, reason, success) {
+    var ordered = new Set(st.actions.keys());
+    if (st.window) {
+      if (success && st.interrupted.size === 0) st.windowsCompleted++;
+      else if (success) st.windowsPartiallyCompleted++;
+      else st.windowsAborted++;
+    }
+    st.personalOrdersInterrupted += st.actions.size;
     st.actions.forEach(function (id) {
       ctx.finish(id, reason);
     });
@@ -127,6 +146,7 @@
         var id = String(p.man.id);
         if (!st.arrived.has(id) && !st.interrupted.has(id)) {
           st.failed++;
+          if (!ordered.has(id)) st.plannedNeverSubmitted++;
           st.routes.delete(id);
         }
       });
@@ -134,6 +154,7 @@
     note(ctx, st, success ? 'completed' : 'aborted', reason);
     st.arrived.clear();
     st.interrupted.clear();
+    st.rejectedReplacementIds.clear();
   }
   function viable(s, sim) {
     var E = root.BattleEngagement,
@@ -270,9 +291,16 @@
       /* The Meso covered-window owner accepts alpha/bravo/charlie, not the
          command element. Never choose a route it cannot lease. */
       if (teams.indexOf(team) < 0) return;
+      /* The owner validates the mover's own received sector, not merely the
+         Squad Leader's reports. Do not plan an order he cannot adopt. */
+      var personalReports = C.boundThreats(s, ctx.sim);
+      if (!personalReports.length) {
+        audit.teams.push({ team: team, moverId: String(s.id), result: 'no-personal-reported-contact' });
+        return;
+      }
       var result = defense
-          ? R.pickDefense(s, ctx.sim, rs, goal, defense.radius, team, pending ? retained : null)
-          : R.pick(s, ctx.sim, rs, goal, [], pending ? retained : null),
+          ? R.pickDefense(s, ctx.sim, personalReports, goal, defense.radius, team, pending ? retained : null)
+          : R.pick(s, ctx.sim, personalReports, goal, [], pending ? retained : null),
         record = {
           team: team,
           moverId: String(s.id),
@@ -291,6 +319,14 @@
         };
       audit.teams.push(record);
       if (!result.point) return;
+      /* The long-horizon planner must hand over a slot Engagement currently
+         recognizes for this individual. Exact range and physical checks stay. */
+      if (!C.candidates(s, ctx.sim, personalReports[0], R.tuning.maxHop).some(function (p) {
+        return Math.hypot(p.x - result.point.x, p.z - result.point.z) < 0.01;
+      })) {
+        record.result = 'execution-owner-cover-candidate-absent';
+        return;
+      }
       var obs = root.BattleEngagement.fireControlObservation(s, ctx.sim),
         effectiveHere = !!(obs && obs.inRange && obs.visualLine && obs.ballisticLine);
       /* Preserve effective shooters where possible; move men without a useful
@@ -382,7 +418,7 @@
         .map(function (p) {
           return String(p.man.id);
         })
-        .concat(Array.from(st.interrupted))
+        .concat(Array.from(st.interrupted), Array.from(st.rejectedReplacementIds))
     );
     var choice = choose(ctx, st, rs, excluded);
     if (!choice) return;
@@ -403,11 +439,14 @@
       if (!result.ok) {
         Q.controllerBound.resolveMover(ctx.squad, ctx.sim, p.man);
         st.failed++;
+        st.personalOrdersRejected++;
+        st.rejectedReplacementIds.add(id);
         note(ctx, st, 'interrupted', 'replacement-order-refused:' + id + ':' + result.reason);
         st.phase = 'moving';
         continue;
       }
       st.actions.set(id, result.actionId);
+      st.personalOrdersAccepted++;
       st.arrived.delete(id);
       var previousIndex = st.plan.findIndex(function (old) {
         return String(old.man.id) === id;
@@ -556,11 +595,17 @@
         root.BattleTacticalContactSkills.release(ctx, p.man);
         var result = ctx.request('combat.bound', String(p.man.id), { point: p.point });
         if (!result.ok) {
-          end(ctx, st, 'bound-refused:' + result.reason, false);
-          st.blocked = b;
-          return;
+          st.personalOrdersRejected++;
+          interruptMan(ctx, st, p, 'bound-refused:' + result.reason);
+          continue;
         }
         st.actions.set(String(p.man.id), result.actionId);
+        st.personalOrdersAccepted++;
+      }
+      if (!st.actions.size) {
+        end(ctx, st, 'all-personal-orders-refused', false);
+        st.blocked = b;
+        return;
       }
       st.confirmedSupporters = st.supporters.slice();
       note(ctx, st, 'moving', 'real-independent-support-discharge');
@@ -615,6 +660,7 @@
     });
     st.arrived.clear();
     st.interrupted.clear();
+    st.rejectedReplacementIds.clear();
     st.plan = selected.plan;
     st.defending = !!selected.defending;
     st.defenseSector = selected.defenseSector;
@@ -628,6 +674,7 @@
     st.supporters = [];
     st.confirmedSupporters = [];
     st.window = result.actionId;
+    st.windowsStarted++;
     note(ctx, st, 'support', 'await-independent-support-discharge');
   }
   function engagement(ctx) {
@@ -670,7 +717,15 @@
             direction: st.direction,
             team: st.team,
             completed: st.completed,
-            failed: st.failed,
+            failed: st.failed, // legacy planned failures; not aborted physical hops
+            windowsStarted: st.windowsStarted,
+            windowsCompleted: st.windowsCompleted,
+            windowsPartiallyCompleted: st.windowsPartiallyCompleted,
+            windowsAborted: st.windowsAborted,
+            personalOrdersAccepted: st.personalOrdersAccepted,
+            personalOrdersRejected: st.personalOrdersRejected,
+            personalOrdersInterrupted: st.personalOrdersInterrupted,
+            plannedNeverSubmitted: st.plannedNeverSubmitted,
             checkins: st.checkins,
             movingCount:
               st.window && st.phase === 'moving' ? st.plan.length - st.arrived.size - st.interrupted.size : 0,
