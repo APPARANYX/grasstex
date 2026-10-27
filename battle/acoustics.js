@@ -84,7 +84,11 @@
       startedPrimary: 0,
       startedEcho: 0,
       playExceptions: 0,
-      maxQueued: 0
+      maxQueued: 0,
+      drainFrames: 0,
+      lastDrainMs: null,
+      maxActiveDrainGapMs: 0,
+      maxDueLatenessMs: 0
     };
     // Queue policy is deliberately formatted as one audited unit.
     // prettier-ignore
@@ -189,6 +193,7 @@
       var index = findDue(queue, now);
       if (index < 0) return false;
       var due = queue.splice(index, 1)[0];
+      stats.maxDueLatenessMs = Math.max(stats.maxDueLatenessMs, Math.max(0, now - due.due));
       try {
         due.audio.play(due.kind, due.pos, due.gain, 1);
         if (due.echo) stats.startedEcho++;
@@ -204,6 +209,10 @@
     function drain() {
       var now = performance.now(),
         started = 0;
+      if (stats.lastDrainMs != null)
+        stats.maxActiveDrainGapMs = Math.max(stats.maxActiveDrainGapMs, now - stats.lastDrainMs);
+      stats.lastDrainMs = now;
+      stats.drainFrames++;
       if (dual) {
         // Reserve one eligible start for each lane when both have arrived.
         // A lane with no due event lends its start to the other lane.
@@ -217,13 +226,13 @@
           while (started < MAX_PER_FRAME && playDue(active, now)) started++;
         }
         if (qNear.length || qFar.length) requestAnimationFrame(drain);
-        else running = false;
+        else { running = false; stats.lastDrainMs = null; }
         return;
       }
       // Default single-queue policy remains exactly two starts per frame.
       while (started < MAX_PER_FRAME && playDue(q, now)) started++;
       if (q.length) requestAnimationFrame(drain);
-      else running = false;
+      else { running = false; stats.lastDrainMs = null; }
     }
     return {
       enqueue: enqueue,
