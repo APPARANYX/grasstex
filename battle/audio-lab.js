@@ -231,6 +231,9 @@
     engine.runRenderLoop(function () { scene.render(); });
     // Probe the actual deployed codec; audio format's earlier auto-probe had no manifest yet.
     if (root.BattleAudioFormat) await root.BattleAudioFormat.probe({ manifest: root.BATTLE_AUDIO_MANIFEST, base: audioBase });
+    // Construct the real shipping pool before requesting its (sometimes lazy) Web Audio engine.
+    setupShooters();
+    audio = root.BattleSim.buildWeaponAudio(scene, audioBase);
     var ae = BABYLON.Engine.audioEngine;
     if (ae && ae.unlock) ae.unlock();
     if (ae && ae.audioContext && ae.audioContext.state === 'suspended') {
@@ -242,8 +245,6 @@
     if (root.BattleListenerAcoustics) root.BattleListenerAcoustics.bind({
       scene: scene, heightAt: function () { return 0; }, obstacles: []
     });
-    setupShooters();
-    audio = root.BattleSim.buildWeaponAudio(scene, audioBase);
     if (typeof PerformanceObserver !== 'undefined') {
       try {
         obs = new PerformanceObserver(function (list) {
