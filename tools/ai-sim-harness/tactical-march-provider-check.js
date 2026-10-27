@@ -252,9 +252,10 @@ test('live contact stands down march without issuing distant route-leg orders', 
 test('preview: a stale squad-contact latch cannot indefinitely stop the mission route', () => {
   const w = world('?stressAct=0&commandRelay=0&tacticalController=new&firstContactResponse=1');
   w.systems['tactical-march-provider'].onBattleStart(w.b);
+  tick(w); // install the native mission before giving a controlled contact cue
   w.q.inContact = true;
   w.q.contact = { x: 10, z: 80, at: w.b.time - 30, seenBy: w.q.members[0].id };
-  tick(w);
+  w.TC.dispatch(w.b, w.q, 'squadCommand');
   const members = alive(w);
   assert.equal(
     w.TC.summary(w.b).actions,
@@ -267,6 +268,7 @@ test('preview: a stale squad-contact latch cannot indefinitely stop the mission 
 test('preview: fresh credible contact or incoming fire still withholds the blind route', () => {
   const w = world('?stressAct=0&commandRelay=0&tacticalController=new&firstContactResponse=1');
   w.systems['tactical-march-provider'].onBattleStart(w.b);
+  tick(w); // do not let the squad-perception tick discard a synthetic fixture report
   w.q.inContact = true;
   w.q.contact = {
     x: 0,
@@ -276,16 +278,16 @@ test('preview: fresh credible contact or incoming fire still withholds the blind
     heard: false,
     source: 'seen'
   };
-  tick(w);
+  w.TC.dispatch(w.b, w.q, 'squadCommand');
   assert.equal(w.TC.summary(w.b).actions, 0, 'fresh contact still blocks the uninformed march');
   w.q.contact = null;
   w.q.members[0].suppressedUntil = w.b.time + 2;
   w.b.time += 0.15;
-  tick(w);
+  w.TC.dispatch(w.b, w.q, 'squadCommand');
   assert.equal(w.TC.summary(w.b).actions, 0, 'incoming fire still blocks blind movement');
   w.q.members[0].suppressedUntil = 0;
   w.b.time += 5;
-  tick(w);
+  w.TC.dispatch(w.b, w.q, 'squadCommand');
   assert.equal(w.TC.summary(w.b).actions, alive(w).length, 'when quiet, original route resumes');
   assert.equal(w.TC.summary(w.b).stats.faults, 0);
 });
