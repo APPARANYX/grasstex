@@ -6,6 +6,7 @@ on:
       - 'battle/modules/14-zz-projectile-flight.js'
       - 'battle/modules/11-soldier-individuality.js'
       - 'battle/modules/14-wound-model.js'
+      - 'battle/battle-sim.js'
       - 'scripts/probes/probe_flight_meeting.cjs'
       - 'tools/ai-sim-harness/projectile-flight-check.js'
       - '.github/workflows/ballistic-flight-qa.yml'
@@ -22,11 +23,11 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Format the projectile implementation once
         run: |
-          npx --yes prettier@3.3.3 --write battle/modules/14-z-ballistic-raycast.js battle/modules/14-zz-projectile-flight.js battle/modules/11-soldier-individuality.js scripts/probes/probe_flight_meeting.cjs tools/ai-sim-harness/projectile-flight-check.js
-          if ! git diff --quiet -- battle/modules/14-z-ballistic-raycast.js battle/modules/14-zz-projectile-flight.js battle/modules/11-soldier-individuality.js scripts/probes/probe_flight_meeting.cjs tools/ai-sim-harness/projectile-flight-check.js; then
+          npx --yes prettier@3.3.3 --write battle/modules/14-z-ballistic-raycast.js battle/modules/14-zz-projectile-flight.js battle/modules/11-soldier-individuality.js battle/battle-sim.js scripts/probes/probe_flight_meeting.cjs tools/ai-sim-harness/projectile-flight-check.js
+          if ! git diff --quiet -- battle/modules/14-z-ballistic-raycast.js battle/modules/14-zz-projectile-flight.js battle/modules/11-soldier-individuality.js battle/battle-sim.js scripts/probes/probe_flight_meeting.cjs tools/ai-sim-harness/projectile-flight-check.js; then
             git config user.name 'github-actions[bot]'
             git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-            git add battle/modules/14-z-ballistic-raycast.js battle/modules/14-zz-projectile-flight.js battle/modules/11-soldier-individuality.js scripts/probes/probe_flight_meeting.cjs tools/ai-sim-harness/projectile-flight-check.js
+            git add battle/modules/14-z-ballistic-raycast.js battle/modules/14-zz-projectile-flight.js battle/modules/11-soldier-individuality.js battle/battle-sim.js scripts/probes/probe_flight_meeting.cjs tools/ai-sim-harness/projectile-flight-check.js
             git commit -m 'style(ballistics): normalize new flight and tempo files'
             git push origin HEAD:work/tactical-integration-audio-safety-20261026
           fi
@@ -38,7 +39,7 @@ jobs:
           node --check scripts/probes/probe_flight_meeting.cjs
           node --check tools/ai-sim-harness/projectile-flight-check.js
           node tools/ai-sim-harness/projectile-flight-check.js
-          npx --yes prettier@3.3.3 --check battle/modules/14-z-ballistic-raycast.js battle/modules/14-zz-projectile-flight.js battle/modules/11-soldier-individuality.js scripts/probes/probe_flight_meeting.cjs tools/ai-sim-harness/projectile-flight-check.js
+          npx --yes prettier@3.3.3 --check battle/modules/14-z-ballistic-raycast.js battle/modules/14-zz-projectile-flight.js battle/modules/11-soldier-individuality.js battle/battle-sim.js scripts/probes/probe_flight_meeting.cjs tools/ai-sim-harness/projectile-flight-check.js
       - name: Install native browser
         run: |
           php -l battle_sim_local.php
@@ -58,7 +59,7 @@ jobs:
       - name: Run 300m/150m paired hitscan and flight live US/GE mini meetings
         env:
           FLIGHT_MEETING_SECONDS: '210'
-          FLIGHT_MEETING_SEEDS: 'mini-meeting-676-001'
+          FLIGHT_MEETING_SEEDS: 'mini-meeting-676-001,mini-meeting-676-002'
         run: node scripts/probes/probe_flight_meeting.cjs
       - if: failure()
         run: tail -100 /tmp/flight-mini-php.log || true
