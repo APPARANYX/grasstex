@@ -54,6 +54,7 @@
   root.BattleAudioScheduler = (function () {
     // Opt-in A/B: split the existing 128 waiting slots into independent 64-slot lanes.
     // This is scheduling, not an additional WebAudio output channel.
+    // prettier-ignore
     var dual = typeof location !== 'undefined' &&
       /(?:^|[?&])audioQueues=dual(?:&|$)/.test(location.search || '');
     var q = [],
@@ -172,6 +173,7 @@
       }
     }
     // Find the most urgent *due* primary first, then the earliest due echo.
+    // prettier-ignore
     function findDue(queue, now) {
       var best = -1;
       for (var i = 0; i < queue.length; i++) {
@@ -182,6 +184,7 @@
       }
       return best;
     }
+    // prettier-ignore
     function playDue(queue, now) {
       var index = findDue(queue, now);
       if (index < 0) return false;
@@ -228,6 +231,7 @@
       get stats() {
         return Object.assign({}, stats);
       },
+      // prettier-ignore
       get limits() {
         return {
           mode: dual ? 'dual' : 'single', maxPerFrame: MAX_PER_FRAME, maxQueue: MAX_QUEUE,
@@ -235,6 +239,7 @@
           farCapacity: dual ? LANE_CAPACITY : null
         };
       },
+      // prettier-ignore
       get lanes() {
         if (!dual) return null;
         return {
