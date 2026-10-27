@@ -57,6 +57,13 @@
       recentFar = {};
     var MAX_PER_FRAME = 2,
       MAX_QUEUE = 18;
+    // Diagnostic accounting only; the existing admission and playback rules are unchanged.
+    var stats = {
+      received: 0, enqueuedPrimary: 0, enqueuedEcho: 0,
+      culledDistance: 0, skippedFar: 0, throttledFar: 0,
+      evictedPrimary: 0, evictedEcho: 0,
+      startedPrimary: 0, startedEcho: 0, playExceptions: 0, maxQueued: 0
+    };
     function push(e) {
       if (q.length >= MAX_QUEUE) {
         var idx = q.findIndex
@@ -64,10 +71,19 @@
               return x.echo;
             })
           : -1;
-        if (idx >= 0) q.splice(idx, 1);
-        else q.shift();
+        if (idx >= 0) {
+          q.splice(idx, 1);
+          stats.evictedEcho++;
+        } else {
+          var evicted = q.shift();
+          if (evicted && evicted.echo) stats.evictedEcho++;
+          else stats.evictedPrimary++;
+        }
       }
       q.push(e);
+      if (e.echo) stats.enqueuedEcho++;
+      else stats.enqueuedPrimary++;
+      if (q.length > stats.maxQueued) stats.maxQueued = q.length;
       if (!running) {
         running = true;
         requestAnimationFrame(drain);
@@ -78,11 +94,21 @@
         d = distance(cp, pos),
         p = cfg.smallArms,
         now = performance.now();
-      if (d > p.cull) return;
-      if (d > 260 && Math.random() < 0.55) return;
+      stats.received++;
+      if (d > p.cull) {
+        stats.culledDistance++;
+        return;
+      }
+      if (d > 260 && Math.random() < 0.55) {
+        stats.skippedFar++;
+        return;
+      }
       if (d > 140) {
         var last = recentFar[kind] || 0;
-        if (now - last < 45) return;
+        if (now - last < 45) {
+          stats.throttledFar++;
+          return;
+        }
         recentFar[kind] = now;
       }
       var gain = compressedGain(p, d),
@@ -109,7 +135,11 @@
         if (started < MAX_PER_FRAME && e.due <= now) {
           try {
             e.audio.play(e.kind, e.pos, e.gain, 1);
-          } catch (_) {}
+            if (e.echo) stats.startedEcho++;
+            else stats.startedPrimary++;
+          } catch (_) {
+            stats.playExceptions++;
+          }
           started++;
         } else remain.push(e);
       }
@@ -119,6 +149,13 @@
     }
     return {
       enqueue: enqueue,
+      // Non-authoritative audio presentation counters; snapshots in Audio Lab only.
+      get stats() {
+        return Object.assign({}, stats);
+      },
+      get limits() {
+        return { maxPerFrame: MAX_PER_FRAME, maxQueue: MAX_QUEUE };
+      },
       get queued() {
         return q.length;
       }
