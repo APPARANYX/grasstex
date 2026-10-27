@@ -160,6 +160,11 @@
       attempts: s.playRequests, droppedBusy: s.droppedBusy,
       droppedNotReady: s.droppedNotReady, droppedLocked: s.droppedLocked,
       errors: s.errors, propagationQueue: root.BattleAudioScheduler.queued,
+      pageVisibility: typeof document !== 'undefined' ? document.visibilityState : 'unknown',
+      schedulerDrainFrames: scheduling.drainFrames,
+      schedulerSinceDrainMs: scheduling.lastDrainMs == null ? null : Math.round(clock - scheduling.lastDrainMs),
+      schedulerMaxDrainGapMs: Math.round(scheduling.maxActiveDrainGapMs || 0),
+      schedulerMaxDueLatenessMs: Math.round(scheduling.maxDueLatenessMs || 0),
       schedulerReceived: scheduling.received, schedulerCulled: scheduling.culledDistance,
       schedulerFarSkipped: scheduling.skippedFar, schedulerThrottled: scheduling.throttledFar,
       schedulerEvictedPrimary: scheduling.evictedPrimary, schedulerEvictedEcho: scheduling.evictedEcho,
@@ -182,7 +187,9 @@
     dom('meter').textContent = 'RMS ' + entry.rms + ' · peak ' + entry.peak + ' · queue ' + entry.propagationQueue +
       ' · AudioContext ' + entry.audioContextState + ' · primary starts ' + entry.schedulerStartedPrimary +
       ' · queue rejects ' + entry.schedulerRejectedPrimary + ' · evicted ' + entry.schedulerEvictedPrimary +
-      (lanes ? ' · near/far queues ' + entry.nearQueue + '/' + entry.farQueue : '');
+      (lanes ? ' · near/far queues ' + entry.nearQueue + '/' + entry.farQueue : '') +
+      ' · RAF gap ' + (entry.schedulerSinceDrainMs == null ? 'idle' : entry.schedulerSinceDrainMs + 'ms') +
+      ' · tab ' + entry.pageVisibility;
   }
   function tapOutput() {
     var ae = BABYLON.Engine && BABYLON.Engine.audioEngine;
@@ -232,6 +239,8 @@
         droppedNotReady: last && last.droppedNotReady || 0,
         droppedLocked: last && last.droppedLocked || 0,
         playbackErrors: last && last.errors || 0,
+        maxSchedulerDrainGapMs: root.BattleAudioScheduler.stats.maxActiveDrainGapMs || 0,
+        maxSchedulerDueLatenessMs: root.BattleAudioScheduler.stats.maxDueLatenessMs || 0,
         schedulerPrimaryEvictions: last && last.schedulerEvictedPrimary || 0,
         schedulerEchoEvictions: last && last.schedulerEvictedEcho || 0,
         schedulerPrimaryRejections: last && last.schedulerRejectedPrimary || 0,
