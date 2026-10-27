@@ -69,7 +69,7 @@
       typeof location !== 'undefined' ? location.search || '' : ''
     );
     // Opt-in research overrides; shipping remains 128 queued and 2 starts/frame.
-    var MAX_PER_FRAME = startsMatch ? Math.max(1, Math.min(8, +startsMatch[1] || 2)) : 2,
+    var MAX_PER_FRAME = startsMatch ? Math.max(2, Math.min(8, +startsMatch[1] || 2)) : 2,
       MAX_QUEUE = queueMatch ? Math.max(16, Math.min(512, +queueMatch[1] || 128)) : 128,
       LANE_CAPACITY = Math.floor(MAX_QUEUE / 2);
     var lanes = {
