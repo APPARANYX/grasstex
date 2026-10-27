@@ -203,7 +203,10 @@ function tick(f) {
   const destination = { x: f.s.root.position.x, z: f.s.root.position.z + 12 };
   const intent = { kind: 'cover-bound', urgent: true };
   e.transitStance = { at: f.b.time, state: 'bound', stance: 'crouch', reason: 'controller:covered-bound' };
-  assert.equal(f.r.BattleSoldierIndividuality.transitPlan(f.s, f.b, intent, destination).gait, 'crouchSprint');
+  assert.equal(
+    f.r.BattleSoldierIndividuality.transitPlan(f.s, f.b, intent, destination).gait,
+    'crouchSprint'
+  );
   e.transitStance.stance = 'crawl';
   assert.equal(f.r.BattleSoldierIndividuality.transitPlan(f.s, f.b, intent, destination).gait, 'fastCrawl');
   const phenotype = f.r.BattleSoldierIndividuality.phenotype(f.s);

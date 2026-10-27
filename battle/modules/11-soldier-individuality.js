@@ -154,7 +154,11 @@
     var pace = St ? St.scale(s, 'pace') : 1;
     var g = {};
     Object.keys(LIMITS).forEach(function (name) {
-      g[name] = gaitValue(base, speedFactor * (name === 'sprint' || name === 'crouchRun' || name === 'crouchSprint' ? pace : 1), name);
+      g[name] = gaitValue(
+        base,
+        speedFactor * (name === 'sprint' || name === 'crouchRun' || name === 'crouchSprint' ? pace : 1),
+        name
+      );
     });
     var p = {
       version: '68-gaits',
@@ -311,8 +315,12 @@
           nativeStance.stance === 'stand'
             ? 'sprint'
             : nativeStance.stance === 'crawl'
-              ? d > 1.5 ? 'fastCrawl' : 'proneFast'
-              : d > 1.5 ? 'crouchSprint' : 'crouchRun',
+              ? d > 1.5
+                ? 'fastCrawl'
+                : 'proneFast'
+              : d > 1.5
+                ? 'crouchSprint'
+                : 'crouchRun',
         reason: 'native-covered-bound',
         caution: 'certified-contact-route'
       };

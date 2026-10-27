@@ -2327,11 +2327,7 @@
           transitStance(
             s,
             battle,
-            task.transitGait === 'sprint'
-              ? 'stand'
-              : task.transitGait === 'fastCrawl'
-                ? 'crawl'
-                : 'crouch',
+            task.transitGait === 'sprint' ? 'stand' : task.transitGait === 'fastCrawl' ? 'crawl' : 'crouch',
             1,
             'controller:covered-bound'
           );
