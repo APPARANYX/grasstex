@@ -52,6 +52,8 @@ assert.match(acoustics, /acousticSlots=/, 'listener acoustic cap accepts explici
 assert.match(acoustics, /acousticTickTotalMs/, 'listener acoustic tick CPU cost is measured');
 assert.match(scheduler, /audioQueue=/, 'scheduler research queue cap is independently selectable');
 assert.match(scheduler, /audioStarts=/, 'scheduler research starts-per-frame budget is independently selectable');
+assert.match(scheduler, /: 16,/, 'single-queue normal battle uses the 16-start budget');
+assert.match(scheduler, /Math\.min\(32,/, 'explicit upper ceiling stays bounded');
 assert.match(lab, /maxAcousticActive: max\('acousticActive'\)/,
   'native lab records peak occupied acoustic tracking slots');
 
