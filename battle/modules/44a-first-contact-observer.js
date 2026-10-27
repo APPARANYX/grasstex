@@ -354,11 +354,19 @@
       if (r.firstRouteWithheld != null) response.routeWithheldOnContact++;
     }
     var blockers = {},
+      ownerCoverDecisions = {},
       timings = {};
     data.forEach(function (r) {
       r.blockers.forEach(function (v) {
         var key = v.source + ':' + v.reason;
         blockers[key] = (blockers[key] || 0) + 1;
+      });
+      var seen = {};
+      r.ownerDecisions.forEach(function (v) {
+        var key = v.stage + ':' + v.reason;
+        if (seen[key]) return;
+        seen[key] = true;
+        ownerCoverDecisions[key] = (ownerCoverDecisions[key] || 0) + 1;
       });
     });
     [
@@ -383,6 +391,7 @@
       windowSeconds: WINDOW,
       arrivalWindowSeconds: ARRIVAL_WINDOW,
       blockerCounts: blockers,
+      ownerCoverDecisions: ownerCoverDecisions,
       timings: timings,
       cueTypes: types,
       response: response,

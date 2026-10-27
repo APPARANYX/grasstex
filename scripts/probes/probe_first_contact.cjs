@@ -408,6 +408,7 @@ fs.mkdirSync(DIR, { recursive: true });
               cueTypes: data.firstContact?.cueTypes,
               handoffTimings: data.firstContact?.timings,
               handoffBlockers: data.firstContact?.blockerCounts,
+              ownerCoverDecisions: data.firstContact?.ownerCoverDecisions,
               reactionOn: data.contactReactionOn,
               wallMs: data.wallMs,
               separationM: data.spawnSeparationM,
