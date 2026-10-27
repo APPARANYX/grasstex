@@ -411,7 +411,10 @@
           !!(s.target || (s.squad && s.squad.inContact)) &&
           !!goal &&
           (goal.kind === 'cover-bound' || goal.kind === 'firing-station' || goal.kind === 'assault-rush');
-      return urgent || e.state === 'bound' || briskContact || protectiveMove ||
+      return urgent ||
+        e.state === 'bound' ||
+        briskContact ||
+        protectiveMove ||
         (s.squad && s.squad.inContact && d > 4)
         ? 'crouchRun'
         : 'crouchWalk';

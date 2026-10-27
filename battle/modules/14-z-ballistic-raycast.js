@@ -550,7 +550,15 @@
       d2 = S.dist2 ? S.dist2(sp.x, sp.z, tp.x, tp.z) : Math.hypot(sp.x - tp.x, sp.z - tp.z);
     if (d2 > stats.range) return null;
     if (root.BattleProjectileFlight && root.BattleProjectileFlight.enabled)
-      return root.BattleProjectileFlight.launch(shooter, target, battle, round, delay, shotDirection(shooter, target, stats, battle, round || 0), false);
+      return root.BattleProjectileFlight.launch(
+        shooter,
+        target,
+        battle,
+        round,
+        delay,
+        shotDirection(shooter, target, stats, battle, round || 0),
+        false
+      );
     var shot = shotDirection(shooter, target, stats, battle, round || 0),
       power = isFinite(+stats.power) ? +stats.power : 1,
       pen = penetration(stats),

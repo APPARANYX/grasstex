@@ -6,13 +6,18 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const source = fs.readFileSync('battle/modules/14-zz-projectile-flight.js', 'utf8');
 function setup(search = '?projectileFlight=1') {
-  let system, hits = [], resolved = [], crossing = [];
+  let system,
+    hits = [],
+    resolved = [],
+    crossing = [];
   const root = {
     location: { search },
     BATTLE_PREVIEW: { isolatedLab: true },
     GTLog: function () {},
     BattleModules: {
-      registerSystem: function (_id, owner) { system = owner; }
+      registerSystem: function (_id, owner) {
+        system = owner;
+      }
     },
     BattleBallistics: {
       penetration: () => 0,
@@ -26,11 +31,14 @@ function setup(search = '?projectileFlight=1') {
         };
         if (sim.wallZ != null) {
           const wall = interp(sim.wallZ);
-          if (wall) return {
-            kind: 'environment', impact: wall,
-            distance: Math.hypot(wall.x - from.x, wall.y - from.y, wall.z - from.z),
-            blocker: 'wall', surface: 'cement'
-          };
+          if (wall)
+            return {
+              kind: 'environment',
+              impact: wall,
+              distance: Math.hypot(wall.x - from.x, wall.y - from.y, wall.z - from.z),
+              blocker: 'wall',
+              surface: 'cement'
+            };
         }
         const target = sim.target;
         if (!target || target.dead) return null;
@@ -39,7 +47,10 @@ function setup(search = '?projectileFlight=1') {
         crossing.push(at);
         if (Math.abs(at.x - target.x) > 0.31 || Math.abs(at.y - target.y) > 0.55) return null;
         return {
-          kind: 'soldier', victim: target, zone: 'chest', impact: at,
+          kind: 'soldier',
+          victim: target,
+          zone: 'chest',
+          impact: at,
           exit: { x: at.x, y: at.y, z: at.z + 0.5 },
           direction: { x: 0, y: 0, z: 1 },
           distance: Math.hypot(at.x - from.x, at.y - from.y, at.z - from.z)
@@ -62,7 +73,8 @@ function setup(search = '?projectileFlight=1') {
     onShot: (...args) => resolved.push(args)
   };
   const shooter = {
-    id: 1, faction: 'us',
+    id: 1,
+    faction: 'us',
     weapon: { kind: 'rifle', profile: 'm1-garand', stats: { model: 'm1-garand', range: 450, power: 1 } }
   };
   function fire() {
@@ -99,7 +111,7 @@ function setup(search = '?projectileFlight=1') {
   x.fire();
   x.advance(0.05);
   x.sim.target.x = 2;
-  for (let t = 0.10; t <= 1.25; t += 0.05) x.advance(t);
+  for (let t = 0.1; t <= 1.25; t += 0.05) x.advance(t);
   assert.equal(x.hits.length, 0, 'changing location before arrival dodges previous aim ray');
   assert.equal(x.resolved.length, 1, 'miss eventually expires at range');
   assert.equal(x.resolved[0][2], false);
@@ -136,4 +148,6 @@ function setup(search = '?projectileFlight=1') {
   assert.equal(x.hits.length, 0, 'restart deletes pending bullets');
   assert.equal(x.root.BattleProjectileFlight.summary(x.sim).inFlight, 0);
 }
-console.log('PASS: projectile travel, delayed impact, moving-target miss, obstruction, gravity, energy, off flag, restart');
+console.log(
+  'PASS: projectile travel, delayed impact, moving-target miss, obstruction, gravity, energy, off flag, restart'
+);
