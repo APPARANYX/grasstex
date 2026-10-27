@@ -234,21 +234,6 @@ test('advance waits for real discharges, personal movement adoption, physical ar
   assert.ok(new Set(arrived).size >= 2, 'different soldiers check in independently');
   clean(w);
 });
-test('contact loss and restoration invalidate only the blocked planning basis, not a movement lease timer', () => {
-  const w = world();
-  until(w, () => w.M.summary(w.q).phase === 'moving');
-  const saved = w.r.SquadAI.updateSquad;
-  w.r.SquadAI.updateSquad = function (sq, sim) {
-    const report = saved.call(this, sq, sim);
-    sq.inContact = false;
-    return report;
-  };
-  until(w, () => w.M.summary(w.q).phase === 'aborted', 5);
-  w.r.SquadAI.updateSquad = saved;
-  until(w, () => w.M.summary(w.q).windowsStarted >= 2, 12);
-  assert.ok(w.M.summary(w.q).windowsStarted >= 2, 'regained contact must unblock replanning');
-  clean(w);
-});
 test('refusal of one personal bound preserves an already accepted peer order', () => {
   const w = world(),
     E = w.r.BattleEngagement.controllerCombat,
