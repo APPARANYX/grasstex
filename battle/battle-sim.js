@@ -244,7 +244,7 @@
     // prettier-ignore
     var farFloor =
       policy && policy.farVoices != null
-        ? Math.max(4, Math.min(12, Math.floor(+policy.farVoices) || 4))
+        ? Math.max(4, Math.min(64, Math.floor(+policy.farVoices) || 4))
         : 4;
     var pools = {},
       cursors = {},
