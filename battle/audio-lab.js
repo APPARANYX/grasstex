@@ -175,6 +175,8 @@
       nearRejects: lanes ? lanes.near.rejected : null, farRejects: lanes ? lanes.far.rejected : null,
       simulatedShots: shotCount, shotsSinceLast: shotCount - previousShotCount,
       acousticActive: root.BattleListenerAcoustics ? root.BattleListenerAcoustics.active : null,
+      acousticTicks: root.BattleListenerAcoustics ? root.BattleListenerAcoustics.stats.acousticTicks : 0,
+      acousticTickTotalMs: root.BattleListenerAcoustics ? root.BattleListenerAcoustics.stats.acousticTickTotalMs : 0,
       heapBytes: performance.memory ? performance.memory.usedJSHeapSize : null,
       longTasks: longTasks, longTaskMs: Math.round(longTaskMs)
     }, meter());
@@ -232,6 +234,11 @@
       audioMix: root.BattleAudioMix ? { settings: root.BattleAudioMix.get(), legacy: root.BattleAudioMix.legacy,
         tacticalSafety: root.BattleAudioMix.tacticalSafety, stats: root.BattleAudioMix.stats } : null,
       acoustics: root.BattleListenerAcoustics ? { quality: root.BattleListenerAcoustics.quality,
+        limits: {
+          maxActive: root.BattleListenerAcoustics.maxActive,
+          defaultMaxActive: root.BattleListenerAcoustics.defaultMaxActive,
+          tickIntervalMs: root.BattleListenerAcoustics.tickIntervalMs
+        },
         stats: root.BattleListenerAcoustics.stats } : null,
       summary: { simulatedShots: shotCount, byModel: shotCounts,
         playRequests: last && last.attempts || 0,
@@ -253,6 +260,7 @@
         nearStarts: last && last.nearStarts || 0, farStarts: last && last.farStarts || 0,
         nearRejects: last && last.nearRejects || 0, farRejects: last && last.farRejects || 0,
         maxActiveVoices: max('activeVoices'), maxQueue: max('propagationQueue'),
+        maxAcousticActive: max('acousticActive'),
         maxPeak: max('peak'), maxRms: max('rms'), samplesQuietUnderFire: quietUnderFire,
         longTasks: longTasks, longTaskMs: Math.round(longTaskMs),
         startingContext: first && first.audioContextState,
