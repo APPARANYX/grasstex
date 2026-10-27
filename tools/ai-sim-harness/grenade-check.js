@@ -173,7 +173,7 @@ test('35m throwing reach adds eligible contacts but preserves 26m friendly clear
   r.BattleTacticalController = { controls: () => true };
   assert.equal(G.TUNING.RANGE, 35);
   assert.equal(G.TUNING.WINDUP, 1.6, 'throw cadence must give FBX clips natural time to wind up');
-  assert.equal(G.TUNING.FRIEND_CLEAR, 27.5, 'post-contact roll expands rather than weakens friendly clearance');
+  assert.equal(G.TUNING.FRIEND_CLEAR, 27.5, 'ground roll increases friendly clearance');
   assert.equal(G.TUNING.ROLL_MAX_TRAVEL, 1.4);
   const enemy = victim(ctx, 34, 0);
   s.target = enemy;
@@ -470,7 +470,7 @@ test('a bound without cover cannot bypass HOLD FIRE, and OPEN FIRE permits the s
   assert.ok(G.pendingOf(s, b), 'opening fire authorizes that same bound-recovery decision');
 });
 
-test('native grenade landing bounces then physically rolls before fuze and blast at the final position', () => {
+test('grenade bounce and roll follow native physics before detonation at the resting position', () => {
   const ctx = setup({ seed: 'grenade-impact-physics' });
   const { G, b } = ctx;
   const g = throwOnce(ctx, { x: 30, z: 0 });

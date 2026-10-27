@@ -553,6 +553,11 @@
   function position(g, time) {
     var t = Math.max(0, time - g.releasedAt),
       points = g.points;
+    // Exactly honor immutable keyframes; interpolation roundoff must not move
+    // a settled grenade (or its collision origin) by floating-point residue.
+    if (t >= g.flight - 1e-9) return { x: g.to.x, y: g.to.y, z: g.to.z };
+    if (g.impact && Math.abs(t - g.impactAt) < 1e-9)
+      return { x: g.impact.x, y: g.impact.y, z: g.impact.z };
     for (var i = 1; i < points.length; i++) {
       var a = points[i - 1],
         b = points[i];

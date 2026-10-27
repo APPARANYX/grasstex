@@ -125,12 +125,11 @@
       if (!original || typeof original.clone !== 'function') return;
       var material = original.clone(name + '-dark-' + index);
       if (!material) return;
-      if (material.albedoColor && material.albedoColor.scaleInPlace)
-        material.albedoColor.scaleInPlace(0.62);
+      if (material.albedoColor && material.albedoColor.scaleInPlace) material.albedoColor.scaleInPlace(0.62);
       if (material.diffuseColor && material.diffuseColor.scaleInPlace)
         material.diffuseColor.scaleInPlace(0.62);
       if (material.emissiveColor && material.emissiveColor.set)
-        material.emissiveColor.set(0.026, 0.028, 0.020);
+        material.emissiveColor.set(0.026, 0.028, 0.02);
       mesh.material = material;
       materials.push(material);
     });
