@@ -774,7 +774,7 @@
           ? ['pinned', 'engage', 'orient', 'alert', 'advance']
           : ['pinned', 'engage', 'orient'],
       next: 'bound',
-      reason: 'emergency protective cover'
+      reason: 'suppressed cover move'
     },
     'shared-contact': { from: ['advance'], next: 'alert', reason: 'new shared threat' },
     'station-release': { from: ['station'], next: 'advance', reason: 'firing station released' }

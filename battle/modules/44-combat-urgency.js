@@ -204,7 +204,7 @@
     root.BattleEngagement.markUrgent(s, b, URGENT_TTL);
     root.BattleEngagement.commitStance(s, b, 'crouch', e.until - b.time);
     s.setUp = false;
-    request(s, cover, b, 'cover-bound', 0.8, 'emergency protective cover');
+    request(s, cover, b, 'cover-bound', 0.8, 'suppressed cover move');
     bump(b, 'urgentCoverStarts');
     if (FIRST_CONTACT_RESPONSE)
       bump(b, suppressed ? 'suppressedCoverStarts' : 'unsuppressedIncomingCoverStarts');
@@ -226,7 +226,7 @@
       return false;
     }
     root.BattleEngagement.markUrgent(s, b, URGENT_TTL);
-    request(s, e.cover, b, 'cover-bound', 0.8, 'emergency protective cover');
+    request(s, e.cover, b, 'cover-bound', 0.8, 'suppressed cover move');
     return true;
   }
   function reactShared(s, b, e) {
