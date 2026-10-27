@@ -13,6 +13,9 @@
     typeof location !== 'undefined' ? location.search || '' : ''
   );
   var quality = match ? match[1] : 'standard';
+  // A/B admission only. The existing 24/36 filter slots and mix remain unchanged.
+  var priorityEnabled = typeof location !== 'undefined' &&
+    /(?:^|[?&])acousticPriority=1(?:&|$)/.test(location.search || '');
   var sim = null,
     entries = [],
     running = false,
@@ -26,7 +29,8 @@
     filtered: 0,
     degraded: 0,
     sampled: 0,
-    skippedCapacity: 0
+    skippedCapacity: 0,
+    replacedCapacity: 0
   };
   function now() {
     return typeof performance !== 'undefined' ? performance.now() : Date.now();
@@ -260,6 +264,25 @@
     running = true;
     setTimeout(tick, TICK_MS);
   }
+  function importance(source, kind, gain, scene) {
+    var p = point(typeof source === 'function' ? source() : source),
+      L = listener(scene);
+    if (!p || !L) return 0;
+    // Voice clarity first, near weapons second, distant/echo sources later.
+    // The existing attenuated gain is already distance-aware; use a modest
+    // extra distance factor so sources at similar gain have stable ordering.
+    var weight = kind === 'voice' ? 5 : kind === 'gun' ? 3 : kind === 'gunDistant' ? 1 : 0.6;
+    return (weight * Math.max(0, finite(gain, 0))) / (1 + distance(p, L) / 140);
+  }
+  function neutralize(e) {
+    if (!e || !e.sound) return;
+    var f = e.sound._battleAcousticFilter || e.filter,
+      send = e.sound._battleAcousticSend || e.send;
+    try {
+      if (f) f.frequency.setTargetAtTime(20000, f.context.currentTime, 0.025);
+      if (send) send.gain.value = 0;
+    } catch (_) {}
+  }
   function prepare(sound, source, kind, baseGain, scene) {
     if (quality === 'off' || !sound || !scene) return false;
     var e = null;
@@ -270,17 +293,33 @@
       }
     if (!e) {
       if (entries.length >= MAX_ACTIVE) {
-        stats.skippedCapacity++;
-        // An already-filtered pooled Sound may be replayed after its slot expired.
-        // Restore its dry frequency and mute its wet send rather than leaving stale occlusion.
-        if (sound._battleAcousticFilter) {
-          try {
-            var f = sound._battleAcousticFilter;
-            f.frequency.setTargetAtTime(20000, f.context.currentTime, 0.025);
-            if (sound._battleAcousticSend) sound._battleAcousticSend.gain.value = 0;
-          } catch (_) {}
+        if (priorityEnabled) {
+          // Only replace the lowest-ranked *active acoustic record*, not its
+          // actual playing Sound. The evicted sound continues safely in dry mode.
+          var newRank = importance(source, kind, baseGain, scene),
+            lowest = Infinity,
+            victim = -1;
+          for (var j = 0; j < entries.length; j++) {
+            var old = entries[j],
+              rank = importance(old.source, old.kind, old.gain, old.scene);
+            if (rank < lowest) {
+              lowest = rank;
+              victim = j;
+            }
+          }
+          // Hysteresis avoids oscillation when similarly loud shots overlap.
+          if (victim >= 0 && newRank > lowest * 1.2) {
+            neutralize(entries[victim]);
+            entries.splice(victim, 1);
+            stats.replacedCapacity++;
+          }
         }
-        return false;
+        if (entries.length >= MAX_ACTIVE) {
+          stats.skippedCapacity++;
+          // Replayed pooled sounds must not retain stale filters or wet sends.
+          neutralize({ sound: sound });
+          return false;
+        }
       }
       e = { sound: sound };
       entries.push(e);
@@ -325,6 +364,7 @@
   }
   root.BattleListenerAcoustics = {
     quality: quality,
+    priorityEnabled: priorityEnabled,
     bind: bind,
     prepare: prepare,
     reset: reset,
