@@ -19,7 +19,7 @@ function fixture(randomValue, mode) {
   vm.runInNewContext(runtime, {
     window: root,
     BABYLON: {},
-    location: { search: mode === 'dual' ? '?audioQueues=dual' : '' },
+    location: { search: mode === 'dual' ? '?audioQueues=dual' : (mode || '') },
     Math: math,
     performance: { now: () => timeMs },
     fetch: () => Promise.reject(new Error('fixture: no external acoustics config')),
@@ -135,3 +135,21 @@ dualNoFar.frame(270);
 assert.equal(dualNoFar.played.length, 4, 'near queue continues using both slots');
 
 console.log('PASS: dual-queue opt-in, 64/64 limits, independent drops, 2 shared starts and per-lane accounting');
+
+// Isolated scheduler stress with higher research-only event limits and start budgets.
+const wide = fixture(.99, '?audioQueue=256&audioStarts=4');
+assert.equal(wide.scheduler.limits.maxQueue, 256);
+assert.equal(wide.scheduler.limits.maxPerFrame, 4);
+for (let i = 0; i < 256; i++) wide.enqueue('wide-' + i, 60);
+assert.equal(wide.scheduler.queued, 256);
+wide.enqueue('overflow', 60);
+assert.equal(wide.scheduler.queued, 256, 'higher queue remains bounded');
+assert.equal(wide.scheduler.stats.rejectedPrimary, 1);
+wide.frame(270);
+assert.equal(wide.played.length, 4, 'explicit four-start scheduler budget is enforced');
+wide.frame(290);
+assert.equal(wide.played.length, 8, 'all queued primary events continue draining');
+const maxed = fixture(.99, '?audioQueue=9999&audioStarts=9999');
+assert.equal(maxed.scheduler.limits.maxQueue, 512, 'untrusted queue override has a ceiling');
+assert.equal(maxed.scheduler.limits.maxPerFrame, 8, 'untrusted start override has a ceiling');
+console.log('PASS: 256-event queue and 4-start research budget, bounded 512/8 ceilings');
