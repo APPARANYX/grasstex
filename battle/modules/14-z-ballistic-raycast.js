@@ -186,6 +186,23 @@
   function shotDirection(shooter, target, stats, battle, round) {
     var origin = muzzleOrigin(shooter, target, battle),
       aim = exposedAim(shooter, target, battle) || targetCenter(target, battle);
+    /* A shooter needs time to track a changing position. A fire burst does
+       not know the target's *current* center again for every round. Existing
+       hitscan remains byte-for-byte behaviorally equivalent with the A/B flag off. */
+    if (root.BattleProjectileFlight && root.BattleProjectileFlight.enabled) {
+      var track = shooter._ballisticAimTrack,
+        time = +battle.time || 0,
+        elapsed = track ? Math.max(0, time - track.at) : 0;
+      if (track && track.target === target && elapsed <= 3) {
+        var follow = 1 - Math.exp(-elapsed / 0.55);
+        aim = {
+          x: track.aim.x + (aim.x - track.aim.x) * follow,
+          y: track.aim.y + (aim.y - track.aim.y) * follow,
+          z: track.aim.z + (aim.z - track.aim.z) * follow
+        };
+      }
+      shooter._ballisticAimTrack = { target: target, at: time, aim: aim };
+    }
     var base = norm({ x: aim.x - origin.x, y: aim.y - origin.y, z: aim.z - origin.z }),
       flat = Math.hypot(base.x, base.z) || 1;
     var right = { x: base.z / flat, y: 0, z: -base.x / flat };
