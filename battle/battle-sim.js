@@ -242,6 +242,7 @@
   function buildWeaponAudio(scene, audioBase) {
     var pools = {},
       cursors = {},
+      poolStats = {},
       stats = { playRequests: 0, droppedBusy: 0, droppedNotReady: 0, droppedLocked: 0, errors: 0 },
       cam = function () {
         return scene.activeCamera && (scene.activeCamera.globalPosition || scene.activeCamera.position);
@@ -270,6 +271,15 @@
         takes = Math.min(count, files.length);
       pools[key] = voices;
       cursors[key] = 0;
+      poolStats[key] = {
+        capacity: count,
+        attempts: 0,
+        started: 0,
+        droppedBusy: 0,
+        droppedNotReady: 0,
+        droppedLocked: 0,
+        errors: 0
+      };
       for (var i = 0; i < takes; i++)
         (function (i) {
           var extra = [];
@@ -322,10 +332,15 @@
     function playOne(k, position, gain, rate) {
       var voices = pools[k];
       if (!voices) return;
+      var counters = poolStats[k];
+      counters.attempts++;
       var ae = BABYLON.Engine && BABYLON.Engine.audioEngine;
       /* Sound.play queues a delayed start while locked; such a request is not
          reflected by isPlaying yet and could accumulate behind the pool cap. */
-      if (ae && !ae.unlocked) return void stats.droppedLocked++;
+      if (ae && !ae.unlocked) {
+        counters.droppedLocked++;
+        return void stats.droppedLocked++;
+      }
       var voice = null,
         ready = false;
       /* Babylon 9 permits multiple instances of the same Sound. A round-robin
@@ -341,7 +356,11 @@
         cursors[k] = (index + 1) % voices.length;
         break;
       }
-      if (!voice) return void stats[ready ? 'droppedBusy' : 'droppedNotReady']++;
+      if (!voice) {
+        var reason = ready ? 'droppedBusy' : 'droppedNotReady';
+        counters[reason]++;
+        return void stats[reason]++;
+      }
       try {
         voice.setPosition(position);
         var mix = root.BattleAudioMix;
@@ -353,12 +372,26 @@
         if (voice.setPlaybackRate) voice.setPlaybackRate(rate || 1);
         voice.play();
         stats.playRequests++;
+        counters.started++;
       } catch (_) {
         stats.errors++;
+        counters.errors++;
       }
     }
     return {
       keyFor: keyFor,
+      // Snapshot by exact near/far model key; not read during normal battle ticks.
+      detail: function () {
+        var byPool = {};
+        Object.keys(poolStats).forEach(function (key) {
+          var active = 0;
+          pools[key].forEach(function (sound) {
+            if (sound && sound.isPlaying === true) active++;
+          });
+          byPool[key] = Object.assign({ active: active }, poolStats[key]);
+        });
+        return byPool;
+      },
       summary: function () {
         var active = 0,
           capacity = 0;
