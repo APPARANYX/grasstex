@@ -194,7 +194,18 @@
         return [Math.round(r.x), Math.round(r.z)];
       }),
       men(ctx.squad).map(function (s) {
-        return [s.id, Math.round(s.root.position.x), Math.round(s.root.position.z), viable(s, ctx.sim)];
+        /* A newly discharged covering weapon can unlock a previously refused
+           support relocation even when every position and contact stays fixed.
+           This is evidence-versioning, not an arbitrary release timer. */
+        var A = root.BattleAmmunition,
+          shot = A && A.shotEvidence && A.shotEvidence(s, ctx.sim);
+        return [
+          s.id,
+          Math.round(s.root.position.x),
+          Math.round(s.root.position.z),
+          viable(s, ctx.sim),
+          shot && Number.isFinite(+shot.at) ? +shot.at : null
+        ];
       })
     ]);
   }

@@ -312,8 +312,8 @@ test('recently firing riflemen can continue covered movement while two real shoo
     });
   until(w, () => firing().length >= 7, 30);
   w.r.BattleTacticalContactRoute.pick = pick;
-  // Change the real decision basis, as a contact/position/readiness change would.
-  w.q.members[2].root.position.x += 1.1;
+  // A new real shot receipt must invalidate a denied cover plan even if the
+  // fireteam has not changed position. No synthetic location change required.
   until(w, () => live(w, 'combat.bound').length >= 1, 20);
   const movers = new Set(live(w, 'combat.bound').map(a => a.actorId));
   assert.ok(firing().filter(s => !movers.has(String(s.id))).length >= 2);
