@@ -133,9 +133,9 @@ jobs:
 
       - name: Temporary Phase C Prettier diff
         run: |
-          npx --yes prettier@3.3.3 --write battle/modules/15o-squad-leader-tactical-postures.js tools/ai-sim-harness/tactical-postures-check.js
+          npx --yes prettier@3.3.3 --write battle/modules/15o-squad-leader-tactical-postures.js tools/ai-sim-harness/tactical-postures-check.js battle/modules/44a-first-contact-observer.js tools/ai-sim-harness/first-contact-observer-check.js
           echo C_FIELD_PRETTIER_DIFF_BEGIN
-          git diff -- battle/modules/15o-squad-leader-tactical-postures.js tools/ai-sim-harness/tactical-postures-check.js
+          git diff -- battle/modules/15o-squad-leader-tactical-postures.js tools/ai-sim-harness/tactical-postures-check.js battle/modules/44a-first-contact-observer.js tools/ai-sim-harness/first-contact-observer-check.js
           echo C_FIELD_PRETTIER_DIFF_END
 
       # Prettier ratchet: the repo's .prettierrc.json was dead config - most tracked JS never
