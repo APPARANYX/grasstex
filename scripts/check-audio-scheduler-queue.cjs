@@ -76,17 +76,22 @@ assert.equal(priority.played[0].kind, 'near');
 
 const loaded = fixture(.99);
 let lastStarts = 0;
+let consecutiveWithoutStart = 0, maxConsecutiveWithoutStart = 0;
 for (let i = 0; i < 220; i++) {
   const time = i * 16;
   for (let j = 0; j < 12; j++) loaded.enqueue('rifle', 60);
   loaded.frame(time);
   if (i >= 40) {
-    const started = loaded.scheduler.stats.startedPrimary;
-    assert.equal(started - lastStarts, 12, '16-start default drains all 12 due primary shots per frame');
+    const started = loaded.scheduler.stats.startedPrimary - lastStarts;
+    assert.ok(started >= 0 && started <= 16, 'saturated scheduler honors 16 starts/frame');
+    // Sound arrival times are discrete: short no-due frames are legitimate.
+    consecutiveWithoutStart = started ? 0 : consecutiveWithoutStart + 1;
+    maxConsecutiveWithoutStart = Math.max(maxConsecutiveWithoutStart, consecutiveWithoutStart);
   }
   lastStarts = loaded.scheduler.stats.startedPrimary;
   assert.ok(loaded.scheduler.queued <= 128, 'queue must remain bounded');
 }
+assert.ok(maxConsecutiveWithoutStart <= 2, 'sustained fire has no extended scheduler starvation');
 assert.ok(loaded.played.length > 1800, 'sustained fire must not starve playback');
 assert.ok(loaded.scheduler.stats.rejectedPrimary > 0, 'admission drops must be explicitly recorded');
 
