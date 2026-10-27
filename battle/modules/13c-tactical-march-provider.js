@@ -14,7 +14,9 @@
   'use strict';
   var SEARCH = typeof location !== 'undefined' ? location.search || '' : '',
     ON = /[?&]tacticalController=new(?:&|#|$)/i.test(SEARCH),
-    ID = 'march';
+    ID = 'march',
+    QUIET_CONTACT_RECOVERY =
+      !!root.BATTLE_PREVIEW && /[?&]firstContactResponse=1(?:&|#|$)/.test(SEARCH);
   var squads = new WeakMap(),
     warned = false;
 
@@ -53,6 +55,36 @@
     var C = root.BattleCommanderAI,
       cfg = C && C.policyFor ? C.policyFor(sim, sq.faction) : null;
     return +(cfg && cfg.routeArrivalRadius) || 8;
+  }
+  /* Meso may withhold distant route motion on a real contact, but an old
+     squad-wide inContact latch is not perpetual current threat evidence.
+     Only in the preview arm, resume the existing Meso mission when all native
+     contact owners report the sector quiet. No new route, speed or destination
+     authority is introduced. */
+  function contactStillCredible(sq, sim) {
+    var E = root.BattleEngagement,
+      A = root.SquadAI,
+      C = root.BattleCoverPositions,
+      members = sq.members || [];
+    for (var i = 0; i < members.length; i++) {
+      var s = members[i];
+      if (!s || s.dead) continue;
+      if (s.target && (!A.threatDisposition || A.threatDisposition(s.target).combatThreat))
+        return true;
+      if (E && E.underFireNow && E.underFireNow(s, sim)) return true;
+    }
+    var leader = A.leaderOf && A.leaderOf(sq);
+    if (leader && C && C.boundThreats && C.boundThreats(leader, sim).length) return true;
+    var c = A.squadContact && A.squadContact(sq, sim),
+      age = E && E.tuning ? E.tuning.ALERT_HOLD : 4.5;
+    return !!(
+      c &&
+      !c.heard &&
+      c.source !== 'heard' &&
+      Number.isFinite(+c.at) &&
+      +c.at <= sim.time &&
+      sim.time - +c.at <= age
+    );
   }
   function stateOf(sq) {
     var st = squads.get(sq);
@@ -104,7 +136,8 @@
   function squadCommand(ctx) {
     var sq = ctx.squad,
       st = stateOf(sq),
-      Q = root.BattleSquadStability;
+      Q = root.BattleSquadStability,
+      contactHazard = sq.inContact && (!QUIET_CONTACT_RECOVERY || contactStillCredible(sq, ctx.sim));
     /* The resolver treats either as retreat; so does the provider. */
     if (sq.state === 'retreat' || sq.commandPhase === 'retreat') return standDown(ctx, st, 'retreat');
     if (!st.target || !Q || !Q.formationSlots) return;
@@ -128,7 +161,7 @@
          distant route leg. Release only this uninformed man's old movement
          order while retaining legitimate covered-bound role and soldier
          combat decisions for his squadmates. */
-      if (sq.inContact && !s.target) {
+      if (contactHazard && !s.target) {
         if (cur) ctx.finish(cur.actionId, 'unconfirmed-personal-contact');
         st.men.delete(id);
         st.stopped.delete(id);

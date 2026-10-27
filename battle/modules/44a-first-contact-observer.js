@@ -18,8 +18,7 @@
   }
   function session(b) {
     var s = sessions.get(b);
-    if (!s)
-      sessions.set(b, (s = { time: null, records: new Map(), coverDecisions: new Map(), ticks: 0 }));
+    if (!s) sessions.set(b, (s = { time: null, records: new Map(), coverDecisions: new Map(), ticks: 0 }));
     return s;
   }
   function stamp(t) {

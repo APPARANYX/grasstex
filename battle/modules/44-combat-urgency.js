@@ -178,13 +178,14 @@
        countdown never triggered; the usual controller policy stays intact. */
     if (!suppressed && !received) return false;
     if (!safeToMove(s, b)) {
-      var reason = !s || s.dead
-        ? 'actor-unavailable'
-        : s.reloading || s.clearingStoppage
-          ? 'weapon-cycle'
-          : s.squad && s.squad.state === 'retreat'
-            ? 'retreat'
-            : 'station-or-other-owner';
+      var reason =
+        !s || s.dead
+          ? 'actor-unavailable'
+          : s.reloading || s.clearingStoppage
+            ? 'weapon-cycle'
+            : s.squad && s.squad.state === 'retreat'
+              ? 'retreat'
+              : 'station-or-other-owner';
       reportCover(s, b, 'blocked', reason);
       return false;
     }
