@@ -390,11 +390,28 @@
       detail: function () {
         var byPool = {};
         Object.keys(poolStats).forEach(function (key) {
-          var active = 0;
+          var active = 0,
+            minClipSeconds = Infinity,
+            maxClipSeconds = 0,
+            measuredClips = 0;
           pools[key].forEach(function (sound) {
-            if (sound && sound.isPlaying === true) active++;
+            if (!sound) return;
+            if (sound.isPlaying === true) active++;
+            // Read decoded buffer metadata, not an assumed 2-3 second tail.
+            // This is report-only; never used for admission or playback.
+            var buffer = sound.getAudioBuffer && sound.getAudioBuffer();
+            if (buffer && isFinite(buffer.duration) && buffer.duration > 0) {
+              measuredClips++;
+              minClipSeconds = Math.min(minClipSeconds, buffer.duration);
+              maxClipSeconds = Math.max(maxClipSeconds, buffer.duration);
+            }
           });
-          byPool[key] = Object.assign({ active: active }, poolStats[key]);
+          byPool[key] = Object.assign({
+            active: active,
+            decodedClipCount: measuredClips,
+            minClipSeconds: measuredClips ? +minClipSeconds.toFixed(3) : null,
+            maxClipSeconds: measuredClips ? +maxClipSeconds.toFixed(3) : null
+          }, poolStats[key]);
         });
         return byPool;
       },
