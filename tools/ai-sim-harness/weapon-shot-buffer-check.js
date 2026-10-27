@@ -106,8 +106,8 @@ function poolFixture(policy) {
 
 for (const [distance, capacity] of [
   [40, 6],
-  [200, 4],
-  [100, 10]
+  [200, 30],
+  [100, 36]
 ]) {
   const w = poolFixture();
   w.load();
