@@ -3,11 +3,7 @@
    No legacy updateFireControl/assignSuppressors/decide call, authoritative write or new clock. */
 (function (root) {
   'use strict';
-  var states = new WeakMap(),
-    REPORTED_WATCH =
-      !!root.BATTLE_PREVIEW &&
-      /[?&]firstContactResponse=1(?:&|#|$)/.test((root.location && root.location.search) || ''),
-    REPORT_AGE = 2.5;
+  var states = new WeakMap();
   function state(ctx) {
     var t = ctx.token,
       key = [t.battleId, t.generation, t.controllerEpoch, t.missionVersion].join(':'),
@@ -343,26 +339,6 @@
   }
   /* No shared report becomes a personal target or a permission to shoot. A man without a usable
      line yields locomotion to the march provider; the later covered-bound skill will choose cover. */
-  /* A fresh, personally received sector can justify looking and holding a
-     direction, not firing at an unseen man or sprinting to a distant leg.
-     The replacement controller previously released the uninformed man's
-     route as soon as his squad made contact, but assigned MARCH here;
-     neither owner then gave him a purposeful first-contact orientation. */
-  function reportWatch(s, sim) {
-    if (!REPORTED_WATCH || !s.squad || !s.squad.inContact) return false;
-    var A = root.SquadAI,
-      c = A && A.soldierContact && A.soldierContact(s, sim);
-    return !!(
-      c &&
-      c.source !== 'heard' &&
-      Number.isFinite(+c.at) &&
-      +c.at <= sim.time &&
-      sim.time - +c.at <= REPORT_AGE &&
-      Number.isFinite(+c.x) &&
-      Number.isFinite(+c.z) &&
-      (!c.unit || !A.threatDisposition || A.threatDisposition(c.unit).combatThreat)
-    );
-  }
   function drill(s, sim, st) {
     var E = root.BattleEngagement;
     if (
@@ -404,7 +380,7 @@
       if (o.inRange && ((o.visualLine && o.ballisticLine) || peek)) return 'fire';
     }
     if (st && st.roles.has(String(s.id)) && st.points.has(String(s.id))) return 'suppress';
-    return E.underFireNow(s, sim) || reportWatch(s, sim) ? 'watch' : 'march';
+    return E.underFireNow(s, sim) ? 'watch' : 'march';
   }
   function engagement(ctx, override) {
     var st = state(ctx),

@@ -69,7 +69,11 @@ function harness(search) {
   h.man.eng.cover = { x: 4, z: 0 };
   h.man._movementResolver.goal = { kind: 'cover-bound' };
   h.man._movementResolver.combat = { kind: 'cover-bound', owner: 'engagement' };
-  h.man._movementResolver.last = { kind: 'cover-bound', owner: 'engagement' };
+  h.man._movementResolver.last = {
+    kind: 'cover-bound',
+    owner: 'engagement',
+    intentPoint: { x: 4, z: 0 }
+  };
   h.man.moving = true;
   h.man.moveSpeed = 3;
   h.tick(0.75);
@@ -143,7 +147,11 @@ function harness(search) {
   h.man.eng._urgentCover = true;
   h.man.eng.cover = { x: 5, z: 0 };
   h.man._movementResolver.combat = { kind: 'cover-bound', owner: 'engagement' };
-  h.man._movementResolver.last = { kind: 'cover-bound', owner: 'engagement' };
+  h.man._movementResolver.last = {
+    kind: 'cover-bound',
+    owner: 'engagement',
+    intentPoint: { x: 5, z: 0 }
+  };
   h.tick(0.3);
   h.man.moving = true;
   h.man.root.position.x = 2;
@@ -153,5 +161,50 @@ function harness(search) {
   h.man.eng._urgentCover = false;
   h.tick(15.3);
   assert.equal(h.root.BattleFirstContactObserver.summary(h.sim).response.lateArrivals, 1);
+}
+{
+  const h = harness('?firstContactProbe=1');
+  h.man.incoming = true;
+  h.tick(0.15);
+  h.man.eng._urgentCover = true;
+  h.man.eng.cover = { x: 8, z: 0 };
+  h.man._movementResolver.combat = { kind: 'cover-bound', owner: 'engagement' };
+  h.man._movementResolver.last = {
+    kind: 'cover-bound',
+    owner: 'engagement',
+    intentPoint: { x: 8, z: 0 }
+  };
+  h.tick(0.3);
+  h.man.eng._urgentCover = false;
+  h.root.BattleTacticalController = {
+    summary: () => ({
+      live: [{
+        capability: 'combat.bound',
+        actorId: String(h.man.id),
+        squad: String(h.man.squad.id),
+        actionId: 'later-unrelated-bound',
+        stage: 'arrived',
+        reason: 'physical-arrival'
+      }]
+    }),
+    controls: () => true
+  };
+  h.tick(0.45);
+  const report = h.root.BattleFirstContactObserver.summary(h.sim);
+  assert.equal(report.soldiers[0].coverOwner, 'engagement');
+  assert.equal(report.response.protectiveArrivals, 0, 'a later controller bound is not this urgent arrival');
+}
+{
+  const h = harness('?firstContactProbe=1');
+  h.man.report = { at: 0.3, x: 0, z: 50, source: 'reported' };
+  h.man.squad.inContact = true;
+  h.root.BattleTacticalController = {
+    summary: () => ({ live: [] }),
+    controls: () => true
+  };
+  h.tick(0.3);
+  const report = h.root.BattleFirstContactObserver.summary(h.sim);
+  assert.equal(report.response.routeWithheldOnContact, 1);
+  assert.equal(report.response.protectiveOrders, 0);
 }
 console.log('PASS: independent owner stages, reported/sound cues and late physical arrivals');

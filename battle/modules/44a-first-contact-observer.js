@@ -155,6 +155,8 @@
             _lastBlocker: null,
             firstCoverSearch: null,
             firstOwnerAction: null,
+            coverOwner: null,
+            firstRouteWithheld: null,
             initialLow: !!(s.prone || s.tacticalCrouch || s.crouching),
             initialMoving: !!s.moving,
             initialOrder: kind || null,
@@ -206,15 +208,23 @@
         r.coverCause = e._urgentCoverCause || (bound ? 'controller-bound' : 'authorized-bound');
         r.coverPoint = pt(e.cover) || pt(goal && goal.point) || pt(s.destination);
         r.coverOrigin = p;
+        r.coverOwner = e._urgentCover ? 'engagement' : bound ? 'controller' : 'engagement';
+        if (r.coverOwner === 'controller' && bound) r.firstOwnerAction = bound.actionId;
         mark(r, 'request', t);
       }
       if (r.firstCoverOrder == null) {
         if (early && r.cue === 'reported-sector' && !s.target)
           blocker(r, t, 'policy', 'sector-alone-is-not-personal-cover-authority');
+        /* Exact 13c controller march policy guard: while the squad remains
+           in contact, a man without a personal visual target has his distant
+           route-leg movement withheld. This is not a cover-order rejection. */
+        if (early && TC && TC.controls && TC.controls(b, s.squad) && s.squad.inContact && !s.target) {
+          if (r.firstRouteWithheld == null) r.firstRouteWithheld = stamp(t);
+          blocker(r, t, 'march', 'distant-leg-withheld:no-personal-visual-target');
+        }
         continue;
       }
-      if (bound) {
-        r.firstOwnerAction = r.firstOwnerAction || bound.actionId;
+      if (r.coverOwner === 'controller' && bound) {
         if (r.firstOwnerAction === bound.actionId) {
           if (bound.stage !== 'cancelled') mark(r, 'accepted', t);
           if (['adopted', 'executing', 'arrived'].indexOf(bound.stage) >= 0) mark(r, 'adopted', t);
@@ -226,19 +236,26 @@
             mark(r, 'arrived', t);
           }
         }
-      } else if (e._urgentCover) {
+      } else if (r.coverOwner === 'engagement' && e._urgentCover) {
         if (combat && combat.kind === 'cover-bound' && combat.owner === 'engagement') {
           mark(r, 'accepted', t);
           mark(r, 'adopted', t); // survival authority is local, not a received Meso envelope
         } else blocker(r, t, 'resolver', 'urgent-proposal-not-current');
       }
-      if (last && last.kind === 'cover-bound' && last.owner === 'engagement') mark(r, 'selected', t);
+      var selected =
+        last &&
+        last.kind === 'cover-bound' &&
+        last.owner === 'engagement' &&
+        r.coverPoint &&
+        dist(pt(last.intentPoint), r.coverPoint) <= 1.3;
+      if (selected) mark(r, 'selected', t);
       else if (r.handoffs.accepted != null && r.handoffs.selected == null)
         blocker(r, t, 'resolver', last ? 'outranked:' + last.kind : 'no-selected-goal');
       if (
         r.firstCoverMotion == null &&
         r.handoffs.selected != null &&
         s.moving &&
+        selected &&
         dist(r.coverOrigin, p) > 0.35
       ) {
         r.firstCoverMotion = stamp(t);
@@ -294,7 +311,8 @@
         adoptedCoverOrders: 0,
         selectedCoverOrders: 0,
         notSelected: 0,
-        lateArrivals: 0
+        lateArrivals: 0,
+        routeWithheldOnContact: 0
       };
     for (var i = 0; i < data.length; i++) {
       var r = data[i];
@@ -313,6 +331,7 @@
       if (r.handoffs.selected != null) response.selectedCoverOrders++;
       if (r.handoffs.accepted != null && r.handoffs.selected == null) response.notSelected++;
       if (r.coverArrival != null && r.coverArrival - r.at > WINDOW) response.lateArrivals++;
+      if (r.firstRouteWithheld != null) response.routeWithheldOnContact++;
     }
     var blockers = {},
       timings = {};
