@@ -8,7 +8,7 @@
   var duration = Math.max(12, Math.min(600, Number(query.get('duration')) || 220));
   var scale = Math.max(1, Math.min(8, Number(query.get('speed')) || 4));
   // A/B-only voice allocation: default matches live battle sound pools exactly.
-  var farVoices = Math.max(4, Math.min(12, Math.floor(Number(query.get('farVoices')) || 4)));
+  var farVoices = Math.max(4, Math.min(64, Math.floor(Number(query.get('farVoices')) || 4)));
   var seed = 11027;
   var squadsPerSide = Math.max(1, Math.min(6, Math.floor(Number(query.get('squads')) || 5)));
   var occlusionMode = query.get('occlusion') === 'open' ? 'open' : 'mixed';
