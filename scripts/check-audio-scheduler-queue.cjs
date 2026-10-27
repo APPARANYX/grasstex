@@ -50,6 +50,18 @@ isolated.frame(220);
 assert.equal(isolated.played.length, 1, 'gunshot must play after travel delay');
 assert.equal(isolated.played[0].kind, 'test-rifle');
 
+// Detect a frozen requestAnimationFrame drain while an audio queue is pending.
+// This matters when browsers pause RAF for hidden tabs but interval-driven shots continue.
+const stalled = fixture(.99);
+stalled.enqueue('stalled-near', 60);
+stalled.frame(50);
+stalled.frame(2200);
+assert.ok(stalled.scheduler.stats.maxActiveDrainGapMs >= 2000,
+  'RAF stalls are measured independently of pool-busy drops');
+assert.ok(stalled.scheduler.stats.maxDueLatenessMs > 1900,
+  'late gunshots are attributable to callbacks not draining on time');
+assert.ok(stalled.scheduler.stats.drainFrames >= 2, 'scheduler records actual RAF callbacks');
+
 const priority = fixture(.99);
 // Production's far-model throttle requires >45 ms on the initial clock.
 priority.frame(100);
