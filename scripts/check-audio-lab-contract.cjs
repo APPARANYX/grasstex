@@ -21,6 +21,8 @@ assert.match(sim, /buildWeaponAudio:\s*buildWeaponAudio/, 'audio lab uses real s
 assert.match(lab, /BattleSim\.buildWeaponAudio\(scene, audioBase, \{ farVoices: farVoices \}\)/, 'real weapon audio pool instantiated with optional A/B far floor');
 assert.match(lab, /poolPolicy: \{ farVoices: farVoices/, 'pool experiment recorded in native report');
 assert.match(sim, /policy\s*&&\s*policy\.farVoices/, 'shipping far-pool floor is overridden only explicitly');
+assert.match(sim, /Math\.min\(64, Math\.floor\(\+policy\.farVoices\)/, 'distant pool override bounded at 64');
+assert.match(lab, /Math\.min\(64, Math\.floor\(Number\(query\.get\('farVoices'\)\)/, 'lab offers 64 distant voices as stress-only override');
 assert.match(lab, /BattleAudioScheduler\.enqueue\(audio,/, 'real propagation scheduler used');
 assert.doesNotMatch(lab, /BattleSim\.start\(|spawnAll\(|updateSoldier\(/, 'no combat ownership effects');
 assert.match(lab, /us:\s*\['rifle'/);
