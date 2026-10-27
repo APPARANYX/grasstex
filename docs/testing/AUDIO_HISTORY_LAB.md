@@ -44,3 +44,7 @@ The firing script retains the same original seed across squad counts; the audio 
 ## Per-model sound-pool pressure
 
 The weapon-audio factory exposes a read-only `detail()` snapshot in the final report's `voicePools` map. Keys like `m:mg42` and `m:mg42:far` separate near and distant pools; each reports capacity, currently active slots, playback attempts, successful starts, and busy/not-ready/locked drops. Each pool is shared among all squads carrying that model, and the near/far transition can generate two per-shot pool attempts. Consequently `playRequests` counts voices started, not independent gunshots, and `droppedBusy` must not be divided directly by `simulatedShots`. Pool diagnostics do **not** increase voice caps or change the mix; compare the same 50v50 stress test at 1× and 4× to distinguish production-scale quality from accelerated overload.
+
+## Far-field pool capacity A/B (draft, no shipping change)
+
+The lab supports `?farVoices=4` (production default) and `?farVoices=8` (experimental), clamped to 4–12. `poolPolicy` records the value in the report, and `voicePools` captures per-model near/far voice attempts and busy drops. The override is passed explicitly only from the lab to `BattleSim.buildWeaponAudio`; existing callers and production defaults remain unchanged. Compare `squads=5&occlusion=mixed&duration=60&speed=1` using the same seed. More voices may require additional acoustic-filter tracking; count peak voices, pool drop rates, clipped samples and acoustic processing pressure before adopting a default increase.
