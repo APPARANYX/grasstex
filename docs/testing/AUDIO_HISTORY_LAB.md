@@ -110,3 +110,37 @@ AUDIO_LAB_URL='https://test.ivandpopov.com/grasstex/preview/ref-<first-12-SHA>/b
 The runner uses **one tab**, runs eight, sixteen, thirty-two, and sixty-four distant model voices sequentially, and records each full report plus `matrix.json`/`matrix.md`. It fixes the scenario at five squads per side, mixed occlusion, 60 simulated seconds, 1× speed, single scheduler queue, priority listener acoustics, zero additional acoustic hold. It validates each trial's measured page visibility (headless mode is not automatically proof of foreground scheduling). Set `AUDIO_LAB_REPEATS=2` for replicated trials, or `AUDIO_LAB_VOICES=8,64` for shorter paired runs. These are real ~60-second browser trials, not static JS simulation.
 
 For manual audible comparisons, open each staged `audio_lab.html` with the same query settings, change only `farVoices=8|16|32|64`, and **keep the tab visible until completion**. Run one configuration at a time. A separate tab left in the background is not a valid continuity test because the audio scheduler drains on requestAnimationFrame. Compare far-pool drops alongside total primary queue drops, quiet-under-fire measurements, `pageVisibility`, `schedulerMaxDrainGapMs`, `schedulerSinceDrainMs` and actual listener processing capacity pressure before adopting a setting. No streaming/audio library defaults are modified by this matrix.
+
+## User-run 16-versus-32 distant pool validation
+
+Both user-uploaded native Audio Lab v2 reports (October 27, 2026) completed on preview `243e5c2ca557`, seed `11027`, 50v50, 60 simulated seconds at 1×, mixed obstacles, **single 128-entry queue**, **acousticPriority=1**, `acousticHoldMs=0`. The two completed reports differ by the `farVoices` override and normal timing jitter, not by game doctrine or audio routing.
+
+| Native metric | Far 16 | Far 32 |
+|---|---:|---:|
+| Simulated shots | 7,228 | 7,188 |
+| Scheduler primary starts | 4,897 | 4,901 |
+| Scheduler echo starts | 768 | 768 |
+| Queue primary+echo rejected+evicted | **0** | **0** |
+| Maximum queued | 113 | 110 |
+| Successful weapon voice starts | 5,794 | **6,706** |
+| All-pool busy drops | 1,448 | **567** |
+| Distant pool playback starts | 3,164 | **4,082** |
+| Distant pool busy drops | 884 / 4,048 attempts (21.8%) | **23 / 4,105 (0.56%)** |
+| Near pool busy drops | 564 | 544 |
+| Peak active voices | 164 | 210 |
+| Acoustic capacity skips | 4,201 | 5,106 |
+| Acoustic admissions | 1,593 | 1,600 |
+| Acoustic record replacements | 668 | 691 |
+| Maximum RAF drain gap | 15.3 ms | 11.9 ms |
+| Max lateness for due shot | 35.7 ms | 44.2 ms |
+| Page visibility | 252/252 visible | 252/252 visible |
+| Quiet-under-fire samples | 1 | 1 |
+| Long tasks, clipped samples, audio errors | 0 | 0 |
+| Peak amplitude | 0.1272 | 0.1810 |
+| Wall-clock test time | 65.10 s | 65.12 s |
+
+The single quiet sample in each trial occurs at 0.24 simulated seconds, during initial **speed-of-sound propagation** before the first audible shot; none were observed later during sustained firing. The AudioContext remains `running` throughout. Both runs eliminate the previously observed `queue=128, voices=0` extended stall and show no evidence of a `requestAnimationFrame` suspension under visible-tab conditions. These results strengthen the background-throttling hypothesis for earlier runs but do **not** prove its cause.
+
+At 16 voices, most far-pool busy drops came from Thompson (275), MP40 (192), M1 Garand (154), MG42 (145), M1919A6 (59), FG42 (53), Kar98k (6). At **32 voices**, only Thompson (16) and MP40 (7) remain; all other exercised distant models have zero busy drops. The far-pool drop reduction is **97.4%**, while far playback starts increase **29.0%** and total successful weapon starts **15.7%**. This is stronger evidence of an effective far-pool configuration than the earlier 64-voice test, which was confounded by an extended scheduler stall and lost primaries.
+
+**Decision:** 32 distant voices/model is the leading *candidate for high-quality 50v50 1× audio*, not yet a universal production default. Sixteen is markedly more lossy at this load. Sixty-four may provide diminishing returns beyond 32, but replicate 32/64 under continuously visible tabs before drawing a causal conclusion; test combat-mode cost, acoustic placement quality, actual listening, and 4× stress. The full-acoustic 24-record limit remains: capacity skips rise from 4,201 to 5,106 while admissions stay almost unchanged. Do not interpret more total audible gunfire as more occlusion-filtered voices. Production far-floor=4 and PR draft status stay unchanged pending explicit adoption.
