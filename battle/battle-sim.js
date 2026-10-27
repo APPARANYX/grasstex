@@ -343,7 +343,10 @@
       var ae = BABYLON.Engine && BABYLON.Engine.audioEngine;
       /* Sound.play queues a delayed start while locked; such a request is not
          reflected by isPlaying yet and could accumulate behind the pool cap. */
-      if (ae && !ae.unlocked) {
+      // Chromium/Babylon 9 can report a running WebAudio context while the
+      // legacy unlocked flag lags after a gesture. Do not silence every round
+      // just because that flag is stale: the context state is authoritative.
+      if (ae && ae.unlocked === false && (!ae.audioContext || ae.audioContext.state !== 'running')) {
         counters.droppedLocked++;
         return void stats.droppedLocked++;
       }
@@ -1018,7 +1021,7 @@
   BattleSim.prototype._wireFx = function (audioBase) {
     var self = this,
       audio = buildWeaponAudio(this.scene, audioBase || 'audio/');
-    this._weaponAudio = { summary: audio.summary };
+    this._weaponAudio = { summary: audio.summary, detail: audio.detail };
     if (root.BattleListenerAcoustics) root.BattleListenerAcoustics.bind(this);
     var fire = function (soldier) {
       var pos = muzzleWorld(soldier);

@@ -608,13 +608,20 @@
       configure('labDuration', this.value);
     };
     play = panel.querySelector('#skillPlay');
-    play.onclick = function () {
+    play.onclick = async function () {
+      // Skills Lab Play is independent of the main Start button. Keep the
+      // browser gesture for Babylon's audio unlock before advancing combat.
+      if (battle && battle.paused && root.__battleUnlockAudio__) {
+        if (!(await root.__battleUnlockAudio__())) return;
+      }
       setRunning(battle && battle.paused);
     };
-    panel.querySelector('#skillStep').onclick = function () {
+    panel.querySelector('#skillStep').onclick = async function () {
+      if (root.__battleUnlockAudio__ && !(await root.__battleUnlockAudio__())) return;
       advance(1);
     };
-    panel.querySelector('#skillSecond').onclick = function () {
+    panel.querySelector('#skillSecond').onclick = async function () {
+      if (root.__battleUnlockAudio__ && !(await root.__battleUnlockAudio__())) return;
       advance(7);
     };
     panel.querySelector('#skillSpeed').onclick = function () {

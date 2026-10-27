@@ -39,4 +39,29 @@ assert.match(
   /if \(menuOpen\) \{[\s\S]*?stepPlayerMenuPad\(pad\)/,
   'menu intercepts pad before firing / sprint'
 );
+
+// Skills Lab Play/Step has its own control path: it must unlock audio before
+// resuming/advancing, independently of the ordinary battle Start button.
+const html = fs.readFileSync(path.join(__dirname, '../../battle/battle_sim.html'), 'utf8');
+const skills = fs.readFileSync(path.join(__dirname, '../../battle/skills-lab.js'), 'utf8');
+const sim = fs.readFileSync(path.join(__dirname, '../../battle/battle-sim.js'), 'utf8');
+assert.match(html, /window\.__battleUnlockAudio__=unlockAudio/, 'shared browser audio activation exported');
+assert.match(html, /await ae\.unlock\(\)/, 'Babylon engine unlock awaited before running');
+assert.match(html, /window\.__battleAudioDiagnostics__=/, 'live audio diagnostics exposed');
+assert.match(
+  skills,
+  /play\.onclick = async function \(\)[\s\S]*?await root\.__battleUnlockAudio__\(\)[\s\S]*?setRunning/,
+  'Skills Lab Play unlocks audio before resuming'
+);
+assert.match(
+  skills,
+  /#skillStep'[\s\S]*?await root\.__battleUnlockAudio__\(\)[\s\S]*?advance\(1\)/,
+  'Skills Lab Step unlocks audio before simulating'
+);
+assert.match(
+  sim,
+  /ae\.unlocked === false && \(!ae\.audioContext \|\| ae\.audioContext\.state !== 'running'\)/,
+  'running WebAudio context does not discard shots on stale unlocked flag'
+);
+
 console.log('player-menu-audio-check: PASS');
