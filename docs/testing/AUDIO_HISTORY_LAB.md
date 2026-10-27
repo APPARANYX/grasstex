@@ -70,3 +70,29 @@ Each `voicePools` report now includes `decodedClipCount`, `minClipSeconds` and `
 ### Experimental 64-voice saturation ceiling
 
 `farVoices` is **per weapon model**, not a global soundtrack/queue channel count. The 50v50 fixture instantiates ten distant model pools, so raising the cap from 8 to 64 increases their aggregate capacity from 80 to 640; together with the unchanged near/fallback pools this raises the total maximum from ~204 to ~764 independent Babylon Sound slots. Every extra sound shares existing decoded recordings but still creates a spatial audio source and potential mix/CPU load. This ceiling is deliberately **opt-in only**; the shipping default remains 4 far voices/model. Perform matched 1× tests for 8, 16, 32, 64 and examine pool busy drops, actual peaks, acoustics capacity misses, RMS/peak, long tasks and audibility before deciding a production budget. Avoid comparing unrelated scenarios or using `droppedBusy=0` as the sole success criterion.
+
+## 8-vs-64 native comparison and scheduler stall caveat (October 27, 2026)
+
+Two completed browser runs, same seed 11027 / 50v50 / 60 simulated seconds / 1× / mixed occlusion / single queue / acoustic priority, compare `farVoices=8` and `farVoices=64`:
+
+| Measure | 8 | 64 |
+|---|---:|---:|
+| Simulated shots | 7,190 | 7,206 |
+| Voice starts | 3,828 | 5,263 |
+| Distant voice starts | 1,580 | 3,157 |
+| Distant busy drops | 1,866 | **0** |
+| All-pool busy drops | 2,379 | 433 |
+| Max active voices | 129 | 204 |
+| Acoustic capacity rejections | 2,454 | 3,939 |
+| Acoustic admissions | 1,374 | 1,324 |
+| Primary queue rejections | 617 | 987 |
+| Primary queue starts | 4,184 | 3,844 |
+| Quiet-under-fire samples | 35 | 42 |
+| Max peak amplitude | 0.2627 | 0.2588 |
+| Long tasks / playback errors / clipping | 0 | 0 |
+
+**Important:** far pools contain 1.5-second decoded samples (not hypothetical 2–3 second tails); the near model pools mostly 0.9-second samples. The 64-voice run removes **all** distant pool-busy drops while allowing a peak of only 204 of 764 allocated slots. It also shifts more pressure onto the fixed 24-record acoustic processing system and the propagation scheduler. **Do not declare this 64-voice setting production-ready based on pool drops alone.**
+
+A major confound in both runs: 8 voices experiences an interval with a full propagation queue and no primary playback during the scripted lull; 64 voices experiences ~11 seconds with no primary starts during *sustained fire* (approximately sim 32.0–43.2 seconds), with the queue full at 128 while incoming events are still generated. Active voices eventually fall to zero. In both reports the AudioContext stays `running` and interval-driven simulation and sample clocks continue ticking. The gunfire scheduler runs on `requestAnimationFrame`; browsers can throttle or suspend RAF for background tabs while timers continue, which would produce this precise signature. **The reports do not distinguish that possibility from controller failure.**
+
+For follow-up, the scheduler now measures `drainFrames`, `lastDrainMs`, `maxActiveDrainGapMs` and `maxDueLatenessMs`, and each lab sample includes `pageVisibility`, `schedulerSinceDrainMs` and associated maxima. Repeat 8 and 64 runs sequentially **in a continuously visible foreground tab**, without switching focus. If near-silence recurs with `pageVisibility=visible` and no RAF gap, investigate event due-time arithmetic / admission policy. If RAF stalls correlate with `pageVisibility=hidden`, address browser background behavior separately without masking it by raising queue or pool capacity. The first required outcome is continuity; raw sound count alone is insufficient.
