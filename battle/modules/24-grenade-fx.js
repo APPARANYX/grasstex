@@ -114,6 +114,32 @@
     holder.rotationQuaternion = new B.Quaternion();
     return holder;
   }
+  /* The imported materials are preserved on the soldier's hand prop. Only the
+     projectile gets its own darker olive/brown surface, retaining authored
+     normal maps, roughness and textures. Subtle emission prevents a black blob
+     against dark terrain. The visual material never changes collision/damage. */
+  function tintProjectile(holder, name) {
+    var materials = [];
+    holder.getChildMeshes().forEach(function (mesh, index) {
+      var original = mesh.material;
+      if (!original || typeof original.clone !== 'function') return;
+      var material = original.clone(name + '-dark-' + index);
+      if (!material) return;
+      if (material.albedoColor && material.albedoColor.scaleInPlace)
+        material.albedoColor.scaleInPlace(0.62);
+      if (material.diffuseColor && material.diffuseColor.scaleInPlace)
+        material.diffuseColor.scaleInPlace(0.62);
+      if (material.emissiveColor && material.emissiveColor.set)
+        material.emissiveColor.set(0.026, 0.028, 0.020);
+      mesh.material = material;
+      materials.push(material);
+    });
+    holder.onDisposeObservable.add(function () {
+      materials.forEach(function (material) {
+        material.dispose();
+      });
+    });
+  }
   var handScale = new B.Vector3(),
     handPosition = new B.Vector3(),
     handRotation = new B.Quaternion(),
@@ -345,16 +371,20 @@ void main(void) {
       if (!node) {
         node = prop(st, g.byFaction, 'grenadeProjectile-' + g.id);
         if (!node) return;
+        tintProjectile(node, 'grenadeProjectile-' + g.id);
         st.live.set(g.id, node);
       }
       var p = api.position(g, battle.time),
-        age = Math.max(0, battle.time - g.releasedAt);
+        age = Math.max(0, battle.time - g.releasedAt),
+        impactAt = g.impactAt == null ? g.flight : g.impactAt,
+        roll = g.impact ? Math.hypot(p.x - g.impact.x, p.z - g.impact.z) / 0.12 : 0;
       node.position.set(p.x, p.y + 0.04, p.z);
-      /* Imported Mk2/M24 grenades are near-invisible at the tactical camera.
-         Visual scale only: arc, impact, damage, and hand-held scale are unchanged. */
-      node.scaling.setAll(age < g.flight ? 1.9 : 1.45);
+      /* Authoritative grenade points now include ground-contact bounce/roll. The
+         pitch advances by ground distance after contact instead of spinning on
+         an unrelated timer. Deliberate scale exaggeration is visual-only. */
+      node.scaling.setAll(age < impactAt ? 1.9 : 1.45);
       B.Quaternion.FromEulerAnglesToRef(
-        age < g.flight ? age * 8 : Math.PI / 2,
+        age < impactAt ? age * 8 : impactAt * 8 + roll,
         g.id * 1.7,
         0.3,
         node.rotationQuaternion

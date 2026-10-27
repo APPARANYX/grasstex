@@ -173,7 +173,8 @@ test('35m throwing reach adds eligible contacts but preserves 26m friendly clear
   r.BattleTacticalController = { controls: () => true };
   assert.equal(G.TUNING.RANGE, 35);
   assert.equal(G.TUNING.WINDUP, 1.6, 'throw cadence must give FBX clips natural time to wind up');
-  assert.equal(G.TUNING.FRIEND_CLEAR, 26);
+  assert.equal(G.TUNING.FRIEND_CLEAR, 27.5, 'post-contact roll expands rather than weakens friendly clearance');
+  assert.equal(G.TUNING.ROLL_MAX_TRAVEL, 1.4);
   const enemy = victim(ctx, 34, 0);
   s.target = enemy;
   r.SquadAI.rememberSeen(s, enemy, b, true, 'extended-range-safe-throw');
@@ -467,6 +468,43 @@ test('a bound without cover cannot bypass HOLD FIRE, and OPEN FIRE permits the s
   E.updateSoldier(s, b);
   assert.equal(e.state, 'throw');
   assert.ok(G.pendingOf(s, b), 'opening fire authorizes that same bound-recovery decision');
+});
+
+test('native grenade landing bounces then physically rolls before fuze and blast at the final position', () => {
+  const ctx = setup({ seed: 'grenade-impact-physics' });
+  const { G, b } = ctx;
+  const g = throwOnce(ctx, { x: 30, z: 0 });
+  assert.ok(Object.isFrozen(g) && Object.isFrozen(g.points) && Object.isFrozen(g.impact));
+  assert.ok(g.impactAt < g.flight, 'simulation gives post-contact motion its own scheduled time');
+  assert.ok(g.rollDistance > 0.05 && g.rollDistance <= G.TUNING.ROLL_MAX_TRAVEL + 1e-8);
+  assert.ok(
+    g.points.some(p => p.at > g.impactAt && p.y > g.impact.y + 0.015),
+    'restitution creates a visible, physics-integrated first bounce'
+  );
+  assert.ok(
+    Math.hypot(g.to.x - g.impact.x, g.to.z - g.impact.z) > 0.05,
+    'friction reduces an actual sliding velocity, not just mesh rotation'
+  );
+  assert.deepEqual(G.position(g, g.releasedAt + g.impactAt), g.impact);
+  assert.deepEqual(G.position(g, g.releasedAt + g.flight), g.to);
+  assert.deepEqual(G.position(g, g.detonateAt - 0.01), g.to);
+  assert.equal(g.detonateAt, g.releasedAt + g.flight + G.TUNING.FUSE);
+  assert.deepEqual(G.projectiles(b)[0].to, g.to, 'final collision result belongs to simulation');
+  at(ctx, g.detonateAt);
+  assert.equal(G.summary(b).bursts, 1);
+});
+
+test('grenade landing motion replays identically without frame/render or combat RNG dependence', () => {
+  const a = setup({ seed: 'grenade-roll-determinism' });
+  const ga = throwOnce(a, { x: 30, z: 0 });
+  const b = setup({ seed: 'grenade-roll-determinism' });
+  for (let i = 0; i < 20; i++) b.b.random();
+  const gb = throwOnce(b, { x: 30, z: 0 });
+  assert.deepEqual(gb.points, ga.points);
+  assert.deepEqual(gb.to, ga.to);
+  assert.deepEqual(gb.impact, ga.impact);
+  assert.equal(gb.detonateAt, ga.detonateAt);
+  assert.ok(ga.points.length > 24, 'native physics produced actual substep trajectory points');
 });
 
 test('preview is deterministic and read-only, and an intervening wall stops the released arc', () => {

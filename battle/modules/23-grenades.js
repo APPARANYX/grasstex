@@ -29,7 +29,12 @@
     FLIGHT_PER_M: 1 / 18,
     FLIGHT_MAX: 2.4,
     FUSE: 3.6, // seconds after landing
-    FRIEND_CLEAR: 26, // 22m fragments + 3.5m scatter + 0.5m margin; see friendClear
+    FRIEND_CLEAR: 27.5, // 22m fragments + 3.5m scatter + 1.4m ground roll + 0.6m margin.
+    ROLL_MAX_TRAVEL: 1.4,
+    ROLL_SUBSTEP: 0.04,
+    ROLL_MAX_SECONDS: 1.28,
+    ROLL_RESTITUTION: 0.23,
+    ROLL_GROUND_DRAG: 0.84,
     SUPPRESS_RADIUS: 16,
     PIN_MIN: 1.6,
     PIN_MAX: 4.2,
@@ -224,6 +229,94 @@
     }
     return { from: from, to: to, flight: duration, points: points, blocked: blocked };
   }
+  /* Real landing motion belongs to the native grenade owner, not the renderer.
+     The incoming arc contacts the terrain/cover at path.to. Resolve a short damped
+     bounce/roll with fixed 40ms substeps and the shared environment collision owner.
+     All points are computed at RELEASE, immutable thereafter and independent of FPS.
+     No combat/random stream is consumed. A blocked roof/wall impact bounces in place
+     rather than crossing a wall or driving a small grenade off an unsupported roof. */
+  function settleAfterImpact(path, battle) {
+    var impact = path.to,
+      impactAt = path.flight,
+      points = path.points.slice(),
+      dt = TUNING.ROLL_SUBSTEP,
+      vx = 0,
+      vz = 0,
+      vy = 0.9,
+      p = { x: impact.x, y: impact.y, z: impact.z },
+      elapsed = 0,
+      floor = path.blocked ? impact.y : battle.heightAt(p.x, p.z) + TUNING.REST_Y;
+    if (!path.blocked) {
+      for (var n = points.length - 2; n >= 0; n--) {
+        var old = points[n],
+          d = dist(old, impact);
+        if (d < 0.1) continue;
+        var speed = Math.min(2.2, (d / Math.max(0.04, impactAt - old.at)) * 0.14);
+        vx = ((impact.x - old.x) / d) * speed;
+        vz = ((impact.z - old.z) / d) * speed;
+        break;
+      }
+    }
+    while (elapsed + dt <= TUNING.ROLL_MAX_SECONDS + 0.00001) {
+      elapsed = +(elapsed + dt).toFixed(6);
+      vy -= 9.81 * dt;
+      var nx = p.x + vx * dt,
+        nz = p.z + vz * dt,
+        travel = dist(impact, { x: nx, z: nz });
+      if (travel > TUNING.ROLL_MAX_TRAVEL) {
+        var ratio = TUNING.ROLL_MAX_TRAVEL / travel;
+        nx = impact.x + (nx - impact.x) * ratio;
+        nz = impact.z + (nz - impact.z) * ratio;
+        vx = vz = 0;
+      }
+      floor = path.blocked ? impact.y : battle.heightAt(nx, nz) + TUNING.REST_Y;
+      var ny = p.y + vy * dt,
+        landed = ny <= floor;
+      if (landed) {
+        ny = floor;
+        vy = vy < -0.36 ? -vy * TUNING.ROLL_RESTITUTION : 0;
+      }
+      var next = { x: nx, y: ny, z: nz };
+      if (lineBlocked(battle, p, next)) {
+        // Inelastic collision against a real physical face. Retain the last
+        // clear point rather than allowing the roll to tunnel through cover.
+        var lo = 0,
+          hi = 1;
+        for (var k = 0; k < 9; k++) {
+          var mid = (lo + hi) * 0.5,
+            q = {
+              x: p.x + (next.x - p.x) * mid,
+              y: p.y + (next.y - p.y) * mid,
+              z: p.z + (next.z - p.z) * mid
+            };
+          if (lineBlocked(battle, p, q)) hi = mid;
+          else lo = mid;
+        }
+        next = {
+          x: p.x + (next.x - p.x) * Math.max(0, lo - 0.001),
+          y: p.y + (next.y - p.y) * Math.max(0, lo - 0.001),
+          z: p.z + (next.z - p.z) * Math.max(0, lo - 0.001)
+        };
+        vx = vz = 0;
+        vy = Math.max(0, vy);
+      }
+      vx *= landed ? TUNING.ROLL_GROUND_DRAG : 0.985;
+      vz *= landed ? TUNING.ROLL_GROUND_DRAG : 0.985;
+      p = next;
+      points.push({ x: p.x, y: p.y, z: p.z, at: impactAt + elapsed });
+      if (landed && vy === 0 && Math.hypot(vx, vz) < 0.09) break;
+    }
+    return {
+      from: path.from,
+      impact: { x: impact.x, y: impact.y, z: impact.z },
+      impactAt: impactAt,
+      to: { x: p.x, y: p.y, z: p.z },
+      points: points,
+      flight: impactAt + elapsed,
+      blocked: path.blocked,
+      rollDistance: dist(impact, p)
+    };
+  }
   function available(s, battle) {
     if (!ON || !s || !battle || s.dead || !s.root || battle.paused || battle.winner) return false;
     if (count(s) <= 0 || cooldownLeft(s, battle) > 0 || s.reloading || s.crawling || !s.weapon) return false;
@@ -302,7 +395,7 @@
      is applied: a soldier who later walks into the live hazard remains vulnerable. */
   function friendClear(s, battle, aim, actualLanding) {
     var all = units(battle),
-      samples = actualLanding ? 1 : 9,
+      samples = actualLanding ? 1 : 17,
       radius = actualLanding ? TUNING.FRAG_MAX_RANGE + 0.5 : TUNING.FRIEND_CLEAR;
     for (var i = 0; i < all.length; i++) {
       var f = all[i];
@@ -315,8 +408,8 @@
         z: p.z
       };
       for (var j = 0; j < samples; j++) {
-        var angle = ((j - 1) * Math.PI) / 4,
-          shift = j === 0 ? 0 : TUNING.SCATTER,
+        var angle = (((j - 1) % 8) * Math.PI) / 4,
+          shift = j === 0 ? 0 : j <= 8 ? TUNING.SCATTER : TUNING.SCATTER + TUNING.ROLL_MAX_TRAVEL,
           landing = { x: aim.x + shift * Math.cos(angle), z: aim.z + shift * Math.sin(angle) };
         var source = {
           x: landing.x,
@@ -386,6 +479,7 @@
   }
   function freezeFlight(g) {
     Object.freeze(g.from);
+    Object.freeze(g.impact);
     Object.freeze(g.to);
     g.points.forEach(Object.freeze);
     Object.freeze(g.points);
@@ -402,7 +496,7 @@
       angle = st.rng() * Math.PI * 2,
       to = { x: plan.aim.x + radius * Math.cos(angle), z: plan.aim.z + radius * Math.sin(angle) };
     to.y = battle.heightAt(to.x, to.z) + TUNING.REST_Y;
-    var path = flightFor(hand(s, battle, plan.stance), to, battle);
+    var path = settleAfterImpact(flightFor(hand(s, battle, plan.stance), to, battle), battle);
     /* A new friendly may enter during windup; cover or scatter may also move
        the actual burst near a teammate. AI must decline unsafe release rather
        than spending a grenade and hoping the originally intended aim was safe.
@@ -426,6 +520,9 @@
       byFaction: s.faction,
       byRef: s,
       from: path.from,
+      impact: path.impact,
+      impactAt: path.impactAt,
+      rollDistance: path.rollDistance,
       to: path.to,
       points: path.points,
       releasedAt: plan.releaseAt,
@@ -446,6 +543,8 @@
       faction: s.faction,
       releasedAt: g.releasedAt,
       detonateAt: g.detonateAt,
+      impact: g.impact,
+      rollDistance: g.rollDistance,
       to: g.to,
       carried: count(s)
     });
