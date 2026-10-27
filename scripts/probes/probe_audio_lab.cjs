@@ -35,6 +35,11 @@ const TIMEOUT = Math.max(15000, Number(process.env.AUDIO_LAB_TIMEOUT_MS) || 2400
     console.log('Audio lab:', report.status, '| URL:', URL_TO_RUN);
     console.log('Shots:', report.summary.simulatedShots, '| started:', report.summary.playRequests,
       '| dropped busy:', report.summary.droppedBusy, '| not ready:', report.summary.droppedNotReady);
+    const topBusy = Object.entries(report.voicePools || {})
+      .sort((a, b) => b[1].droppedBusy - a[1].droppedBusy)
+      .slice(0, 8)
+      .map(([key, x]) => ({ key, cap: x.capacity, starts: x.started, busyDrops: x.droppedBusy }));
+    console.log('Most saturated near/far pools:', topBusy);
     console.log('Scheduler primary evictions:', report.summary.schedulerPrimaryEvictions,
       '| far skips:', report.summary.schedulerFarSkipped, '| far throttles:', report.summary.schedulerFarThrottled);
     console.log('Peak active:', report.summary.maxActiveVoices, '| max queue:', report.summary.maxQueue,
