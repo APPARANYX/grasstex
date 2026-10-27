@@ -185,7 +185,9 @@ function summarizeSamples(samples) {
         labRange: '1',
         tacticalController: c.arm,
         strategicInterception: '0',
-        labDuration: String(SIM_SECONDS)
+        labDuration: String(SIM_SECONDS),
+        labMove: c.arm === 'new' && c.cover === 'mixed' ? 'autonomous' : 'baseline',
+        stressAct: c.arm === 'new' && c.cover === 'mixed' ? '0' : 'all'
       });
       await page.goto(BASE + '?' + params, { waitUntil: 'domcontentloaded', timeout: 120000 });
       await page.waitForFunction(() => window.BattleSkillsLab?.snapshot()?.targetCount === 10, null, {
@@ -198,6 +200,11 @@ function summarizeSamples(samples) {
       assert.equal(first.rangeDistanceM, c.distance, 'matched native starting distance');
       assert.equal(first.targetDeaths, 0, 'targets begin inert');
       assert.equal(first.durationLimitSeconds, SIM_SECONDS, 'native lab has explicit time cap');
+      assert.equal(
+        first.movementPace,
+        c.arm === 'new' && c.cover === 'mixed' ? 'autonomous' : 'baseline',
+        'native gait A/B policy is explicit'
+      );
       assert.ok(first.gaitTelemetry && first.gaitTelemetry.coveredBounds, 'gait exporter is installed');
       const captured = await page.evaluate(
         ({ seconds, retreat }) => {
@@ -272,6 +279,19 @@ function summarizeSamples(samples) {
       assert.equal(captured[captured.length - 1].lab.durationCapReached, true, 'lab paused at time cap');
       assert.equal(captured[captured.length - 1].lab.paused, true, 'time cap pauses without victory');
       const gaitData = captured[captured.length - 1].lab.gaitTelemetry;
+      if (c.arm === 'new') {
+        const diagnosticSquads = captured[captured.length - 1].lab.squads.filter(s =>
+          s.id.startsWith('us:')
+        );
+        assert.ok(
+          diagnosticSquads.every(s => s.grenadeDiagnostic && s.grenadeDiagnostic.reasons),
+          'native contact owner exports per-squad grenade refusal reasons'
+        );
+        assert.ok(
+          diagnosticSquads.every(s => Number.isInteger(s.supportRelocationsStarted)),
+          'covered-maneuver owner exports support-role relocation counts'
+        );
+      }
       assert.ok(Object.keys(gaitData.byGait).length > 0, 'native simulation captured physical gait');
       if (c.arm === 'new' && summary.totalPhysicalArrivals > 0) {
         assert.ok(Object.keys(gaitData.coveredBounds).length > 0, 'arriving native bounds have measured gait');

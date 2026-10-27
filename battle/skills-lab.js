@@ -14,6 +14,8 @@
   var coverLayout = params.get('labCover') || 'mixed';
   if (['open', 'mixed', 'staggered', 'dense', 'hedgerow', 'original'].indexOf(coverLayout) < 0)
     coverLayout = 'mixed';
+  var pace = params.get('labMove') || 'baseline';
+  if (['baseline', 'purposeful', 'autonomous'].indexOf(pace) < 0) pace = 'baseline';
   var focus = params.get('labFocus') || 'all';
   if (!['all', 'fire', 'bounds', 'station'].includes(focus)) focus = 'all';
   /* Opt-in observation cap, NOT a battle time limit or victory trigger.
@@ -477,6 +479,8 @@
       '<div class="sub">Targets are real native actors with visual standees. Shots, ballistics, suppression, ' +
       'perception, orders and movement use their shipping owners. Target damage/movement/fire disabled.</div>' +
       '<label for="skillController">Controller</label><select id="skillController"></select>' +
+      '<label for="skillPace">Movement gait policy (explicit A/B selection)</label>' +
+      '<select id="skillPace"></select>' +
       '<label for="skillFocus">Inspect skill (observational filter; no forced AI actions)</label>' +
       '<select id="skillFocus"></select>' +
       '<label for="skillCover">Real cover layout (native collision and LOS)</label><select id="skillCover"></select>' +
@@ -530,6 +534,17 @@
       params.get('tacticalController') === 'new' ? 'new' : 'legacy'
     ).onchange = function () {
       configure('tacticalController', this.value);
+    };
+    options(
+      '#skillPace',
+      [
+        ['baseline', 'Baseline · original gait choice'],
+        ['autonomous', 'Autonomous · new stance and gait owner'],
+        ['purposeful', 'Purposeful · Phase C comparison']
+      ],
+      pace
+    ).onchange = function () {
+      configure('labMove', this.value);
     };
     options(
       '#skillFocus',
@@ -747,6 +762,13 @@
           checkins: (m && m.checkins) || 0,
           retainedRoutes: (m && m.retainedRoutes) || [],
           failed: (m && m.failed) || 0,
+          grenadeDiagnostic:
+            (root.BattleTacticalContactSkills &&
+              root.BattleTacticalContactSkills.summary(sq) &&
+              root.BattleTacticalContactSkills.summary(sq).grenadeDiagnostic) ||
+            null,
+          supportRelocationsStarted: (m && m.supportRelocationsStarted) || 0,
+          supportRelocationsCheckedIn: (m && m.supportRelocationsCheckedIn) || 0,
           diagnostic: (m && m.diagnostic) || null
         });
         if (m && Array.isArray(m.history))
@@ -808,6 +830,7 @@
       rangeScale: scale,
       rangeDistanceM: distanceM,
       coverLayout: coverLayout,
+      movementPace: pace,
       time: +battle.time.toFixed(2),
       paused: !!battle.paused,
       durationLimitSeconds: durationLimit || null,
@@ -974,11 +997,32 @@
       (d.durationLimitSeconds
         ? '\n' + (d.durationCapReached ? 'PAUSED at' : 'Auto-pause at') + ' ' + d.durationLimitSeconds + ' s'
         : '\nNo automatic time cap');
+    var grenadeReasons = {};
+    d.squads
+      .filter(function (s) {
+        return s.id.startsWith('us:');
+      })
+      .forEach(function (s) {
+        var reasons = (s.grenadeDiagnostic && s.grenadeDiagnostic.reasons) || {};
+        Object.keys(reasons).forEach(function (key) {
+          grenadeReasons[key] = (grenadeReasons[key] || 0) + reasons[key];
+        });
+      });
     panel.querySelector('#skillGrenades').textContent =
-      'Assault finish · US grenades thrown ' +
+      'Assault grenades · US thrown ' +
       String(d.grenades && d.grenades.byFaction ? d.grenades.byFaction.us : 0) +
       ' · bursts ' +
-      String(d.grenades ? d.grenades.bursts : 0);
+      String(d.grenades ? d.grenades.bursts : 0) +
+      '\nCurrent grenade gates: ' +
+      (Object.entries(grenadeReasons)
+        .sort(function (a, b) {
+          return b[1] - a[1];
+        })
+        .slice(0, 5)
+        .map(function (a) {
+          return a[0] + ':' + a[1];
+        })
+        .join(', ') || 'no contacts evaluated');
     play.textContent = battle.paused ? '▶ Play' : 'Ⅱ Pause';
     panel.querySelector('#skillSquads').textContent =
       d.squads
@@ -1184,7 +1228,7 @@
   root.PhaseCCombatLab = {
     disableObjectiveVictory: true,
     rangeScale: scale,
-    movementPace: 'baseline',
+    movementPace: pace,
     interiorIngressRecovery: false,
     stationary: function (s) {
       return !!s && s.faction === 'ge';

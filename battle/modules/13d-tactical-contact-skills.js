@@ -17,7 +17,8 @@
         men: new Map(),
         roles: new Set(),
         points: new Map(),
-        rejected: {}
+        rejected: {},
+        grenadeDiagnostic: null
       };
       states.set(ctx.squad, st);
     }
@@ -317,9 +318,15 @@
           return G.pendingOf(s, sim);
         });
     st.grenadier = pendingGrenadier ? String(pendingGrenadier.id) : null;
+    st.grenadeDiagnostic = {
+      at: +sim.time.toFixed(2),
+      considered: 0,
+      reasons: {},
+      selectedId: st.grenadier
+    };
     if (
       G &&
-      G.assaultOpportunity &&
+      G.assaultAssessment &&
       !st.grenadier &&
       !retreat(sq) &&
       !G.projectiles(sim).some(function (g) {
@@ -327,13 +334,23 @@
       })
     ) {
       var grenadier = members(sq).find(function (s) {
-        return (
-          !A.isMachineGun(s) &&
-          !(Q.controllerBound && Q.controllerBound.role(s, sim) === 'move') &&
-          G.assaultOpportunity(s, sim)
-        );
+        if (A.isMachineGun(s)) return false;
+        if (Q.controllerBound && Q.controllerBound.role(s, sim) === 'move') {
+          st.grenadeDiagnostic.reasons['assigned-covered-mover'] =
+            (st.grenadeDiagnostic.reasons['assigned-covered-mover'] || 0) + 1;
+          return false;
+        }
+        var decision = G.assaultAssessment(s, sim);
+        st.grenadeDiagnostic.considered++;
+        if (!decision.ok)
+          st.grenadeDiagnostic.reasons[decision.reason] =
+            (st.grenadeDiagnostic.reasons[decision.reason] || 0) + 1;
+        return decision.ok;
       });
-      if (grenadier) st.grenadier = String(grenadier.id);
+      if (grenadier) {
+        st.grenadier = String(grenadier.id);
+        st.grenadeDiagnostic.selectedId = st.grenadier;
+      }
     }
     reconcile(ctx, st);
   }
@@ -453,7 +470,8 @@
             reportedPoint: st.points.get(entry[0]) || null
           };
         }),
-        rejected: Object.assign({}, st.rejected)
+        rejected: Object.assign({}, st.rejected),
+        grenadeDiagnostic: st.grenadeDiagnostic || null
       };
     }
   };

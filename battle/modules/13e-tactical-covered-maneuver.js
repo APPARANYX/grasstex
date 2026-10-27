@@ -41,6 +41,8 @@
         personalOrdersRejected: 0,
         personalOrdersInterrupted: 0,
         plannedNeverSubmitted: 0,
+        supportRelocationsStarted: 0,
+        supportRelocationsCheckedIn: 0,
         rejectedReplacementIds: new Set(),
         byDirection: {
           forward: { started: 0, completed: 0, aborted: 0 },
@@ -76,6 +78,7 @@
     st.arrived.add(id);
     st.completed++;
     st.checkins++;
+    if (st.supportRelocation) st.supportRelocationsCheckedIn++;
     st.lastMoverId = id;
     var route = st.routes.get(id);
     if (route) {
@@ -232,10 +235,15 @@
       C = root.BattleCoverPositions,
       R = root.BattleTacticalContactRoute,
       leader = A.leaderOf(ctx.squad);
-    if (!goal || !R || !R.pick) return null;
+    var relocation = (audit.relocation = { evaluated: [], selectedId: null });
+    if (!goal || !R || !R.pick) {
+      relocation.reason = 'no-mission-or-route-owner';
+      return null;
+    }
     var options = ready.filter(function (s) {
       return s === leader || A.isMachineGun(s);
     });
+    if (!options.length) relocation.reason = 'no-ready-leader-or-machinegun';
     options.sort(function (a, b) {
       return (A.isMachineGun(a) ? 0 : 1) - (A.isMachineGun(b) ? 0 : 1);
     });
@@ -243,6 +251,7 @@
       var mover = options[i],
         here = mover.root.position,
         remaining = Math.hypot(here.x - goal.x, here.z - goal.z),
+        entry = { id: String(mover.id), role: mover === leader ? 'leader' : 'machinegun' },
         front = ready.filter(function (s) {
           return (
             s !== leader &&
@@ -252,14 +261,25 @@
             E.supportDischarged(s, ctx.sim, ctx.sim.time - 3)
           );
         });
-      if (front.length < 2) continue;
+      relocation.evaluated.push(entry);
+      entry.forwardFiringRifles = front.length;
+      if (front.length < 2) {
+        entry.reason = 'fewer-than-two-forward-firing-rifles';
+        continue;
+      }
       var anchor = {
         x: (front[0].root.position.x + front[1].root.position.x) / 2,
         z: (front[0].root.position.z + front[1].root.position.z) / 2
       };
-      if (Math.hypot(anchor.x - here.x, anchor.z - here.z) < 35) continue;
+      if (Math.hypot(anchor.x - here.x, anchor.z - here.z) < 35) {
+        entry.reason = 'forward-anchor-not-far-enough';
+        continue;
+      }
       var reports = C.boundThreats(mover, ctx.sim);
-      if (!reports.length) continue;
+      if (!reports.length) {
+        entry.reason = 'no-personal-contact';
+        continue;
+      }
       var retained = st.routes.get(String(mover.id)),
         route = R.pick(
           mover,
@@ -274,8 +294,12 @@
         !C.candidates(mover, ctx.sim, reports[0], R.tuning.maxHop).some(function (p) {
           return Math.hypot(p.x - route.point.x, p.z - route.point.z) < 0.01;
         })
-      )
+      ) {
+        entry.reason = !route.point ? 'no-safe-connected-cover-route' : 'execution-cover-candidate-missing';
         continue;
+      }
+      entry.reason = 'selected';
+      relocation.selectedId = String(mover.id);
       audit.teams.push({
         team: 'alpha',
         moverId: String(mover.id),
@@ -305,6 +329,8 @@
         supportRelocation: true
       };
     }
+    if (!relocation.selectedId && !relocation.reason)
+      relocation.reason = 'no-support-role-with-safe-covered-route';
     return null;
   }
   function choose(ctx, st, rs, excluded) {
@@ -774,6 +800,7 @@
     st.rejectedReplacementIds.clear();
     st.plan = selected.plan;
     st.supportRelocation = !!selected.supportRelocation;
+    if (st.supportRelocation) st.supportRelocationsStarted++;
     st.defending = !!selected.defending;
     st.defenseSector = selected.defenseSector;
     st.defenseCenter = defense ? defense.center : null;
@@ -842,6 +869,8 @@
             movingCount:
               st.window && st.phase === 'moving' ? st.plan.length - st.arrived.size - st.interrupted.size : 0,
             supportRelocation: !!st.supportRelocation,
+            supportRelocationsStarted: st.supportRelocationsStarted,
+            supportRelocationsCheckedIn: st.supportRelocationsCheckedIn,
             pendingCover: !!st.window,
             arrivedIds: Array.from(st.arrived),
             interruptedIds: Array.from(st.interrupted),
