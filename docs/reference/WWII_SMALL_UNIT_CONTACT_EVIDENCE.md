@@ -4,7 +4,7 @@
 >
 > **Scope:** What American infantrymen and observers described during the first moments of contact with German forces in open/approach terrain, woodland, bocage and streets; how that differs from planned assaults; and which concepts from William H. McRaven's *Spec Ops* can inform a WWII simulation.
 >
-> **Evidence boundary:** Directly accessible veteran interviews, memoir passages, and Ernie Pyle columns were read; McRaven's *Spec Ops* is represented through publisher descriptions, bibliographic previews and independent military histories of its WWII case studies. **The full copyrighted book was not independently read**; do not attribute unverified page-specific claims or quotation to McRaven.
+> **Evidence boundary:** Directly accessible veteran interviews, memoir passages, and Ernie Pyle columns were read. **McRaven's complete 1996 Presidio Press edition was subsequently supplied by the project owner as a scanned PDF in a chat attachment and examined directly** (Chapter 1, selected WWII case analyses, and Chapter 10); the scanned book is **not** redistributed into this public repository. McRaven citations below use **printed book page numbers**, not PDF page indices. This research does not constitute a survey of unprepared conventional squad meetings or a statistically measured behavioral model.
 
 ## Executive findings
 
@@ -164,40 +164,86 @@ For the **480×360 m equal-force meeting scenario** already used by GRASSTEX, co
 We **still cannot say "most men did X" with a defensible frequency** at exactly 50–150 meters in a balanced, mutual, unprepared squad meeting. The high-value next source would be multiple independently recorded U.S. **and** German platoon patrol after-action interviews that note both sides' discovery circumstances, approximate initial distance, first response and who initiated the shooting. Until that exists, a **conditional model validated against multiple field accounts** is more faithful than inventing a "70% prone, 20% shoot, 10% run" reaction table.
 
 
-## McRaven: *Spec Ops* (1995/1996), theory and WWII case studies
+## McRaven: *Spec Ops* (1995/1996), direct-text research
 
-**Work:** William H. McRaven, *Spec Ops: Case Studies in Special Operations Warfare: Theory and Practice*, Presidio Press (original edition 1995; 1996 paperback; later editions). The publisher and contemporary review identify eight major studies, **six of them WWII operations**: the 1940 German assault on Eben Emael; the 1941 Italian manned-torpedo attack in Alexandria harbor; the 1942 British Saint-Nazaire raid; the 1943 German rescue of Mussolini at Gran Sasso; the 1943 British midget-submarine attack on *Tirpitz*; and the U.S./Filipino Cabanatuan prisoner rescue in 1945. The other two concern Son Tay (1970) and Entebbe (1976). [S7] [S8]
+**Primary text now available:** William H. McRaven, *Spec Ops: Case Studies in Special Operations Warfare: Theory and Practice*, copyright 1995, Presidio Press printing 1996, supplied by the project owner as \`spec-ops-0891416005_compress.zip\` containing a **426-page scanned PDF**. Pages cited in this section are the **printed book numbers** visible on its pages, not PDF page indices. We examined Chapter 1 (pp. 1–25), selected analyses of Eben Emael, Saint-Nazaire, Gran Sasso and Cabanatuan, and the concluding chapter (pp. 381–391). The full book is not copied into the repository. [S19]
 
-### Central concept: temporary relative superiority
+### What the author actually studies—and what he does not
 
-McRaven's framework concerns how a *small, purpose-built assault force* can generate a decisive, sometimes brief advantage against a larger or heavily defended opponent. The six principles named by the publisher are:
+McRaven narrows "special operations" to small, specially prepared forces striking a particular important target, usually with exceptional planning, intelligence and resources; he emphasizes this operational definition is narrower than broader joint-doctrine usage (**pp. 2–3**). His sample is **eight deliberately planned operations**, six from WWII: Eben Emael (1940), Italian manned torpedoes at Alexandria (1941), Saint-Nazaire (1942), the Gran Sasso rescue (1943), the British X-craft attack on *Tirpitz* (1943), and Cabanatuan (1945). The others are Son Tay (1970) and Entebbe (1976). He says he interviewed key participants in seven of eight cases; he did not interview Gran Sasso commandos (**p. 24**). [S19, pp. 2–3, 23–25] [S7] [S8]
 
-| McRaven principle | Reasonable **game-design interpretation** | Transfer limit |
+**Therefore:** This text provides valuable theory about attaining an advantage, acting coherently and finishing a mission. It **does not measure whether conventional U.S./German riflemen at 50–150 meters most often fired immediately, dropped, or fired while running**. Do not silently treat elite rehearsed raids as comparable to spontaneous meeting engagements.
+
+### The decisive point is not necessarily the first shot (pp. 4–8, 381–385)
+
+McRaven defines **relative superiority** as a temporary decisive advantage gained by a generally smaller attacking force over a larger or better-defended opponent. His theory distinguishes:
+
+1. **Acquisition:** reaching a pivotal point where success becomes substantially more likely. That point can occur **before any gunfire**.
+2. **Sustainment:** preserving the advantage long enough to finish the mission; circumstances or delayed enemy reaction can erode it.
+3. **Loss:** once a small force loses its advantage, it may be unable to recover it against better-resourced defense.
+
+His **point of vulnerability (PV)** marks the first relevant exposure to the enemy's defensive system. His **area of vulnerability (AV)** illustrates the period during which chance, uncertainty and the enemy's will can overturn an operation. Both PV and the relative-superiority curves are **conceptual illustrations, not empirically calibrated probabilities or a mathematical model**: McRaven explicitly warns against interpreting the graphs as quantitative analysis (**pp. 6–8, 382**). [S19]
+
+McRaven's account of the psychological or organizational advantage is a much stronger fit for our current simulation question than the assumption that "first visual detection means instant kills":
+
+- Contact and **initiative** can change before a side has inflicted casualties.
+- Suppressing an enemy response and sustaining movement toward the objective can matter more than winning the first shot.
+- **A dead opponent is not automatically an achieved mission**: a force may still need to occupy, defend, extract or move into the next situation.
+- These are **simulation interpretations**, not mechanically specified code requirements from McRaven.
+
+### Six principles: the author's definitions, followed by separate game hypotheses (pp. 8–23)
+
+McRaven groups **simplicity, security and repetition** into planning/preparation and **surprise, speed and purpose** into execution. His model also stresses personal **courage, intellect, boldness and perseverance** as factors that sustain action despite friction (**pp. 9–11**). [S19]
+
+| Principle | What McRaven argues (printed pages) | Limited GRASSTEX interpretation—not a direct source command |
 |---|---|---|
-| **Simplicity** | A squad plan has a clear near-term objective and few ambiguous competing tasks | This is not evidence that every planned action must be trivial |
-| **Security** | Preserve surprise / information advantage by reducing premature exposure of intent | Chance meetings typically lack prepared secrecy |
-| **Repetition** | Experienced/rehearsed unit executes familiar team tasks with fewer coordination failures | Do not grant an improvised squad a rehearsed-raid bonus |
-| **Surprise** | A defender who has not detected the attackers cannot pre-orient instantly | Must derive from actual perception, not omniscient scenario flags |
-| **Speed** | Once an opportunity appears, timely execution matters before the opponent responds | Speed is not merely high running velocity or an artificially accelerated clock |
-| **Purpose** | Units remain directed toward the committed local task and adapt when it changes | Purpose does not justify suicidal persistence or ignoring new threats |
+| **Simplicity** | Keep necessary objectives limited, use good intelligence, and innovate to remove complications; extra tasks demand more personnel and time (**pp. 11–14**) | Present the local squad with one intelligible immediate task; avoid competing, persistent and unnecessary policy decisions |
+| **Security** | The defender may expect *an* attack yet still be surprised by its **timing/method**; conceal the details that would enable the enemy to orient (**pp. 14–15**) | An undetected unit retains information advantage, but only from actual limited enemy perception |
+| **Repetition** | Realistic rehearsals make complex actions more dependable, uncover failures, and improve communication under stress (**pp. 15–16, 389–390**) | Training/cohesion may improve *how well an already valid ordered task is executed*; don't assign every unprepared squad an elite scripted rehearsal |
+| **Surprise** | The target need not be wholly unprepared; delayed enemy action can arise from timing, deception or a local weakness. **Surprise alone is insufficient** (**pp. 16–19**) | Distinguish detection, threat identification, readiness and actual enemy reaction; no omniscient immediate target lock |
+| **Speed** | Reduce time exposed during *mission execution*. Long optional tasks enlarged vulnerability at Saint-Nazaire (**pp. 19–21**) | Favor prompt, physically executable follow-through over idle intervals; **not** unconditional sprint speed, unrealistic zero-time travel or perfect running fire |
+| **Purpose** | Understand the primary objective, avoid distracting opportunities, and maintain the commitment to complete it (**pp. 21–23**) | Winning a firefight should lead to secure/reposition/consolidate/advance as the mission requires, not an indefinite stationary "defend" lock or suicidal chase |
 
-**Boundary:** These are interpretations intended to inspire game design, **not** direct quotations, precise definitions from inaccessible pages, or empirically calibrated values. The six principle names and case-study roster are verified by the publisher and reviews. [S7] [S8]
+**Crucial detail from the conclusion:** McRaven argues that it is impossible to know with certainty how a particular individual will act under fire; in his cases, cohesive, well-trained units succeeded despite having many soldiers without prior combat experience (**pp. 389–390**). Cohesion is not evidence that an entire squad must freeze until it receives one synchronized next-step order. It supports testing whether soldiers can execute *compatible individual actions* toward shared intent under uncertainty. [S19]
 
-### WWII example A — Eben Emael, 10 May 1940
+### Four WWII comparisons directly relevant to our simulator
 
-Historical U.S. Army studies describe German glider troops arriving onto the Belgian fort's roof in an unexpected direction, disabling key positions despite two gliders missing the opening assault—including the commander's glider. A senior NCO carried on the prepared plan. The combination of preparation, unusual approach, local leadership and surprise helps explain why an initially small force achieved a disproportionate result. [S9]
+**A. Eben Emael, 10 May 1940 — a momentary opening made useful by preparation.** McRaven describes German glider troops arriving despite antiaircraft fire, attaining decisive positional advantage around the landings, and destroying the most important casemates in about **15 minutes**, with broader primary objectives achieved rapidly. Yet Belgian resistance and the fortress's eventual surrender extended far beyond the initial action. The commander and assault force relied on prior preparation, specialized technology, and independently understood tasks rather than continuously waiting for new instructions (**pp. 58–59**). [S19] [S9]
 
-**Game-design implication:** A well-rehearsed task can remain coherent when a leader is unavailable, if subordinate actors possess valid prior intent. Do *not* transfer this effect wholesale to surprised, unprepared conventional infantry.
+**Simulation boundary:** This is a rehearsed vertical assault against a fixed fort, **not** data for snap-shooting at 100 meters. An opening advantage should raise the possibility of coordinated follow-through; it should not instantly mark the battle won or award every soldier perfect target knowledge.
 
-### WWII example B — Cabanatuan rescue, 30 January 1945
+**B. Saint-Nazaire, 28 March 1942 — surprise worked for one part and failed to save another.** McRaven separates the armored destroyer *Campbeltown*, whose dry-dock mission succeeded, from vulnerable small motor launches and the overextended commando shore plan. The boat force initially penetrated a defensive system but could not rapidly execute and recover under fire. He criticizes the multiplication of objectives and the assumption that initial surprise alone would overcome continued resistance (**pp. 146–148, 155; Chapter 10 pp. 384–386**). [S19]
 
-U.S. Army histories describe Rangers, Alamo Scouts and Filipino guerrillas coordinating deep reconnaissance, approach, supporting actions and prisoner extraction; roughly 500-plus prisoners were rescued. The case demonstrates that a planned mission's **completion** includes exit, protection and accounting for vulnerable people—not just the opening assault. [S10]
+**Simulation boundary:** Track **advantage durability** and task completion after contact. Do not convert an initial spotting or suppression advantage into unstoppable victory, and do not extend a squad's exposed state simply because a timer says "hold" or "wait."
 
-**Game-design implication:** In scripted or mission-oriented scenarios, distinguish "seized initial advantage" from "secured the mission and successfully extracted / consolidated." A regular encounter should likewise distinguish winning contact from holding or safely advancing through the area.
+**C. Gran Sasso, September 1943 — hesitation is different from incapacitation.** McRaven notes the landing force reached Mussolini rapidly, in part because the appearance of an Italian general created hesitation among guards. Extracting Mussolini remained another required phase after the rapid seizure; McRaven also acknowledges unusual luck and the contribution of personal judgment (**pp. 5, 187–194**). [S19]
+
+**Simulation boundary:** Surprise can be an interval of **delayed recognition or action**, not necessarily suppression by incoming rounds. This case does not prove every WWII German squad should charge, surrender or fail to fire when meeting an American squad.
+
+**D. Cabanatuan, 30 January 1945 — relative superiority began *before firing* and fluctuated afterward.** McRaven plots the Rangers becoming vulnerable while approaching, attaining relative superiority **after moving into their intended positions but before opening fire**, then becoming less secure as hundreds of rescued POWs complicated the return. He treats the exposed return across the highway as a substantial remaining risk (**pp. 275–277**). The raid's favorable result also depended on what nearby enemy units were doing, not merely on the assault unit's individual qualities (**pp. 273–275**). [S19] [S10]
+
+**Simulation boundary:** Separate detecting contact, successfully positioning a force, firing, moving into the area, and safely securing or withdrawing. A group that "wins contact" may face new dangers, mirroring the overextension case in the conventional infantry sources.
+
+### McRaven's retrospective caveat: not a numerical model
+
+McRaven observes that in **his selected raids**, most successful assault elements achieved relative superiority within minutes, and some operations then finished quickly (**p. 20**). This is **not** a statistic for meeting engagements, a recommended five-minute squad engagement duration, or permission to set universal reaction speeds. His concluding chapter describes the graphs as deliberately qualitative (**pp. 381–385**) and contrasts missions suited to a short raid with **holding actions**, where a lightly equipped force must maintain its advantage over a longer period (**pp. 385–387**). [S19]
+
+**Research conclusion for the 50–150 m question:** McRaven **cannot answer the first-action frequency**. He does sharpen the secondary question: *After the first cue, can soldiers recognize a useful advantage, coordinate enough compatible actions to exploit it, and adapt before the advantage expires?* That is something the game can measure without fabricating historical reaction percentages.
+
+### Candidate read-only metrics inspired by this book
+
+These are **test hypotheses**, not new state owners, fire authority or numerical tunables:
+
+1. **Initiative/advantage window:** timestamp first detection, first coherent friendly action, first *actual* return fire, enemy counter-response and loss/reversal of advantage; do not use hit count as the sole proxy.
+2. **Exposed-time accounting:** accumulate soldier-seconds in vulnerable, observed/no-cover movement **separately** from order-issuance/receipt delays. Do not implement a fake "AV probability" copied from McRaven's conceptual sketches.
+3. **Purpose continuity:** after a local threat withdraws, does the squad take a supported next action toward its real mission, or remain stationary merely because a "defend" label appeared?
+4. **Cohesion despite disruption:** if a leader is wounded or a soldier's task fails, can still-valid intentions and native owner-issued individual actions continue without a second competing controller?
+5. **Opening success versus mission completion:** track local advantage, physically reached cover / terrain occupancy, security of objectives, and withdrawal or follow-on movement as separate observations.
 
 ### Explicit non-transfer rule
 
-Do **not** conflate (a) special-operations attackers who know their objective, rehearse and arrange surprise; (b) ordinary infantry deliberately attacking a suspected defense; and (c) two patrols encountering one another without preparation. McRaven is valuable for **momentary advantage, mission coherence and exploitation**, not as proof that ordinary U.S.–German rifle squads should always rapidly wipe one another out or execute rehearsed raids.
+Do **not** conflate (a) planned, specially resourced operations with rehearsed timing, intelligence and support; (b) conventional infantry deliberately assaulting a suspected defense; and (c) two patrols surprised by one another at 50–150 meters. McRaven's theory is a compelling framework for **local advantage, tempo, cohesion and mission completion**, **not** firsthand proof that ordinary infantry uniformly shoot, drop prone, or run-and-gun on mutual discovery. Nor do his conceptual relative-superiority graphs provide a formula, numeric success threshold, or reaction timer for the GRASSTEX engine.
+
 
 ## GRASSTEX candidate checks — hypotheses, not accepted requirements
 
@@ -268,7 +314,7 @@ Sources are linked here directly so future agents can retrace the provenance; ID
 - **[S4]** Robert Kotlowitz, [*Fresh Air* interview transcript, July 27, 1999](https://freshairarchive.org/segments/world-war-ii-combat-veteran-robert-kotlowitz); his memoir *Before Their Time*. **Type:** direct veteran interview; rush transcription may contain errors.
 - **[S5]** Ernie Pyle, ["Anticipation is the Worst," wartime column dated July 21, 1944](https://erniepyle.iu.edu/wartime-columns/anticipation-worst.html), Indiana University archive. **Type:** contemporary frontline reporting.
 - **[S6]** Ernie Pyle, ["A Slow Cautious Business," August 11, 1944](https://erniepyle.iu.edu/wartime-columns/cautious-business.html), Indiana University archive. **Type:** contemporary frontline reporting, generalized across Normandy hedgerow fighting.
-- **[S7]** William H. McRaven, [*Spec Ops* publisher listing](https://www.penguinrandomhouse.com/books/112624/) and [Google Books bibliographic preview](https://books.google.com/books/about/Spec_Ops.html?id=ClWPEAAAQBAJ). **Type:** publisher/previews, **not full-text examination**.
+- **[S7]** William H. McRaven, [*Spec Ops* publisher listing](https://www.penguinrandomhouse.com/books/112624/) and [Google Books bibliographic preview](https://books.google.com/books/about/Spec_Ops.html?id=ClWPEAAAQBAJ). **Type:** publisher/bibliographic corroboration; for direct-text analysis use **[S19]**.
 - **[S8]** [*Publishers Weekly* review of *Spec Ops*](https://www.publishersweekly.com/978-0-89141-544-2), dated December 30, 1996. **Type:** contemporary secondary book review; verifies six principles and eight case studies.
 - **[S9]** U.S. Army, ["German Mission Orders ... Eben Emael" historical analysis](https://www.armyupress.army.mil/Journals/Military-Review/Online-Exclusive/2016-Online-Exclusive-Articles/German-Mission-Orders/); [U.S. Army analysis of initiative at Eben Emael](https://www.armyupress.army.mil/Portals/7/Hot-Spots/docs/MC/MR-Sep-Oct-2002-Widder.pdf). **Type:** later military historical interpretation.
 - **[S10]** U.S. Army, ["The 75th Ranger Regiment Remembers the Great Raid," February 5, 2025](https://www.army.mil/article/282821/the_75th_ranger_regiment_remembers_the_great_raid); ["The Battle of Luzon," Army history](https://www.army.mil/article/284395/the_battle_of_luzon_demonstrating_u_s_army_landpower_in_the_indo_pacific). **Type:** later military historical retrospectives.
@@ -282,10 +328,12 @@ Sources are linked here directly so future agents can retrace the provenance; ID
 - **[S17]** War Department, [*FM 7-5, Organization and Tactics of Infantry; the Rifle Battalion*, 1 October 1940](https://allamericanscp.org/wp-content/uploads/2021/04/fm7-5-infantry-field-manual-1940.pdf), para. **215(b)** (printed p. **160**, PDF zero-based page **164**), para. **225** and **226** (printed pp. **165–166**, PDF zero-based pages **169–170**). **Type:** original-period U.S. training doctrine, **not observed behavior**; read from text and verified against page images.
 - **[S18]** U.S. War Department, Military Intelligence Service, [*The German Squad in Combat*, Special Series No. 9, 25 January 1943](https://ru.djvu.online/file/2lbrATnuy80Nl), section **10(c), "The Infantry Point in Contact with the Enemy,"** printed pp. **66–67**. **Type:** U.S. translated / summarized German training and tactical guidance, **not a German patrol after-action report**.
 
+- **[S19]** William H. McRaven, *Spec Ops: Case Studies in Special Operations Warfare: Theory and Practice*, Presidio Press, copyright 1995, 1996 printing, **primary printed book supplied privately as a 426-page scanned PDF** in the chat archive \`spec-ops-0891416005_compress.zip\` (26 October 2026). **Type:** original book text consulted in this research; see printed pp. **2–25, 58–59, 146–148, 155, 187–194, 273–277, 381–391**. Page references are to printed page numbers, not to the PDF's internal page order. **Not distributed or linked from this repository.** Book analysis is authorial interpretation of historical cases, not a measured first-contact behavior study.
+
 ## Research gaps for a subsequent pass
 
 - Direct German patrol/infantry firsthand accounts to counter U.S.-centered survivor bias.
 - More genuine *mutual* discovery engagements at comparable ranges; most available dramatic accounts are ambushes, deliberate assaults or exceptional individual episodes.
 - Period after-action reports that separately record detection, first fire, movement and casualties with reliable time resolution.
-- Full primary-text read of McRaven, especially his formal definition of relative superiority and his analysis of the relationship between preparation, surprise and the decisive point; preserve chapter/page citations when accessible legally.
+- Extend the **now directly inspected** McRaven book coverage beyond Chapter 1, four selected WWII case analyses, and the conclusion; check precise passages in the Alexandria and Tirpitz case studies and compare his own cited interviews with independent archival evidence.
 - Representative enough sources to distinguish veteran recollection from tactical base rates. Until then, treat all proposed timing or hit-rate changes as **hypotheses to validate through simulator probes and gameplay observation**.
