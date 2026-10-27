@@ -85,6 +85,21 @@
   function speed(a) {
     return Math.hypot(a.x, a.y, a.z);
   }
+  /* WWII sight settings and held elevation are not the same as a flat laser
+     sight. AI estimates range with stable shooter-specific error; it does
+     NOT predict where the target will move while the round is in flight.
+     Player shots instead retain the weapon's physical mechanical zero,
+     leaving long-range holdover to the human crosshair operator. */
+  function sightRise(shooter, shot, p, player) {
+    if (player) return (G * p.zeroM) / (2 * p.v0 * p.v0);
+    var id = String(shooter.id),
+      hash = 17;
+    for (var i = 0; i < id.length; i++) hash = (Math.imul(hash, 31) + id.charCodeAt(i)) >>> 0;
+    var error = ((hash % 23) - 11) * 0.01,
+      estimated = clamp(Math.max(1, +shot.distance || p.zeroM) * (1 + error), 3, 1200),
+      time = (p.dragM / p.v0) * Math.expm1(estimated / p.dragM);
+    return clamp((G * time * time) / (2 * estimated), 0, 0.07);
+  }
   function launch(shooter, target, sim, round, delay, shot, player) {
     if (!enabled) return null;
     if (!shot || !shooter || !shooter.weapon || !shooter.weapon.stats) return null;
@@ -92,9 +107,9 @@
       wp = shooter.weapon.stats,
       p = profile(shooter),
       dir = vec(shot.dir),
-      /* The sight line is zeroed for a level target near zeroM; the bore
-         actually points slightly above it. No retargeting occurs in flight. */
-      rise = (G * p.zeroM) / (2 * p.v0 * p.v0),
+      /* The bore holds over according to an imperfect AI range estimate,
+         or retains the mechanical zero on a player free-fire ray. */
+      rise = sightRise(shooter, shot, p, player),
       vdir = norm({ x: dir.x, y: dir.y + rise, z: dir.z }),
       origin = vec(shot.origin);
     var projectile = {
@@ -117,6 +132,9 @@
       skip: [],
       passes: [],
       first: null,
+      firstVelocity: null,
+      firstDistanceM: null,
+      firstFlightS: null,
       active: true
     };
     st.rounds.push(projectile);
@@ -139,11 +157,15 @@
         intendedTarget: p.target,
         playerRay: p.player,
         dispersionRad: p.sigma,
-        travel: p.traveledM,
-        flightSeconds: p.flightS,
-        impactVelocity: speed(p.vel),
+        travel: first ? p.firstDistanceM : p.traveledM,
+        flightSeconds: first ? p.firstFlightS : p.flightS,
+        impactVelocity: first ? p.firstVelocity : speed(p.vel),
         muzzleVelocity: p.profile.v0,
-        retainedEnergy: clamp(Math.pow(speed(p.vel) / p.profile.v0, 2), 0, 1),
+        retainedEnergy: clamp(
+          Math.pow((first ? p.firstVelocity : speed(p.vel)) / p.profile.v0, 2),
+          0,
+          1
+        ),
         stoppedBy: first ? 'soldier' : why,
         blocker: (collision && collision.blocker) || null,
         surface: first ? 'blood' : (collision && collision.surface) || 'dirt',
@@ -274,7 +296,12 @@
       energy: energy,
       wound: result
     });
-    if (!p.first) p.first = p.passes[0];
+    if (!p.first) {
+      p.first = p.passes[0];
+      p.firstVelocity = speed(p.vel);
+      p.firstDistanceM = p.traveledM;
+      p.firstFlightS = p.flightS;
+    }
     if (p.player && hit.victim.faction !== p.shooter.faction) {
       p.shooter._playerConfirmedHits = (p.shooter._playerConfirmedHits || 0) + 1;
       if (S.noteIncomingFire) S.noteIncomingFire(hit.victim, p.shooter, sim);
@@ -347,7 +374,8 @@
     launch: launch,
     summary: summary,
     profile: profile,
-    profiles: PROFILES
+    profiles: PROFILES,
+    sightRise: sightRise
   };
   root.BattleModules.registerSystem('projectile-flight', {
     version: '1-opt-in',
