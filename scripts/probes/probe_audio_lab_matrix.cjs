@@ -23,14 +23,29 @@ const sizes = (process.env.AUDIO_LAB_VOICES || '8,16,32,64')
 const repeats = Math.max(1, Math.min(4, Math.floor(+process.env.AUDIO_LAB_REPEATS || 1)));
 const timeoutMs = Math.max(75000, Number(process.env.AUDIO_LAB_TIMEOUT_MS) || 180000);
 if (!sizes.length) throw new Error('AUDIO_LAB_VOICES requires at least one integer in [4, 64]');
+const presets = {
+  ac24: { farVoices: 32, acousticSlots: 24 },
+  ac48: { farVoices: 32, acousticSlots: 48 },
+  ac96: { farVoices: 32, acousticSlots: 96 },
+  ac192: { farVoices: 32, acousticSlots: 192 },
+  q128s2: { farVoices: 32, acousticSlots: 96, speed: 4, audioQueue: 128, audioStarts: 2 },
+  q256s2: { farVoices: 32, acousticSlots: 96, speed: 4, audioQueue: 256, audioStarts: 2 },
+  q256s4: { farVoices: 32, acousticSlots: 96, speed: 4, audioQueue: 256, audioStarts: 4 }
+};
+const caseNames = process.env.AUDIO_LAB_CASES
+  ? process.env.AUDIO_LAB_CASES.split(',').map(x => x.trim())
+  : [];
+if (caseNames.some(name => !Object.hasOwn(presets, name)))
+  throw new Error('AUDIO_LAB_CASES must use known presets: ' + Object.keys(presets).join(','));
 fs.mkdirSync(out, { recursive: true });
 
-function urlFor(voices) {
+function urlFor(variant) {
   const u = new URL(base);
   const config = { log: '0', tacticalController: 'new', squads: '5',
-    occlusion: 'mixed', duration: '60', speed: '1', farVoices: String(voices),
-    audioQueues: 'single', acousticPriority: '1', acousticHoldMs: '0' };
-  Object.entries(config).forEach(([key, value]) => u.searchParams.set(key, value));
+    occlusion: 'mixed', duration: '60', speed: '1', farVoices: '32',
+    audioQueues: 'single', acousticPriority: '1', acousticHoldMs: '0',
+    ...variant };
+  Object.entries(config).forEach(([key, value]) => u.searchParams.set(key, String(value)));
   return u.toString();
 }
 function summarize(report, errors, run) {
@@ -45,6 +60,15 @@ function summarize(report, errors, run) {
   const maxLateness = Math.max(0, ...samples.map(x => x.schedulerMaxDueLatenessMs || 0));
   return {
     run, farVoices: report.poolPolicy?.farVoices, status: report.status,
+    acousticSlots: report.acoustics?.limits?.maxActive,
+    acousticDefault: report.acoustics?.limits?.defaultMaxActive,
+    audioQueue: report.propagation?.limits?.maxQueue,
+    audioStarts: report.propagation?.limits?.maxPerFrame, speed: report.speed,
+    maxAcousticActive: report.summary?.maxAcousticActive || 0,
+    acousticTickCount: ac.acousticTicks || 0,
+    acousticTickTotalMs: ac.acousticTickTotalMs || 0,
+    acousticTickMaxMs: ac.acousticTickMaxMs || 0,
+    trackedIdleSamples: ac.trackedIdleOnTick || 0,
     shots: report.summary?.simulatedShots || 0,
     primaryStarts: ps.startedPrimary || 0,
     primaryLosses: (ps.evictedPrimary || 0) + (ps.rejectedPrimary || 0),
@@ -71,11 +95,13 @@ function summarize(report, errors, run) {
   };
 }
 function table(rows) {
-  const head = ['Voices', 'Shots', 'Pool starts', 'Far starts', 'Far busy', 'Primary loss',
-    'Acoustic bypass', 'Peak voices', 'Quiet/fire', 'RAF gap ms', 'Hidden', 'Valid'];
-  const keys = ['farVoices', 'shots', 'poolStarts', 'farStarts', 'farBusy', 'primaryLosses',
-    'acousticBypasses', 'peakVoices', 'quietUnderFire', 'maxFrameGapMs',
-    'hiddenSamples', 'validForeground'];
+  const head = ['Slots', 'Queue', 'Starts/frame', 'Speed', 'Far voices',
+    'Pool starts', 'Far busy', 'Primary loss', 'Acoustics bypass',
+    'Acoustic CPU ms', 'Peak voices', 'Quiet/fire', 'RAF gap ms', 'Valid'];
+  const keys = ['acousticSlots', 'audioQueue', 'audioStarts', 'speed', 'farVoices',
+    'poolStarts', 'farBusy', 'primaryLosses', 'acousticBypasses',
+    'acousticTickTotalMs', 'peakVoices', 'quietUnderFire',
+    'maxFrameGapMs', 'validForeground'];
   return [
     '| ' + head.join(' | ') + ' |',
     '| ' + head.map(() => '---:').join(' | ') + ' |',
@@ -95,8 +121,11 @@ function table(rows) {
     // Exactly one page: no concurrent hidden-tab audio or competition for RAF.
     const page = await context.newPage();
     for (let repeat = 1; repeat <= repeats; repeat++) {
-      for (const voices of sizes) {
-        const run = 'r' + repeat + '-far' + voices;
+      for (const test of (caseNames.length
+        ? caseNames.map(name => ({ name, variant: presets[name] }))
+        : sizes.map(voices => ({ name: 'far' + voices, variant: { farVoices: voices } })))) {
+        const run = 'r' + repeat + '-' + test.name;
+        const voices = test.variant.farVoices;
         const runtimeErrors = [];
         const onPageError = e => runtimeErrors.push(String(e.stack || e));
         const onConsole = msg => {
@@ -105,7 +134,7 @@ function table(rows) {
         page.on('pageerror', onPageError);
         page.on('console', onConsole);
         try {
-          const url = urlFor(voices);
+          const url = urlFor(test.variant);
           console.log('Running', run, url);
           const response = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 90000 });
           if (!response || !response.ok()) throw new Error('Audio Lab returned HTTP ' +
@@ -132,8 +161,7 @@ function table(rows) {
     await browser.close();
     fs.writeFileSync(path.join(out, 'matrix.json'), JSON.stringify(rows, null, 2) + '\n');
     const md = '# Grasstex native 50v50 distant polyphony A/B\n\n' +
-      'Matched single-queue, priority acoustics, 60 simulated seconds, 1× speed. ' +
-      'Each trial runs alone in the same headless Chromium tab. ' +
+      'Matched 50v50 audio experiments. Each trial runs alone in the same headless Chromium tab. ' +
       'Headless visibility must be checked, not assumed.\n\n' +
       table(rows) + '\n\n' +
       rows.map(r => '**' + r.run + '**: ' +
