@@ -178,6 +178,15 @@
       var extra = isFinite(+stats.rangeDispersion) ? Math.max(0, +stats.rangeDispersion) : 0.9;
       sigma *= 1 + clamp(f, 0, 1) * extra;
     }
+    /* Independent calibration arm: wider combat grouping while all motion,
+       ballistic energy, wounds and target-tracking rules remain unchanged.
+       The old calibrated sigma remains the control when this URL flag is absent. */
+    if (
+      root.BattleProjectileFlight &&
+      root.BattleProjectileFlight.enabled &&
+      /[?&]combatAccuracy=1(?:&|$)/.test((root.location && root.location.search) || '')
+    )
+      sigma *= 1.65;
     return sigma;
   }
   function groupDiameter90(shooter, stats, d, battle) {
