@@ -296,7 +296,22 @@
          Squad Leader's reports. Do not plan an order he cannot adopt. */
       var personalReports = C.boundThreats(s, ctx.sim);
       if (!personalReports.length) {
-        audit.teams.push({ team: team, moverId: String(s.id), result: 'no-personal-reported-contact' });
+        audit.teams.push({
+          team: team,
+          moverId: String(s.id),
+          eligibleMovers: 1,
+          eligibleSupporters: ready.length - 1,
+          candidates: 0,
+          directionalCandidates: 0,
+          admittedRoutes: 0,
+          graphNodes: 0,
+          routeLength: 0,
+          terminal: 'none',
+          reused: false,
+          moverFailures: [],
+          routeRejections: {},
+          result: 'no-personal-reported-contact'
+        });
         return;
       }
       var result = defense

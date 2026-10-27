@@ -216,6 +216,25 @@ test('Meso publication and cleanup keep their real owner inside another module h
   Q.publish(w.q, w.b, s, { x: 24, z: 14 }, 'owner-test-3');
   assert.ok(P.conflicts(w.b).length > 0, 'a genuine intervening foreign destination is still detected');
 });
+test('diagnostics preserve the UI contract for movers with no personal contact', () => {
+  const w = world();
+  const native = w.r.BattleCoverPositions.boundThreats;
+  const missing = w.q.members[7];
+  w.r.BattleCoverPositions.boundThreats = (man, sim) =>
+    man === missing ? [] : native(man, sim);
+  until(
+    w,
+    () =>
+      w.M.summary(w.q)?.diagnostic?.teams?.some(t => t.result === 'no-personal-reported-contact'),
+    8
+  );
+  const t = w.M.summary(w.q).diagnostic.teams.find(row => row.moverId === String(missing.id));
+  assert.equal(t.result, 'no-personal-reported-contact');
+  assert.deepEqual(t.moverFailures, []);
+  assert.deepEqual(t.routeRejections, {});
+  assert.equal(t.candidates, 0);
+  clean(w);
+});
 test('advance waits for real discharges, personal movement adoption, physical arrival and alternates teams', () => {
   const w = world();
   squad(w);
