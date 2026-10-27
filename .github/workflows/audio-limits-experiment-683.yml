@@ -1,0 +1,73 @@
+name: Experimental listener audio budgets 683
+
+# Draft-PR-only research. This does not change the shipped audio configuration
+# or add a long-running job to the normal CI workflow.
+on:
+  pull_request:
+    types: [synchronize, opened, reopened]
+    paths:
+      - battle/modules/12a-listener-acoustics.js
+      - battle/acoustics.js
+      - scripts/probes/probe_audio_lab_matrix.cjs
+      - .github/workflows/audio-limits-experiment-683.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: acoustic-limits-683
+  cancel-in-progress: true
+
+jobs:
+  native-audio-matrix:
+    if: github.event.pull_request.number == 683
+    runs-on: ubuntu-latest
+    timeout-minutes: 22
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install browser runner
+        run: |
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Stage exactly this PR head (not the synthetic merge SHA)
+        shell: bash
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          PREVIEW_REF="ref-${HEAD_SHA:0:12}"
+          echo "Staging ${PREVIEW_REF}..."
+          curl -fSL --retry 2 --max-time 120 \
+            'https://test.ivandpopov.com/grasstex/preview.php?ref=683' \
+            -o /tmp/grasstex-preview-response.html
+          curl -fSL --retry 2 --max-time 60 \
+            "https://test.ivandpopov.com/grasstex/preview/${PREVIEW_REF}/battle/audio_lab.html" \
+            -o /tmp/grasstex-audio-lab.html
+          echo "Confirmed staged audio_lab.html bytes: $(wc -c </tmp/grasstex-audio-lab.html)"
+      - name: Run sequential 50v50 acoustic-slot and queue-budget comparisons
+        id: matrix
+        continue-on-error: true
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          AUDIO_LAB_CASES: ac24,ac48,ac96,ac192,q128s2,q256s2,q256s4
+          AUDIO_LAB_REPEATS: '1'
+          AUDIO_LAB_REPORT_DIR: audio-budget-results
+          AUDIO_LAB_TIMEOUT_MS: '180000'
+        run: |
+          export AUDIO_LAB_URL="https://test.ivandpopov.com/grasstex/preview/ref-${HEAD_SHA:0:12}/battle/audio_lab.html"
+          node scripts/probes/probe_audio_lab_matrix.cjs
+      - name: Upload all raw browser reports and matrix
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: acoustic-budget-matrix
+          path: audio-budget-results/
+          if-no-files-found: warn
+      - name: Confirm complete foreground measurements
+        if: steps.matrix.outcome != 'success'
+        run: |
+          echo "::error::Some A/B cases failed or were background-throttled. Inspect acoustic-budget-matrix artifact."
+          exit 1
