@@ -224,8 +224,7 @@ test('diagnostics preserve the UI contract for movers with no personal contact',
     man === missing ? [] : native(man, sim);
   until(
     w,
-    () =>
-      w.M.summary(w.q)?.diagnostic?.teams?.some(t => t.result === 'no-personal-reported-contact'),
+    () => w.M.summary(w.q)?.diagnostic?.teams?.some(t => t.result === 'no-personal-reported-contact'),
     8
   );
   const t = w.M.summary(w.q).diagnostic.teams.find(row => row.moverId === String(missing.id));
