@@ -112,6 +112,8 @@ assert.equal(fx.throwing.key, 'throwCrouch');
 assert.equal(fx.throwing.stance, 'crouch');
 assert.ok(Math.abs(fx.throwing.rate - 0.4) < 1e-9);
 assert.equal(fx.throwing.started, false);
+owner.play(tags.throw, { decidedAt: 10, releaseAt: 11.6 }, soldier);
+assert.ok(Math.abs(fx.throwing.rate - 0.25) < 1e-9, 'slower 1.6s native windup respects authored release frame');
 fx.throwing = null;
 assert.equal(owner.update(soldier, {}, 0.1), true, 'dead soldier gets authored death clip');
 assert.equal(fx.death, 'deathSide');

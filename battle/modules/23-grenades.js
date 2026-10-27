@@ -22,7 +22,7 @@
     CONF_MIN: 0.5,
     CONTACT_FRESH: 6,
     DECISION_EVERY: 1.5,
-    WINDUP: 0.9,
+    WINDUP: 1.6, // Authored 1.87–2.0s FBX release peaks now play at ~1.17–1.25×.
     COOLDOWN: 18,
     SCATTER: 3.5,
     FLIGHT_MIN: 0.7,
