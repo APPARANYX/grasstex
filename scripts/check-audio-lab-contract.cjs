@@ -33,6 +33,11 @@ assert.match(lab, /root\.BattleAudioScheduler\.lanes/, 'separate near and distan
 const scheduler = read('battle/acoustics.js');
 const acoustics = read('battle/modules/12a-listener-acoustics.js');
 assert.match(scheduler, /audioQueues=dual/, 'dual-queue experiment is opt-in');
+assert.match(scheduler, /maxActiveDrainGapMs/, 'scheduler records RAF stalls under load');
+assert.match(scheduler, /maxDueLatenessMs/, 'scheduler records overdue sound playback');
+assert.match(lab, /pageVisibility:/, 'report samples tab visibility');
+assert.match(lab, /schedulerSinceDrainMs:/, 'report identifies ongoing stalled RAF callbacks');
+
 assert.match(scheduler, /LANE_CAPACITY = 64/, 'bounded 64-slot lane caps');
 assert.match(acoustics, /acousticPriority=1/, 'priority acoustics experiment is opt-in');
 assert.match(acoustics, /stats\.replacedCapacity\+\+/, 'priority preemption telemetry');
