@@ -151,6 +151,7 @@
     if (!audio) return;
     var s = audio.summary(), clock = performance.now();
     var scheduling = root.BattleAudioScheduler.stats || {};
+    var lanes = root.BattleAudioScheduler.lanes;
     var entry = Object.assign({
       wallMs: Math.round(clock - startTime), simSeconds: +simSeconds.toFixed(2),
       phase: lab.phase, audioContextState: ctx ? ctx.state : 'missing',
@@ -164,6 +165,9 @@
       schedulerEvictedPrimary: scheduling.evictedPrimary, schedulerEvictedEcho: scheduling.evictedEcho,
       schedulerRejectedPrimary: scheduling.rejectedPrimary, schedulerRejectedEcho: scheduling.rejectedEcho,
       schedulerStartedPrimary: scheduling.startedPrimary, schedulerStartedEcho: scheduling.startedEcho,
+      nearQueue: lanes ? lanes.near.queued : null, farQueue: lanes ? lanes.far.queued : null,
+      nearStarts: lanes ? lanes.near.started : null, farStarts: lanes ? lanes.far.started : null,
+      nearRejects: lanes ? lanes.near.rejected : null, farRejects: lanes ? lanes.far.rejected : null,
       simulatedShots: shotCount, shotsSinceLast: shotCount - previousShotCount,
       acousticActive: root.BattleListenerAcoustics ? root.BattleListenerAcoustics.active : null,
       heapBytes: performance.memory ? performance.memory.usedJSHeapSize : null,
@@ -177,7 +181,8 @@
       s.active + ' active · ' + s.droppedBusy + ' busy drops · ' + s.droppedNotReady + ' not ready';
     dom('meter').textContent = 'RMS ' + entry.rms + ' · peak ' + entry.peak + ' · queue ' + entry.propagationQueue +
       ' · AudioContext ' + entry.audioContextState + ' · primary starts ' + entry.schedulerStartedPrimary +
-      ' · queue rejects ' + entry.schedulerRejectedPrimary + ' · evicted ' + entry.schedulerEvictedPrimary;
+      ' · queue rejects ' + entry.schedulerRejectedPrimary + ' · evicted ' + entry.schedulerEvictedPrimary +
+      (lanes ? ' · near/far queues ' + entry.nearQueue + '/' + entry.farQueue : '');
   }
   function tapOutput() {
     var ae = BABYLON.Engine && BABYLON.Engine.audioEngine;
@@ -208,7 +213,9 @@
       url: location.href, seed: 11027, squadSizes: { us: squadsPerSide * 10, ge: squadsPerSide * 10 },
       squadsPerSide: squadsPerSide, rangeBandsMeters: squadRanges.slice(0, squadsPerSide),
       occlusionMode: occlusionMode,
-      propagation: { limits: root.BattleAudioScheduler.limits, stats: root.BattleAudioScheduler.stats },
+      propagation: { limits: root.BattleAudioScheduler.limits, stats: root.BattleAudioScheduler.stats,
+        lanes: root.BattleAudioScheduler.lanes },
+      acousticPriority: !!(root.BattleListenerAcoustics && root.BattleListenerAcoustics.priorityEnabled),
       poolPolicy: { farVoices: farVoices, override: farVoices !== 4 },
       voicePools: audio && audio.detail ? audio.detail() : null,
       speed: scale, simulatedDurationSeconds: duration,
@@ -233,6 +240,8 @@
         schedulerFarThrottled: last && last.schedulerThrottled || 0,
         schedulerPrimaryStarts: last && last.schedulerStartedPrimary || 0,
         schedulerEchoStarts: last && last.schedulerStartedEcho || 0,
+        nearStarts: last && last.nearStarts || 0, farStarts: last && last.farStarts || 0,
+        nearRejects: last && last.nearRejects || 0, farRejects: last && last.farRejects || 0,
         maxActiveVoices: max('activeVoices'), maxQueue: max('propagationQueue'),
         maxPeak: max('peak'), maxRms: max('rms'), samplesQuietUnderFire: quietUnderFire,
         longTasks: longTasks, longTaskMs: Math.round(longTaskMs),
