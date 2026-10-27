@@ -157,6 +157,7 @@ for (const [distance, capacity] of [
   w.shoot(40, 1);
   assert.equal(w.plays(), 1, 'normal fire resumes after the audio gesture unlock');
 }
+// prettier-ignore
 {
   const w = poolFixture({ farVoices: 64 });
   w.load();
@@ -168,6 +169,7 @@ for (const [distance, capacity] of [
   assert.equal(w.audio.summary().active, 64);
   assert.ok(w.sounds.every(s => s.plays <= 1 && s.busyWrites === 0));
 }
+// prettier-ignore
 {
   const w = poolFixture({ farVoices: 1024 });
   assert.equal(w.audio.detail()['m:m1-garand:far'].capacity, 64,
