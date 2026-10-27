@@ -191,7 +191,7 @@ function world(mode, withGraph, flags) {
     const s = { getSoundGain: w.sound.getSoundGain, _soundPanner: w.sound._soundPanner, setVolume() {} };
     w.api.prepare(s, { x: i + 15, y: 1.6, z: 0 }, 'gun', 0.2, w.scene);
   }
-  assert.equal(w.api.active, 24, 'standard caps acoustic sources, extras play dry');
+  assert.equal(w.api.active, 96, 'expanded standard cap admits 96 acoustic sources');
 }
 // prettier-ignore
 {
@@ -266,7 +266,7 @@ function world(mode, withGraph, flags) {
 // prettier-ignore
 for (const slots of [24, 48, 96, 192]) {
   const w = world('standard', true, '&acousticPriority=1&acousticSlots=' + slots);
-  assert.equal(w.api.defaultMaxActive, 24);
+  assert.equal(w.api.defaultMaxActive, 96);
   assert.equal(w.api.maxActive, slots);
   assert.equal(w.api.tickIntervalMs, 200);
   const near = { x: 30, y: 1.6, z: 0 };
@@ -285,7 +285,7 @@ for (const slots of [24, 48, 96, 192]) {
   assert.equal(w.api.stats.acousticTicks, 1);
   assert.ok(w.api.stats.sampled >= slots * 2, 'all tracked sounds receive periodic sampling');
 }
-assert.equal(world('high', true).api.maxActive, 36);
+assert.equal(world('high', true).api.maxActive, 192);
 assert.equal(world('standard', true, '&acousticSlots=50000').api.maxActive, 192);
 assert.equal(world('standard', true, '&acousticSlots=1').api.maxActive, 1);
 console.log('listener-acoustics-check: PASS');
