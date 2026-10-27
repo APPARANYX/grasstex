@@ -157,8 +157,14 @@ test('owner cover discovery padding retains valid short slots and exact hop limi
   F.nearby = (obstacles, x, z, radius) => (radius > 27 ? native(obstacles, x, z, radius) : []);
   try {
     const found = f.C.candidates(f.s, f.b, threat, 26);
-    assert.ok(found.some(p => p.slotId === slotId), 'standoff slot should survive nearby prefilter');
-    assert.ok(found.every(p => p.distance <= 26), 'discovery padding must never extend hop');
+    assert.ok(
+      found.some(p => p.slotId === slotId),
+      'standoff slot should survive nearby prefilter'
+    );
+    assert.ok(
+      found.every(p => p.distance <= 26),
+      'discovery padding must never extend hop'
+    );
   } finally {
     F.nearby = native;
   }

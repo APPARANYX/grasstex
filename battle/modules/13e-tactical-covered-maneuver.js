@@ -299,15 +299,7 @@
         return;
       }
       var result = defense
-          ? R.pickDefense(
-              s,
-              ctx.sim,
-              personalReports,
-              goal,
-              defense.radius,
-              team,
-              pending ? retained : null
-            )
+          ? R.pickDefense(s, ctx.sim, personalReports, goal, defense.radius, team, pending ? retained : null)
           : R.pick(s, ctx.sim, personalReports, goal, [], pending ? retained : null),
         record = {
           team: team,
