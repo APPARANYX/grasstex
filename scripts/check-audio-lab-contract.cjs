@@ -38,7 +38,8 @@ assert.match(scheduler, /maxDueLatenessMs/, 'scheduler records overdue sound pla
 assert.match(lab, /pageVisibility:/, 'report samples tab visibility');
 assert.match(lab, /schedulerSinceDrainMs:/, 'report identifies ongoing stalled RAF callbacks');
 
-assert.match(scheduler, /LANE_CAPACITY = 64/, 'bounded 64-slot lane caps');
+assert.match(scheduler, /LANE_CAPACITY = Math\.floor\(MAX_QUEUE \/ 2\)/,
+  'dual lanes split the bounded scheduler capacity without changing its default');
 assert.match(acoustics, /acousticPriority=1/, 'priority acoustics experiment is opt-in');
 assert.match(acoustics, /stats\.replacedCapacity\+\+/, 'priority preemption telemetry');
 assert.match(acoustics, /acousticHoldMs/, 'bounded optional minimum acoustic record residence');
@@ -47,6 +48,12 @@ assert.match(lab, /acousticHoldMs: root\.BattleListenerAcoustics/, 'lab records 
 assert.match(sim, /maxClipSeconds:/, 'lab pool summaries expose decoded weapon sample length');
 
 assert.match(lab, /acousticPriority: !!/, 'acoustic priority mode is reported');
+assert.match(acoustics, /acousticSlots=/, 'listener acoustic cap accepts explicit research-only overrides');
+assert.match(acoustics, /acousticTickTotalMs/, 'listener acoustic tick CPU cost is measured');
+assert.match(scheduler, /audioQueue=/, 'scheduler research queue cap is independently selectable');
+assert.match(scheduler, /audioStarts=/, 'scheduler research starts-per-frame budget is independently selectable');
+assert.match(lab, /maxAcousticActive: max\('acousticActive'\)/,
+  'native lab records peak occupied acoustic tracking slots');
 
 assert.match(lab, /audio\.detail\(\)/, 'per-model near and distant audio pool pressure included');
 assert.match(sim, /detail: function \(\)/, 'shipping model pool exposes read-only detail snapshot');
