@@ -175,6 +175,7 @@ for (const [distance, capacity] of [
   assert.equal(w.audio.detail()['m:m1-garand:far'].capacity, 64,
     'even an untrusted override cannot exceed the 64-slot cap');
 }
+// prettier-ignore
 {
   const w = poolFixture();
   assert.equal(w.audio.detail()['m:m1-garand:far'].capacity, 32,
