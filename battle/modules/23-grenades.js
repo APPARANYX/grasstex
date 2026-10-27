@@ -29,7 +29,7 @@
     FLIGHT_PER_M: 1 / 18,
     FLIGHT_MAX: 2.4,
     FUSE: 3.6, // seconds after landing
-    FRIEND_CLEAR: 27.5, // 22m fragments + 3.5m scatter + 1.4m ground roll + 0.6m margin.
+    FRIEND_CLEAR: 26, // Preserve original 22m fragments + 3.5m scatter + 0.5m margin; release checks exact rolled end.
     ROLL_MAX_TRAVEL: 1.4,
     ROLL_SUBSTEP: 0.04,
     ROLL_MAX_SECONDS: 1.28,
@@ -395,7 +395,7 @@
      is applied: a soldier who later walks into the live hazard remains vulnerable. */
   function friendClear(s, battle, aim, actualLanding) {
     var all = units(battle),
-      samples = actualLanding ? 1 : 17,
+      samples = actualLanding ? 1 : 9,
       radius = actualLanding ? TUNING.FRAG_MAX_RANGE + 0.5 : TUNING.FRIEND_CLEAR;
     for (var i = 0; i < all.length; i++) {
       var f = all[i];
@@ -408,8 +408,8 @@
         z: p.z
       };
       for (var j = 0; j < samples; j++) {
-        var angle = (((j - 1) % 8) * Math.PI) / 4,
-          shift = j === 0 ? 0 : j <= 8 ? TUNING.SCATTER : TUNING.SCATTER + TUNING.ROLL_MAX_TRAVEL,
+        var angle = ((j - 1) * Math.PI) / 4,
+          shift = j === 0 ? 0 : TUNING.SCATTER,
           landing = { x: aim.x + shift * Math.cos(angle), z: aim.z + shift * Math.sin(angle) };
         var source = {
           x: landing.x,

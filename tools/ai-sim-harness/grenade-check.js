@@ -173,7 +173,7 @@ test('35m throwing reach adds eligible contacts but preserves 26m friendly clear
   r.BattleTacticalController = { controls: () => true };
   assert.equal(G.TUNING.RANGE, 35);
   assert.equal(G.TUNING.WINDUP, 1.6, 'throw cadence must give FBX clips natural time to wind up');
-  assert.equal(G.TUNING.FRIEND_CLEAR, 27.5, 'ground roll increases friendly clearance');
+  assert.equal(G.TUNING.FRIEND_CLEAR, 26, 'original planning safety retained');
   assert.equal(G.TUNING.ROLL_MAX_TRAVEL, 1.4);
   const enemy = victim(ctx, 34, 0);
   s.target = enemy;
