@@ -1,6 +1,7 @@
 /* Unattended, presentation-only 10v10 audio history lab.
    Uses the battle's real weapon pools, propagation queue, mix and listener acoustics.
    No combat simulation, soldier mesh, AI controller, ammunition authority or RNG is touched. */
+// prettier-ignore
 (function (root) {
   'use strict';
   var query = new URLSearchParams(location.search);
@@ -45,7 +46,7 @@
           cyclic: weapon.cyclic || 0, mag: weapon.magazine || (kind === 'rifle' ? 8 : 30),
           ammo: weapon.magazine || (kind === 'rifle' ? 8 : 30),
           reload: weapon.reloadTime || (kind === 'lmg' ? 5 : 2.6),
-          next: rand() * 3, burst: 0, shots: 0
+          nextShotAt: rand() * 3, burst: 0, shots: 0
         });
       });
     });
@@ -54,7 +55,7 @@
     if (s.ammo <= 0) {
       s.ammo = s.mag;
       s.burst = 0;
-      s.next += s.reload;
+      s.nextShotAt += s.reload;
       return;
     }
     s.ammo--;
@@ -65,10 +66,10 @@
     if (s.cyclic) {
       if (s.burst === 0) s.burst = Math.min(s.ammo + 1, Math.round(3 + rand() * 5));
       s.burst--;
-      s.next += 1 / s.cyclic;
-      if (s.burst === 0) s.next += .65 + rand() * .65;
+      s.nextShotAt += 1 / s.cyclic;
+      if (s.burst === 0) s.nextShotAt += .65 + rand() * .65;
     } else {
-      s.next += 1 / s.rof * (.88 + rand() * .24);
+      s.nextShotAt += 1 / s.rof * (.88 + rand() * .24);
     }
   }
   function step() {
@@ -83,13 +84,13 @@
     }
     shooters.forEach(function (s) {
       var turns = 0;
-      while (s.next <= simSeconds && turns++ < 40) {
+      while (s.nextShotAt <= simSeconds && turns++ < 40) {
         if (activePhase === 'recovery') {
-          s.next = simSeconds + .6;
+          s.nextShotAt = simSeconds + .6;
         } else if (activePhase === 'lull' && s.id !== 'us-9' && s.id !== 'ge-9') {
-          s.next = simSeconds + 1;
+          s.nextShotAt = simSeconds + 1;
         } else if (activePhase === 'first-contact' && s.id.match(/-(2|4|6|8|10)$/)) {
-          s.next = simSeconds + .8;
+          s.nextShotAt = simSeconds + .8;
         } else {
           emit(s);
         }
