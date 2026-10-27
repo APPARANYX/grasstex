@@ -42,7 +42,7 @@ function fixture(randomValue, mode) {
 
 const isolated = fixture(.99);
 assert.equal(isolated.scheduler.limits.maxQueue, 128);
-assert.equal(isolated.scheduler.limits.maxPerFrame, 2);
+assert.equal(isolated.scheduler.limits.maxPerFrame, 16);
 isolated.enqueue('test-rifle', 60);
 isolated.frame(100);
 assert.equal(isolated.played.length, 0, 'gunshot must respect real travel delay');
@@ -82,12 +82,12 @@ for (let i = 0; i < 220; i++) {
   loaded.frame(time);
   if (i >= 40) {
     const started = loaded.scheduler.stats.startedPrimary;
-    assert.equal(started - lastStarts, 2, 'saturated queue must continue delivering imminent shots per frame');
+    assert.equal(started - lastStarts, 12, '16-start default drains all 12 due primary shots per frame');
   }
   lastStarts = loaded.scheduler.stats.startedPrimary;
   assert.ok(loaded.scheduler.queued <= 128, 'queue must remain bounded');
 }
-assert.ok(loaded.played.length > 350, 'sustained fire must not starve playback');
+assert.ok(loaded.played.length > 1800, 'sustained fire must not starve playback');
 assert.ok(loaded.scheduler.stats.rejectedPrimary > 0, 'admission drops must be explicitly recorded');
 
 const echoes = fixture(0);
@@ -97,9 +97,9 @@ echoes.enqueue('new-primary', 60);
 assert.ok(echoes.scheduler.stats.evictedEcho > 0, 'new gunshots must evict optional echoes first');
 assert.equal(echoes.scheduler.stats.evictedPrimary, 0, 'primary gunshots survive optional echo pressure');
 
-console.log('PASS: propagation delay, 128 bounded slots, near-due priority, 2 starts/frame, continuous overload playback and primary-over-echo admission');
+console.log('PASS: propagation delay, 128 bounded slots, near-due priority, default 16 starts/frame, continuous overload playback and primary-over-echo admission');
 
-const dual = fixture(.99, 'dual');
+const dual = fixture(.99, '?audioQueues=dual&audioStarts=2');
 dual.frame(100); // make the real far-model throttling window eligible
 assert.equal(dual.scheduler.limits.mode, 'dual');
 assert.equal(dual.scheduler.limits.nearCapacity, 64);
@@ -127,7 +127,7 @@ assert.equal(dual.scheduler.lanes.near.started, 3);
 assert.equal(dual.scheduler.lanes.far.started, 1);
 assert.equal(dual.scheduler.stats.startedPrimary, 4);
 
-const dualNoFar = fixture(.99, 'dual');
+const dualNoFar = fixture(.99, '?audioQueues=dual&audioStarts=2');
 for (let i = 0; i < 5; i++) dualNoFar.enqueue('near-only-' + i, 60);
 dualNoFar.frame(250);
 assert.equal(dualNoFar.played.length, 2, 'unused far lane capacity returns to near queue');
@@ -149,7 +149,15 @@ wide.frame(270);
 assert.equal(wide.played.length, 4, 'explicit four-start scheduler budget is enforced');
 wide.frame(290);
 assert.equal(wide.played.length, 8, 'all queued primary events continue draining');
+// An explicit 16-start setting admits 16 (not 2) eligible shots in one frame.
+const sixteen = fixture(.99, '?audioStarts=16');
+for (let i = 0; i < 32; i++) sixteen.enqueue('primary-' + i, 60);
+sixteen.frame(300);
+assert.equal(sixteen.played.length, 16, '16-shot budget starts 16 already-due primaries');
+sixteen.frame(316);
+assert.equal(sixteen.played.length, 32, 'the remaining 16 play on the next render frame');
+assert.equal(sixteen.scheduler.limits.maxQueue, 128);
 const maxed = fixture(.99, '?audioQueue=9999&audioStarts=9999');
 assert.equal(maxed.scheduler.limits.maxQueue, 512, 'untrusted queue override has a ceiling');
-assert.equal(maxed.scheduler.limits.maxPerFrame, 8, 'untrusted start override has a ceiling');
-console.log('PASS: 256-event queue and 4-start research budget, bounded 512/8 ceilings');
+assert.equal(maxed.scheduler.limits.maxPerFrame, 32, 'untrusted start override has a ceiling');
+console.log('PASS: 256-event queue and 4-start legacy A/B, default 128/16, bounded 512/32 research ceilings');
