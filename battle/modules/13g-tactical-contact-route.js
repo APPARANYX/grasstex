@@ -34,7 +34,10 @@
       var p = reports[k];
       if (
         A.hasLineOfSight(
-          { root: { position: { x: at.x, z: at.z, y: h + (stance === 'stand' ? 1.6 : 1.0) } }, crouching: stance !== 'stand' },
+          {
+            root: { position: { x: at.x, z: at.z, y: h + (stance === 'stand' ? 1.6 : 1.0) } },
+            crouching: stance !== 'stand'
+          },
           { root: { position: { x: p.x, z: p.z, y: sim.heightAt(p.x, p.z) + 1.6 } } },
           sim.heightAt,
           sim.obstacles

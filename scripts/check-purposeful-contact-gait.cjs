@@ -97,6 +97,7 @@ root.BattleModules.system.onSimulationStep({ time: 12, units: [s] });
 assert.equal(s._locomotionGait, 'crouchWalk');
 assert.ok(s._locomotionGroundSpeed >= 0.7 && s._locomotionGroundSpeed <= 1.0);
 /* Distinct committed movement speeds are not global multipliers or new movement writers. */
+root.PhaseCCombatLab = { movementPace: 'autonomous' };
 const crouchSprint = soldier(12, 'cover-bound', true, {
   eng: { state: 'bound' },
   _bodyAutonomyIntent: { at: sim.time, kind: 'cover-bound', stance: 'crouch', gait: 'crouchSprint' }

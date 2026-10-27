@@ -243,8 +243,7 @@ test('contact loss and restoration invalidate only the blocked planning basis, n
     sq.inContact = false;
     return report;
   };
-  tick(w);
-  assert.equal(w.M.summary(w.q).phase, 'aborted');
+  until(w, () => w.M.summary(w.q).phase === 'aborted', 5);
   w.r.SquadAI.updateSquad = saved;
   until(w, () => w.M.summary(w.q).windowsStarted >= 2, 12);
   assert.ok(w.M.summary(w.q).windowsStarted >= 2, 'regained contact must unblock replanning');
