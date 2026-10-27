@@ -20,7 +20,10 @@
     serial = 0;
   var TICK_MS = quality === 'high' ? 125 : 200;
   var MAX_ACTIVE = quality === 'high' ? 36 : 24;
-  var stats = { prepared: 0, occluded: 0, filtered: 0, degraded: 0, sampled: 0 };
+  var stats = {
+    prepared: 0, occluded: 0, filtered: 0, degraded: 0, sampled: 0,
+    skippedCapacity: 0
+  };
   function now() {
     return typeof performance !== 'undefined' ? performance.now() : Date.now();
   }
@@ -263,6 +266,7 @@
       }
     if (!e) {
       if (entries.length >= MAX_ACTIVE) {
+        stats.skippedCapacity++;
         // An already-filtered pooled Sound may be replayed after its slot expired.
         // Restore its dry frequency and mute its wet send rather than leaving stale occlusion.
         if (sound._battleAcousticFilter) {
