@@ -68,7 +68,7 @@ test('an end-on hedge threat cannot produce a point inside the hedgerow',()=>{
 });
 function crate(id,x,z){return{id,physicalId:id,type:'crate',x,z,y:0,radius:.8,height:1,cover:.55};}
 test('owner cover search pads discovery without exceeding 26m tactical hop',()=>{
-  const f=fixture([crate('edge',0,10)]),threat={x:0,z:60},F=f.r.BattleObstacleField;
+  const f=fixture([hedge()]),threat={x:0,z:60},F=f.r.BattleObstacleField;
   const native=F.nearby, original=f.C.candidates(f.s,f.b,threat,26);
   assert.ok(original.length>0,'real obstacle-backed cover fixture required');
   const slotId=original[0].slotId;
