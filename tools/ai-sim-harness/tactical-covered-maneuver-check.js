@@ -183,6 +183,7 @@ test('leader and machine gun require two real forward firing riflemen before a s
   const leader = A.leaderOf(w.q);
   const shooters = w.q.members.filter(s => s !== leader && !A.isMachineGun(s)).slice(0, 2);
   const param = { direction: 'forward', team: 'alpha', moverId: String(gunner.id), supportRelocation: true };
+  w.q.inContact = true; // the native Meso gate requires active, reported squad contact
   assert.equal(Q.controllerBound.begin(w.q, w.b, param), null, 'no forward riflemen yet');
   shooters.forEach(s => (s.root.position.z += 65));
   assert.equal(Q.controllerBound.begin(w.q, w.b, param), null, 'positions alone are not shooting receipts');
