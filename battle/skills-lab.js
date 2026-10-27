@@ -45,7 +45,14 @@
     gaitTotals = null;
 
   function newGaitTotals() {
-    return { byGait: {}, coveredBounds: {}, bySoldier: {}, transitions: [], droppedTransitions: 0, skippedJumps: 0 };
+    return {
+      byGait: {},
+      coveredBounds: {},
+      bySoldier: {},
+      transitions: [],
+      droppedTransitions: 0,
+      skippedJumps: 0
+    };
   }
   gaitTotals = newGaitTotals();
 

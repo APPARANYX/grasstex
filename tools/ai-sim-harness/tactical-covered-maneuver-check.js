@@ -220,8 +220,7 @@ test('diagnostics preserve the UI contract for movers with no personal contact',
   const w = world();
   const native = w.r.BattleCoverPositions.boundThreats;
   const missing = w.q.members[7];
-  w.r.BattleCoverPositions.boundThreats = (man, sim) =>
-    man === missing ? [] : native(man, sim);
+  w.r.BattleCoverPositions.boundThreats = (man, sim) => (man === missing ? [] : native(man, sim));
   until(
     w,
     () => w.M.summary(w.q)?.diagnostic?.teams?.some(t => t.result === 'no-personal-reported-contact'),
