@@ -2,14 +2,11 @@ name: Experimental listener audio budgets 683
 
 # Draft-PR-only research. This does not change the shipped audio configuration
 # or add a long-running job to the normal CI workflow.
+# This expensive browser matrix has already produced a complete seven-case
+# artifact. Re-run only when its draft PR is explicitly marked ready for review.
 on:
   pull_request:
-    types: [synchronize, opened, reopened]
-    paths:
-      - battle/modules/12a-listener-acoustics.js
-      - battle/acoustics.js
-      - scripts/probes/probe_audio_lab_matrix.cjs
-      - .github/workflows/audio-limits-experiment-683.yml
+    types: [ready_for_review]
 
 permissions:
   contents: read
