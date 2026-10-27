@@ -50,12 +50,14 @@ assert.equal(isolated.played.length, 1, 'gunshot must play after travel delay');
 assert.equal(isolated.played[0].kind, 'test-rifle');
 
 const priority = fixture(.99);
+// Production's far-model throttle requires >45 ms on the initial clock.
+priority.frame(100);
 for (let i = 0; i < 128; i++) priority.enqueue('far-' + i, 780);
 assert.equal(priority.scheduler.queued, 128);
 priority.enqueue('near', 60);
 assert.equal(priority.scheduler.queued, 128, 'bounded queue must remain bounded');
 assert.equal(priority.scheduler.stats.evictedPrimary, 1, 'near shot displaces a later-due primary');
-priority.frame(220);
+priority.frame(330);
 assert.equal(priority.played.length, 1, 'near shot is not starved by earlier-arriving distant shots');
 assert.equal(priority.played[0].kind, 'near');
 
