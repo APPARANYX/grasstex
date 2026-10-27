@@ -96,3 +96,17 @@ Two completed browser runs, same seed 11027 / 50v50 / 60 simulated seconds / 1×
 A major confound in both runs: 8 voices experiences an interval with a full propagation queue and no primary playback during the scripted lull; 64 voices experiences ~11 seconds with no primary starts during *sustained fire* (approximately sim 32.0–43.2 seconds), with the queue full at 128 while incoming events are still generated. Active voices eventually fall to zero. In both reports the AudioContext stays `running` and interval-driven simulation and sample clocks continue ticking. The gunfire scheduler runs on `requestAnimationFrame`; browsers can throttle or suspend RAF for background tabs while timers continue, which would produce this precise signature. **The reports do not distinguish that possibility from controller failure.**
 
 For follow-up, the scheduler now measures `drainFrames`, `lastDrainMs`, `maxActiveDrainGapMs` and `maxDueLatenessMs`, and each lab sample includes `pageVisibility`, `schedulerSinceDrainMs` and associated maxima. Repeat 8 and 64 runs sequentially **in a continuously visible foreground tab**, without switching focus. If near-silence recurs with `pageVisibility=visible` and no RAF gap, investigate event due-time arithmetic / admission policy. If RAF stalls correlate with `pageVisibility=hidden`, address browser background behavior separately without masking it by raising queue or pool capacity. The first required outcome is continuity; raw sound count alone is insufficient.
+
+## Sequential 8/16/32/64 browser matrix
+
+For developer/headless continuous-visibility confirmation, stage the PR head and run the committed Playwright capture:
+
+```sh
+AUDIO_LAB_URL='https://test.ivandpopov.com/grasstex/preview/ref-<first-12-SHA>/battle/audio_lab.html' \
+  AUDIO_LAB_REPORT_DIR=./audio-matrix \
+  node scripts/probes/probe_audio_lab_matrix.cjs
+```
+
+The runner uses **one tab**, runs eight, sixteen, thirty-two, and sixty-four distant model voices sequentially, and records each full report plus `matrix.json`/`matrix.md`. It fixes the scenario at five squads per side, mixed occlusion, 60 simulated seconds, 1× speed, single scheduler queue, priority listener acoustics, zero additional acoustic hold. It validates each trial's measured page visibility (headless mode is not automatically proof of foreground scheduling). Set `AUDIO_LAB_REPEATS=2` for replicated trials, or `AUDIO_LAB_VOICES=8,64` for shorter paired runs. These are real ~60-second browser trials, not static JS simulation.
+
+For manual audible comparisons, open each staged `audio_lab.html` with the same query settings, change only `farVoices=8|16|32|64`, and **keep the tab visible until completion**. Run one configuration at a time. A separate tab left in the background is not a valid continuity test because the audio scheduler drains on requestAnimationFrame. Compare far-pool drops alongside total primary queue drops, quiet-under-fire measurements, `pageVisibility`, `schedulerMaxDrainGapMs`, `schedulerSinceDrainMs` and actual listener processing capacity pressure before adopting a setting. No streaming/audio library defaults are modified by this matrix.
