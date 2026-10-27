@@ -7,7 +7,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const URL_TO_RUN = process.env.AUDIO_LAB_URL ||
-  'https://test.ivandpopov.com/grasstex/battle/audio_lab.html?log=0';
+  'https://test.ivandpopov.com/grasstex/battle/audio_lab.html?log=0&tacticalController=new';
 const OUT = process.env.AUDIO_LAB_REPORT ||
   path.resolve(process.cwd(), 'audio-lab-report.json');
 const TIMEOUT = Math.max(15000, Number(process.env.AUDIO_LAB_TIMEOUT_MS) || 240000);
