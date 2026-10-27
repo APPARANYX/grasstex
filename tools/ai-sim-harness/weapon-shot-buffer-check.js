@@ -30,7 +30,7 @@ assert.match(section, /if\s*\(!voice\)\s*(?:return|\{)/, 'not-yet-ready voices a
    isPlaying is true. Instrument that behavior rather than treating a Sound
    object as an implicit one-voice cap. Pool reuse must also leave the prior
    report's spatial position and gain untouched until it actually ends. */
-function poolFixture() {
+function poolFixture(policy) {
   const sounds = [];
   const engine = { unlocked: true };
   class Sound {
@@ -83,7 +83,7 @@ function poolFixture() {
     source.slice(source.indexOf('var POOL_SIZE ='), source.indexOf('function makeFaction')),
     ctx
   );
-  const audio = ctx.buildWeaponAudio({ activeCamera: { position: { x: 0, y: 2, z: 0 } } }, 'audio/');
+  const audio = ctx.buildWeaponAudio({ activeCamera: { position: { x: 0, y: 2, z: 0 } } }, 'audio/', policy);
   return {
     audio,
     engine,
@@ -156,5 +156,21 @@ for (const [distance, capacity] of [
   w.engine.unlocked = true;
   w.shoot(40, 1);
   assert.equal(w.plays(), 1, 'normal fire resumes after the audio gesture unlock');
+}
+{
+  const w = poolFixture({ farVoices: 64 });
+  w.load();
+  w.shoot(200, 90);
+  const far = w.audio.detail()['m:m1-garand:far'];
+  assert.equal(far.capacity, 64, '64 distant voices are available only when explicitly requested');
+  assert.equal(far.started, 64, 'each distant voice may play once, without overlapping Sound instances');
+  assert.equal(far.droppedBusy, 26, 'overflow beyond 64 is bounded and accounted for');
+  assert.equal(w.audio.summary().active, 64);
+  assert.ok(w.sounds.every(s => s.plays <= 1 && s.busyWrites === 0));
+}
+{
+  const w = poolFixture({ farVoices: 1024 });
+  assert.equal(w.audio.detail()['m:m1-garand:far'].capacity, 64,
+    'even an untrusted override cannot exceed the 64-slot cap');
 }
 console.log('weapon-shot-buffer-check: format, sharing and bounded dense playback passed');
