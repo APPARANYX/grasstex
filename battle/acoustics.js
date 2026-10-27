@@ -62,9 +62,16 @@
       qFar = [],
       running = false,
       recentFar = {};
-    var MAX_PER_FRAME = 2,
-      MAX_QUEUE = 128,
-      LANE_CAPACITY = 64;
+    var queueMatch = /(?:^|[?&])audioQueue=(\d+)(?:&|$)/.exec(
+      typeof location !== 'undefined' ? location.search || '' : ''
+    );
+    var startsMatch = /(?:^|[?&])audioStarts=(\d+)(?:&|$)/.exec(
+      typeof location !== 'undefined' ? location.search || '' : ''
+    );
+    // Opt-in research overrides; shipping remains 128 queued and 2 starts/frame.
+    var MAX_PER_FRAME = startsMatch ? Math.max(1, Math.min(8, +startsMatch[1] || 2)) : 2,
+      MAX_QUEUE = queueMatch ? Math.max(16, Math.min(512, +queueMatch[1] || 128)) : 128,
+      LANE_CAPACITY = Math.floor(MAX_QUEUE / 2);
     var lanes = {
       near: { enqueued: 0, started: 0, rejected: 0, evicted: 0 },
       far: { enqueued: 0, started: 0, rejected: 0, evicted: 0 }
@@ -219,8 +226,21 @@
         var nearReady = findDue(qNear, now) >= 0,
           farReady = findDue(qFar, now) >= 0;
         if (nearReady && farReady) {
+          // One guaranteed start per lane; remaining budget goes to whichever
+          // eligible event is next due, preserving primary-over-echo preference.
           playDue(qNear, now);
           playDue(qFar, now);
+          started = 2;
+          while (started < MAX_PER_FRAME) {
+            var nearIndex = findDue(qNear, now), farIndex = findDue(qFar, now);
+            if (nearIndex < 0 && farIndex < 0) break;
+            var useNear = farIndex < 0 || (nearIndex >= 0 &&
+              (qFar[farIndex].echo && !qNear[nearIndex].echo ||
+              qFar[farIndex].echo === qNear[nearIndex].echo &&
+              qNear[nearIndex].due < qFar[farIndex].due));
+            if (!playDue(useNear ? qNear : qFar, now)) break;
+            started++;
+          }
         } else {
           var active = nearReady ? qNear : qFar;
           while (started < MAX_PER_FRAME && playDue(active, now)) started++;
