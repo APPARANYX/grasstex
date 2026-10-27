@@ -206,7 +206,8 @@
     s.setUp = false;
     request(s, cover, b, 'cover-bound', 0.8, 'emergency protective cover');
     bump(b, 'urgentCoverStarts');
-    if (FIRST_CONTACT_RESPONSE) bump(b, suppressed ? 'suppressedCoverStarts' : 'unsuppressedIncomingCoverStarts');
+    if (FIRST_CONTACT_RESPONSE)
+      bump(b, suppressed ? 'suppressedCoverStarts' : 'unsuppressedIncomingCoverStarts');
     return true;
   }
   function maintainUrgent(s, b, e) {

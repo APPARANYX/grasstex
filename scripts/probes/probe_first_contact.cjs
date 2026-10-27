@@ -425,11 +425,7 @@ fs.mkdirSync(DIR, { recursive: true });
               errors: data.browserErrors
             })
           );
-          assert.equal(
-            data.flight?.enabled,
-            true,
-            'projectile flight held constant for both contact arms'
-          );
+          assert.equal(data.flight?.enabled, true, 'projectile flight held constant for both contact arms');
           assert.equal(
             data.spawnSeparationM,
             variant === 'half' ? 150 : 300,

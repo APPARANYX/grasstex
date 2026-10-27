@@ -7,18 +7,47 @@ const source = fs.readFileSync('battle/modules/44a-first-contact-observer.js', '
 function harness(search) {
   let hook;
   const enemy = { dead: false, root: { position: { x: 0, z: 50 } } };
-  const man = { id: 4, faction: 'us', role: 'rifleman', squad: { inContact: false },
-    dead: false, hp: 100, maxHp: 100, moving: false, moveSpeed: 0,
-    root: { position: { x: 0, z: 0 } }, eng: { state: 'advance' },
-    _movementResolver: { goal: { kind: 'formation' } }, target: null };
-  const root = { location: { search }, BATTLE_PREVIEW: true,
-    BattleModules: { unitsFor: () => [man], registerSystem: (_id, spec) => { hook = spec; } },
+  const man = {
+    id: 4,
+    faction: 'us',
+    role: 'rifleman',
+    squad: { inContact: false },
+    dead: false,
+    hp: 100,
+    maxHp: 100,
+    moving: false,
+    moveSpeed: 0,
+    root: { position: { x: 0, z: 0 } },
+    eng: { state: 'advance' },
+    _movementResolver: { goal: { kind: 'formation' } },
+    target: null
+  };
+  const root = {
+    location: { search },
+    BATTLE_PREVIEW: true,
+    BattleModules: {
+      unitsFor: () => [man],
+      registerSystem: (_id, spec) => {
+        hook = spec;
+      }
+    },
     BattleEngagement: { underFireNow: s => !!s.incoming },
     SquadAI: { threatDisposition: () => ({ combatThreat: true }), soldierContact: () => null },
-    BattleAmmunition: { shotEvidence: s => s.shot || null } };
+    BattleAmmunition: { shotEvidence: s => s.shot || null }
+  };
   vm.runInNewContext(source, { window: root, globalThis: root, console });
   const sim = { time: 0 };
-  return { root, sim, man, enemy, hook, tick: t => { sim.time = t; hook.onSimulationStep(sim); } };
+  return {
+    root,
+    sim,
+    man,
+    enemy,
+    hook,
+    tick: t => {
+      sim.time = t;
+      hook.onSimulationStep(sim);
+    }
+  };
 }
 {
   const h = harness('?firstContactProbe=1');
