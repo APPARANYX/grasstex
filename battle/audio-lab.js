@@ -235,7 +235,7 @@
     setupShooters();
     audio = root.BattleSim.buildWeaponAudio(scene, audioBase);
     var ae = BABYLON.Engine.audioEngine;
-    if (ae && ae.unlock) ae.unlock();
+    if (ae && ae.unlock) await ae.unlock();
     if (ae && ae.audioContext && ae.audioContext.state === 'suspended') {
       try { await ae.audioContext.resume(); } catch (err) { event('unlock-error', { message: String(err) }); }
     }
