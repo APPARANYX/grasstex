@@ -1,4 +1,4 @@
-/* Unattended, presentation-only 10v10 audio history lab.
+/* Unattended, presentation-only 50v50 audio history lab (10v10 comparison supported).
    Uses the battle's real weapon pools, propagation queue, mix and listener acoustics.
    No combat simulation, soldier mesh, AI controller, ammunition authority or RNG is touched. */
 // prettier-ignore
@@ -8,6 +8,9 @@
   var duration = Math.max(12, Math.min(600, Number(query.get('duration')) || 220));
   var scale = Math.max(1, Math.min(8, Number(query.get('speed')) || 4));
   var seed = 11027;
+  var squadsPerSide = Math.max(1, Math.min(6, Math.floor(Number(query.get('squads')) || 5)));
+  var occlusionMode = query.get('occlusion') === 'open' ? 'open' : 'mixed';
+  var squadRanges = [60, 105, 185, 355, 780, 1350];
   var events = [], history = [], errors = [], status = 'booting', started = false;
   var shotCounts = Object.create(null);
   var obs = null, engine = null, scene = null, audio = null, analyser = null;
@@ -35,21 +38,53 @@
       ge: ['rifle','rifle','rifle','rifle','rifle','rifle','smg','smg','lmg','carbine']
     };
     Object.keys(rosters).forEach(function (faction) {
-      rosters[faction].forEach(function (kind, i) {
-        var weapon = root.BattleWeapons.PROFILES[faction][kind], model = weapon.model;
-        var x = (i - 4.5) * 8, z = faction === 'us' ? -60 : 60;
-        shooters.push({
-          id: faction + '-' + (i + 1), faction: faction, kind: kind, model: model,
-          position: new BABYLON.Vector3(x, 1.5, z),
-          weapon: { profile: model, kind: kind },
-          rof: weapon.rof || (kind === 'rifle' ? .9 : 1),
-          cyclic: weapon.cyclic || 0, mag: weapon.magazine || (kind === 'rifle' ? 8 : 30),
-          ammo: weapon.magazine || (kind === 'rifle' ? 8 : 30),
-          reload: weapon.reloadTime || (kind === 'lmg' ? 5 : 2.6),
-          nextShotAt: rand() * 3, burst: 0, shots: 0
+      for (var squad = 0; squad < squadsPerSide; squad++) {
+        rosters[faction].forEach(function (kind, i) {
+          var weapon = root.BattleWeapons.PROFILES[faction][kind], model = weapon.model;
+          // Bands cross the real near/far blend, remote shot throttling and distant attenuation.
+          // Squad six (>1200 m) is an optional culling-control band.
+          var centerX = [0, 16, -22, 32, -40, 0][squad],
+            x = centerX + (i - 4.5) * 8,
+            z = (faction === 'us' ? -1 : 1) * squadRanges[squad];
+          var position = new BABYLON.Vector3(x, 1.5, z);
+          shooters.push({
+            id: faction + '-sq' + (squad + 1) + '-' + (i + 1),
+            squad: squad + 1, rangeBandMeters: squadRanges[squad],
+            listenerDistanceMeters: +BABYLON.Vector3.Distance(position, scene.activeCamera.position).toFixed(2),
+            faction: faction, kind: kind, model: model, position: position,
+            weapon: { profile: model, kind: kind },
+            rof: weapon.rof || (kind === 'rifle' ? .9 : 1),
+            cyclic: weapon.cyclic || 0, mag: weapon.magazine || (kind === 'rifle' ? 8 : 30),
+            ammo: weapon.magazine || (kind === 'rifle' ? 8 : 30),
+            reload: weapon.reloadTime || (kind === 'lmg' ? 5 : 2.6),
+            nextShotAt: rand() * 3, burst: 0, shots: 0
+          });
         });
-      });
+      }
     });
+  }
+  function configureAcoustics() {
+    var obstacles = [];
+    if (occlusionMode === 'mixed') {
+      // Actual BattleObstacleField prisms: tall masonry walls partly obscure both sides.
+      // Their line-of-sight obstruction goes through shipping listener-acoustics, not a fake gain.
+      [-1, 1].forEach(function (sign) {
+        obstacles.push({ shape: 'obb', x: 0, y: 0, z: sign * 35,
+          hx: 11, hz: 1.6, ux: 1, uz: 0, vx: 0, vz: 1, height: 5.5 });
+        obstacles.push({ shape: 'obb', x: -22, y: 0, z: sign * 145,
+          hx: 14, hz: 2, ux: 1, uz: 0, vx: 0, vz: 1, height: 4.5 });
+      });
+      // Nearby buildings exercise the shipping indoor/reflection wet-send decision.
+      scene.metadata = scene.metadata || {};
+      scene.metadata.battleScenario = { buildings: [
+        { x: -22, z: -185, w: 80, d: 55, rotation: 0 },
+        { x: -22, z: 185, w: 80, d: 55, rotation: 0 }
+      ] };
+    }
+    if (root.BattleListenerAcoustics) root.BattleListenerAcoustics.bind({
+      scene: scene, heightAt: function () { return 0; }, obstacles: obstacles
+    });
+    return obstacles.length;
   }
   function emit(s) {
     if (s.ammo <= 0) {
@@ -87,7 +122,7 @@
       while (s.nextShotAt <= simSeconds && turns++ < 40) {
         if (activePhase === 'recovery') {
           s.nextShotAt = simSeconds + .6;
-        } else if (activePhase === 'lull' && s.id !== 'us-9' && s.id !== 'ge-9') {
+        } else if (activePhase === 'lull' && s.kind !== 'lmg') {
           s.nextShotAt = simSeconds + 1;
         } else if (activePhase === 'first-contact' && s.id.match(/-(2|4|6|8|10)$/)) {
           s.nextShotAt = simSeconds + .8;
@@ -113,6 +148,7 @@
   function sample() {
     if (!audio) return;
     var s = audio.summary(), clock = performance.now();
+    var scheduling = root.BattleAudioScheduler.stats || {};
     var entry = Object.assign({
       wallMs: Math.round(clock - startTime), simSeconds: +simSeconds.toFixed(2),
       phase: lab.phase, audioContextState: ctx ? ctx.state : 'missing',
@@ -121,6 +157,10 @@
       attempts: s.playRequests, droppedBusy: s.droppedBusy,
       droppedNotReady: s.droppedNotReady, droppedLocked: s.droppedLocked,
       errors: s.errors, propagationQueue: root.BattleAudioScheduler.queued,
+      schedulerReceived: scheduling.received, schedulerCulled: scheduling.culledDistance,
+      schedulerFarSkipped: scheduling.skippedFar, schedulerThrottled: scheduling.throttledFar,
+      schedulerEvictedPrimary: scheduling.evictedPrimary, schedulerEvictedEcho: scheduling.evictedEcho,
+      schedulerStartedPrimary: scheduling.startedPrimary, schedulerStartedEcho: scheduling.startedEcho,
       simulatedShots: shotCount, shotsSinceLast: shotCount - previousShotCount,
       acousticActive: root.BattleListenerAcoustics ? root.BattleListenerAcoustics.active : null,
       heapBytes: performance.memory ? performance.memory.usedJSHeapSize : null,
@@ -160,8 +200,11 @@
         x.rms !== null && x.rms < .0005;
     }).length;
     return {
-      schema: 'grasstex-audio-lab/v1', status: status, ref: root.BATTLE_REF || 'static-page',
-      url: location.href, seed: 11027, squadSizes: { us: 10, ge: 10 },
+      schema: 'grasstex-audio-lab/v2', status: status, ref: root.BATTLE_REF || 'static-page',
+      url: location.href, seed: 11027, squadSizes: { us: squadsPerSide * 10, ge: squadsPerSide * 10 },
+      squadsPerSide: squadsPerSide, rangeBandsMeters: squadRanges.slice(0, squadsPerSide),
+      occlusionMode: occlusionMode,
+      propagation: { limits: root.BattleAudioScheduler.limits, stats: root.BattleAudioScheduler.stats },
       speed: scale, simulatedDurationSeconds: duration,
       wallDurationSeconds: +((performance.now() - startTime) / 1000).toFixed(2),
       manifestUrl: audioBase + 'manifest.json', audioFormat: root.BattleAudioFormat.state,
@@ -175,12 +218,21 @@
         droppedNotReady: last && last.droppedNotReady || 0,
         droppedLocked: last && last.droppedLocked || 0,
         playbackErrors: last && last.errors || 0,
+        schedulerPrimaryEvictions: last && last.schedulerEvictedPrimary || 0,
+        schedulerEchoEvictions: last && last.schedulerEvictedEcho || 0,
+        schedulerDistanceCulled: last && last.schedulerCulled || 0,
+        schedulerFarSkipped: last && last.schedulerFarSkipped || 0,
+        schedulerFarThrottled: last && last.schedulerThrottled || 0,
+        schedulerPrimaryStarts: last && last.schedulerStartedPrimary || 0,
+        schedulerEchoStarts: last && last.schedulerStartedEcho || 0,
         maxActiveVoices: max('activeVoices'), maxQueue: max('propagationQueue'),
         maxPeak: max('peak'), maxRms: max('rms'), samplesQuietUnderFire: quietUnderFire,
         longTasks: longTasks, longTaskMs: Math.round(longTaskMs),
         startingContext: first && first.audioContextState,
         endingContext: last && last.audioContextState },
-      shooters: shooters.map(function (s) { return { id: s.id, faction: s.faction, model: s.model, shots: s.shots }; }),
+      shooters: shooters.map(function (s) { return { id: s.id, squad: s.squad,
+        faction: s.faction, model: s.model, shots: s.shots,
+        rangeBandMeters: s.rangeBandMeters, listenerDistanceMeters: s.listenerDistanceMeters }; }),
       events: events, timeline: history, errors: errors
     };
   }
@@ -243,9 +295,7 @@
     tapOutput();
     if (ctx.state !== 'running') throw new Error('AudioContext is ' + ctx.state + '; headless Chromium needs --autoplay-policy=no-user-gesture-required');
     if (root.BattleAudioMix) root.BattleAudioMix.ensureLimiter(scene);
-    if (root.BattleListenerAcoustics) root.BattleListenerAcoustics.bind({
-      scene: scene, heightAt: function () { return 0; }, obstacles: []
-    });
+    var obstacleCount = configureAcoustics();
     if (typeof PerformanceObserver !== 'undefined') {
       try {
         obs = new PerformanceObserver(function (list) {
@@ -257,7 +307,9 @@
     dom('status').textContent = 'Preparing sample pools';
     // Real pools are intentionally allowed to load rather than substituting synthetic samples.
     await new Promise(function (resolve) { setTimeout(resolve, 2500); });
-    event('start', { shooterCount: shooters.length, audioContext: ctx.state, capacity: audio.summary().capacity });
+    event('start', { shooterCount: shooters.length, squadCount: squadsPerSide * 2,
+      distanceBands: squadRanges.slice(0, squadsPerSide), occlusionMode: occlusionMode,
+      obstacleCount: obstacleCount, audioContext: ctx.state, capacity: audio.summary().capacity });
     status = 'running'; lab.phase = 'first-contact'; started = true;
     lastWall = performance.now();
     simulationTimer = setInterval(step, 20);
