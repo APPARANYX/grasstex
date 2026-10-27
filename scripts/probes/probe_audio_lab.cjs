@@ -40,6 +40,10 @@ const TIMEOUT = Math.max(15000, Number(process.env.AUDIO_LAB_TIMEOUT_MS) || 2400
       .slice(0, 8)
       .map(([key, x]) => ({ key, cap: x.capacity, starts: x.started, busyDrops: x.droppedBusy }));
     console.log('Most saturated near/far pools:', topBusy);
+    console.log('Scheduler lane mode:', report.propagation && report.propagation.limits && report.propagation.limits.mode,
+      '| near/far lanes:', report.propagation && report.propagation.lanes,
+      '| priority acoustics:', report.acousticPriority,
+      '| acoustic replacements:', report.acoustics && report.acoustics.stats && report.acoustics.stats.replacedCapacity);
     console.log('Scheduler primary evictions:', report.summary.schedulerPrimaryEvictions,
       '| far skips:', report.summary.schedulerFarSkipped, '| far throttles:', report.summary.schedulerFarThrottled);
     console.log('Peak active:', report.summary.maxActiveVoices, '| max queue:', report.summary.maxQueue,
