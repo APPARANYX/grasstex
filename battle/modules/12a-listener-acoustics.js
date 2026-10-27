@@ -28,7 +28,13 @@
     wet = null,
     serial = 0;
   var TICK_MS = quality === 'high' ? 125 : 200;
-  var MAX_ACTIVE = quality === 'high' ? 36 : 24;
+  var defaultActive = quality === 'high' ? 36 : 24;
+  var slotsMatch = /(?:^|[?&])acousticSlots=(\d+)(?:&|$)/.exec(
+    typeof location !== 'undefined' ? location.search || '' : ''
+  );
+  // Explicit A/B override only, never the production default. A large WebAudio
+  // voice pool does not require a correspondingly large per-source raycast budget.
+  var MAX_ACTIVE = slotsMatch ? Math.max(1, Math.min(192, +slotsMatch[1] || defaultActive)) : defaultActive;
   var stats = {
     prepared: 0,
     occluded: 0,
@@ -38,7 +44,12 @@
     skippedCapacity: 0,
     replacedCapacity: 0,
     deniedHold: 0,
-    wetSendRamps: 0
+    wetSendRamps: 0,
+    acousticTicks: 0,
+    acousticTickTotalMs: 0,
+    acousticTickMaxMs: 0,
+    trackedPlayingOnTick: 0,
+    trackedIdleOnTick: 0
   };
   function now() {
     return typeof performance !== 'undefined' ? performance.now() : Date.now();
@@ -260,11 +271,17 @@
         }
         continue;
       }
+      if (e.sound && e.sound.isPlaying === true) stats.trackedPlayingOnTick++;
+      else stats.trackedIdleOnTick++;
       // 5Hz standard / 8Hz high; no per-frame traversal or per-projectile raycast.
       sample(e);
       remain.push(e);
     }
     entries = remain;
+    stats.acousticTicks++;
+    var elapsed = Math.max(0, now() - t);
+    stats.acousticTickTotalMs += elapsed;
+    stats.acousticTickMaxMs = Math.max(stats.acousticTickMaxMs, elapsed);
     if (entries.length) wake();
   }
   function wake() {
@@ -395,6 +412,9 @@
   }
   root.BattleListenerAcoustics = {
     quality: quality,
+    maxActive: MAX_ACTIVE,
+    defaultMaxActive: defaultActive,
+    tickIntervalMs: TICK_MS,
     priorityEnabled: priorityEnabled,
     acousticHoldMs: acousticHoldMs,
     bind: bind,
