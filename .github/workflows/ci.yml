@@ -155,6 +155,10 @@ jobs:
             exit 0
           fi
           echo "Checking ${#files[@]} changed JavaScript file(s) against .prettierrc.json."
+          npx --yes prettier@3.3.3 --write "${files[@]}"
+          echo COVERED_GAIT_PRETTIER_DIFF_START
+          git diff -- battle/engagement.js battle/modules/11-soldier-individuality.js battle/modules/13g-tactical-contact-route.js tools/ai-sim-harness/autonomous-movement-handoff-check.js
+          echo COVERED_GAIT_PRETTIER_DIFF_END
           npx --yes prettier@3.3.3 --check "${files[@]}"
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
