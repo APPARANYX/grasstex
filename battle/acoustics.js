@@ -56,7 +56,7 @@
       running = false,
       recentFar = {};
     var MAX_PER_FRAME = 2,
-      MAX_QUEUE = 18;
+      MAX_QUEUE = 128;
     // Diagnostic accounting only; the existing admission and playback rules are unchanged.
     var stats = {
       received: 0,
@@ -67,6 +67,8 @@
       throttledFar: 0,
       evictedPrimary: 0,
       evictedEcho: 0,
+      rejectedPrimary: 0,
+      rejectedEcho: 0,
       startedPrimary: 0,
       startedEcho: 0,
       playExceptions: 0,
@@ -74,19 +76,33 @@
     };
     function push(e) {
       if (q.length >= MAX_QUEUE) {
-        var idx = q.findIndex
-          ? q.findIndex(function (x) {
-              return x.echo;
-            })
-          : -1;
-        if (idx >= 0) {
-          q.splice(idx, 1);
-          stats.evictedEcho++;
-        } else {
-          var evicted = q.shift();
-          if (evicted && evicted.echo) stats.evictedEcho++;
-          else stats.evictedPrimary++;
+        // Preserve imminent gunshots, not FIFO arrival order: a later near shot can
+        // arrive before an earlier distant one. Optional echoes are always first to go.
+        var victim = -1,
+          latestDue = -Infinity;
+        for (var i = 0; i < q.length; i++) {
+          var waiting = q[i];
+          if (e.echo && !waiting.echo) continue;
+          if (!e.echo && victim >= 0 && !q[victim].echo && waiting.echo) {
+            victim = -1;
+            latestDue = -Infinity;
+          }
+          if (!e.echo && victim >= 0 && q[victim].echo && !waiting.echo) continue;
+          if (waiting.due > latestDue) {
+            latestDue = waiting.due;
+            victim = i;
+          }
         }
+        // Never evict a sooner event for one with a later due time. Also, an
+        // optional echo must not evict a primary even when the queue is full.
+        if (victim < 0 || (e.echo || !q[victim].echo) && e.due >= q[victim].due) {
+          if (e.echo) stats.rejectedEcho++;
+          else stats.rejectedPrimary++;
+          return;
+        }
+        if (q[victim].echo) stats.evictedEcho++;
+        else stats.evictedPrimary++;
+        q.splice(victim, 1);
       }
       q.push(e);
       if (e.echo) stats.enqueuedEcho++;
@@ -136,22 +152,28 @@
     }
     function drain() {
       var now = performance.now(),
-        started = 0,
-        remain = [];
-      for (var i = 0; i < q.length; i++) {
-        var e = q[i];
-        if (started < MAX_PER_FRAME && e.due <= now) {
-          try {
-            e.audio.play(e.kind, e.pos, e.gain, 1);
-            if (e.echo) stats.startedEcho++;
-            else stats.startedPrimary++;
-          } catch (_) {
-            stats.playExceptions++;
-          }
-          started++;
-        } else remain.push(e);
+        started = 0;
+      // Play due primaries before optional echoes, earliest due first.
+      // Keep the two-starts-per-frame audio budget unchanged.
+      while (started < MAX_PER_FRAME) {
+        var best = -1;
+        for (var i = 0; i < q.length; i++) {
+          var e = q[i];
+          if (e.due > now) continue;
+          if (best < 0 || (q[best].echo && !e.echo) ||
+              (q[best].echo === e.echo && e.due < q[best].due)) best = i;
+        }
+        if (best < 0) break;
+        var due = q.splice(best, 1)[0];
+        try {
+          due.audio.play(due.kind, due.pos, due.gain, 1);
+          if (due.echo) stats.startedEcho++;
+          else stats.startedPrimary++;
+        } catch (_) {
+          stats.playExceptions++;
+        }
+        started++;
       }
-      q = remain;
       if (q.length) requestAnimationFrame(drain);
       else running = false;
     }
