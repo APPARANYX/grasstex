@@ -52,11 +52,22 @@
   }
 
   root.BattleAudioScheduler = (function () {
+    // Opt-in A/B: split the existing 128 waiting slots into independent 64-slot lanes.
+    // This is scheduling, not an additional WebAudio output channel.
+    var dual = typeof location !== 'undefined' &&
+      /(?:^|[?&])audioQueues=dual(?:&|$)/.test(location.search || '');
     var q = [],
+      qNear = [],
+      qFar = [],
       running = false,
       recentFar = {};
     var MAX_PER_FRAME = 2,
-      MAX_QUEUE = 128;
+      MAX_QUEUE = 128,
+      LANE_CAPACITY = 64;
+    var lanes = {
+      near: { enqueued: 0, started: 0, rejected: 0, evicted: 0 },
+      far: { enqueued: 0, started: 0, rejected: 0, evicted: 0 }
+    };
     // Diagnostic accounting only; the existing admission and playback rules are unchanged.
     var stats = {
       received: 0,
@@ -77,19 +88,21 @@
     // Queue policy is deliberately formatted as one audited unit.
     // prettier-ignore
     function push(e) {
-      if (q.length >= MAX_QUEUE) {
+      var target = dual ? (e.lane === 'near' ? qNear : qFar) : q,
+        capacity = dual ? LANE_CAPACITY : MAX_QUEUE;
+      if (target.length >= capacity) {
         // Preserve imminent gunshots, not FIFO arrival order: a later near shot can
         // arrive before an earlier distant one. Optional echoes are always first to go.
         var victim = -1,
           latestDue = -Infinity;
-        for (var i = 0; i < q.length; i++) {
-          var waiting = q[i];
+        for (var i = 0; i < target.length; i++) {
+          var waiting = target[i];
           if (e.echo && !waiting.echo) continue;
-          if (!e.echo && victim >= 0 && !q[victim].echo && waiting.echo) {
+          if (!e.echo && victim >= 0 && !target[victim].echo && waiting.echo) {
             victim = -1;
             latestDue = -Infinity;
           }
-          if (!e.echo && victim >= 0 && q[victim].echo && !waiting.echo) continue;
+          if (!e.echo && victim >= 0 && target[victim].echo && !waiting.echo) continue;
           if (waiting.due > latestDue) {
             latestDue = waiting.due;
             victim = i;
@@ -97,19 +110,23 @@
         }
         // Never evict a sooner event for one with a later due time. Also, an
         // optional echo must not evict a primary even when the queue is full.
-        if (victim < 0 || (e.echo || !q[victim].echo) && e.due >= q[victim].due) {
+        if (victim < 0 || (e.echo || !target[victim].echo) && e.due >= target[victim].due) {
           if (e.echo) stats.rejectedEcho++;
           else stats.rejectedPrimary++;
+          if (dual) lanes[e.lane].rejected++;
           return;
         }
-        if (q[victim].echo) stats.evictedEcho++;
+        if (target[victim].echo) stats.evictedEcho++;
         else stats.evictedPrimary++;
-        q.splice(victim, 1);
+        if (dual) lanes[e.lane].evicted++;
+        target.splice(victim, 1);
       }
-      q.push(e);
+      target.push(e);
+      if (dual) lanes[e.lane].enqueued++;
       if (e.echo) stats.enqueuedEcho++;
       else stats.enqueuedPrimary++;
-      if (q.length > stats.maxQueued) stats.maxQueued = q.length;
+      var totalQueued = dual ? qNear.length + qFar.length : q.length;
+      if (totalQueued > stats.maxQueued) stats.maxQueued = totalQueued;
       if (!running) {
         running = true;
         requestAnimationFrame(drain);
@@ -139,7 +156,8 @@
       }
       var gain = compressedGain(p, d),
         due = now + arrivalDelayMs(d) + Math.random() * 8;
-      push({ audio: audio, kind: kind, pos: copyPos(pos), gain: gain, due: due, echo: false });
+      var lane = d <= 145 ? 'near' : 'far';
+      push({ audio: audio, kind: kind, pos: copyPos(pos), gain: gain, due: due, echo: false, lane: lane });
       if (d > 55 && Math.random() < (d > 180 ? 0.23 : 0.11)) {
         var extra = 90 + Math.min(420, d * 0.55) + Math.random() * 85;
         push({
@@ -148,36 +166,59 @@
           pos: copyPos(pos),
           gain: gain * (d > 180 ? 0.14 : 0.09),
           due: due + extra,
-          echo: true
+          echo: true,
+          lane: lane
         });
       }
+    }
+    // Find the most urgent *due* primary first, then the earliest due echo.
+    function findDue(queue, now) {
+      var best = -1;
+      for (var i = 0; i < queue.length; i++) {
+        var e = queue[i];
+        if (e.due > now) continue;
+        if (best < 0 || (queue[best].echo && !e.echo) ||
+            (queue[best].echo === e.echo && e.due < queue[best].due)) best = i;
+      }
+      return best;
+    }
+    function playDue(queue, now) {
+      var index = findDue(queue, now);
+      if (index < 0) return false;
+      var due = queue.splice(index, 1)[0];
+      try {
+        due.audio.play(due.kind, due.pos, due.gain, 1);
+        if (due.echo) stats.startedEcho++;
+        else stats.startedPrimary++;
+        if (dual) lanes[due.lane].started++;
+      } catch (_) {
+        stats.playExceptions++;
+      }
+      return true;
     }
     // Keep arrival selection and source-preference checks together.
     // prettier-ignore
     function drain() {
       var now = performance.now(),
         started = 0;
-      // Play due primaries before optional echoes, earliest due first.
-      // Keep the two-starts-per-frame audio budget unchanged.
-      while (started < MAX_PER_FRAME) {
-        var best = -1;
-        for (var i = 0; i < q.length; i++) {
-          var e = q[i];
-          if (e.due > now) continue;
-          if (best < 0 || (q[best].echo && !e.echo) ||
-              (q[best].echo === e.echo && e.due < q[best].due)) best = i;
+      if (dual) {
+        // Reserve one eligible start for each lane when both have arrived.
+        // A lane with no due event lends its start to the other lane.
+        var nearReady = findDue(qNear, now) >= 0,
+          farReady = findDue(qFar, now) >= 0;
+        if (nearReady && farReady) {
+          playDue(qNear, now);
+          playDue(qFar, now);
+        } else {
+          var active = nearReady ? qNear : qFar;
+          while (started < MAX_PER_FRAME && playDue(active, now)) started++;
         }
-        if (best < 0) break;
-        var due = q.splice(best, 1)[0];
-        try {
-          due.audio.play(due.kind, due.pos, due.gain, 1);
-          if (due.echo) stats.startedEcho++;
-          else stats.startedPrimary++;
-        } catch (_) {
-          stats.playExceptions++;
-        }
-        started++;
+        if (qNear.length || qFar.length) requestAnimationFrame(drain);
+        else running = false;
+        return;
       }
+      // Default single-queue policy remains exactly two starts per frame.
+      while (started < MAX_PER_FRAME && playDue(q, now)) started++;
       if (q.length) requestAnimationFrame(drain);
       else running = false;
     }
@@ -188,10 +229,21 @@
         return Object.assign({}, stats);
       },
       get limits() {
-        return { maxPerFrame: MAX_PER_FRAME, maxQueue: MAX_QUEUE };
+        return {
+          mode: dual ? 'dual' : 'single', maxPerFrame: MAX_PER_FRAME, maxQueue: MAX_QUEUE,
+          nearCapacity: dual ? LANE_CAPACITY : null,
+          farCapacity: dual ? LANE_CAPACITY : null
+        };
+      },
+      get lanes() {
+        if (!dual) return null;
+        return {
+          near: Object.assign({ queued: qNear.length }, lanes.near),
+          far: Object.assign({ queued: qFar.length }, lanes.far)
+        };
       },
       get queued() {
-        return q.length;
+        return dual ? qNear.length + qFar.length : q.length;
       }
     };
   })();
