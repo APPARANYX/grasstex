@@ -125,6 +125,8 @@ for (const [distance, capacity] of [
   if (distance === 40) {
     const nearPool = w.audio.detail()['m:m1-garand'];
     assert.equal(nearPool.capacity, 6, 'near-pool telemetry preserves the existing capacity');
+    assert.equal(nearPool.maxClipSeconds, 2, 'per-model clip duration reflects actual decoded buffer');
+    assert.equal(nearPool.minClipSeconds, 2, 'per-model sample variation is measured, not assumed');
     assert.equal(nearPool.attempts, 30, 'every near-pool request is accounted for');
     assert.equal(nearPool.started, 6, 'real successful near starts are tracked per model');
     assert.equal(nearPool.droppedBusy, 24, 'saturated near-pool drops are reported per model');
