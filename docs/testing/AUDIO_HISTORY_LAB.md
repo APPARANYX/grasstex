@@ -11,14 +11,14 @@ A **presentation-only**, fixed-seed 10 US versus 10 German rifle/SMG/LMG/carbine
 
 ## How to run (no interaction)
 
-Production (once this lab has deployed): `https://test.ivandpopov.com/grasstex/battle/audio_lab.html?log=0`
+Production (once this lab has deployed): `https://test.ivandpopov.com/grasstex/battle/audio_lab.html?log=0&tacticalController=new`
 
 A branch preview must first be staged by the normal `preview.php?ref=work/audio-history-lab-20261027` launcher. Then use its displayed `/preview/ref-<SHA>/battle/audio_lab.html?log=0` path. The preview stages the lab's HTML/JS from that commit but uses **production audio assets**; the manifest URL is recorded in the JSON report.
 
 The headless Playwright runner runs the entire timeline without clicks:
 
 ```bash
-AUDIO_LAB_URL='https://test.ivandpopov.com/grasstex/preview/ref-<SHA>/battle/audio_lab.html?log=0' \
+AUDIO_LAB_URL='https://test.ivandpopov.com/grasstex/preview/ref-<SHA>/battle/audio_lab.html?log=0&tacticalController=new' \
 AUDIO_LAB_REPORT='/tmp/audio-lab-report.json' \
 node scripts/probes/probe_audio_lab.cjs
 ```
@@ -38,3 +38,5 @@ Report `droppedBusy` and `maxQueue` separately. Dropped starts can explain missi
 ## Scope and limitations
 
 The lab does not execute actual tactical AI and therefore does not generate real casualty, targeting, suppressive fire, projectile impact or speech scheduling patterns. It deliberately exercises existing **weapon** pools and sound scheduling rather than the combat impact, voice and grenade subsystems. An audio-sprite prototype can later reuse the same event timeline to compare playback, memory, loading cost and voice drops fairly. No benchmark acceptance threshold is asserted until browser observations are collected.
+
+The shot schedule has a stable internal seed; the shipping propagation scheduler intentionally retains its own acoustic jitter/echo randomization, so compare measured aggregate histories rather than assuming identical individual sound arrival times across runs.
