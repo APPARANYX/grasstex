@@ -178,14 +178,16 @@ function harness(search) {
   h.man.eng._urgentCover = false;
   h.root.BattleTacticalController = {
     summary: () => ({
-      live: [{
-        capability: 'combat.bound',
-        actorId: String(h.man.id),
-        squad: String(h.man.squad.id),
-        actionId: 'later-unrelated-bound',
-        stage: 'arrived',
-        reason: 'physical-arrival'
-      }]
+      live: [
+        {
+          capability: 'combat.bound',
+          actorId: String(h.man.id),
+          squad: String(h.man.squad.id),
+          actionId: 'later-unrelated-bound',
+          stage: 'arrived',
+          reason: 'physical-arrival'
+        }
+      ]
     }),
     controls: () => true
   };
@@ -206,5 +208,20 @@ function harness(search) {
   const report = h.root.BattleFirstContactObserver.summary(h.sim);
   assert.equal(report.response.routeWithheldOnContact, 1);
   assert.equal(report.response.protectiveOrders, 0);
+}
+{
+  const h = harness('?firstContactProbe=1');
+  h.man.incoming = true;
+  h.sim.time = 0.15;
+  h.root.BattleFirstContactObserver.coverDecision(h.man, h.sim, 'blocked', 'weapon-cycle');
+  h.tick(0.15);
+  const report = h.root.BattleFirstContactObserver.summary(h.sim);
+  assert.equal(report.soldiers[0].ownerDecisions[0].reason, 'weapon-cycle');
+  h.root.BattleFirstContactObserver.coverDecision(h.man, h.sim, 'blocked', 'weapon-cycle');
+  assert.equal(
+    h.root.BattleFirstContactObserver.summary(h.sim).soldiers[0].ownerDecisions.length,
+    1,
+    'identical owner rejection is deduplicated'
+  );
 }
 console.log('PASS: independent owner stages, reported/sound cues and late physical arrivals');

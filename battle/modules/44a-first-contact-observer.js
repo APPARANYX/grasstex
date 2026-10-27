@@ -18,7 +18,8 @@
   }
   function session(b) {
     var s = sessions.get(b);
-    if (!s) sessions.set(b, (s = { time: null, records: new Map(), ticks: 0 }));
+    if (!s)
+      sessions.set(b, (s = { time: null, records: new Map(), coverDecisions: new Map(), ticks: 0 }));
     return s;
   }
   function stamp(t) {
@@ -33,6 +34,22 @@
     if (key === r._lastBlocker) return;
     r._lastBlocker = key;
     if (r.blockers.length < 24) r.blockers.push({ at: stamp(t), source: source, reason: why });
+  }
+  /* The urgent-cover OWNER reports actual guard decisions as they happen.
+     Recording a rejection does not create a tactical command or destination. */
+  function coverDecision(man, b, stage, why) {
+    if (!ON || !man || !b) return;
+    var st = session(b),
+      key = man.faction + ':' + man.id,
+      events = st.coverDecisions.get(key);
+    if (!events) st.coverDecisions.set(key, (events = []));
+    var previous = events[events.length - 1],
+      item = { at: stamp(+b.time || 0), stage: stage, reason: why };
+    if (previous && previous.stage === stage && previous.reason === why) return;
+    if (events.length >= 48) return;
+    events.push(item);
+    var rec = st.records.get(key);
+    if (rec && item.at - rec.at <= ARRIVAL_WINDOW) rec.ownerDecisions.push(item);
   }
   function distribution(values) {
     var a = values.filter(Number.isFinite).sort(function (x, y) {
@@ -152,6 +169,9 @@
               arrived: null
             },
             blockers: [],
+            ownerDecisions: (state.coverDecisions.get(k) || []).filter(function (v) {
+              return v.at >= t - 0.2;
+            }),
             _lastBlocker: null,
             firstCoverSearch: null,
             firstOwnerAction: null,
@@ -376,7 +396,7 @@
       })
     };
   }
-  root.BattleFirstContactObserver = { enabled: ON, summary: summary };
+  root.BattleFirstContactObserver = { enabled: ON, summary: summary, coverDecision: coverDecision };
   root.BattleModules.registerSystem('first-contact-observer', {
     version: '1-read-only',
     onBattleStart: function (b) {

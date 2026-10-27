@@ -147,6 +147,10 @@
     var d = Math.abs(a - b) % 8;
     return Math.min(d, 8 - d);
   }
+  function reportCover(s, b, stage, why) {
+    var O = root.BattleFirstContactObserver;
+    if (FIRST_CONTACT_RESPONSE && O && O.coverDecision) O.coverDecision(s, b, stage, why);
+  }
   function safeToMove(s, b) {
     return !!(
       s &&
@@ -172,10 +176,31 @@
     /* Merely SEEING an opposing silhouette is not an emergency cover order.
        Incoming fire can require a protective move even when the suppression
        countdown never triggered; the usual controller policy stays intact. */
-    if (!safeToMove(s, b) || (!suppressed && !received) || !exposed(s, b)) return false;
+    if (!suppressed && !received) return false;
+    if (!safeToMove(s, b)) {
+      var reason = !s || s.dead
+        ? 'actor-unavailable'
+        : s.reloading || s.clearingStoppage
+          ? 'weapon-cycle'
+          : s.squad && s.squad.state === 'retreat'
+            ? 'retreat'
+            : 'station-or-other-owner';
+      reportCover(s, b, 'blocked', reason);
+      return false;
+    }
+    if (!exposed(s, b)) {
+      reportCover(s, b, 'held', 'already-protected');
+      return false;
+    }
     var threat = threatFor(s, b);
-    if (!threat || !root.BattleEngagement.findCover) return false;
-    if (e._urgentCoverSearchAt && b.time < e._urgentCoverSearchAt) return false;
+    if (!threat || !root.BattleEngagement.findCover) {
+      reportCover(s, b, 'blocked', 'no-credible-location-or-cover-owner');
+      return false;
+    }
+    if (e._urgentCoverSearchAt && b.time < e._urgentCoverSearchAt) {
+      reportCover(s, b, 'held', 'native-cover-search-cooldown');
+      return false;
+    }
     /* How soon he looks again for cover is his agility (module 10; 0.9 s for an average man). */
     var stats = root.BattleSoldierStats;
     e._urgentCoverSearchAt = b.time + 0.9 * (stats ? stats.scale(s, 'coverSearch') : 1);
@@ -185,7 +210,11 @@
       evade: true, // suppressed: any cover that saves him
       minEnemyDistance: 10
     });
-    if (!cover) return false;
+    if (!cover) {
+      reportCover(s, b, 'blocked', 'cover-owner-returned-no-destination');
+      return false;
+    }
+    reportCover(s, b, 'selected', 'native-physical-cover');
     /* A replacement controller's competing actions for this man are cancelled before the move is published. */
     if (beforeCommit) beforeCommit();
     e.cover = cover;
@@ -204,7 +233,13 @@
     root.BattleEngagement.markUrgent(s, b, URGENT_TTL);
     root.BattleEngagement.commitStance(s, b, 'crouch', e.until - b.time);
     s.setUp = false;
-    request(s, cover, b, 'cover-bound', 0.8, 'suppressed cover move');
+    var proposal = request(s, cover, b, 'cover-bound', 0.8, 'suppressed cover move');
+    reportCover(
+      s,
+      b,
+      proposal && proposal.kind === 'cover-bound' ? 'published' : 'blocked',
+      proposal && proposal.kind === 'cover-bound' ? 'engagement-cover-bound' : 'resolver-rejected'
+    );
     bump(b, 'urgentCoverStarts');
     if (FIRST_CONTACT_RESPONSE)
       bump(b, suppressed ? 'suppressedCoverStarts' : 'unsuppressedIncomingCoverStarts');
@@ -217,10 +252,12 @@
       if (FIRST_CONTACT_RESPONSE) e._urgentCoverArrivedAt = b.time;
       e._urgentCover = false;
       root.BattleEngagement.clearUrgent(s);
+      reportCover(s, b, 'arrived', 'owner-confirmed-physical-cover');
       bump(b, 'urgentCoverArrivals');
       return false;
     }
     if (!safeToMove(s, b) || e.state !== 'bound') {
+      reportCover(s, b, 'cancelled', !safeToMove(s, b) ? 'owner-safety' : 'engagement-state-changed');
       e._urgentCover = false;
       root.BattleEngagement.clearUrgent(s);
       return false;
