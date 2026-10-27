@@ -234,21 +234,31 @@ function harness(search) {
   h.man.incoming = true;
   h.root.BattleTacticalController = {
     summary: () => ({
-      live: [{
-        capability: 'combat.bound',
-        squad: 'us-0',
-        actorId: String(h.man.id),
-        actionId: 'bound-123',
-        stage: 'published',
-        reason: 'published:await-personal-adoption'
-      }]
+      live: [
+        {
+          capability: 'combat.bound',
+          squad: 'us-0',
+          actorId: String(h.man.id),
+          actionId: 'bound-123',
+          stage: 'published',
+          reason: 'published:await-personal-adoption'
+        }
+      ]
     })
   };
   const rec = {
-    envelopeId: 'cmd-7', sourceId: 'leader',
+    envelopeId: 'cmd-7',
+    sourceId: 'leader',
     data: { publishKey: 'controller:bound-123' },
-    channel: 'voice-direct', relayId: null, hops: 1, unreachable: false,
-    issuedAt: 0.3, receivedAt: 0.5, processedAt: 0.6, adoptedAt: 0.8, phase: 'issued'
+    channel: 'voice-direct',
+    relayId: null,
+    hops: 1,
+    unreachable: false,
+    issuedAt: 0.3,
+    receivedAt: 0.5,
+    processedAt: 0.6,
+    adoptedAt: 0.8,
+    phase: 'issued'
   };
   h.root.BattleCommandReception = { peek: () => rec };
   h.root.BattleSquadStability = {
@@ -271,14 +281,16 @@ function harness(search) {
   assert.equal(out.soldiers[0].window.expiresAt, 1.5);
   rec.phase = 'adopted';
   h.root.BattleTacticalController.summary = () => ({
-    live: [{
-      capability: 'combat.bound',
-      squad: 'us-0',
-      actorId: String(h.man.id),
-      actionId: 'bound-123',
-      stage: 'adopted',
-      reason: 'personally-adopted'
-    }]
+    live: [
+      {
+        capability: 'combat.bound',
+        squad: 'us-0',
+        actorId: String(h.man.id),
+        actionId: 'bound-123',
+        stage: 'adopted',
+        reason: 'personally-adopted'
+      }
+    ]
   });
   h.tick(0.9);
   out = h.root.BattleFirstContactObserver.summary(h.sim);

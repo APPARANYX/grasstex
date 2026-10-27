@@ -205,9 +205,7 @@
         CR = root.BattleCommandReception,
         Q = root.BattleSquadStability,
         lease =
-          Q && Q.controllerBound && Q.controllerBound.current
-            ? Q.controllerBound.current(s.squad, b)
-            : null;
+          Q && Q.controllerBound && Q.controllerBound.current ? Q.controllerBound.current(s.squad, b) : null;
       if (
         r.firstCoverSearch == null &&
         Number.isFinite(+e._urgentCoverSearchAt) &&
@@ -267,8 +265,7 @@
             termination: lease.lease.untilReason || null
           };
         }
-        var rec =
-          CR && CR.peek ? CR.peek(s, b, 'movement', 'soldier:' + String(s.id)) : null,
+        var rec = CR && CR.peek ? CR.peek(s, b, 'movement', 'soldier:' + String(s.id)) : null,
           key = r.firstOwnerAction == null ? null : 'controller:' + String(r.firstOwnerAction),
           matched = !!(rec && rec.data && rec.data.publishKey === key);
         if (matched) {
@@ -292,11 +289,9 @@
             blocker(r, t, 'command', 'original-envelope-replaced');
           }
           if (rec.unreachable) r.failureClass = 'unreachable';
-          else if (rec.hops > 1 && rec.phase !== 'adopted')
-            r.failureClass = 'awaiting-relay';
+          else if (rec.hops > 1 && rec.phase !== 'adopted') r.failureClass = 'awaiting-relay';
         }
-        if (r.window && r.window.expiresAt != null && t > r.window.expiresAt &&
-            r.handoffs.adopted == null) {
+        if (r.window && r.window.expiresAt != null && t > r.window.expiresAt && r.handoffs.adopted == null) {
           r.failureClass = 'window-expired-before-adoption';
         }
         if (!bound && r.windowEndedAt == null) r.windowEndedAt = stamp(t);
@@ -305,8 +300,8 @@
           if (['adopted', 'executing', 'arrived'].indexOf(bound.stage) >= 0) mark(r, 'adopted', t);
           if (bound.stage === 'cancelled' || bound.stage === 'published')
             blocker(r, t, 'controller', bound.stage + ':' + bound.reason);
-          if (bound.stage === 'cancelled' && r.handoffs.adopted == null &&
-              !r.failureClass) r.failureClass = 'owner-rejected';
+          if (bound.stage === 'cancelled' && r.handoffs.adopted == null && !r.failureClass)
+            r.failureClass = 'owner-rejected';
           if (bound.stage === 'arrived' && r.coverArrival == null) {
             r.coverArrival = stamp(t);
             r.coverArrivalEvidence = 'engagement:bound-checkin';
@@ -329,8 +324,7 @@
       if (selected) mark(r, 'selected', t);
       else if (r.handoffs.accepted != null && r.handoffs.selected == null) {
         blocker(r, t, 'resolver', last ? 'outranked:' + last.kind : 'no-selected-goal');
-        if (last && last.kind !== 'cover-bound' && !r.failureClass)
-          r.failureClass = 'resolver-preempted';
+        if (last && last.kind !== 'cover-bound' && !r.failureClass) r.failureClass = 'resolver-preempted';
       }
       if (
         r.firstCoverMotion == null &&
@@ -410,19 +404,15 @@
       if (r.movingAtShot) response.movingShots++;
       if (r.firstMotion != null) response.physicalMoves++;
       if (r.firstCoverOrder != null) response.protectiveOrders++;
-      if (r.coverOwner === 'engagement' && r.localAuthorizedAt != null)
-        response.localSurvivalAuthorized++;
-      if (r.coverOwner === 'engagement' && r.handoffs.accepted != null)
-        response.localSurvivalAccepted++;
+      if (r.coverOwner === 'engagement' && r.localAuthorizedAt != null) response.localSurvivalAuthorized++;
+      if (r.coverOwner === 'engagement' && r.handoffs.accepted != null) response.localSurvivalAccepted++;
       if (r.coverOwner === 'controller' && r.firstCoverOrder != null) response.mesoCoverOrders++;
-      if (r.coverOwner === 'controller' && r.handoffs.adopted != null)
-        response.mesoAdoptedCoverOrders++;
+      if (r.coverOwner === 'controller' && r.handoffs.adopted != null) response.mesoAdoptedCoverOrders++;
       if (r.firstCoverMotion != null) response.protectiveMoves++;
       if (r.coverArrival != null) response.protectiveArrivals++;
       if (r.coverCause === 'incoming-fire') response.incomingCoverOrders++;
       if (r.handoffs.accepted != null) response.acceptedCoverOrders++;
-      if (r.coverOwner === 'controller' && r.handoffs.adopted != null)
-        response.adoptedCoverOrders++;
+      if (r.coverOwner === 'controller' && r.handoffs.adopted != null) response.adoptedCoverOrders++;
       if (r.handoffs.selected != null) response.selectedCoverOrders++;
       if (r.handoffs.accepted != null && r.handoffs.selected == null) response.notSelected++;
       if (r.coverArrival != null && r.coverArrival - r.at > WINDOW) response.lateArrivals++;
