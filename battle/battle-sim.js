@@ -241,8 +241,10 @@
   }
   function buildWeaponAudio(scene, audioBase, policy) {
     // Optional, bounded diagnostic override. Unset keeps the shipping 4-voice far floor.
-    var farFloor = policy && policy.farVoices != null
-      ? Math.max(4, Math.min(12, Math.floor(+policy.farVoices) || 4)) : 4;
+    var farFloor =
+      policy && policy.farVoices != null
+        ? Math.max(4, Math.min(12, Math.floor(+policy.farVoices) || 4))
+        : 4;
     var pools = {},
       cursors = {},
       poolStats = {},
