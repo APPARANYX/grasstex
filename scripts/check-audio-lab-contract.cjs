@@ -25,6 +25,19 @@ assert.match(sim, /Math\.min\(64, Math\.floor\(\+policy\.farVoices\)/, 'distant 
 assert.match(lab, /Math\.min\(64, Math\.floor\(Number\(query\.get\('farVoices'\)\)/, 'lab offers 64 distant voices as stress-only override');
 assert.match(lab, /BattleAudioScheduler\.enqueue\(audio,/, 'real propagation scheduler used');
 assert.doesNotMatch(lab, /BattleSim\.start\(|spawnAll\(|updateSoldier\(/, 'no combat ownership effects');
+const full = read('battle/full-audio-stress.js');
+new Function(full);
+assert.match(lab, /BattleFullAudioStress\.create/, 'new full-mix mode installs real audio owners');
+assert.match(lab, /fullMixRunner\.step\(simSeconds\)/, 'audio owners driven under synthetic load');
+for (const owner of ['BattleWeaponFoley', 'BattleCombatAudio', 'BattleGrenadeAudio'])
+  assert.match(full, new RegExp('root\\.' + owner + '\\.install\\(sim,'), owner + ' production audio code');
+assert.match(full, /BattleVoiceScheduler\.enqueue/, 'voice runtime exercised');
+assert.match(full, /sim\.onGrenadeBurst/, 'grenade explosion audio invoked');
+assert.match(full, /sim\.onShot/, 'ballistic audio invoked');
+assert.match(full, /catalogPlayed/, 'catalog coverage separately measured');
+assert.match(lab, /audibleOutputSamples:/, 'nonzero master output verification');
+assert.match(html, /full-audio-stress\.js/, 'full-mix companion loaded');
+assert.match(read('battle/modules/00a-audio-mix.js'), /fullMix=1/, 'lab opt-in uses battle compressor');
 assert.match(lab, /us:\s*\['rifle'/);
 assert.match(lab, /ge:\s*\['rifle'/);
 assert.match(lab, /Number\(query\.get\('squads'\)\) \|\| 5/, 'default five squads per side');
@@ -65,7 +78,9 @@ for (const property of ['simulatedShots', 'audioContextState', 'activeVoices', '
   assert.ok(lab.includes(property), 'missing history field: ' + property);
 for (const script of ['core-runtime.js', 'weapons.js', 'acoustics.js',
   'obstacle-field.js', 'modules/00-audio-format.js', 'modules/00a-audio-mix.js',
-  'modules/12a-listener-acoustics.js', 'battle-sim.js', 'audio-lab.js'])
+  'modules/12a-listener-acoustics.js', 'modules/11-voice-variation.js',
+  'modules/15-weapon-foley-audio.js', 'modules/15-combat-audio.js',
+  'modules/24a-grenade-audio.js', 'battle-sim.js', 'full-audio-stress.js', 'audio-lab.js'])
   assert.ok(html.includes('src="' + script + '"'), 'lab missing required runtime: ' + script);
 assert.ok(deploy.includes('"audio_lab.html"') && deploy.includes('"audio-lab.js"'), 'deployment not managed');
 assert.match(preview, /audio_lab\\\.html/, 'preview launcher not staging lab page');

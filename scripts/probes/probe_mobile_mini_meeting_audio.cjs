@@ -59,6 +59,13 @@ function summary(result) {
     browserErrors: result.errors.length, missingAudio: result.missingAudio.length,
     hiddenSamples: result.frames.filter(x => x.visibility !== 'visible').length,
     audioState: result.ending?.audioContextState || null,
+    voiceStarts: result.ending?.voice?.played || 0,
+    combatEffects: result.ending?.combat?.played || {},
+    grenadeEffects: result.ending?.grenades?.played || {},
+    weaponFoley: result.ending?.foley?.played || {},
+    tacticalCompressor: result.ending?.mix?.tacticalSafety || false,
+    maxOutputRms: Math.max(0, ...result.frames.map(x => x.audioRms || 0)),
+    audioOutputSamples: result.frames.filter(x => x.audioRms > 0.0005).length,
     heapPeakMb: Math.round(Math.max(0, ...frames.map(x => x.heapBytes || 0)) / 1048576),
     screenshot: result.screenshot,
     status: result.status
@@ -83,6 +90,13 @@ function summary(result) {
       const page = await ctx.newPage();
       page.setDefaultTimeout(120000);
       const errors = [], missingAudio = [];
+      page.on('response', r => {
+        if (r.url().includes('/Assets/audio/') && !r.ok()) missingAudio.push(r.status() + ' ' + r.url());
+      });
+      page.on('requestfailed', request => {
+        if (request.url().includes('/Assets/audio/'))
+          missingAudio.push('failed ' + request.url() + ' ' + (request.failure()?.errorText || ''));
+      });
       page.on('pageerror', e => errors.push(String(e.stack || e)));
       page.on('console', msg => {
         if (msg.type() === 'error') {
@@ -135,14 +149,37 @@ function summary(result) {
         });
         await page.waitForFunction(() => !window.__battle__.paused, null, { timeout: 15000 });
         await page.evaluate(() => {
+          const ae = BABYLON.Engine.audioEngine, ctx = ae?.audioContext,
+            master = ae?.masterGain;
+          let analyser = null, probeGain = null;
+          if (ctx && master && ctx.createAnalyser) {
+            analyser = ctx.createAnalyser();
+            analyser.fftSize = 2048;
+            probeGain = ctx.createGain();
+            probeGain.gain.value = 0; // passive monitor; does not modify audible output
+            master.connect(analyser);
+            analyser.connect(probeGain);
+            probeGain.connect(ctx.destination);
+          }
           window.__mobileMiniStats = {
+            analyser, probeGain,
             data: [], timer: setInterval(() => {
+              let audioRms = null;
+              if (analyser) {
+                const raw = new Float32Array(analyser.fftSize);
+                analyser.getFloatTimeDomainData(raw);
+                let sum = 0;
+                for (const v of raw) sum += v * v;
+                audioRms = Math.sqrt(sum / raw.length);
+              }
               const b = window.__battle__, eng = b.scene.getEngine();
               window.__mobileMiniStats.data.push({
                 fps: eng.getFps(), simTime: b.time,
                 visibility: document.visibilityState,
                 heapBytes: performance.memory?.usedJSHeapSize || 0,
-                acousticActive: window.BattleListenerAcoustics?.active || 0
+                acousticActive: window.BattleListenerAcoustics?.active || 0,
+                poolStarts: b._weaponAudio?.summary?.()?.playRequests || 0,
+                audioRms
               });
             }, 1000)
           };
@@ -150,7 +187,10 @@ function summary(result) {
         await page.waitForTimeout(seconds * 1000);
         run.frames = await page.evaluate(() => {
           clearInterval(window.__mobileMiniStats.timer);
-          return window.__mobileMiniStats.data;
+          const m = window.__mobileMiniStats;
+          if (m.analyser) m.analyser.disconnect();
+          if (m.probeGain) m.probeGain.disconnect();
+          return m.data;
         });
         run.ending = await page.evaluate(() => {
           const b = window.__battle__, engine = b.scene.getEngine();
@@ -158,6 +198,13 @@ function summary(result) {
           const value = {
             time: b.time, shots: (window.BattleAudioScheduler?.stats?.received || 0),
             audio: b._weaponAudio?.summary?.() || null,
+            voice: window.BattleVoiceScheduler?.summary?.() || null,
+            combat: b._combatAudio || null,
+            grenades: b._grenadeAudio || null,
+            foley: b._weaponFoley || null,
+            mix: { tacticalSafety: !!window.BattleAudioMix?.tacticalSafety,
+              settings: window.BattleAudioMix?.get?.(),
+              stats: { ...window.BattleAudioMix?.stats } },
             scheduler: { ...window.BattleAudioScheduler?.stats },
             listener: { ...window.BattleListenerAcoustics?.stats },
             listenerLimits: {
@@ -178,6 +225,12 @@ function summary(result) {
         if (!run.start.webGL) throw new Error('WebGL unavailable');
         if (run.frames.length < Math.floor(seconds * 0.7)) throw new Error('frame sampling stalled');
         if (run.frames.some(x => x.visibility !== 'visible')) throw new Error('tab went hidden');
+        if (!run.ending?.audio || !run.ending.audio.playRequests || !run.ending.scheduler?.startedPrimary)
+          throw new Error('INVALID AUDIO STRESS: no real gunshot starts despite live battle');
+        if (!run.frames.some(x => x.poolStarts > 0 && x.audioRms > 0.0005))
+          throw new Error('SILENT AUDIO: no measurable output while gunshot pool active');
+        if (missingAudio.length)
+          throw new Error('AUDIO ASSET FAILURE: ' + missingAudio.slice(0, 3).join('; '));
         run.status = 'completed';
       } catch (e) {
         run.status = 'error: ' + String(e.message || e);

@@ -5,6 +5,8 @@
 (function (root) {
   'use strict';
   var query = new URLSearchParams(location.search);
+  // Original synthetic weapon-only control remains available with ?fullMix=0.
+  var fullMix = query.get('fullMix') === '1', fullMixRunner = null;
   var duration = Math.max(12, Math.min(600, Number(query.get('duration')) || 220));
   var scale = Math.max(1, Math.min(8, Number(query.get('speed')) || 4));
   // A/B-only voice allocation: default matches live battle sound pools exactly.
@@ -119,6 +121,7 @@
       lab.phase = activePhase;
       event('phase', { name: activePhase });
     }
+    if (fullMixRunner) fullMixRunner.step(simSeconds);
     shooters.forEach(function (s) {
       var turns = 0;
       while (s.nextShotAt <= simSeconds && turns++ < 40) {
@@ -175,6 +178,7 @@
       nearRejects: lanes ? lanes.near.rejected : null, farRejects: lanes ? lanes.far.rejected : null,
       simulatedShots: shotCount, shotsSinceLast: shotCount - previousShotCount,
       acousticActive: root.BattleListenerAcoustics ? root.BattleListenerAcoustics.active : null,
+      fullMix: fullMix, fullMixOwners: fullMixRunner ? fullMixRunner.summary() : null,
       acousticTicks: root.BattleListenerAcoustics ? root.BattleListenerAcoustics.stats.acousticTicks : 0,
       acousticTickTotalMs: root.BattleListenerAcoustics ? root.BattleListenerAcoustics.stats.acousticTickTotalMs : 0,
       heapBytes: performance.memory ? performance.memory.usedJSHeapSize : null,
@@ -221,7 +225,8 @@
       schema: 'grasstex-audio-lab/v2', status: status, ref: root.BATTLE_REF || 'static-page',
       url: location.href, seed: 11027, squadSizes: { us: squadsPerSide * 10, ge: squadsPerSide * 10 },
       squadsPerSide: squadsPerSide, rangeBandsMeters: squadRanges.slice(0, squadsPerSide),
-      occlusionMode: occlusionMode,
+      occlusionMode: occlusionMode, fullMix: fullMix,
+      ownerAudio: fullMixRunner ? fullMixRunner.summary() : null,
       propagation: { limits: root.BattleAudioScheduler.limits, stats: root.BattleAudioScheduler.stats,
         lanes: root.BattleAudioScheduler.lanes },
       acousticPriority: !!(root.BattleListenerAcoustics && root.BattleListenerAcoustics.priorityEnabled),
@@ -262,6 +267,7 @@
         maxActiveVoices: max('activeVoices'), maxQueue: max('propagationQueue'),
         maxAcousticActive: max('acousticActive'),
         maxPeak: max('peak'), maxRms: max('rms'), samplesQuietUnderFire: quietUnderFire,
+      audibleOutputSamples: history.filter(function (x) { return x.shotsSinceLast >= 4 && x.rms > .0005; }).length,
         longTasks: longTasks, longTaskMs: Math.round(longTaskMs),
         startingContext: first && first.audioContextState,
         endingContext: last && last.audioContextState },
@@ -331,6 +337,13 @@
     if (ctx.state !== 'running') throw new Error('AudioContext is ' + ctx.state + '; headless Chromium needs --autoplay-policy=no-user-gesture-required');
     if (root.BattleAudioMix) root.BattleAudioMix.ensureLimiter(scene);
     var obstacleCount = configureAcoustics();
+    if (fullMix) {
+      if (!root.BattleFullAudioStress || !root.BattleGrenadeAudio ||
+          !root.BattleWeaponFoley || !root.BattleCombatAudio ||
+          !root.BattleVoiceScheduler || !root.BattleVoiceScheduler.summary)
+        throw new Error('Full-mix audio owners missing; cannot claim coverage');
+      fullMixRunner = root.BattleFullAudioStress.create({ scene: scene, audioBase: audioBase, speed: scale });
+    }
     if (typeof PerformanceObserver !== 'undefined') {
       try {
         obs = new PerformanceObserver(function (list) {
@@ -344,7 +357,9 @@
     await new Promise(function (resolve) { setTimeout(resolve, 2500); });
     event('start', { shooterCount: shooters.length, squadCount: squadsPerSide * 2,
       distanceBands: squadRanges.slice(0, squadsPerSide), occlusionMode: occlusionMode,
-      obstacleCount: obstacleCount, audioContext: ctx.state, capacity: audio.summary().capacity });
+      obstacleCount: obstacleCount, fullMix: fullMix, audioContext: ctx.state,
+      tacticalSafety: !!(root.BattleAudioMix && root.BattleAudioMix.tacticalSafety),
+      capacity: audio.summary().capacity });
     status = 'running'; lab.phase = 'first-contact'; started = true;
     lastWall = performance.now();
     simulationTimer = setInterval(step, 20);

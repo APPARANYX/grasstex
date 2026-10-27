@@ -7,7 +7,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const URL_TO_RUN = process.env.AUDIO_LAB_URL ||
-  'https://test.ivandpopov.com/grasstex/battle/audio_lab.html?log=0&tacticalController=new&squads=5&occlusion=mixed';
+  'https://test.ivandpopov.com/grasstex/battle/audio_lab.html?log=0&tacticalController=new&fullMix=1&squads=5&occlusion=mixed';
 const OUT = process.env.AUDIO_LAB_REPORT ||
   path.resolve(process.cwd(), 'audio-lab-report.json');
 const TIMEOUT = Math.max(15000, Number(process.env.AUDIO_LAB_TIMEOUT_MS) || 240000);
@@ -20,7 +20,18 @@ const TIMEOUT = Math.max(15000, Number(process.env.AUDIO_LAB_TIMEOUT_MS) || 2400
   ] });
   try {
     const page = await browser.newPage({ ignoreHTTPSErrors: true, viewport: { width: 1100, height: 740 } });
-    const runtimeErrors = [];
+    const runtimeErrors = [], missingAudio = [], audioResponses = [];
+    page.on('response', response => {
+      const u = response.url();
+      if (u.includes('/Assets/audio/') && /\.(mp3|caf|ogg)(\?|$)/i.test(u)) {
+        audioResponses.push({ status: response.status(), url: u });
+        if (!response.ok()) missingAudio.push(response.status() + ' ' + u);
+      }
+    });
+    page.on('requestfailed', request => {
+      if (request.url().includes('/Assets/audio/'))
+        missingAudio.push('failed ' + request.url() + ' ' + (request.failure()?.errorText || ''));
+    });
     page.on('pageerror', err => runtimeErrors.push(String(err.stack || err)));
     page.on('console', msg => {
       if (msg.type() === 'error') runtimeErrors.push(msg.text().slice(0, 700));
@@ -29,7 +40,10 @@ const TIMEOUT = Math.max(15000, Number(process.env.AUDIO_LAB_TIMEOUT_MS) || 2400
     if (!response || !response.ok()) throw Error('Lab page HTTP ' + (response ? response.status() : 'no response'));
     await page.waitForFunction(() => window.__audioLab && window.__audioLab.done === true, null, { timeout: TIMEOUT });
     const report = await page.evaluate(() => window.__audioLab.final);
-    report.browser = { userAgent: await page.evaluate(() => navigator.userAgent), pageErrors: runtimeErrors };
+    report.browser = { userAgent: await page.evaluate(() => navigator.userAgent),
+      pageErrors: runtimeErrors, missingAudio: missingAudio.slice(0, 80),
+      audioResponses: audioResponses.length,
+      decodedResponses: audioResponses.filter(x => x.status >= 200 && x.status < 300).length };
     fs.mkdirSync(path.dirname(OUT), { recursive: true });
     fs.writeFileSync(OUT, JSON.stringify(report, null, 2) + '\n');
     console.log('Audio lab:', report.status, '| URL:', URL_TO_RUN);
@@ -53,6 +67,22 @@ const TIMEOUT = Math.max(15000, Number(process.env.AUDIO_LAB_TIMEOUT_MS) || 2400
     if (report.summary.simulatedShots <= 0 || report.summary.playRequests <= 0)
       throw Error('No verified simulated shots / audio playback starts');
     if (report.summary.endingContext !== 'running') throw Error('AudioContext not running at completion');
+    if (!report.summary.audibleOutputSamples)
+      throw Error('SILENT AUDIO: no measurable master signal during gunfire (running context is not proof)');
+    if (missingAudio.length)
+      throw Error('Failed audio file requests: ' + missingAudio.slice(0, 3).join('; '));
+    if (new URL(URL_TO_RUN).searchParams.get('fullMix') === '1') {
+      const o = report.ownerAudio || {}, e = o.eventInputs || {};
+      if (!report.audioMix?.tacticalSafety)
+        throw Error('Full mix is not using the battle tactical compressor');
+      if (!e.fireEvents || !e.combatEvents || !e.grenadeEvents || !e.voiceAccepted || !e.foleyEvents)
+        throw Error('Missing full-mix event coverage: ' + JSON.stringify(e));
+      if (!(o.grenades?.played?.explosion > 0) ||
+          !(o.combat?.played?.impacts > 0) ||
+          !(o.voice?.played > 0) ||
+          !(Object.values(o.foley?.played || {}).reduce((a, b) => a + b, 0) > 0))
+        throw Error('Full-mix owner sound playback not confirmed: ' + JSON.stringify(o));
+    }
     if (runtimeErrors.length) throw Error('Browser errors: ' + runtimeErrors.slice(0, 3).join('; '));
   } finally {
     await browser.close();
