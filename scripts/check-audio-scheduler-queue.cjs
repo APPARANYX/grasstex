@@ -8,7 +8,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 const runtime = fs.readFileSync(path.join(__dirname, '../battle/acoustics.js'), 'utf8');
 
-function fixture(randomValue) {
+function fixture(randomValue, mode) {
   let timeMs = 0;
   const callbacks = [];
   const played = [];
@@ -19,6 +19,7 @@ function fixture(randomValue) {
   vm.runInNewContext(runtime, {
     window: root,
     BABYLON: {},
+    location: { search: mode === 'dual' ? '?audioQueues=dual' : '' },
     Math: math,
     performance: { now: () => timeMs },
     fetch: () => Promise.reject(new Error('fixture: no external acoustics config')),
@@ -85,3 +86,40 @@ assert.ok(echoes.scheduler.stats.evictedEcho > 0, 'new gunshots must evict optio
 assert.equal(echoes.scheduler.stats.evictedPrimary, 0, 'primary gunshots survive optional echo pressure');
 
 console.log('PASS: propagation delay, 128 bounded slots, near-due priority, 2 starts/frame, continuous overload playback and primary-over-echo admission');
+
+const dual = fixture(.99, 'dual');
+dual.frame(100); // make the real far-model throttling window eligible
+assert.equal(dual.scheduler.limits.mode, 'dual');
+assert.equal(dual.scheduler.limits.nearCapacity, 64);
+assert.equal(dual.scheduler.limits.farCapacity, 64);
+for (let i = 0; i < 64; i++) {
+  dual.enqueue('near-' + i, 60);
+  dual.enqueue('far-' + i, 185);
+}
+assert.equal(dual.scheduler.queued, 128);
+assert.equal(dual.scheduler.lanes.near.queued, 64);
+assert.equal(dual.scheduler.lanes.far.queued, 64);
+dual.enqueue('new-near', 60);
+dual.enqueue('new-far', 185);
+assert.equal(dual.scheduler.lanes.near.rejected, 1, 'full near lane rejects later due incoming shots');
+assert.equal(dual.scheduler.lanes.far.rejected, 1, 'full far lane rejects later due incoming shots');
+assert.equal(dual.scheduler.lanes.far.queued, 64, 'near overflow cannot evict far events');
+dual.frame(340);
+assert.equal(dual.played.length, 2, 'with distant arrivals pending, near lane borrows both starts');
+assert.ok(dual.played.every(x => x.kind.startsWith('near-')));
+dual.frame(750);
+assert.equal(dual.played.length, 4, 'two due lanes still share at most two starts per frame');
+assert.ok(dual.played.slice(-2).some(x => x.kind.startsWith('near-')));
+assert.ok(dual.played.slice(-2).some(x => x.kind.startsWith('far-')));
+assert.equal(dual.scheduler.lanes.near.started, 3);
+assert.equal(dual.scheduler.lanes.far.started, 1);
+assert.equal(dual.scheduler.stats.startedPrimary, 4);
+
+const dualNoFar = fixture(.99, 'dual');
+for (let i = 0; i < 5; i++) dualNoFar.enqueue('near-only-' + i, 60);
+dualNoFar.frame(250);
+assert.equal(dualNoFar.played.length, 2, 'unused far lane capacity returns to near queue');
+dualNoFar.frame(270);
+assert.equal(dualNoFar.played.length, 4, 'near queue continues using both slots');
+
+console.log('PASS: dual-queue opt-in, 64/64 limits, independent drops, 2 shared starts and per-lane accounting');
