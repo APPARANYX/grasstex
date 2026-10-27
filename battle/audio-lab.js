@@ -8,7 +8,7 @@
   var duration = Math.max(12, Math.min(600, Number(query.get('duration')) || 220));
   var scale = Math.max(1, Math.min(8, Number(query.get('speed')) || 4));
   // A/B-only voice allocation: default matches live battle sound pools exactly.
-  var farVoices = Math.max(4, Math.min(64, Math.floor(Number(query.get('farVoices')) || 4)));
+  var farVoices = Math.max(4, Math.min(64, Math.floor(Number(query.get('farVoices')) || 32)));
   var seed = 11027;
   var squadsPerSide = Math.max(1, Math.min(6, Math.floor(Number(query.get('squads')) || 5)));
   var occlusionMode = query.get('occlusion') === 'open' ? 'open' : 'mixed';
@@ -226,7 +226,7 @@
         lanes: root.BattleAudioScheduler.lanes },
       acousticPriority: !!(root.BattleListenerAcoustics && root.BattleListenerAcoustics.priorityEnabled),
       acousticHoldMs: root.BattleListenerAcoustics ? root.BattleListenerAcoustics.acousticHoldMs : 0,
-      poolPolicy: { farVoices: farVoices, override: farVoices !== 4 },
+      poolPolicy: { farVoices: farVoices, override: farVoices !== 32 },
       voicePools: audio && audio.detail ? audio.detail() : null,
       speed: scale, simulatedDurationSeconds: duration,
       wallDurationSeconds: +((performance.now() - startTime) / 1000).toFixed(2),
