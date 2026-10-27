@@ -24,7 +24,7 @@ assert.match(
   'extra voices reuse decoded buffer'
 );
 assert.match(section, /voices\[k\]\s*=/, 'extra voices keep stable playback slots');
-assert.match(section, /if\s*\(!voice\)\s*return/, 'not-yet-ready voices do not crash playback');
+assert.match(section, /if\s*\(!voice\)\s*(?:return|\{)/, 'not-yet-ready voices are guarded');
 
 /* Babylon 9's Sound.play() can create another underlying instance while
    isPlaying is true. Instrument that behavior rather than treating a Sound
@@ -123,6 +123,11 @@ for (const [distance, capacity] of [
     'prior shots retain position, gain and rate'
   );
   if (distance === 40) {
+    const nearPool = w.audio.detail()['m:m1-garand'];
+    assert.equal(nearPool.capacity, 6, 'near-pool telemetry preserves the existing capacity');
+    assert.equal(nearPool.attempts, 30, 'every near-pool request is accounted for');
+    assert.equal(nearPool.started, 6, 'real successful near starts are tracked per model');
+    assert.equal(nearPool.droppedBusy, 24, 'saturated near-pool drops are reported per model');
     const available = w.sounds.find(s => s.name === 'm:m1-garandSfx2');
     available.isPlaying = false; // real completion, later than the old 0.9s estimate
     w.shoot(distance, 1);
