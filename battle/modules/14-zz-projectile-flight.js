@@ -174,6 +174,41 @@
       });
     p.active = false;
   }
+  /* Near-miss suppression is tied to the REAL passing trajectory and only
+     extends to the first physical obstruction. A blocked ray cannot pin
+     enemies behind a wall; a shooter likewise cannot suppress a man at the
+     trigger before his bullet approaches. Each bullet pins each man once. */
+  function nearPass(sim, p, to, travel) {
+    if (!S.pin || !sim.rosterOf || !B.bodyShape || travel <= 0) return;
+    var enemies = sim.rosterOf(p.shooter.faction === 'us' ? 'ge' : 'us') || [],
+      start = p.pos,
+      dx = to.x - start.x,
+      dy = to.y - start.y,
+      dz = to.z - start.z,
+      length = Math.hypot(dx, dy, dz) || 1,
+      length2 = length * length,
+      allowed = Math.min(1, travel / length),
+      radius = p.weapon.suppressive ? 2.25 : 0.85;
+    if (!p.pinned) p.pinned = [];
+    for (var i = 0; i < enemies.length; i++) {
+      var e = enemies[i];
+      if (!e || e.dead || p.pinned.indexOf(e) >= 0) continue;
+      var body = B.bodyShape(e, sim),
+        u = clamp(
+          ((body.cx - start.x) * dx + (body.cy - start.y) * dy + (body.cz - start.z) * dz) /
+            length2,
+          0,
+          allowed
+        ),
+        px = start.x + u * dx - body.cx,
+        py = start.y + u * dy - body.cy,
+        pz = start.z + u * dz - body.cz,
+        miss = Math.hypot(px, py, pz);
+      if (miss > radius) continue;
+      S.pin(e, sim, S.SUPPRESSION_TIME * (p.weapon.suppressive ? 1 : 0.35));
+      p.pinned.push(e);
+    }
+  }
   function segment(sim, st, p, dt) {
     var v = speed(p.vel);
     if (!(v > 1) || p.remainingM <= 0) {
@@ -200,6 +235,7 @@
       hit = B.flightCollision(p.shooter, p.pos, next, sim, p.skip),
       fraction = hit ? clamp(hit.distance / Math.max(span, 1e-6), 0, 1) : 1,
       used = maxDt * fraction;
+    nearPass(sim, p, next, span * fraction);
     p.traveledM += span * fraction;
     p.remainingM -= span * fraction;
     p.flightS += used;
@@ -240,8 +276,10 @@
       wound: result
     });
     if (!p.first) p.first = p.passes[0];
-    if (p.player && hit.victim.faction !== p.shooter.faction)
+    if (p.player && hit.victim.faction !== p.shooter.faction) {
       p.shooter._playerConfirmedHits = (p.shooter._playerConfirmedHits || 0) + 1;
+      if (S.noteIncomingFire) S.noteIncomingFire(hit.victim, p.shooter, sim);
+    }
     var chance = B.penetration(p.weapon) * B.THROUGH[zone] * penetrationEnergy;
     if (
       p.passes.length >= MAX_BODIES ||
