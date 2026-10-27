@@ -40,7 +40,16 @@ function world(mode, withGraph, flags) {
         context,
         gain: {
           value: 0,
+          ramps: 0,
           setTargetAtTime(v) {
+            this.value = v;
+          },
+          cancelScheduledValues() {},
+          setValueAtTime(v) {
+            this.value = v;
+          },
+          linearRampToValueAtTime(v) {
+            this.ramps++;
             this.value = v;
           }
         },
@@ -209,6 +218,7 @@ function world(mode, withGraph, flags) {
   assert.equal(w.api.active, 24, 'priority selection never increases filter work budget');
   assert.equal(w.api.stats.replacedCapacity, 1);
   assert.equal(w.api.stats.skippedCapacity, 0);
+  assert.equal(w.api.stats.wetSendRamps, 1, 'priority eviction ramps the wet send rather than disconnecting audio nodes');
   assert.ok(sounds.some(s => s._battleAcousticFilter.frequency.value === 20000),
     'evicted source stays audible with neutral dry acoustic filter');
   assert.equal(w.api.prepare(
@@ -229,5 +239,26 @@ function world(mode, withGraph, flags) {
   assert.equal(w.api.prepare(w.sound, { x: 15, y: 1.6, z: 0 }, 'gun', 0.2, w.scene), false);
   assert.equal(w.api.stats.replacedCapacity, 0);
   assert.equal(w.api.stats.skippedCapacity, 1);
+}
+// A/B minimum-residence guard: no audio steal or filter rebuild under churn.
+// prettier-ignore
+{
+  const w = world('standard', true, '&acousticPriority=1&acousticHoldMs=250');
+  assert.equal(w.api.acousticHoldMs, 250, 'hold guard is controlled by query option');
+  for (let i = 0; i < 24; i++) {
+    w.api.prepare(
+      { getSoundGain: w.sound.getSoundGain, _soundPanner: w.sound._soundPanner, setVolume() {} },
+      { x: 700 + i, y: 1.6, z: 0 }, 'gunDistant', 0.08, w.scene
+    );
+  }
+  assert.equal(w.api.prepare(w.sound, { x: 15, y: 1.6, z: 0 }, 'gun', 0.2, w.scene), false,
+    'early near shot plays dry rather than displacing recently admitted acoustic sources');
+  assert.equal(w.api.stats.replacedCapacity, 0);
+  assert.equal(w.api.stats.deniedHold, 1);
+  w.tick();
+  assert.equal(w.api.prepare(w.sound, { x: 15, y: 1.6, z: 0 }, 'gun', 0.2, w.scene), true,
+    'eligible older record can now be displaced');
+  assert.equal(w.api.stats.replacedCapacity, 1);
+  assert.equal(w.api.active, 24);
 }
 console.log('listener-acoustics-check: PASS');
