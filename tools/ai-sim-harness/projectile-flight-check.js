@@ -9,7 +9,8 @@ function setup(search = '?projectileFlight=1') {
   let system,
     hits = [],
     resolved = [],
-    crossing = [];
+    crossing = [],
+    pins = [];
   const root = {
     location: { search },
     BATTLE_PREVIEW: { isolatedLab: true },
@@ -20,6 +21,7 @@ function setup(search = '?projectileFlight=1') {
       }
     },
     BattleBallistics: {
+      bodyShape: target => ({ cx: target.x, cy: target.y, cz: target.z }),
       penetration: () => 0,
       THROUGH: { chest: 0.7 },
       RETAIN: { chest: 0.45 },
@@ -58,6 +60,8 @@ function setup(search = '?projectileFlight=1') {
       }
     },
     SquadAI: {
+      SUPPRESSION_TIME: 1.2,
+      pin: (target, sim, seconds) => pins.push({ target, at: sim.time, seconds }),
       applyHit: (_shooter, target, _sim, hit) => {
         hits.push(hit);
         target.hp -= hit.energy * 55;
@@ -70,6 +74,7 @@ function setup(search = '?projectileFlight=1') {
     time: 0,
     random: () => 0.99,
     target: { x: 0, y: 1.55, z: 100, hp: 100, faction: 'ge', dead: false },
+    rosterOf: () => [sim.target],
     onShot: (...args) => resolved.push(args)
   };
   const shooter = {
@@ -90,7 +95,7 @@ function setup(search = '?projectileFlight=1') {
     sim.time = time;
     system.onSimulationStep(sim);
   }
-  return { root, sim, shooter, fire, advance, hits, resolved, crossing, system };
+  return { root, sim, shooter, fire, advance, hits, resolved, crossing, pins, system };
 }
 {
   const x = setup();
@@ -147,6 +152,23 @@ function setup(search = '?projectileFlight=1') {
   x.advance(0.25);
   assert.equal(x.hits.length, 0, 'restart deletes pending bullets');
   assert.equal(x.root.BattleProjectileFlight.summary(x.sim).inFlight, 0);
+}
+{
+  const x = setup();
+  x.sim.target.x = 0.65;
+  x.fire();
+  for (let t = 0.05; t <= 0.35; t += 0.05) x.advance(t);
+  assert.equal(x.hits.length, 0, 'a near miss must not create a wound');
+  assert.ok(x.pins.length >= 1, 'passing rounds suppress nearby enemies only upon arrival');
+  assert.ok(x.pins[0].at > 0.05, 'suppression occurs at trajectory, not at trigger');
+}
+{
+  const x = setup();
+  x.sim.target.x = 0.65;
+  x.sim.wallZ = 60;
+  x.fire();
+  for (let t = 0.05; t <= 0.35; t += 0.05) x.advance(t);
+  assert.equal(x.pins.length, 0, 'physical cover prevents downstream suppression');
 }
 console.log(
   'PASS: projectile travel, delayed impact, moving-target miss, obstruction, gravity, energy, off flag, restart'
