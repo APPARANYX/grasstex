@@ -207,6 +207,7 @@
       squadsPerSide: squadsPerSide, rangeBandsMeters: squadRanges.slice(0, squadsPerSide),
       occlusionMode: occlusionMode,
       propagation: { limits: root.BattleAudioScheduler.limits, stats: root.BattleAudioScheduler.stats },
+      voicePools: audio && audio.detail ? audio.detail() : null,
       speed: scale, simulatedDurationSeconds: duration,
       wallDurationSeconds: +((performance.now() - startTime) / 1000).toFixed(2),
       manifestUrl: audioBase + 'manifest.json', audioFormat: root.BattleAudioFormat.state,
