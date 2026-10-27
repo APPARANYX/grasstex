@@ -2315,17 +2315,23 @@
               route = root.BattleTacticalContactRoute,
               unsafe = (s.suppressedUntil || 0) > battle.time || underFireNow(s, battle);
             task.transitGait =
-              !unsafe &&
-              reports.length &&
-              route &&
-              route.evaluate(s, battle, task.point, reports, false, 'stand').eligible
-                ? 'sprint'
-                : 'crouchRun';
+              s.prone && (s.crawling || unsafe)
+                ? 'fastCrawl'
+                : !unsafe &&
+                    reports.length &&
+                    route &&
+                    route.evaluate(s, battle, task.point, reports, false, 'stand').eligible
+                  ? 'sprint'
+                  : 'crouchSprint';
           }
           transitStance(
             s,
             battle,
-            task.transitGait === 'sprint' ? 'stand' : 'crouch',
+            task.transitGait === 'sprint'
+              ? 'stand'
+              : task.transitGait === 'fastCrawl'
+                ? 'crawl'
+                : 'crouch',
             1,
             'controller:covered-bound'
           );

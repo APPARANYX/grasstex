@@ -196,6 +196,22 @@ function tick(f) {
   assert.equal(f.s.crawling, false);
 }
 
+{
+  const f = fixture();
+  const e = f.s.eng;
+  e.state = 'bound';
+  const destination = { x: f.s.root.position.x, z: f.s.root.position.z + 12 };
+  const intent = { kind: 'cover-bound', urgent: true };
+  e.transitStance = { at: f.b.time, state: 'bound', stance: 'crouch', reason: 'controller:covered-bound' };
+  assert.equal(f.r.BattleSoldierIndividuality.transitPlan(f.s, f.b, intent, destination).gait, 'crouchSprint');
+  e.transitStance.stance = 'crawl';
+  assert.equal(f.r.BattleSoldierIndividuality.transitPlan(f.s, f.b, intent, destination).gait, 'fastCrawl');
+  e.transitStance.stance = 'stand';
+  assert.equal(f.r.BattleSoldierIndividuality.transitPlan(f.s, f.b, intent, destination).gait, 'sprint');
+  e.transitStance = null;
+  assert.equal(f.r.BattleSoldierIndividuality.transitPlan(f.s, f.b, { kind: 'hold' }, destination), null);
+}
+
 console.log(
   'PASS native autonomous movement handoff: warning, final cover approach, stable contact gait and withdrawal'
 );

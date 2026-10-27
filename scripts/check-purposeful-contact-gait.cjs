@@ -96,4 +96,28 @@ root.PhaseCCombatLab.movementPace = 'baseline';
 root.BattleModules.system.onSimulationStep({ time: 12, units: [s] });
 assert.equal(s._locomotionGait, 'crouchWalk');
 assert.ok(s._locomotionGroundSpeed >= 0.7 && s._locomotionGroundSpeed <= 1.0);
-console.log('PASS purposeful contact gait: native movement bands, baseline and safety gates');
+/* Distinct committed movement speeds are not global multipliers or new movement writers. */
+const crouchSprint = soldier(12, 'cover-bound', true, {
+  eng: { state: 'bound' },
+  _bodyAutonomyIntent: { at: sim.time, kind: 'cover-bound', stance: 'crouch', gait: 'crouchSprint' }
+});
+root.BATTLE_AUTONOMOUS_MOVEMENT = true;
+assert.equal(gait.desiredGait(crouchSprint, sim), 'crouchSprint');
+root.BattleModules.system.onSimulationStep({ time: 12, units: [crouchSprint] });
+assert.ok(crouchSprint._locomotionGroundSpeed >= 3.7 && crouchSprint._locomotionGroundSpeed <= 4.8);
+assert.ok(crouchSprint._locomotionGroundSpeed > crouchSprint.phenotype.gaits.crouchRun);
+assert.ok(Math.abs(crouchSprint.speed * 0.58 - crouchSprint._locomotionGroundSpeed) < 0.01);
+
+const rapidCrawl = soldier(12, 'cover-bound', true, {
+  tacticalCrouch: false, prone: true, crawling: true,
+  eng: { state: 'bound' },
+  _bodyAutonomyIntent: { at: sim.time, kind: 'cover-bound', stance: 'crawl', gait: 'fastCrawl' }
+});
+assert.equal(gait.desiredGait(rapidCrawl, sim), 'fastCrawl');
+root.BattleModules.system.onSimulationStep({ time: 12, units: [rapidCrawl] });
+assert.ok(rapidCrawl._locomotionGroundSpeed >= 0.8 && rapidCrawl._locomotionGroundSpeed <= 1.25);
+assert.ok(rapidCrawl._locomotionGroundSpeed > rapidCrawl.phenotype.gaits.proneFast);
+assert.ok(Math.abs(rapidCrawl.speed * 0.23 - rapidCrawl._locomotionGroundSpeed) < 0.01);
+const plain = soldier(12, 'formation', false);
+assert.equal(gait.desiredGait(plain, sim), 'crouchWalk', 'ordinary movement stays cautious');
+console.log('PASS purposeful contact gait: native movement bands, baseline and new sprint/crawl classes');
