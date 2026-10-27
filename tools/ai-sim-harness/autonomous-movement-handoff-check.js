@@ -206,6 +206,11 @@ function tick(f) {
   assert.equal(f.r.BattleSoldierIndividuality.transitPlan(f.s, f.b, intent, destination).gait, 'crouchSprint');
   e.transitStance.stance = 'crawl';
   assert.equal(f.r.BattleSoldierIndividuality.transitPlan(f.s, f.b, intent, destination).gait, 'fastCrawl');
+  const phenotype = f.r.BattleSoldierIndividuality.phenotype(f.s);
+  assert.ok(phenotype.gaits.crouchSprint >= 3.7 && phenotype.gaits.crouchSprint <= 4.8);
+  assert.ok(phenotype.gaits.fastCrawl >= 0.8 && phenotype.gaits.fastCrawl <= 1.25);
+  assert.ok(phenotype.gaits.crouchSprint > phenotype.gaits.crouchRun);
+  assert.ok(phenotype.gaits.fastCrawl > phenotype.gaits.proneFast);
   e.transitStance.stance = 'stand';
   assert.equal(f.r.BattleSoldierIndividuality.transitPlan(f.s, f.b, intent, destination).gait, 'sprint');
   e.transitStance = null;
