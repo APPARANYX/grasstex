@@ -161,11 +161,7 @@
         flightSeconds: first ? p.firstFlightS : p.flightS,
         impactVelocity: first ? p.firstVelocity : speed(p.vel),
         muzzleVelocity: p.profile.v0,
-        retainedEnergy: clamp(
-          Math.pow((first ? p.firstVelocity : speed(p.vel)) / p.profile.v0, 2),
-          0,
-          1
-        ),
+        retainedEnergy: clamp(Math.pow((first ? p.firstVelocity : speed(p.vel)) / p.profile.v0, 2), 0, 1),
         stoppedBy: first ? 'soldier' : why,
         blocker: (collision && collision.blocker) || null,
         surface: first ? 'blood' : (collision && collision.surface) || 'dirt',
