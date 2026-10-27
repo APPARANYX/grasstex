@@ -28,7 +28,9 @@
     wet = null,
     serial = 0;
   var TICK_MS = quality === 'high' ? 125 : 200;
-  var defaultActive = quality === 'high' ? 36 : 24;
+  // 50v50 native-browser stress established headroom at 96/192 records.
+  // Mobile starts at the same full budget; reduce only after mobile Mini Map evidence.
+  var defaultActive = quality === 'high' ? 192 : 96;
   var slotsMatch = /(?:^|[?&])acousticSlots=(\d+)(?:&|$)/.exec(
     typeof location !== 'undefined' ? location.search || '' : ''
   );
