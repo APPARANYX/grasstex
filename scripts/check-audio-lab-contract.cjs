@@ -34,6 +34,11 @@ assert.match(scheduler, /audioQueues=dual/, 'dual-queue experiment is opt-in');
 assert.match(scheduler, /LANE_CAPACITY = 64/, 'bounded 64-slot lane caps');
 assert.match(acoustics, /acousticPriority=1/, 'priority acoustics experiment is opt-in');
 assert.match(acoustics, /stats\.replacedCapacity\+\+/, 'priority preemption telemetry');
+assert.match(acoustics, /acousticHoldMs/, 'bounded optional minimum acoustic record residence');
+assert.match(acoustics, /linearRampToValueAtTime/, 'displaced reverb send ramps instead of snapping');
+assert.match(lab, /acousticHoldMs: root\.BattleListenerAcoustics/, 'lab records acoustic residence A/B option');
+assert.match(sim, /maxClipSeconds:/, 'lab pool summaries expose decoded weapon sample length');
+
 assert.match(lab, /acousticPriority: !!/, 'acoustic priority mode is reported');
 
 assert.match(lab, /audio\.detail\(\)/, 'per-model near and distant audio pool pressure included');
