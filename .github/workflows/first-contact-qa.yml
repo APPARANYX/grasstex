@@ -1,0 +1,57 @@
+name: First Contact Evidence 680
+on:
+  pull_request:
+    paths:
+      - 'battle/modules/44-combat-urgency.js'
+      - 'battle/modules/44a-first-contact-observer.js'
+      - 'scripts/probes/probe_first_contact.cjs'
+      - 'tools/ai-sim-harness/first-contact-observer-check.js'
+      - '.github/workflows/first-contact-qa.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  first-contact:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Syntax and deterministic observer
+        run: |
+          node --check battle/modules/44-combat-urgency.js
+          node --check battle/modules/44a-first-contact-observer.js
+          node --check scripts/probes/probe_first_contact.cjs
+          node --check tools/ai-sim-harness/first-contact-observer-check.js
+          node tools/ai-sim-harness/first-contact-observer-check.js
+      - name: Install Chromium
+        run: |
+          php -l battle_sim_local.php
+          npm install --no-save --no-package-lock playwright@1.58.2
+          npx playwright install --with-deps chromium
+      - name: Start native local PHP battle
+        run: |
+          mkdir -p /tmp/contact-site
+          ln -s "$GITHUB_WORKSPACE" /tmp/contact-site/grasstex
+          PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8765 -t /tmp/contact-site >/tmp/contact-php.log 2>&1 &
+          for i in $(seq 1 35); do
+            if curl -fsS 'http://127.0.0.1:8765/grasstex/battle_sim_local.php?seed=contact-health' >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          tail -100 /tmp/contact-php.log
+          exit 1
+      - name: Native paired US-German contact benchmark
+        env:
+          FIRST_CONTACT_SECONDS: '135'
+          FIRST_CONTACT_SEEDS: 'mini-meeting-676-001,mini-meeting-676-002'
+        run: node scripts/probes/probe_first_contact.cjs
+      - if: failure()
+        run: tail -100 /tmp/contact-php.log || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: first-contact-680-evidence
+          path: reports/first-contact-680/
+          if-no-files-found: warn
+          retention-days: 14
