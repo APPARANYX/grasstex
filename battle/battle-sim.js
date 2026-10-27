@@ -1020,6 +1020,8 @@
     buildSky: buildSky,
     applyScenarioTerrain: applyScenarioTerrain,
     start: start,
+    /* Standalone audio lab uses the exact shipping pool implementation without spawning combat. */
+    buildWeaponAudio: buildWeaponAudio,
     moveTransportPassenger: moveTransportPassenger,
     AI_TICK: AI_TICK
   };
