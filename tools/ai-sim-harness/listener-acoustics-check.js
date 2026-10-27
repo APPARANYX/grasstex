@@ -184,6 +184,7 @@ function world(mode, withGraph, flags) {
   }
   assert.equal(w.api.active, 24, 'standard caps acoustic sources, extras play dry');
 }
+// prettier-ignore
 {
   const w = world('standard', true, '&acousticPriority=1');
   assert.equal(w.api.priorityEnabled, true, 'priority admission is an explicit experiment');
@@ -217,6 +218,7 @@ function world(mode, withGraph, flags) {
   assert.equal(w.api.stats.skippedCapacity, 1);
   assert.equal(w.api.stats.replacedCapacity, 1);
 }
+// prettier-ignore
 {
   const w = world('standard', true);
   assert.equal(w.api.priorityEnabled, false, 'shipping default retains FIFO acoustics');
