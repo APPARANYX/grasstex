@@ -14,6 +14,7 @@
   );
   var quality = match ? match[1] : 'standard';
   // A/B admission only. The existing 24/36 filter slots and mix remain unchanged.
+  // prettier-ignore
   var priorityEnabled = typeof location !== 'undefined' &&
     /(?:^|[?&])acousticPriority=1(?:&|$)/.test(location.search || '');
   var sim = null,
@@ -264,6 +265,7 @@
     running = true;
     setTimeout(tick, TICK_MS);
   }
+  // prettier-ignore
   function importance(source, kind, gain, scene) {
     var p = point(typeof source === 'function' ? source() : source),
       L = listener(scene);
@@ -274,6 +276,7 @@
     var weight = kind === 'voice' ? 5 : kind === 'gun' ? 3 : kind === 'gunDistant' ? 1 : 0.6;
     return (weight * Math.max(0, finite(gain, 0))) / (1 + distance(p, L) / 140);
   }
+  // prettier-ignore
   function neutralize(e) {
     if (!e || !e.sound) return;
     var f = e.sound._battleAcousticFilter || e.filter,
@@ -283,6 +286,7 @@
       if (send) send.gain.value = 0;
     } catch (_) {}
   }
+  // prettier-ignore
   function prepare(sound, source, kind, baseGain, scene) {
     if (quality === 'off' || !sound || !scene) return false;
     var e = null;
