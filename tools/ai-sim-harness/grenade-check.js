@@ -167,6 +167,21 @@ test('explicit covered-assault opportunity preserves personal intel, range, frie
   r.BattleTacticalController.controls = () => false;
   assert.equal(G.assaultThrow(s, b), null, 'legacy controller cannot invoke the explicit finisher');
 });
+test('35m throwing reach adds eligible contacts but preserves 26m friendly clearance', () => {
+  const ctx = setup();
+  const { G, b, s, r } = ctx;
+  r.BattleTacticalController = { controls: () => true };
+  assert.equal(G.TUNING.RANGE, 35);
+  assert.equal(G.TUNING.FRIEND_CLEAR, 26);
+  const enemy = victim(ctx, 34, 0);
+  s.target = enemy;
+  r.SquadAI.rememberSeen(s, enemy, b, true, 'extended-range-safe-throw');
+  assert.ok(G.assaultOpportunity(s, b), 'a fresh personal contact at 34m is in range');
+  const friend = man(ctx, 'us', 34, 0);
+  assert.equal(G.assaultOpportunity(s, b), null, 'friendly in fragment field still vetoes a throw');
+  friend.root.position.x = -35;
+  assert.ok(G.assaultOpportunity(s, b), 'clear landing permits the extended throw');
+});
 test('AI rejects an exposed ally 16m from the aim although the old 13m gate would pass', () => {
   const ctx = setup();
   const { G, b, s, r } = ctx;

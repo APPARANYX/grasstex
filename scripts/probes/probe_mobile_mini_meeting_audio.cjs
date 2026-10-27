@@ -123,8 +123,16 @@ function summary(result) {
             webGL: !!b.scene.getEngine()._gl
           };
         });
-        await page.locator('#controls button[data-speed="4"]').click();
-        await page.locator('#startBtn').click();
+        // Mobile Mini Map hides toolbar controls. Dispatch their registered
+        // handlers programmatically, while retaining real rendered frames/audio.
+        // Headless Chromium is launched with explicit autoplay permission.
+        await page.evaluate(() => {
+          const speed = document.querySelector('#controls button[data-speed="4"]');
+          const start = document.querySelector('#startBtn');
+          if (!speed || !start) throw new Error('Mini Map speed/start controls missing');
+          speed.click();
+          start.click();
+        });
         await page.waitForFunction(() => !window.__battle__.paused, null, { timeout: 15000 });
         await page.evaluate(() => {
           window.__mobileMiniStats = {

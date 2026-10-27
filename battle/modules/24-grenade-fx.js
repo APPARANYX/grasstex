@@ -350,6 +350,9 @@ void main(void) {
       var p = api.position(g, battle.time),
         age = Math.max(0, battle.time - g.releasedAt);
       node.position.set(p.x, p.y + 0.04, p.z);
+      /* Imported Mk2/M24 grenades are near-invisible at the tactical camera.
+         Visual scale only: arc, impact, damage, and hand-held scale are unchanged. */
+      node.scaling.setAll(age < g.flight ? 1.9 : 1.45);
       B.Quaternion.FromEulerAnglesToRef(
         age < g.flight ? age * 8 : Math.PI / 2,
         g.id * 1.7,

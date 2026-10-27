@@ -18,7 +18,7 @@
   }
   var ON = parseOn(typeof location !== 'undefined' ? location.search : '');
   var TUNING = Object.freeze({
-    RANGE: 30,
+    RANGE: 35, // Longer reach preserves the 26m fragmentation-clearance gate.
     CONF_MIN: 0.5,
     CONTACT_FRESH: 6,
     DECISION_EVERY: 1.5,
@@ -341,30 +341,37 @@
      Unlike the legacy opportunistic choice, a clear rifle line does not veto
      the requested grenade. Personal intel, ROE and all physical/safety gates
      still belong to this owner; callers cannot supply an unseen aim point. */
-  function assaultOpportunity(s, battle) {
+  /* Read-only, first-rejection diagnostics. No extra grenade authorization,
+     no knowledge of hidden enemies and no new decision clock. */
+  function assaultAssessment(s, battle) {
     var E = root.BattleEngagement,
       TC = root.BattleTacticalController,
       sq = s && s.squad;
-    if (
-      !sq ||
-      !TC ||
-      !TC.controls(battle, sq) ||
-      s.isPlayer ||
-      s.incapacitated ||
-      s.moving ||
-      (s.eng && s.eng.urgentBound) ||
-      (root.BattleTacticalPositions && root.BattleTacticalPositions.current(s)) ||
-      sq.state === 'retreat' ||
-      sq.commandPhase === 'retreat' ||
-      s.suppressedUntil > battle.time ||
-      !available(s, battle) ||
-      (E && (E.reacting(s) || !E.fireAuthorized(s, battle)))
-    )
-      return null;
+    function no(reason) {
+      return { ok: false, reason: reason };
+    }
+    if (!sq || !battle || !TC || !TC.controls(battle, sq)) return no('no-controller');
+    if (s.isPlayer || s.dead || s.incapacitated) return no('actor-ineligible');
+    if (s.moving || (s.eng && s.eng.urgentBound)) return no('already-moving');
+    if (root.BattleTacticalPositions && root.BattleTacticalPositions.current(s))
+      return no('claimed-firing-station');
+    if (sq.state === 'retreat' || sq.commandPhase === 'retreat') return no('squad-retreat');
+    if (s.suppressedUntil > battle.time) return no('suppressed');
+    if (!ON || count(s) <= 0) return no('no-grenades');
+    if (cooldownLeft(s, battle) > 0) return no('grenade-cooldown');
+    if (!available(s, battle)) return no('thrower-unavailable');
+    if (E && E.reacting(s)) return no('stress-reaction');
+    if (E && !E.fireAuthorized(s, battle)) return no('personal-fire-gate');
     var aim = aimFor(s, battle);
-    if (!aim || !friendClear(s, battle, aim)) return null;
+    if (!aim) return no('no-fresh-in-range-personal-contact');
+    if (!friendClear(s, battle, aim)) return no('friendly-fragment-risk');
     var path = preview(s, battle, aim);
-    return path && path.legal ? aim : null;
+    if (!path || !path.legal) return no('ballistic-throw-blocked');
+    return { ok: true, reason: 'eligible', aim: aim };
+  }
+  function assaultOpportunity(s, battle) {
+    var result = assaultAssessment(s, battle);
+    return result.ok ? result.aim : null;
   }
   function assaultThrow(s, battle) {
     var aim = assaultOpportunity(s, battle);
@@ -596,6 +603,7 @@
     playerThrow: playerThrow,
     consider: consider,
     assaultOpportunity: assaultOpportunity,
+    assaultAssessment: assaultAssessment,
     assaultThrow: assaultThrow,
     reviewDue: reviewDue,
     preview: preview,

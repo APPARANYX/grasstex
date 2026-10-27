@@ -131,9 +131,18 @@ function summarizeSamples(samples) {
     squadContactSamples: contactSamples,
     stationClaimSamples: stationClaims,
     supportingShotsDuringBoundMotion: supporterShootingWhileBoundMoving,
-    startedCoveredWindows: maxStarts,
-    completedCoveredWindows: maxCompleted,
-    abortedCoveredWindows: maxAborted,
+    /* Matched window lifecycles: no rolling history/person arrivals/failures mix. */
+    startedCoveredWindows: last.maneuvers.reduce((n, z) => n + (z.windowsStarted || 0), 0),
+    completedCoveredWindows: last.maneuvers.reduce((n, z) => n + (z.windowsCompleted || 0), 0),
+    partiallyCompletedCoveredWindows: last.maneuvers.reduce((n, z) => n + (z.windowsPartiallyCompleted || 0), 0),
+    abortedCoveredWindows: last.maneuvers.reduce((n, z) => n + (z.windowsAborted || 0), 0),
+    acceptedPersonalOrders: last.maneuvers.reduce((n, z) => n + (z.personalOrdersAccepted || 0), 0),
+    rejectedPersonalOrders: last.maneuvers.reduce((n, z) => n + (z.personalOrdersRejected || 0), 0),
+    interruptedPersonalOrders: last.maneuvers.reduce((n, z) => n + (z.personalOrdersInterrupted || 0), 0),
+    neverSubmittedPlannedMovers: last.maneuvers.reduce((n, z) => n + (z.plannedNeverSubmitted || 0), 0),
+    legacyMaxSoldierArrivals: maxCompleted,
+    legacyMaxPlannedMoverFailures: maxAborted,
+    legacyRollingHistoryStarts: maxStarts,
     maxOrderConflictsSnapshot: maxConflicts,
     usMovementConflicts: Array.from(usMovementConflicts.values()),
     totalPhysicalArrivals: maxArrivals,
@@ -175,16 +184,28 @@ function summarizeSamples(samples) {
         labCover: c.cover || 'staggered',
         labRange: '1',
         tacticalController: c.arm,
-        strategicInterception: '0'
+        strategicInterception: '0',
+        labDuration: String(SIM_SECONDS),
+        labMove: c.arm === 'new' && c.cover === 'mixed' ? 'autonomous' : 'baseline',
+        stressAct: c.arm === 'new' && c.cover === 'mixed' ? '0' : 'all'
       });
       await page.goto(BASE + '?' + params, { waitUntil: 'domcontentloaded', timeout: 120000 });
       await page.waitForFunction(() => window.BattleSkillsLab?.snapshot()?.targetCount === 10, null, {
         timeout: 120000
       });
+      await page.addScriptTag({ path: 'scripts/probes/covered-maneuver-observer.js' });
+      await page.evaluate(() => (window.coveredTrace = installCoveredManeuverObserver(__battle__)));
       const first = await page.evaluate(() => BattleSkillsLab.snapshot());
       assert.equal(first.controller, c.arm, 'matched requested controller flag');
       assert.equal(first.rangeDistanceM, c.distance, 'matched native starting distance');
       assert.equal(first.targetDeaths, 0, 'targets begin inert');
+      assert.equal(first.durationLimitSeconds, SIM_SECONDS, 'native lab has explicit time cap');
+      assert.equal(
+        first.movementPace,
+        c.arm === 'new' && c.cover === 'mixed' ? 'autonomous' : 'baseline',
+        'native gait A/B policy is explicit'
+      );
+      assert.ok(first.gaitTelemetry && first.gaitTelemetry.coveredBounds, 'gait exporter is installed');
       const captured = await page.evaluate(
         ({ seconds, retreat }) => {
           const sim = window.__battle__,
@@ -234,6 +255,11 @@ function summarizeSamples(samples) {
         },
         { seconds: SIM_SECONDS, retreat: c.retreat }
       );
+      const trace = await page.evaluate(() => coveredTrace);
+      fs.writeFileSync(
+        dir + '/' + c.distance + 'm-' + (c.cover || 'staggered') + '-trace.json',
+        JSON.stringify(trace, null, 2)
+      );
       const summary = summarizeSamples(captured);
       summary.premise = c.retreat ? 'native-casualty-stage' : 'none';
       summary.browserErrors = errors.length;
@@ -249,6 +275,31 @@ function summarizeSamples(samples) {
       }
       assert.equal(summary.maxTargetDriftM, 0, 'range targets are physically stationary');
       assert.ok(summary.simulatedSeconds >= SIM_SECONDS - 0.2, 'full timed native drill completed');
+      assert.ok(summary.simulatedSeconds <= SIM_SECONDS + 0.251, 'cap prevents a long drift into retreat');
+      assert.equal(captured[captured.length - 1].lab.durationCapReached, true, 'lab paused at time cap');
+      assert.equal(captured[captured.length - 1].lab.paused, true, 'time cap pauses without victory');
+      const gaitData = captured[captured.length - 1].lab.gaitTelemetry;
+      if (c.arm === 'new') {
+        const diagnosticSquads = captured[captured.length - 1].lab.squads.filter(s =>
+          s.id.startsWith('us:')
+        );
+        assert.ok(
+          diagnosticSquads.some(s => s.grenadeDiagnostic && s.grenadeDiagnostic.reasons),
+          'active native contact owner exports grenade refusal reasons'
+        );
+        assert.ok(
+          diagnosticSquads.every(s => Number.isInteger(s.supportRelocationsStarted)),
+          'covered-maneuver owner exports support-role relocation counts'
+        );
+      }
+      assert.ok(Object.keys(gaitData.byGait).length > 0, 'native simulation captured physical gait');
+      if (c.arm === 'new' && summary.totalPhysicalArrivals > 0) {
+        assert.ok(Object.keys(gaitData.coveredBounds).length > 0, 'arriving native bounds have measured gait');
+        assert.ok(
+          Object.values(gaitData.coveredBounds).every(g => g.distanceM > 0 && g.averageActualMps > 0),
+          'covered gait summary includes actual physical displacement and speed'
+        );
+      }
       if (c.arm === 'new')
         assert.ok(summary.controllerOwnedSquadSamples > 0, 'new controller must actually take ownership');
       else
