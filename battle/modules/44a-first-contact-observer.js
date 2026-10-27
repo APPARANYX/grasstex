@@ -94,12 +94,7 @@
       });
       /* TC.summary().live has no faction. Never ascribe a colliding enemy ID. */
       var actors = units.filter(function (u) {
-        return (
-          u &&
-          u.squad &&
-          String(u.id) === String(man.id) &&
-          String(u.squad.id) === String(man.squad.id)
-        );
+        return u && u.squad && String(u.id) === String(man.id) && String(u.squad.id) === String(man.squad.id);
       });
       return actors.length === 1 && matching.length === 1 ? matching[0] : null;
     }
@@ -127,9 +122,7 @@
                 ? +(t - evidence.report.at).toFixed(3)
                 : null,
             reportedDistance:
-              evidence.report && p && pt(evidence.report)
-                ? +dist(p, pt(evidence.report)).toFixed(2)
-                : null,
+              evidence.report && p && pt(evidence.report) ? +dist(p, pt(evidence.report)).toFixed(2) : null,
             initialState: e.state || null,
             initialExposure:
               root.BattleObstacleField && root.BattleObstacleField.coverPotentialAt && p
@@ -188,12 +181,7 @@
         +e._urgentCoverSearchAt > t
       )
         r.firstCoverSearch = stamp(t);
-      if (
-        early &&
-        r.firstLow == null &&
-        !r.initialLow &&
-        (s.prone || s.tacticalCrouch || s.crouching)
-      )
+      if (early && r.firstLow == null && !r.initialLow && (s.prone || s.tacticalCrouch || s.crouching))
         r.firstLow = +t.toFixed(3);
       if (
         early &&
@@ -203,13 +191,7 @@
         r.firstHold = +t.toFixed(3);
       var A = root.BattleAmmunition,
         shot = A && A.shotEvidence && A.shotEvidence(s, b);
-      if (
-        early &&
-        r.firstShot == null &&
-        shot &&
-        Number.isFinite(+shot.at) &&
-        +shot.at >= r.at - 0.001
-      ) {
+      if (early && r.firstShot == null && shot && Number.isFinite(+shot.at) && +shot.at >= r.at - 0.001) {
         r.firstShot = +(+shot.at).toFixed(3);
         r.movingAtShot = !!s.moving;
       }
@@ -235,8 +217,7 @@
         r.firstOwnerAction = r.firstOwnerAction || bound.actionId;
         if (r.firstOwnerAction === bound.actionId) {
           if (bound.stage !== 'cancelled') mark(r, 'accepted', t);
-          if (['adopted', 'executing', 'arrived'].indexOf(bound.stage) >= 0)
-            mark(r, 'adopted', t);
+          if (['adopted', 'executing', 'arrived'].indexOf(bound.stage) >= 0) mark(r, 'adopted', t);
           if (bound.stage === 'cancelled' || bound.stage === 'published')
             blocker(r, t, 'controller', bound.stage + ':' + bound.reason);
           if (bound.stage === 'arrived' && r.coverArrival == null) {
@@ -251,8 +232,7 @@
           mark(r, 'adopted', t); // survival authority is local, not a received Meso envelope
         } else blocker(r, t, 'resolver', 'urgent-proposal-not-current');
       }
-      if (last && last.kind === 'cover-bound' && last.owner === 'engagement')
-        mark(r, 'selected', t);
+      if (last && last.kind === 'cover-bound' && last.owner === 'engagement') mark(r, 'selected', t);
       else if (r.handoffs.accepted != null && r.handoffs.selected == null)
         blocker(r, t, 'resolver', last ? 'outranked:' + last.kind : 'no-selected-goal');
       if (
@@ -267,8 +247,7 @@
       if (progress && progress.stuck)
         blocker(r, t, 'navigation', progress.terminal ? 'terminal-no-progress' : 'no-progress');
       if (result && result.state === 'held') blocker(r, t, 'command', 'held:' + result.by);
-      else if (result && result.state === 'pending')
-        blocker(r, t, 'command', 'pending:' + result.why);
+      else if (result && result.state === 'pending') blocker(r, t, 'command', 'pending:' + result.why);
       if (s._movementStopReason && r.firstCoverMotion == null)
         blocker(r, t, 'execution', s._movementStopReason);
       if (
@@ -352,11 +331,13 @@
       ['motionToArrival', 'physicalStart', 'arrived'],
       ['cueToArrival', null, 'arrived']
     ].forEach(function (row) {
-      timings[row[0]] = distribution(data.map(function (r) {
-        var from = row[1] ? r.handoffs[row[1]] : r.at,
-          to = r.handoffs[row[2]];
-        return from == null || to == null ? NaN : to - from;
-      }));
+      timings[row[0]] = distribution(
+        data.map(function (r) {
+          var from = row[1] ? r.handoffs[row[1]] : r.at,
+            to = r.handoffs[row[2]];
+          return from == null || to == null ? NaN : to - from;
+        })
+      );
     });
     return {
       enabled: true,
