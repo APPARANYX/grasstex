@@ -387,6 +387,7 @@
     return {
       keyFor: keyFor,
       // Snapshot by exact near/far model key; not read during normal battle ticks.
+      // prettier-ignore
       detail: function () {
         var byPool = {};
         Object.keys(poolStats).forEach(function (key) {
