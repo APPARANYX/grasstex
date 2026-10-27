@@ -289,4 +289,83 @@ function harness(search) {
   assert.equal(h.root.BattleFirstContactObserver.summary(h.sim).soldiers[0].commandReplaced, true);
   assert.equal(h.root.BattleFirstContactObserver.summary(h.sim).soldiers[0].command.envelopeId, 'cmd-7');
 }
+
+/* Native combat urgency counter contract: serialized counters must not be NaN. */
+{
+  const urgentSource = fs.readFileSync('battle/modules/44-combat-urgency.js', 'utf8');
+  function urgentFixture(suppressed) {
+    let afterDrill;
+    const b = { time: 1, obstacles: [] };
+    const man = {
+      id: 8,
+      faction: 'us',
+      dead: false,
+      reloading: false,
+      clearingStoppage: false,
+      suppressedUntil: suppressed ? 5 : 0,
+      incoming: !suppressed,
+      squad: { state: 'advance' },
+      root: { position: { x: 0, z: 0 } },
+      eng: { state: 'advance' },
+      report: { x: 0, z: 30, at: 1, source: 'reported' }
+    };
+    const root = {
+      location: { search: '?firstContactResponse=1' },
+      BATTLE_PREVIEW: true,
+      GTMath: {
+        dist: (a, c) => Math.hypot(a.x - c.x, a.z - c.z)
+      },
+      GTLog: () => {},
+      SquadAI: {
+        soldierContact: s => s.report,
+        threatDisposition: () => ({ combatThreat: true })
+      },
+      BattleObstacleField: { coverPotentialAt: () => 0.96 },
+      BattleModules: {
+        unitsFor: () => [man],
+        registerSystem: () => {}
+      },
+      BattleMovementResolver: {
+        proposeCombat: (s, point, battle, kind) => ({
+          owner: 'engagement',
+          kind: kind,
+          intentPoint: point
+        })
+      },
+      BattleEngagement: {
+        extend: (slot, name, fn) => {
+          if (slot === 'afterDrill') afterDrill = fn;
+        },
+        stateOf: s => s.eng,
+        underFireNow: s => !!s.incoming,
+        findCover: () => ({ x: 4, z: 0, distance: 4 }),
+        requestState: (s, battle) => {
+          s.eng.state = 'bound';
+          s.eng.until = battle.time + 5;
+        },
+        markUrgent: () => {},
+        commitStance: () => {},
+        clearUrgent: () => {}
+      }
+    };
+    vm.runInNewContext(urgentSource, { window: root, globalThis: root, console });
+    assert.equal(typeof afterDrill, 'function');
+    afterDrill(man, b);
+    const first = root.BattleCombatUrgency.summary(b);
+    afterDrill(man, b);
+    const second = root.BattleCombatUrgency.summary(b);
+    return { first, second };
+  }
+  for (const suppressed of [true, false]) {
+    const { first, second } = urgentFixture(suppressed);
+    assert.equal(first.urgentCoverStarts, 1, 'one physically eligible urgent cover start');
+    assert.equal(second.urgentCoverStarts, 1, 'maintaining an order cannot recount a start');
+    for (const key of ['suppressedCoverStarts', 'unsuppressedIncomingCoverStarts']) {
+      assert.ok(Number.isFinite(first[key]), key + ' must be finite in serialized telemetry');
+      assert.equal(second[key], first[key], key + ' increments exactly once');
+    }
+    assert.equal(first.suppressedCoverStarts, suppressed ? 1 : 0);
+    assert.equal(first.unsuppressedIncomingCoverStarts, suppressed ? 0 : 1);
+  }
+}
 console.log('PASS: independent owner stages, reported/sound cues and late physical arrivals');
