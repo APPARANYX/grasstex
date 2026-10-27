@@ -12,7 +12,7 @@ const SOURCE = fs.readFileSync(
   'utf8'
 );
 
-function world(mode, withGraph) {
+function world(mode, withGraph, flags) {
   let clock = 1000;
   const timers = [];
   let obstruct = false;
@@ -86,7 +86,7 @@ function world(mode, withGraph) {
   };
   const ctx = {
     BABYLON: { Engine: { audioEngine: { masterGain: context.destination } } },
-    location: { search: '?acoustics=' + mode },
+    location: { search: '?acoustics=' + mode + (flags || '') },
     console,
     performance: { now: () => clock },
     setTimeout(fn) {
@@ -183,5 +183,49 @@ function world(mode, withGraph) {
     w.api.prepare(s, { x: i + 15, y: 1.6, z: 0 }, 'gun', 0.2, w.scene);
   }
   assert.equal(w.api.active, 24, 'standard caps acoustic sources, extras play dry');
+}
+{
+  const w = world('standard', true, '&acousticPriority=1');
+  assert.equal(w.api.priorityEnabled, true, 'priority admission is an explicit experiment');
+  const sounds = [];
+  for (let i = 0; i < 24; i++) {
+    const far = {
+      getSoundGain: w.sound.getSoundGain,
+      _soundPanner: w.sound._soundPanner,
+      setVolume(v) { this.volume = v; }
+    };
+    sounds.push(far);
+    w.api.prepare(far, { x: 700 + i, y: 1.6, z: 0 }, 'gunDistant', 0.08, w.scene);
+  }
+  assert.equal(w.api.active, 24);
+  const replaced = {
+    getSoundGain: w.sound.getSoundGain,
+    _soundPanner: w.sound._soundPanner,
+    setVolume(v) { this.volume = v; }
+  };
+  assert.equal(w.api.prepare(replaced, { x: 15, y: 1.6, z: 0 }, 'gun', 0.2, w.scene), true,
+    'close gunfire replaces the least important distant acoustic record');
+  assert.equal(w.api.active, 24, 'priority selection never increases filter work budget');
+  assert.equal(w.api.stats.replacedCapacity, 1);
+  assert.equal(w.api.stats.skippedCapacity, 0);
+  assert.equal(sounds[0]._battleAcousticFilter.frequency.value, 20000,
+    'evicted source stays audible with neutral dry acoustic filter');
+  assert.equal(w.api.prepare(
+    { getSoundGain: w.sound.getSoundGain, _soundPanner: w.sound._soundPanner, setVolume() {} },
+    { x: 900, y: 1.6, z: 0 }, 'gunDistant', 0.001, w.scene
+  ), false, 'low-value distant sounds do not evict more important tracked shots');
+  assert.equal(w.api.stats.skippedCapacity, 1);
+  assert.equal(w.api.stats.replacedCapacity, 1);
+}
+{
+  const w = world('standard', true);
+  assert.equal(w.api.priorityEnabled, false, 'shipping default retains FIFO acoustics');
+  for (let i = 0; i < 24; i++) {
+    const far = { getSoundGain: w.sound.getSoundGain, _soundPanner: w.sound._soundPanner, setVolume() {} };
+    w.api.prepare(far, { x: 700, y: 1.6, z: 0 }, 'gunDistant', 0.08, w.scene);
+  }
+  assert.equal(w.api.prepare(w.sound, { x: 15, y: 1.6, z: 0 }, 'gun', 0.2, w.scene), false);
+  assert.equal(w.api.stats.replacedCapacity, 0);
+  assert.equal(w.api.stats.skippedCapacity, 1);
 }
 console.log('listener-acoustics-check: PASS');
