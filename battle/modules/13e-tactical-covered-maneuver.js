@@ -269,10 +269,12 @@
           [],
           retained && retained.mission === ctx.squad._macroMission ? retained : null
         );
-      if (!route.point ||
-          !C.candidates(mover, ctx.sim, reports[0], R.tuning.maxHop).some(function (p) {
-            return Math.hypot(p.x - route.point.x, p.z - route.point.z) < 0.01;
-          }))
+      if (
+        !route.point ||
+        !C.candidates(mover, ctx.sim, reports[0], R.tuning.maxHop).some(function (p) {
+          return Math.hypot(p.x - route.point.x, p.z - route.point.z) < 0.01;
+        })
+      )
         continue;
       audit.teams.push({
         team: 'alpha',
@@ -520,8 +522,7 @@
         var id = String(p.man.id);
         return !st.arrived.has(id) && !st.interrupted.has(id);
       });
-    if (!h || !h.armed || !h.moverIds || st.supportRelocation || active.length >= MAX_PARALLEL_MOVERS)
-      return;
+    if (!h || !h.armed || !h.moverIds || st.supportRelocation || active.length >= MAX_PARALLEL_MOVERS) return;
     var excluded = new Set(
       active
         .map(function (p) {

@@ -194,8 +194,11 @@ test('leader and machine gun require two real forward firing riflemen before a s
   assert.equal(h.movers.length, 1);
   assert.equal(h.movers[0], gunner);
   assert.ok(h.holders.includes(leader), 'the squad leader remains available to command');
-  assert.equal(Q.controllerBound.begin(w.q, w.b, { ...param, moverId: String(leader.id) }), null,
-    'one support move at a time');
+  assert.equal(
+    Q.controllerBound.begin(w.q, w.b, { ...param, moverId: String(leader.id) }),
+    null,
+    'one support move at a time'
+  );
   assert.ok(Q.controllerBound.end(w.q, w.b, h));
   w.E.supportDischarged = original;
   clean(w);

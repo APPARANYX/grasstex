@@ -1313,7 +1313,7 @@
       return (
         s !== man &&
         s !== A.leaderOf(sq) &&
-        (special ? s === supportMan : !A.isMachineGun(s)) &&
+        !A.isMachineGun(s) &&
         boundMember(s, battle) &&
         Math.hypot(s.root.position.x - goal.x, s.root.position.z - goal.z) <= remaining - 24 &&
         Math.hypot(s.root.position.x - man.root.position.x, s.root.position.z - man.root.position.z) >= 20 &&
@@ -1383,7 +1383,7 @@
           : params.moverId
             ? String(s.id) === params.moverId
             : teamKeyFor(s) === params.team) &&
-        !A.isMachineGun(s) &&
+        (special ? s === supportMan : !A.isMachineGun(s)) &&
         boundMember(s, battle)
       );
     });

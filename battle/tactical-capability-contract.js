@@ -207,13 +207,11 @@
     if (
       !record(p, def.parameters) ||
       !def.parameters.every(function (k) {
-        return (
-          ((k === 'moverId' || k === 'moverIds' || k === 'supportRelocation') &&
-            request.capability === 'maneuver.cover') ||
+        return ((k === 'moverId' || k === 'moverIds' || k === 'supportRelocation') &&
+          request.capability === 'maneuver.cover') ||
           (k === 'point' && request.capability === 'combat.contact')
           ? true
-          : Object.hasOwn(p, k)
-        );
+          : Object.hasOwn(p, k);
       })
     )
       return fail('invalid-parameters');
