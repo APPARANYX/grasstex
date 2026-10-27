@@ -299,7 +299,15 @@
         return;
       }
       var result = defense
-          ? R.pickDefense(s, ctx.sim, personalReports, goal, defense.radius, team, pending ? retained : null)
+          ? R.pickDefense(
+              s,
+              ctx.sim,
+              personalReports,
+              goal,
+              defense.radius,
+              team,
+              pending ? retained : null
+            )
           : R.pick(s, ctx.sim, personalReports, goal, [], pending ? retained : null),
         record = {
           team: team,
@@ -321,9 +329,11 @@
       if (!result.point) return;
       /* The long-horizon planner must hand over a slot Engagement currently
          recognizes for this individual. Exact range and physical checks stay. */
-      if (!C.candidates(s, ctx.sim, personalReports[0], R.tuning.maxHop).some(function (p) {
-        return Math.hypot(p.x - result.point.x, p.z - result.point.z) < 0.01;
-      })) {
+      if (
+        !C.candidates(s, ctx.sim, personalReports[0], R.tuning.maxHop).some(function (p) {
+          return Math.hypot(p.x - result.point.x, p.z - result.point.z) < 0.01;
+        })
+      ) {
         record.result = 'execution-owner-cover-candidate-absent';
         return;
       }

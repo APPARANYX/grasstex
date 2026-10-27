@@ -146,6 +146,24 @@ test('the module installs the verbatim set back into engagement.js through the c
   assert.equal(api.warm.length, 1, 'warm(battle)');
 });
 
+test('owner cover discovery padding retains valid short slots and exact hop limit', () => {
+  const f = fixture([hedge()]),
+    threat = { x: 0, z: 60 },
+    F = f.r.BattleObstacleField,
+    native = F.nearby,
+    original = f.C.candidates(f.s, f.b, threat, 26);
+  assert.ok(original.length > 0, 'real obstacle-backed cover fixture required');
+  const slotId = original[0].slotId;
+  F.nearby = (obstacles, x, z, radius) => (radius > 27 ? native(obstacles, x, z, radius) : []);
+  try {
+    const found = f.C.candidates(f.s, f.b, threat, 26);
+    assert.ok(found.some(p => p.slotId === slotId), 'standoff slot should survive nearby prefilter');
+    assert.ok(found.every(p => p.distance <= 26), 'discovery padding must never extend hop');
+  } finally {
+    F.nearby = native;
+  }
+});
+
 test('the parent seam keeps the pre-split names, arities and the spacing export', () => {
   const r = H.bootstrap({ modules: false }),
     E = r.BattleEngagement,

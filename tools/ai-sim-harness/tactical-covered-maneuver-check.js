@@ -234,16 +234,22 @@ test('advance waits for real discharges, personal movement adoption, physical ar
   assert.ok(new Set(arrived).size >= 2, 'different soldiers check in independently');
   clean(w);
 });
-test('refusal of one personal bound preserves an already accepted peer order',()=>{
-  const w=world(), E=w.r.BattleEngagement.controllerCombat, native=E.bound;
-  let requested=0;
-  E.bound=function(){requested++;if(requested===2)return null;return native.apply(this,arguments);};
-  until(w,()=>requested>=2 && w.M.summary(w.q)?.phase==='moving',40);
-  assert.ok(live(w,'combat.bound').length>=1,'a valid peer order must survive');
-  assert.equal(w.M.summary(w.q).personalOrdersRejected,1);
-  assert.equal(w.M.summary(w.q).windowsStarted,1);
-  until(w,()=>w.M.summary(w.q).checkins>=1,35);
-  assert.ok(w.M.summary(w.q).personalOrdersAccepted>=1);
+test('refusal of one personal bound preserves an already accepted peer order', () => {
+  const w = world(),
+    E = w.r.BattleEngagement.controllerCombat,
+    native = E.bound;
+  let requested = 0;
+  E.bound = function () {
+    requested++;
+    if (requested === 2) return null;
+    return native.apply(this, arguments);
+  };
+  until(w, () => requested >= 2 && w.M.summary(w.q)?.phase === 'moving', 40);
+  assert.ok(live(w, 'combat.bound').length >= 1, 'a valid peer order must survive');
+  assert.equal(w.M.summary(w.q).personalOrdersRejected, 1);
+  assert.equal(w.M.summary(w.q).windowsStarted, 1);
+  until(w, () => w.M.summary(w.q).checkins >= 1, 35);
+  assert.ok(w.M.summary(w.q).personalOrdersAccepted >= 1);
   clean(w);
 });
 test('recently firing riflemen can continue covered movement while two real shooters remain', () => {
