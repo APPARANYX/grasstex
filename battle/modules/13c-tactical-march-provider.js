@@ -75,16 +75,19 @@
     }
     var leader = A.leaderOf && A.leaderOf(sq);
     if (leader && C && C.boundThreats && C.boundThreats(leader, sim).length) return true;
-    var c = A.squadContact && A.squadContact(sq, sim),
-      age = E && E.tuning ? E.tuning.ALERT_HOLD : 4.5;
-    return !!(
-      c &&
-      !c.heard &&
-      c.source !== 'heard' &&
-      Number.isFinite(+c.at) &&
-      +c.at <= sim.time &&
-      sim.time - +c.at <= age
-    );
+    var age = +(E && E.tuning && E.tuning.ALERT_HOLD) || 4.5,
+      contacts = [A.squadContact && A.squadContact(sq, sim), sq.contact];
+    return contacts.some(function (c) {
+      return (
+        c &&
+        !c.heard &&
+        c.source !== 'heard' &&
+        Number.isFinite(+c.at) &&
+        +c.at <= sim.time &&
+        sim.time - +c.at <= age &&
+        (!c.unit || !A.threatDisposition || A.threatDisposition(c.unit).combatThreat)
+      );
+    });
   }
   function stateOf(sq) {
     var st = squads.get(sq);
@@ -137,7 +140,8 @@
     var sq = ctx.squad,
       st = stateOf(sq),
       Q = root.BattleSquadStability,
-      contactHazard = sq.inContact && (!QUIET_CONTACT_RECOVERY || contactStillCredible(sq, ctx.sim));
+      contactHazard =
+        sq.inContact && (!QUIET_CONTACT_RECOVERY || contactStillCredible(sq, ctx.sim));
     /* The resolver treats either as retreat; so does the provider. */
     if (sq.state === 'retreat' || sq.commandPhase === 'retreat') return standDown(ctx, st, 'retreat');
     if (!st.target || !Q || !Q.formationSlots) return;
