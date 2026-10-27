@@ -18,7 +18,7 @@ fs.mkdirSync(DIR, { recursive: true });
   });
   const results = [];
   try {
-    for (const physics of ['hitscan', 'flight'])
+    for (const physics of ['hitscan', 'flight', 'flight-calibrated'])
       for (const variant of ['baseline', 'half'])
         for (const seed of SEEDS) {
           const page = await browser.newPage({ ignoreHTTPSErrors: true });
@@ -41,8 +41,9 @@ fs.mkdirSync(DIR, { recursive: true });
             seed,
             pinSeed: '1',
             meetingStartHalf: variant === 'half' ? '1' : '0',
-            projectileFlight: physics === 'flight' ? '1' : '0',
-            combatTempo: physics === 'flight' ? '1' : '0'
+            projectileFlight: physics !== 'hitscan' ? '1' : '0',
+            combatAccuracy: physics === 'flight-calibrated' ? '1' : '0',
+            combatTempo: physics !== 'hitscan' ? '1' : '0'
           });
           await page.goto(BASE + '?' + params, { waitUntil: 'domcontentloaded', timeout: 120000 });
           await page.waitForFunction(
@@ -419,7 +420,7 @@ fs.mkdirSync(DIR, { recursive: true });
           );
           assert.equal(
             data.flight?.enabled,
-            physics === 'flight',
+            physics !== 'hitscan',
             'projectile flight A/B active only when requested'
           );
           assert.equal(
@@ -451,7 +452,7 @@ fs.mkdirSync(DIR, { recursive: true });
           assert.equal(data.timeline[0].controller.new, 4, 'all four original squads owned on first sample');
           assert.equal(data.maxima.faults, 0, 'controller faults');
           assert.ok(data.tempo.resolvedRounds.us + data.tempo.resolvedRounds.ge > 0, 'real shots resolved');
-          if (physics === 'flight') {
+          if (physics !== 'hitscan') {
             assert.ok(data.flight.fired > 0, 'physical rounds launched');
             assert.ok(data.flight.resolved > 0, 'physical rounds traveled to a terminal event');
             assert.ok(data.flight.meanFlightSeconds > 0, 'positive simulated bullet time of flight');
