@@ -182,7 +182,7 @@ function summarizeSamples(samples) {
         timeout: 120000
       });
       await page.addScriptTag({ path: 'scripts/probes/covered-maneuver-observer.js' });
-      await page.evaluate(() => window.coveredTrace = installCoveredManeuverObserver(__battle__));
+      await page.evaluate(() => (window.coveredTrace = installCoveredManeuverObserver(__battle__)));
       const first = await page.evaluate(() => BattleSkillsLab.snapshot());
       assert.equal(first.controller, c.arm, 'matched requested controller flag');
       assert.equal(first.rangeDistanceM, c.distance, 'matched native starting distance');
@@ -237,7 +237,10 @@ function summarizeSamples(samples) {
         { seconds: SIM_SECONDS, retreat: c.retreat }
       );
       const trace = await page.evaluate(() => coveredTrace);
-      fs.writeFileSync(dir + '/' + c.distance + 'm-' + (c.cover || 'staggered') + '-trace.json', JSON.stringify(trace,null,2));
+      fs.writeFileSync(
+        dir + '/' + c.distance + 'm-' + (c.cover || 'staggered') + '-trace.json',
+        JSON.stringify(trace, null, 2)
+      );
       const summary = summarizeSamples(captured);
       summary.premise = c.retreat ? 'native-casualty-stage' : 'none';
       summary.browserErrors = errors.length;

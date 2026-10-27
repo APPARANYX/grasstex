@@ -51,6 +51,8 @@ jobs:
           SKILLS_DRILL_PRIMARY_ONLY: '1'
           SKILLS_DRILL_REQUIRE_GRENADES: '1'
         run: node scripts/probes/probe_skills_lab_drills.cjs
+      - name: Single-seed live covered-maneuver meeting after lab acceptance
+        run: node scripts/probes/probe_covered_meeting.cjs
       - if: failure()
         run: tail -120 /tmp/skills-lab-php.log || true
       - uses: actions/upload-artifact@v4
@@ -60,6 +62,7 @@ jobs:
           path: |
             reports/skills-lab/
             reports/skills-lab-drills/
+            reports/covered-meeting/
           if-no-files-found: warn
           retention-days: 14
   preview:
