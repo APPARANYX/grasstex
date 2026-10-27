@@ -195,8 +195,7 @@
       if (!e || e.dead || p.pinned.indexOf(e) >= 0) continue;
       var body = B.bodyShape(e, sim),
         u = clamp(
-          ((body.cx - start.x) * dx + (body.cy - start.y) * dy + (body.cz - start.z) * dz) /
-            length2,
+          ((body.cx - start.x) * dx + (body.cy - start.y) * dy + (body.cz - start.z) * dz) / length2,
           0,
           allowed
         ),
