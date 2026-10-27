@@ -396,8 +396,23 @@
         stationIngress = !!(goal && goal.kind === 'firing-station'),
         safeToTransit = (+s.suppressedUntil || 0) <= now,
         briskContact =
-          purposeful && safeToTransit && d > 1.5 && (stationIngress || (s.squad && s.squad.inContact));
-      return urgent || e.state === 'bound' || briskContact || (s.squad && s.squad.inContact && d > 4)
+          purposeful && safeToTransit && d > 1.5 && (stationIngress || (s.squad && s.squad.inContact)),
+        /* Preview A/B: a protected position change in actual contact should
+           not turn into a slow crouch-walk merely because squad.inContact
+           flickered false during the move. This does NOT authorize movement,
+           change cover choice, override pinned/prone/reloading or affect holds. */
+        tempoOn =
+          !!root.BATTLE_PREVIEW &&
+          /[?&]combatTempo=1(?:&|$)/.test((root.location && root.location.search) || ''),
+        protectiveMove =
+          tempoOn &&
+          safeToTransit &&
+          d > 2.5 &&
+          !!(s.target || (s.squad && s.squad.inContact)) &&
+          !!goal &&
+          (goal.kind === 'cover-bound' || goal.kind === 'firing-station' || goal.kind === 'assault-rush');
+      return urgent || e.state === 'bound' || briskContact || protectiveMove ||
+        (s.squad && s.squad.inContact && d > 4)
         ? 'crouchRun'
         : 'crouchWalk';
     }
