@@ -144,3 +144,51 @@ The single quiet sample in each trial occurs at 0.24 simulated seconds, during i
 At 16 voices, most far-pool busy drops came from Thompson (275), MP40 (192), M1 Garand (154), MG42 (145), M1919A6 (59), FG42 (53), Kar98k (6). At **32 voices**, only Thompson (16) and MP40 (7) remain; all other exercised distant models have zero busy drops. The far-pool drop reduction is **97.4%**, while far playback starts increase **29.0%** and total successful weapon starts **15.7%**. This is stronger evidence of an effective far-pool configuration than the earlier 64-voice test, which was confounded by an extended scheduler stall and lost primaries.
 
 **Decision:** 32 distant voices/model is the leading *candidate for high-quality 50v50 1× audio*, not yet a universal production default. Sixteen is markedly more lossy at this load. Sixty-four may provide diminishing returns beyond 32, but replicate 32/64 under continuously visible tabs before drawing a causal conclusion; test combat-mode cost, acoustic placement quality, actual listening, and 4× stress. The full-acoustic 24-record limit remains: capacity skips rise from 4,201 to 5,106 while admissions stay almost unchanged. Do not interpret more total audible gunfire as more occlusion-filtered voices. Production far-floor=4 and PR draft status stay unchanged pending explicit adoption.
+
+## Native browser acoustic and scheduler budget sweep (7 completed trials)
+
+GitHub Actions [run 40553411581](https://github.com/APPARANYX/grasstex/actions/runs/40553411581), artifact `acoustic-budget-matrix` (ID `12756183695`), completed **seven** one-tab native Chromium 50v50 trials on the exact staged draft PR head `66b1bfc9a43f`. All trials: mixed obstacles, priority acoustics, `farVoices=32`, same seed/scenario, AudioContext active, zero hidden samples, zero JS errors, zero long tasks, zero reported clipping, one initial quiet-under-fire sample (before propagation) in each. **These are browser-measured data, distinct from deterministic mock admission tests.** See raw artifact for per-frame histories and per-weapon pools.
+
+### Listener processing slots at 1×, 60 simulated seconds
+
+| Metric | 24 slots | 48 slots | 96 slots | 192 slots |
+|---|---:|---:|---:|---:|
+| Simulated shots | 7,223 | 7,230 | 7,213 | 7,228 |
+| Primary queue starts | 4,903 | 4,890 | 4,892 | 4,829 |
+| Primary queue event losses | 0 | 0 | 0 | 0 |
+| Acoustic admissions `prepared` | 1,662 | 2,786 | 4,351 | 6,162 |
+| Acoustic capacity bypasses | **5,134** | **3,963** | **2,138** | **124** |
+| Acoustic preemptions | 737 | 992 | 1,165 | 668 |
+| Total acoustic tick wall time | 80.0 ms | 124.2 ms | 220.8 ms | 364.8 ms |
+| Worst individual acoustic tick | 0.8 ms | 0.8 ms | 4.4 ms | 2.2 ms |
+| Total weapon pool starts | 6,796 | 6,749 | 6,489 | 6,286 |
+| Weapon-pool busy drops | 563 | 510 | 712 | 904 |
+| Distant-pool busy drops | 21 | 9 | 107 | 152 |
+| Peak playing voices | 191 | 192 | 276 | 269 |
+| Max output peak | 0.2917 | 0.2758 | 0.2608 | 0.2636 |
+
+Higher listener caps greatly reduce bypasses: **96 slots prevents 58.4% of baseline bypasses; 192 prevents 97.6%**, while the acoustic tick's combined measured time across the full ~65 wall-second run increases by ~285 ms (80→365 ms). These are main-thread JS update timings; they **do not measure the Web Audio renderer thread, device CPU, graph memory, or perceptual quality**. All runs used an automated headless Chromium audio context, not a listening panel. The observed pool playback changes across runs are confounded by burst timing, scheduling variability and pool occupancy and should not be attributed automatically to the acoustic slot count. The original 24 standard / 36 high cap was a **code-selected safeguard**, not a measured hardware maximum.
+
+**Additional root cause:** The listener currently reserves most gun sounds in its active acoustic-record list for 1,700 ms after preparation, although measured near-field clips commonly end at 900 ms and far-field clips at 1,500 ms. The new counter `trackedIdleOnTick` recorded 2,203 / 4,087 / 5,961 / 5,240 idle-track samples at 24/48/96/192 respectively. These counts measure periodic checks, **not unique silent records**; they warrant a separate early-release experiment before choosing how many slots to ship.
+
+### Scheduler capacity/throughput at 4×, 60 simulated seconds
+
+All three keep acoustic slots=96 and far voices/model=32.
+
+| Measure | Queue 128 / 2 starts | Queue 256 / 2 starts | Queue 256 / 4 starts |
+|---|---:|---:|---:|
+| Simulated shots | 7,204 | 7,206 | 7,148 |
+| Primary scheduler starts | 1,800 | 1,929 | **3,344** |
+| Primary event losses | 2,110 | 1,953 | **522** |
+| Echo event losses | 563 | 565 | 431 |
+| Successful weapon starts | 1,447 | 1,679 | **2,735** |
+| Busy weapon-pool drops | 729 | 737 | **2,129** |
+| Peak playing voices | 163 | 174 | **291** |
+| Max output peak | 0.270 | 0.2524 | 0.3401 |
+| Long tasks / clipping / JS errors | 0 | 0 | 0 |
+
+Doubling *only* queue capacity keeps an existing 2-starts/frame throughput constraint and reduces primary losses by only ~7.4%. Doubling the start budget to 4 (with 256 queue slots) reduces those losses ~75.3% versus the 128/2 control but shifts congestion into the already-playing voice pools (busy drops rise 729→2,129) and increases active voices and output energy. This is **4× accelerated time**, while real sound clip duration is unscaled: not a reason to use 4 starts/frame for normal 1× production. Max `maxDueLatenessMs` varies 0.9–2.9 sec across trials despite regular RAF callback gaps: this is a max over primary **and** lower-priority echoes and does not by itself establish foreground RAF suspension. Instrument separate late-primary vs late-echo maxima for attribution.
+
+### Recommendation / merge gate
+
+Keep the proven **single 128-event scheduler with 2 starts/frame** as the 1× default. No queue loss occurred at 1× in any of these four browser runs. Continue to test **96 versus 192 listener slots** in real battles and listening A/B, including front-end CPU, audio graph stability, acoustic occlusion intelligibility and alternate devices. The measured foreground acoustic tick cost makes 192 plausible, but the baseline 24 cap should **not** be raised to 192 by fiat without real engagement validation. Prioritize early-release of finished sound acoustic records and separating primary/echo overdue diagnostics, rather than adding more backlog blindly. Retain 32 far-field voices/model as the high-quality stress profile; do not alter shipping defaults from this research branch until expressly approved.
