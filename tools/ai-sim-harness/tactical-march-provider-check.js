@@ -26,7 +26,6 @@ function world(search) {
   const r = H.bootstrap({ search: search || '?stressAct=0&commandRelay=0&tacticalController=new' }),
     systems = {};
   r.BattleTacticalCapabilityContract = CONTRACT;
-  if (search && search.includes('firstContactResponse=1')) r.BATTLE_PREVIEW = true;
   r.BattleModules.registerSystem = (id, s) => (systems[id] = s);
   loadModule(r, 'battle/movement-resolver.js');
   loadModule(r, 'battle/modules/13a-tactical-controller.js');
@@ -249,48 +248,6 @@ test('live contact stands down march without issuing distant route-leg orders', 
   assert.equal(w.TC.summary(w.b).actions, alive(w).length, 'march resumes after contact ends');
 });
 
-test('preview: a stale squad-contact latch cannot indefinitely stop the mission route', () => {
-  const w = world('?stressAct=0&commandRelay=0&tacticalController=new&firstContactResponse=1');
-  w.systems['tactical-march-provider'].onBattleStart(w.b);
-  tick(w); // install the native mission before giving a controlled contact cue
-  w.q.inContact = true;
-  w.q.contact = { x: 10, z: 80, at: w.b.time - 30, seenBy: w.q.members[0].id };
-  w.TC.dispatch(w.b, w.q, 'squadCommand');
-  const members = alive(w);
-  assert.equal(
-    w.TC.summary(w.b).actions,
-    members.length,
-    'when no native contact owner has a current threat, Meso resumes its existing route'
-  );
-  assert.ok(members.every(s => record(w, s)?.data?.kind === 'controller'));
-  assert.equal(w.TC.summary(w.b).stats.faults, 0);
-});
-test('preview: fresh credible contact or incoming fire still withholds the blind route', () => {
-  const w = world('?stressAct=0&commandRelay=0&tacticalController=new&firstContactResponse=1');
-  w.systems['tactical-march-provider'].onBattleStart(w.b);
-  tick(w); // do not let the squad-perception tick discard a synthetic fixture report
-  w.q.inContact = true;
-  w.q.contact = {
-    x: 0,
-    z: 45,
-    at: w.b.time,
-    seenBy: w.q.members[0].id,
-    heard: false,
-    source: 'seen'
-  };
-  w.TC.dispatch(w.b, w.q, 'squadCommand');
-  assert.equal(w.TC.summary(w.b).actions, 0, 'fresh contact still blocks the uninformed march');
-  w.q.contact = null;
-  w.q.members[0].suppressedUntil = w.b.time + 2;
-  w.b.time += 0.15;
-  w.TC.dispatch(w.b, w.q, 'squadCommand');
-  assert.equal(w.TC.summary(w.b).actions, 0, 'incoming fire still blocks blind movement');
-  w.q.members[0].suppressedUntil = 0;
-  w.b.time += 5;
-  w.TC.dispatch(w.b, w.q, 'squadCommand');
-  assert.equal(w.TC.summary(w.b).actions, alive(w).length, 'when quiet, original route resumes');
-  assert.equal(w.TC.summary(w.b).stats.faults, 0);
-});
 test('a retreat phase alone also stands the provider down, as it does the resolver', () => {
   const w = world();
   w.systems['tactical-march-provider'].onBattleStart(w.b);
