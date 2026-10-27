@@ -32,8 +32,9 @@ function harness(search) {
       }
     },
     BattleEngagement: { underFireNow: s => !!s.incoming },
-    SquadAI: { threatDisposition: () => ({ combatThreat: true }), soldierContact: () => null },
-    BattleAmmunition: { shotEvidence: s => s.shot || null }
+    SquadAI: { threatDisposition: () => ({ combatThreat: true }), soldierContact: s => s.report || null },
+    BattleAmmunition: { shotEvidence: s => s.shot || null },
+    BattleObstacleField: { coverPotentialAt: () => 0.96 }
   };
   vm.runInNewContext(source, { window: root, globalThis: root, console });
   const sim = { time: 0 };
@@ -64,6 +65,8 @@ function harness(search) {
   h.man.eng._urgentCoverCause = 'incoming-fire';
   h.man.eng.cover = { x: 4, z: 0 };
   h.man._movementResolver.goal = { kind: 'cover-bound' };
+  h.man._movementResolver.combat = { kind: 'cover-bound', owner: 'engagement' };
+  h.man._movementResolver.last = { kind: 'cover-bound', owner: 'engagement' };
   h.man.moving = true;
   h.man.moveSpeed = 3;
   h.tick(0.75);
@@ -80,6 +83,9 @@ function harness(search) {
   assert.equal(o.response.protectiveMoves, 1);
   assert.equal(o.response.protectiveArrivals, 1);
   assert.equal(o.response.incomingCoverOrders, 1);
+  assert.equal(o.response.acceptedCoverOrders, 1);
+  assert.equal(o.response.selectedCoverOrders, 1);
+  assert.equal(o.soldiers[0].coverArrivalEvidence, 'physical-proximity');
   assert.equal(o.soldiers[0].firstShot, 0.6);
   h.hook.onBattleRestart(h.sim);
   assert.equal(h.root.BattleFirstContactObserver.summary(h.sim).response.seen, 0);
@@ -96,4 +102,53 @@ function harness(search) {
   h.tick(0.15);
   assert.equal(h.root.BattleFirstContactObserver.summary(h.sim).enabled, false);
 }
-console.log('PASS: cue classification, actual delayed shot, physical cover move, arrival and restart');
+{
+  const h = harness('?firstContactProbe=1');
+  h.man.report = { at: 0.3, x: 0, z: 50, source: 'heard' };
+  h.tick(0.3);
+  assert.equal(h.root.BattleFirstContactObserver.summary(h.sim).cueTypes['sound-only'], 1);
+  assert.equal(h.root.BattleFirstContactObserver.summary(h.sim).response.protectiveOrders, 0);
+}
+{
+  const h = harness('?firstContactProbe=1');
+  h.man.report = { at: 0.3, x: 0, z: 50, source: 'spoken' };
+  h.tick(0.3);
+  const out = h.root.BattleFirstContactObserver.summary(h.sim);
+  assert.equal(out.cueTypes['reported-sector'], 1);
+  assert.equal(out.soldiers[0].reportedDistance, 50);
+}
+{
+  const h = harness('?firstContactProbe=1');
+  h.man.incoming = true;
+  h.tick(0.15);
+  h.man.eng._urgentCover = true;
+  h.man.eng.cover = { x: 8, z: 0 };
+  h.tick(0.3);
+  h.man._movementResolver.combat = { kind: 'contact-reaction', owner: 'engagement' };
+  h.man._movementResolver.last = { kind: 'contact-reaction', owner: 'engagement' };
+  h.tick(0.45);
+  const out = h.root.BattleFirstContactObserver.summary(h.sim);
+  assert.equal(out.response.protectiveOrders, 1);
+  assert.equal(out.response.acceptedCoverOrders, 0);
+  assert.equal(out.response.protectiveArrivals, 0);
+  assert.ok(out.soldiers[0].blockers.some(x => x.reason === 'urgent-proposal-not-current'));
+}
+{
+  const h = harness('?firstContactProbe=1');
+  h.man.incoming = true;
+  h.tick(0.15);
+  h.man.eng._urgentCover = true;
+  h.man.eng.cover = { x: 5, z: 0 };
+  h.man._movementResolver.combat = { kind: 'cover-bound', owner: 'engagement' };
+  h.man._movementResolver.last = { kind: 'cover-bound', owner: 'engagement' };
+  h.tick(0.3);
+  h.man.moving = true;
+  h.man.root.position.x = 2;
+  h.tick(0.6);
+  h.man.root.position.x = 5;
+  h.man.moving = false;
+  h.man.eng._urgentCover = false;
+  h.tick(15.3);
+  assert.equal(h.root.BattleFirstContactObserver.summary(h.sim).response.lateArrivals, 1);
+}
+console.log('PASS: independent owner stages, reported/sound cues and late physical arrivals');

@@ -406,6 +406,8 @@ fs.mkdirSync(DIR, { recursive: true });
               flight: data.flight,
               contact: data.firstContact?.response,
               cueTypes: data.firstContact?.cueTypes,
+              handoffTimings: data.firstContact?.timings,
+              handoffBlockers: data.firstContact?.blockerCounts,
               reactionOn: data.contactReactionOn,
               wallMs: data.wallMs,
               separationM: data.spawnSeparationM,
