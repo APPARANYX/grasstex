@@ -293,6 +293,9 @@ jobs:
           node scripts/check-strategic-truck-visual.cjs
           node scripts/check-strategic-truck-lite.cjs
           node scripts/check-strategic-restart-end.cjs
+          # Use the real audio scheduler in a deterministic 50v50-scale overload fixture.
+          node scripts/check-audio-scheduler-queue.cjs
+          node scripts/check-audio-lab-contract.cjs
 
       - name: Engagement harness seeds
         run: |
