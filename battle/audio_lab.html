@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Grasstex Audio History Lab — unattended 10v10</title>
+<title>Grasstex Audio History Lab — unattended 50v50</title>
 <style>
 :root{color-scheme:dark;font:14px/1.5 system-ui,-apple-system,sans-serif;background:#10151c;color:#e1e9f2}
 *{box-sizing:border-box}body{max-width:980px;margin:40px auto;padding:0 24px}
@@ -14,13 +14,14 @@ section{background:#1b2531;border:1px solid #354354;padding:18px;margin:14px 0;b
 small{color:#9aacbe}a{color:#95c9f1}#scene{position:absolute;width:32px;height:32px;opacity:0;pointer-events:none}
 </style></head><body>
 <h1>Grasstex · Audio History Lab</h1>
-<p>One US and one German 10-man squad. Synthetic fire/reload timing through Grasstex’s real gunshot audio pools, propagation scheduler, audio mix and listener acoustics. Automatic 4× run; no tactical controller or combat results are simulated.</p>
+<p>Five US and five German 10-man squads (50v50 by default, 10v10 with <code>?squads=1</code>). Synthetic fire/reload timing through Grasstex’s real gunshot audio pools, propagation scheduler, audio mix and listener acoustics. Distance bands, speed-of-sound delays, distant filtering, 3D audio and actual obstacle occlusion are enabled. Automatic 4× run; no tactical controller or combat results are simulated.</p>
 <section aria-live="polite"><h2>Unattended session</h2><div id="status">Starting</div><div id="progress">Loading engine</div><div id="meter">Audio telemetry pending</div></section>
 <section><h2>Full diagnostic history</h2><small>Available after completion as <code>window.__audioLab.final</code>. A runner can capture <code>AUDIO_LAB_REPORT:</code> from the browser console. No user interaction required.</small><pre id="report">Recording starts automatically after audio preparation.</pre></section>
 <canvas id="scene" width="32" height="32" aria-hidden="true"></canvas>
 <script src="https://cdn.jsdelivr.net/npm/babylonjs@9.27.1/babylon.js"></script>
 <script src="core-runtime.js"></script>
 <script src="weapons.js"></script>
+<script src="obstacle-field.js"></script>
 <script src="acoustics.js"></script>
 <script src="modules/00-audio-format.js"></script>
 <script src="modules/00a-audio-mix.js"></script>
