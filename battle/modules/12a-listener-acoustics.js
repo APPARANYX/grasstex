@@ -17,6 +17,11 @@
   // prettier-ignore
   var priorityEnabled = typeof location !== 'undefined' &&
     /(?:^|[?&])acousticPriority=1(?:&|$)/.test(location.search || '');
+  // Optional anti-churn experiment. The current Run D (no param) remains identical.
+  var holdMatch = /(?:^|[?&])acousticHoldMs=(\d+)(?:&|$)/.exec(
+    typeof location !== 'undefined' ? location.search || '' : ''
+  );
+  var acousticHoldMs = holdMatch ? Math.max(0, Math.min(500, +holdMatch[1] || 0)) : 0;
   var sim = null,
     entries = [],
     running = false,
@@ -31,7 +36,9 @@
     degraded: 0,
     sampled: 0,
     skippedCapacity: 0,
-    replacedCapacity: 0
+    replacedCapacity: 0,
+    deniedHold: 0,
+    wetSendRamps: 0
   };
   function now() {
     return typeof performance !== 'undefined' ? performance.now() : Date.now();
@@ -277,14 +284,28 @@
     return (weight * Math.max(0, finite(gain, 0))) / (1 + distance(p, L) / 140);
   }
   // prettier-ignore
-  function neutralize(e) {
+  function neutralize(e, rampWet) {
     if (!e || !e.sound) return;
     var f = e.sound._battleAcousticFilter || e.filter,
       send = e.sound._battleAcousticSend || e.send;
     try {
+      // Do not detach the active source or retarget an occupied Babylon Sound.
       if (f) f.frequency.setTargetAtTime(20000, f.context.currentTime, 0.025);
-      if (send) send.gain.value = 0;
-    } catch (_) {}
+      if (send) {
+        var param = send.gain;
+        if (rampWet && param && typeof param.linearRampToValueAtTime === 'function') {
+          var t = send.context && send.context.currentTime;
+          if (typeof t === 'number' && isFinite(t)) {
+            if (typeof param.cancelScheduledValues === 'function') param.cancelScheduledValues(t);
+            if (typeof param.setValueAtTime === 'function') param.setValueAtTime(param.value, t);
+            param.linearRampToValueAtTime(0, t + 0.008);
+            stats.wetSendRamps++;
+          } else param.value = 0;
+        } else if (param) param.value = 0;
+      }
+    } catch (_) {
+      try { if (send) send.gain.value = 0; } catch (_) {}
+    }
   }
   // prettier-ignore
   function prepare(sound, source, kind, baseGain, scene) {
@@ -303,20 +324,26 @@
           var newRank = importance(source, kind, baseGain, scene),
             lowest = Infinity,
             victim = -1;
+          var held = 0, tNow = now();
           for (var j = 0; j < entries.length; j++) {
             var old = entries[j],
               rank = importance(old.source, old.kind, old.gain, old.scene);
+            if (acousticHoldMs && tNow - (old.admittedAt || 0) < acousticHoldMs) {
+              held++;
+              continue;
+            }
             if (rank < lowest) {
               lowest = rank;
               victim = j;
             }
           }
-          // Hysteresis avoids oscillation when similarly loud shots overlap.
+          // Preserve the existing 20% hysteresis, adding a minimum residence
+          // only for acousticHoldMs A/B. The hold does not suppress playback.
           if (victim >= 0 && newRank > lowest * 1.2) {
-            neutralize(entries[victim]);
+            neutralize(entries[victim], true);
             entries.splice(victim, 1);
             stats.replacedCapacity++;
-          }
+          } else if (held) stats.deniedHold++;
         }
         if (entries.length >= MAX_ACTIVE) {
           stats.skippedCapacity++;
@@ -325,7 +352,7 @@
           return false;
         }
       }
-      e = { sound: sound };
+      e = { sound: sound, admittedAt: now() };
       entries.push(e);
     }
     e.source = source;
@@ -369,6 +396,7 @@
   root.BattleListenerAcoustics = {
     quality: quality,
     priorityEnabled: priorityEnabled,
+    acousticHoldMs: acousticHoldMs,
     bind: bind,
     prepare: prepare,
     reset: reset,
