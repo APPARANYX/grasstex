@@ -74,6 +74,8 @@
       playExceptions: 0,
       maxQueued: 0
     };
+    // Queue policy is deliberately formatted as one audited unit.
+    // prettier-ignore
     function push(e) {
       if (q.length >= MAX_QUEUE) {
         // Preserve imminent gunshots, not FIFO arrival order: a later near shot can
@@ -150,6 +152,8 @@
         });
       }
     }
+    // Keep arrival selection and source-preference checks together.
+    // prettier-ignore
     function drain() {
       var now = performance.now(),
         started = 0;
