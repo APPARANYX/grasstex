@@ -23,11 +23,14 @@ assert.match(lab, /BattleAudioScheduler\.enqueue\(audio,/, 'real propagation sch
 assert.doesNotMatch(lab, /BattleSim\.start\(|spawnAll\(|updateSoldier\(/, 'no combat ownership effects');
 assert.match(lab, /us:\s*\['rifle'/);
 assert.match(lab, /ge:\s*\['rifle'/);
+assert.match(lab, /Number\(query\.get\('squads'\)\) \|\| 5/, 'default five squads per side');
+assert.match(lab, /root\.BattleAudioScheduler\.stats/, 'real scheduler admission statistics sampled');
 for (const property of ['simulatedShots', 'audioContextState', 'activeVoices', 'droppedBusy',
+  'squadsPerSide', 'schedulerEvictedPrimary', 'schedulerCulled', 'occlusionMode',
   'droppedNotReady', 'propagationQueue', 'rms', 'peak', 'longTasks'])
   assert.ok(lab.includes(property), 'missing history field: ' + property);
 for (const script of ['core-runtime.js', 'weapons.js', 'acoustics.js',
-  'modules/00-audio-format.js', 'modules/00a-audio-mix.js',
+  'obstacle-field.js', 'modules/00-audio-format.js', 'modules/00a-audio-mix.js',
   'modules/12a-listener-acoustics.js', 'battle-sim.js', 'audio-lab.js'])
   assert.ok(html.includes('src="' + script + '"'), 'lab missing required runtime: ' + script);
 assert.ok(deploy.includes('"audio_lab.html"') && deploy.includes('"audio-lab.js"'), 'deployment not managed');
