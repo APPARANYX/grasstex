@@ -68,8 +68,9 @@
     var startsMatch = /(?:^|[?&])audioStarts=(\d+)(?:&|$)/.exec(
       typeof location !== 'undefined' ? location.search || '' : ''
     );
-    // Opt-in research overrides; shipping remains 128 queued and 2 starts/frame.
-    var MAX_PER_FRAME = startsMatch ? Math.max(2, Math.min(8, +startsMatch[1] || 2)) : 2,
+    // Live default: 128 pending events / 16 starts per rendered frame. Keep
+    // 2-32 explicit override for reproducible A/B and overload investigations.
+    var MAX_PER_FRAME = startsMatch ? Math.max(2, Math.min(32, +startsMatch[1] || 16)) : 16,
       MAX_QUEUE = queueMatch ? Math.max(16, Math.min(512, +queueMatch[1] || 128)) : 128,
       LANE_CAPACITY = Math.floor(MAX_QUEUE / 2);
     var lanes = {
@@ -249,7 +250,7 @@
         else { running = false; stats.lastDrainMs = null; }
         return;
       }
-      // Default single-queue policy remains exactly two starts per frame.
+      // Single-queue default drains up to 16 due events per rendered frame.
       while (started < MAX_PER_FRAME && playDue(q, now)) started++;
       if (q.length) requestAnimationFrame(drain);
       else { running = false; stats.lastDrainMs = null; }
