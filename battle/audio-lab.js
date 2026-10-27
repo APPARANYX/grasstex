@@ -216,6 +216,7 @@
       propagation: { limits: root.BattleAudioScheduler.limits, stats: root.BattleAudioScheduler.stats,
         lanes: root.BattleAudioScheduler.lanes },
       acousticPriority: !!(root.BattleListenerAcoustics && root.BattleListenerAcoustics.priorityEnabled),
+      acousticHoldMs: root.BattleListenerAcoustics ? root.BattleListenerAcoustics.acousticHoldMs : 0,
       poolPolicy: { farVoices: farVoices, override: farVoices !== 4 },
       voicePools: audio && audio.detail ? audio.detail() : null,
       speed: scale, simulatedDurationSeconds: duration,
