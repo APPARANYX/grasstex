@@ -17,6 +17,9 @@ function world(range = 100, flags = '&commandPosture=0') {
     search: '?stressAct=0&commandRelay=0&tacticalController=new' + flags,
     stats: true
   });
+  /* The preview-only first-contact policy is never activated by harness flags
+     unless the harness explicitly advertises the preview environment. */
+  if (flags.includes('firstContactResponse=1')) r.BATTLE_PREVIEW = true;
   const systems = {};
   r.BattleModules.registerSystem = (id, s) => (systems[id] = s);
   r.BattleModules.unitsFor = b => b._roster.us.concat(b._roster.ge);
@@ -570,6 +573,79 @@ test('explicit contact requests conflict with movement and reject malformed fire
       'invalid-parameters'
     );
   }
+});
+test('reported first-contact sector prompts a guarded watch, never a target or shot', () => {
+  const w = world(80, '&commandPosture=0&firstContactResponse=1'),
+    s = w.q.members.find(m => m.role === 'rifleman'),
+    A = w.r.SquadAI,
+    originalContact = A.soldierContact,
+    originalStance = w.E.suppressionStance;
+  squad(w);
+  w.b.time = 16.1;
+  w.q.inContact = true;
+  s.target = null;
+  w.E.suppressionStance = (man, battle, point) =>
+    man === s ? null : originalStance(man, battle, point);
+  const sector = { x: 15, z: 64, source: 'reported', at: w.b.time };
+  A.soldierContact = (man, battle) => (man === s ? sector : originalContact(man, battle));
+  let shots = 0;
+  w.b.onFire = man => {
+    if (man === s) shots++;
+  };
+  squad(w);
+  w.TC.dispatch(w.b, w.q, 'engagement', s);
+  w.E.updateSoldier(s, w.b);
+  const role = w.S.summary(w.q).roles.find(r => r.actorId === String(s.id));
+  assert.equal(role?.drill, 'watch', 'a known reported sector requires orientation while stopped');
+  assert.equal(s.target, null, 'no personally observed enemy is fabricated');
+  assert.deepEqual(
+    { x: s._faceHint.x, z: s._faceHint.z },
+    { x: sector.x, z: sector.z },
+    'Engagement owns the reported-sector facing'
+  );
+  assert.equal(shots, 0, 'a report-only watch cannot discharge rounds');
+  sector.source = 'heard';
+  w.b.time += 0.15;
+  squad(w);
+  w.TC.dispatch(w.b, w.q, 'engagement', s);
+  assert.equal(
+    w.S.summary(w.q).roles.find(r => r.actorId === String(s.id))?.drill,
+    'march',
+    'sound alone cannot repeatedly commit a report-watch locomotion hold'
+  );
+  sector.source = 'reported';
+  sector.at = w.b.time - 5;
+  squad(w);
+  w.TC.dispatch(w.b, w.q, 'engagement', s);
+  assert.equal(
+    w.S.summary(w.q).roles.find(r => r.actorId === String(s.id))?.drill,
+    'march',
+    'a stale report does not perpetuate a watch'
+  );
+  A.soldierContact = originalContact;
+  w.E.suppressionStance = originalStance;
+  clean(w);
+});
+test('unflagged reported-sector contact retains established march policy', () => {
+  const w = world(80, '&commandPosture=0'),
+    s = w.q.members.find(m => m.role === 'rifleman'),
+    A = w.r.SquadAI,
+    originalContact = A.soldierContact,
+    originalStance = w.E.suppressionStance;
+  squad(w);
+  w.b.time = 16.1;
+  w.q.inContact = true;
+  s.target = null;
+  w.E.suppressionStance = (man, battle, point) =>
+    man === s ? null : originalStance(man, battle, point);
+  A.soldierContact = (man, battle) =>
+    man === s ? { x: 15, z: 64, source: 'reported', at: w.b.time } : originalContact(man, battle);
+  squad(w);
+  w.TC.dispatch(w.b, w.q, 'engagement', s);
+  assert.equal(w.S.summary(w.q).roles.find(r => r.actorId === String(s.id))?.drill, 'march');
+  A.soldierContact = originalContact;
+  w.E.suppressionStance = originalStance;
+  clean(w);
 });
 test('contact decisions have no authoritative writes, new timers, random draws or legacy policy calls', () => {
   const src = fs
