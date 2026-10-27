@@ -7,6 +7,8 @@
   var query = new URLSearchParams(location.search);
   var duration = Math.max(12, Math.min(600, Number(query.get('duration')) || 220));
   var scale = Math.max(1, Math.min(8, Number(query.get('speed')) || 4));
+  // A/B-only voice allocation: default matches live battle sound pools exactly.
+  var farVoices = Math.max(4, Math.min(12, Math.floor(Number(query.get('farVoices')) || 4)));
   var seed = 11027;
   var squadsPerSide = Math.max(1, Math.min(6, Math.floor(Number(query.get('squads')) || 5)));
   var occlusionMode = query.get('occlusion') === 'open' ? 'open' : 'mixed';
@@ -207,6 +209,7 @@
       squadsPerSide: squadsPerSide, rangeBandsMeters: squadRanges.slice(0, squadsPerSide),
       occlusionMode: occlusionMode,
       propagation: { limits: root.BattleAudioScheduler.limits, stats: root.BattleAudioScheduler.stats },
+      poolPolicy: { farVoices: farVoices, override: farVoices !== 4 },
       voicePools: audio && audio.detail ? audio.detail() : null,
       speed: scale, simulatedDurationSeconds: duration,
       wallDurationSeconds: +((performance.now() - startTime) / 1000).toFixed(2),
@@ -291,7 +294,7 @@
     if (root.BattleAudioFormat) await root.BattleAudioFormat.probe({ manifest: root.BATTLE_AUDIO_MANIFEST, base: audioBase });
     // Construct the real shipping pool before requesting its (sometimes lazy) Web Audio engine.
     setupShooters();
-    audio = root.BattleSim.buildWeaponAudio(scene, audioBase);
+    audio = root.BattleSim.buildWeaponAudio(scene, audioBase, { farVoices: farVoices });
     var ae = BABYLON.Engine.audioEngine;
     if (ae && ae.unlock) await ae.unlock();
     if (ae && ae.audioContext && ae.audioContext.state === 'suspended') {
