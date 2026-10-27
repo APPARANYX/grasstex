@@ -184,7 +184,8 @@ function summarizeSamples(samples) {
         labCover: c.cover || 'staggered',
         labRange: '1',
         tacticalController: c.arm,
-        strategicInterception: '0'
+        strategicInterception: '0',
+        labDuration: String(SIM_SECONDS)
       });
       await page.goto(BASE + '?' + params, { waitUntil: 'domcontentloaded', timeout: 120000 });
       await page.waitForFunction(() => window.BattleSkillsLab?.snapshot()?.targetCount === 10, null, {
@@ -196,6 +197,8 @@ function summarizeSamples(samples) {
       assert.equal(first.controller, c.arm, 'matched requested controller flag');
       assert.equal(first.rangeDistanceM, c.distance, 'matched native starting distance');
       assert.equal(first.targetDeaths, 0, 'targets begin inert');
+      assert.equal(first.durationLimitSeconds, SIM_SECONDS, 'native lab has explicit time cap');
+      assert.ok(first.gaitTelemetry && first.gaitTelemetry.coveredBounds, 'gait exporter is installed');
       const captured = await page.evaluate(
         ({ seconds, retreat }) => {
           const sim = window.__battle__,
@@ -265,6 +268,18 @@ function summarizeSamples(samples) {
       }
       assert.equal(summary.maxTargetDriftM, 0, 'range targets are physically stationary');
       assert.ok(summary.simulatedSeconds >= SIM_SECONDS - 0.2, 'full timed native drill completed');
+      assert.ok(summary.simulatedSeconds <= SIM_SECONDS + 0.251, 'cap prevents a long drift into retreat');
+      assert.equal(captured[captured.length - 1].lab.durationCapReached, true, 'lab paused at time cap');
+      assert.equal(captured[captured.length - 1].lab.paused, true, 'time cap pauses without victory');
+      const gaitData = captured[captured.length - 1].lab.gaitTelemetry;
+      assert.ok(Object.keys(gaitData.byGait).length > 0, 'native simulation captured physical gait');
+      if (c.arm === 'new' && summary.totalPhysicalArrivals > 0) {
+        assert.ok(Object.keys(gaitData.coveredBounds).length > 0, 'arriving native bounds have measured gait');
+        assert.ok(
+          Object.values(gaitData.coveredBounds).every(g => g.distanceM > 0 && g.averageActualMps > 0),
+          'covered gait summary includes actual physical displacement and speed'
+        );
+      }
       if (c.arm === 'new')
         assert.ok(summary.controllerOwnedSquadSamples > 0, 'new controller must actually take ownership');
       else
