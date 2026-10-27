@@ -27,6 +27,15 @@ assert.match(lab, /us:\s*\['rifle'/);
 assert.match(lab, /ge:\s*\['rifle'/);
 assert.match(lab, /Number\(query\.get\('squads'\)\) \|\| 5/, 'default five squads per side');
 assert.match(lab, /root\.BattleAudioScheduler\.stats/, 'real scheduler admission statistics sampled');
+assert.match(lab, /root\.BattleAudioScheduler\.lanes/, 'separate near and distant queues are reported');
+const scheduler = read('battle/acoustics.js');
+const acoustics = read('battle/modules/12a-listener-acoustics.js');
+assert.match(scheduler, /audioQueues=dual/, 'dual-queue experiment is opt-in');
+assert.match(scheduler, /LANE_CAPACITY = 64/, 'bounded 64-slot lane caps');
+assert.match(acoustics, /acousticPriority=1/, 'priority acoustics experiment is opt-in');
+assert.match(acoustics, /stats\.replacedCapacity\+\+/, 'priority preemption telemetry');
+assert.match(lab, /acousticPriority: !!/, 'acoustic priority mode is reported');
+
 assert.match(lab, /audio\.detail\(\)/, 'per-model near and distant audio pool pressure included');
 assert.match(sim, /detail: function \(\)/, 'shipping model pool exposes read-only detail snapshot');
 for (const property of ['simulatedShots', 'audioContextState', 'activeVoices', 'droppedBusy',
