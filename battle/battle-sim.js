@@ -985,6 +985,15 @@
     };
     this.onShot = function (shooter, target, hit, d, shot) {
       if (!hit || (shot && shot.tracerDrawn)) return;
+      /* Delayed impact must render the actual original muzzle-to-impact
+         line, never a new line from the shooter's later position to the
+         target's later position (or a destroyed shooter mesh). */
+      if (shot && shot.mode === 'flight-raycast' && shot.origin && shot.impact)
+        return spawnTracer(
+          self.scene,
+          new BABYLON.Vector3(shot.origin.x, shot.origin.y, shot.origin.z),
+          new BABYLON.Vector3(shot.impact.x, shot.impact.y, shot.impact.z)
+        );
       spawnTracer(self.scene, muzzleWorld(shooter), target.root.position.add(new BABYLON.Vector3(0, 1.2, 0)));
     };
     /* Suppressing fire is aimed at a place, not a man, so the tracer goes to the place. Without
