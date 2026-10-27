@@ -175,6 +175,12 @@
             firstCoverSearch: null,
             firstOwnerAction: null,
             coverOwner: null,
+            localAuthorizedAt: null,
+            command: null,
+            commandReplaced: false,
+            window: null,
+            windowEndedAt: null,
+            failureClass: null,
             firstRouteWithheld: null,
             initialLow: !!(s.prone || s.tacticalCrouch || s.crouching),
             initialMoving: !!s.moving,
@@ -195,6 +201,12 @@
         result =
           root.BattleExecutionOutcome && root.BattleExecutionOutcome.man
             ? root.BattleExecutionOutcome.man(s, b)
+            : null,
+        CR = root.BattleCommandReception,
+        Q = root.BattleSquadStability,
+        lease =
+          Q && Q.controllerBound && Q.controllerBound.current
+            ? Q.controllerBound.current(s.squad, b)
             : null;
       if (
         r.firstCoverSearch == null &&
@@ -229,6 +241,7 @@
         r.coverOrigin = p;
         r.coverOwner = e._urgentCover ? 'engagement' : bound ? 'controller' : 'engagement';
         if (r.coverOwner === 'controller' && bound) r.firstOwnerAction = bound.actionId;
+        if (r.coverOwner === 'engagement') r.localAuthorizedAt = stamp(t);
         mark(r, 'request', t);
       }
       if (r.firstCoverOrder == null) {
@@ -243,12 +256,57 @@
         }
         continue;
       }
-      if (r.coverOwner === 'controller' && bound) {
-        if (r.firstOwnerAction === bound.actionId) {
+      if (r.coverOwner === 'controller') {
+        /* Match the exact action and personal publish key. A later action
+           under the same actor must not inherit the original receipt clock. */
+        if (lease && lease.lease && r.window == null) {
+          var deadline = lease.lease.until;
+          r.window = {
+            startedAt: stamp(lease.lease.since),
+            expiresAt: Number.isFinite(deadline) ? stamp(deadline) : null,
+            termination: lease.lease.untilReason || null
+          };
+        }
+        var rec =
+          CR && CR.peek ? CR.peek(s, b, 'movement', 'soldier:' + String(s.id)) : null,
+          key = r.firstOwnerAction == null ? null : 'controller:' + String(r.firstOwnerAction),
+          matched = !!(rec && rec.data && rec.data.publishKey === key);
+        if (matched) {
+          if (!r.command || r.command.envelopeId === rec.envelopeId) {
+            r.command = {
+              envelopeId: rec.envelopeId,
+              publishKey: rec.data.publishKey,
+              senderId: rec.sourceId,
+              channel: rec.channel,
+              relayId: rec.relayId,
+              hops: rec.hops,
+              unreachable: !!rec.unreachable,
+              issuedAt: rec.issuedAt,
+              receivedAt: rec.receivedAt,
+              processedAt: rec.processedAt,
+              adoptedAt: rec.adoptedAt,
+              phase: rec.phase
+            };
+          } else {
+            r.commandReplaced = true;
+            blocker(r, t, 'command', 'original-envelope-replaced');
+          }
+          if (rec.unreachable) r.failureClass = 'unreachable';
+          else if (rec.hops > 1 && rec.phase !== 'adopted')
+            r.failureClass = 'awaiting-relay';
+        }
+        if (r.window && r.window.expiresAt != null && t > r.window.expiresAt &&
+            r.handoffs.adopted == null) {
+          r.failureClass = 'window-expired-before-adoption';
+        }
+        if (!bound && r.windowEndedAt == null) r.windowEndedAt = stamp(t);
+        if (bound && r.firstOwnerAction === bound.actionId) {
           if (bound.stage !== 'cancelled') mark(r, 'accepted', t);
           if (['adopted', 'executing', 'arrived'].indexOf(bound.stage) >= 0) mark(r, 'adopted', t);
           if (bound.stage === 'cancelled' || bound.stage === 'published')
             blocker(r, t, 'controller', bound.stage + ':' + bound.reason);
+          if (bound.stage === 'cancelled' && r.handoffs.adopted == null &&
+              !r.failureClass) r.failureClass = 'owner-rejected';
           if (bound.stage === 'arrived' && r.coverArrival == null) {
             r.coverArrival = stamp(t);
             r.coverArrivalEvidence = 'engagement:bound-checkin';
@@ -258,7 +316,8 @@
       } else if (r.coverOwner === 'engagement' && e._urgentCover) {
         if (combat && combat.kind === 'cover-bound' && combat.owner === 'engagement') {
           mark(r, 'accepted', t);
-          mark(r, 'adopted', t); // survival authority is local, not a received Meso envelope
+          /* Local survival is already authorized; it never receives a
+             personal Meso envelope and must not inflate adoption metrics. */
         } else blocker(r, t, 'resolver', 'urgent-proposal-not-current');
       }
       var selected =
@@ -268,8 +327,11 @@
         r.coverPoint &&
         dist(pt(last.intentPoint), r.coverPoint) <= 1.3;
       if (selected) mark(r, 'selected', t);
-      else if (r.handoffs.accepted != null && r.handoffs.selected == null)
+      else if (r.handoffs.accepted != null && r.handoffs.selected == null) {
         blocker(r, t, 'resolver', last ? 'outranked:' + last.kind : 'no-selected-goal');
+        if (last && last.kind !== 'cover-bound' && !r.failureClass)
+          r.failureClass = 'resolver-preempted';
+      }
       if (
         r.firstCoverMotion == null &&
         r.handoffs.selected != null &&
@@ -280,8 +342,10 @@
         r.firstCoverMotion = stamp(t);
         mark(r, 'physicalStart', t);
       }
-      if (progress && progress.stuck)
+      if (progress && progress.stuck) {
         blocker(r, t, 'navigation', progress.terminal ? 'terminal-no-progress' : 'no-progress');
+        if (!r.failureClass) r.failureClass = 'navigation-failed';
+      }
       if (result && result.state === 'held') blocker(r, t, 'command', 'held:' + result.by);
       else if (result && result.state === 'pending') blocker(r, t, 'command', 'pending:' + result.why);
       if (s._movementStopReason && r.firstCoverMotion == null)
@@ -331,7 +395,11 @@
         selectedCoverOrders: 0,
         notSelected: 0,
         lateArrivals: 0,
-        routeWithheldOnContact: 0
+        routeWithheldOnContact: 0,
+        localSurvivalAuthorized: 0,
+        localSurvivalAccepted: 0,
+        mesoCoverOrders: 0,
+        mesoAdoptedCoverOrders: 0
       };
     for (var i = 0; i < data.length; i++) {
       var r = data[i];
@@ -342,11 +410,19 @@
       if (r.movingAtShot) response.movingShots++;
       if (r.firstMotion != null) response.physicalMoves++;
       if (r.firstCoverOrder != null) response.protectiveOrders++;
+      if (r.coverOwner === 'engagement' && r.localAuthorizedAt != null)
+        response.localSurvivalAuthorized++;
+      if (r.coverOwner === 'engagement' && r.handoffs.accepted != null)
+        response.localSurvivalAccepted++;
+      if (r.coverOwner === 'controller' && r.firstCoverOrder != null) response.mesoCoverOrders++;
+      if (r.coverOwner === 'controller' && r.handoffs.adopted != null)
+        response.mesoAdoptedCoverOrders++;
       if (r.firstCoverMotion != null) response.protectiveMoves++;
       if (r.coverArrival != null) response.protectiveArrivals++;
       if (r.coverCause === 'incoming-fire') response.incomingCoverOrders++;
       if (r.handoffs.accepted != null) response.acceptedCoverOrders++;
-      if (r.handoffs.adopted != null) response.adoptedCoverOrders++;
+      if (r.coverOwner === 'controller' && r.handoffs.adopted != null)
+        response.adoptedCoverOrders++;
       if (r.handoffs.selected != null) response.selectedCoverOrders++;
       if (r.handoffs.accepted != null && r.handoffs.selected == null) response.notSelected++;
       if (r.coverArrival != null && r.coverArrival - r.at > WINDOW) response.lateArrivals++;
@@ -354,12 +430,14 @@
     }
     var blockers = {},
       ownerCoverDecisions = {},
+      failureClasses = {},
       timings = {};
     data.forEach(function (r) {
       r.blockers.forEach(function (v) {
         var key = v.source + ':' + v.reason;
         blockers[key] = (blockers[key] || 0) + 1;
       });
+      if (r.failureClass) failureClasses[r.failureClass] = (failureClasses[r.failureClass] || 0) + 1;
       var seen = {};
       r.ownerDecisions.forEach(function (v) {
         var key = v.stage + ':' + v.reason;
@@ -391,6 +469,7 @@
       arrivalWindowSeconds: ARRIVAL_WINDOW,
       blockerCounts: blockers,
       ownerCoverDecisions: ownerCoverDecisions,
+      failureClasses: failureClasses,
       timings: timings,
       cueTypes: types,
       response: response,

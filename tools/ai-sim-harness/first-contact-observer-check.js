@@ -91,6 +91,10 @@ function harness(search) {
   assert.equal(o.response.protectiveArrivals, 1);
   assert.equal(o.response.incomingCoverOrders, 1);
   assert.equal(o.response.acceptedCoverOrders, 1);
+  assert.equal(o.response.localSurvivalAuthorized, 1);
+  assert.equal(o.response.localSurvivalAccepted, 1);
+  assert.equal(o.response.adoptedCoverOrders, 0, 'local survival cannot count as Meso adoption');
+  assert.equal(o.response.mesoAdoptedCoverOrders, 0);
   assert.equal(o.response.selectedCoverOrders, 1);
   assert.equal(o.soldiers[0].coverArrivalEvidence, 'physical-proximity');
   assert.equal(o.soldiers[0].firstShot, 0.6);
@@ -223,5 +227,66 @@ function harness(search) {
     1,
     'identical owner rejection is deduplicated'
   );
+}
+{
+  const h = harness('?firstContactProbe=1');
+  h.man.squad.id = 'us-0';
+  h.man.incoming = true;
+  h.root.BattleTacticalController = {
+    summary: () => ({
+      live: [{
+        capability: 'combat.bound',
+        squad: 'us-0',
+        actorId: String(h.man.id),
+        actionId: 'bound-123',
+        stage: 'published',
+        reason: 'published:await-personal-adoption'
+      }]
+    })
+  };
+  const rec = {
+    envelopeId: 'cmd-7', sourceId: 'leader',
+    data: { publishKey: 'controller:bound-123' },
+    channel: 'voice-direct', relayId: null, hops: 1, unreachable: false,
+    issuedAt: 0.3, receivedAt: 0.5, processedAt: 0.6, adoptedAt: 0.8, phase: 'issued'
+  };
+  h.root.BattleCommandReception = { peek: () => rec };
+  h.root.BattleSquadStability = {
+    controllerBound: {
+      current: () => ({
+        lease: { since: 0.3, until: 1.5, untilReason: 'bounded-window' }
+      })
+    }
+  };
+  h.tick(0.3);
+  h.man.report = { at: 0.45, x: 0, z: 30, source: 'reported' };
+  h.man.eng.state = 'bound';
+  h.man.eng.cover = { x: 4, z: 0 };
+  h.man._movementResolver.goal = { kind: 'cover-bound', point: { x: 4, z: 0 } };
+  h.tick(0.45);
+  let out = h.root.BattleFirstContactObserver.summary(h.sim);
+  assert.equal(out.response.mesoCoverOrders, 1);
+  assert.equal(out.response.mesoAdoptedCoverOrders, 0);
+  assert.equal(out.soldiers[0].command.envelopeId, 'cmd-7');
+  assert.equal(out.soldiers[0].window.expiresAt, 1.5);
+  rec.phase = 'adopted';
+  h.root.BattleTacticalController.summary = () => ({
+    live: [{
+      capability: 'combat.bound',
+      squad: 'us-0',
+      actorId: String(h.man.id),
+      actionId: 'bound-123',
+      stage: 'adopted',
+      reason: 'personally-adopted'
+    }]
+  });
+  h.tick(0.9);
+  out = h.root.BattleFirstContactObserver.summary(h.sim);
+  assert.equal(out.response.mesoAdoptedCoverOrders, 1);
+  assert.equal(out.soldiers[0].command.phase, 'adopted');
+  rec.envelopeId = 'cmd-8';
+  h.tick(1.05);
+  assert.equal(h.root.BattleFirstContactObserver.summary(h.sim).soldiers[0].commandReplaced, true);
+  assert.equal(h.root.BattleFirstContactObserver.summary(h.sim).soldiers[0].command.envelopeId, 'cmd-7');
 }
 console.log('PASS: independent owner stages, reported/sound cues and late physical arrivals');

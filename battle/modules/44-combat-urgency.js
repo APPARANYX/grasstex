@@ -73,6 +73,8 @@
         lateralCoverRejects: 0,
         urgentCoverStarts: 0,
         urgentCoverArrivals: 0,
+        suppressedCoverStarts: 0,
+        unsuppressedIncomingCoverStarts: 0,
         sharedContactReactions: 0,
         sharedContactRepeatBlocks: 0,
         sharedContactCooldownBlocks: 0,
