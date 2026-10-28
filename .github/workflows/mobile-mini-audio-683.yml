@@ -60,24 +60,31 @@ jobs:
         env:
           SKILLS_LAB_URL: http://127.0.0.1:8765/grasstex/battle_sim_local.php
         run: node scripts/probes/probe_skills_lab.cjs
-      - name: Run full Mini Map on desktop and emulated mobile devices
-        id: benchmark
+      - name: Required Howler Mini Map audio
+        id: howler
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          MOBILE_MINI_SECONDS: '20'
+          MOBILE_MINI_WARMUP_SECONDS: '150'
+          MOBILE_MINI_PROFILE: 'desktop-192'
+          MOBILE_MINI_BACKEND: howler
+          MOBILE_MINI_OUT: reports/mobile-mini-audio/howler
+        run: |
+          export MOBILE_MINI_URL="https://test.ivandpopov.com/grasstex/preview/ref-${HEAD_SHA:0:12}/battle_sim.php"
+          node scripts/probes/probe_mobile_mini_meeting_audio.cjs
+      - name: Informational Babylon comparison
+        id: babylon
         continue-on-error: true
         env:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           MOBILE_MINI_SECONDS: '20'
           MOBILE_MINI_WARMUP_SECONDS: '150'
           MOBILE_MINI_PROFILE: 'desktop-192'
+          MOBILE_MINI_BACKEND: babylon
+          MOBILE_MINI_OUT: reports/mobile-mini-audio/babylon
         run: |
           export MOBILE_MINI_URL="https://test.ivandpopov.com/grasstex/preview/ref-${HEAD_SHA:0:12}/battle_sim.php"
-          set -euo pipefail
-          probe_status=0
-          for backend in babylon howler; do
-            export MOBILE_MINI_BACKEND="$backend"
-            export MOBILE_MINI_OUT="reports/mobile-mini-audio/$backend"
-            node scripts/probes/probe_mobile_mini_meeting_audio.cjs || probe_status=1
-          done
-          exit "$probe_status"
+          node scripts/probes/probe_mobile_mini_meeting_audio.cjs
       - name: Upload results including device viewport screenshots
         if: always()
         uses: actions/upload-artifact@v4
@@ -85,8 +92,14 @@ jobs:
           name: mobile-mini-audio-full-limits
           path: reports/mobile-mini-audio/
           if-no-files-found: warn
-      - name: Confirm mobile probe completed
-        if: steps.benchmark.outcome != 'success'
+      - name: Report backend outcomes
+        if: always()
+        env:
+          HOWLER_OUTCOME: ${{ steps.howler.outcome }}
+          BABYLON_OUTCOME: ${{ steps.babylon.outcome }}
         run: |
-          echo "::error::Mobile full-limits probe failed; inspect saved mobile-mini-audio-full-limits."
-          exit 1
+          echo "Required Howler: $HOWLER_OUTCOME" >> "$GITHUB_STEP_SUMMARY"
+          echo "Informational Babylon: $BABYLON_OUTCOME" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$BABYLON_OUTCOME" = failure ]; then
+            echo "::warning::Babylon comparison failed; its raw report remains in the artifact. Howler is the required audio backend for this preview."
+          fi
