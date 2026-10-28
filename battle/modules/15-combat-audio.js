@@ -151,6 +151,8 @@
       passes = [{ victim: target, entry: { x: tp.x, y: (tp.y || 0) + 1.2, z: tp.z }, wound: null }];
     }
     passes.forEach(function (p) {
+      var lab = root.PhaseCCombatLab;
+      if (lab && lab.isTrainingTarget && lab.isTrainingTarget(p.victim || target)) return;
       var at = v3(p.entry);
       if (!at) return;
       var d = dist(at, L);

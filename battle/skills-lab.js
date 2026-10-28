@@ -418,8 +418,12 @@
       }
       part('cylinder', { height: 1.45, diameter: 0.09 }, [0, 0.75, 0], materials.wood);
       part('box', { width: 0.7, height: 0.88, depth: 0.1 }, [0, 1.5, -0.02], materials.canvas);
-      part('cylinder', { height: 0.04, diameter: 0.39 }, [0, 1.5, -0.1], materials.ring).rotation.x =
-        Math.PI / 2;
+      // Soldier forward is local +Z. Mark both faces so the board also reads
+      // correctly while orbiting or approaching it from a flank.
+      [-0.1, 0.1].forEach(function (z) {
+        part('cylinder', { height: 0.04, diameter: 0.39 }, [0, 1.5, z], materials.ring).rotation.x =
+          Math.PI / 2;
+      });
       part('box', { width: 1.1, height: 0.32, depth: 0.42 }, [0, 0.21, 0], materials.sand);
     });
   }
@@ -1238,6 +1242,9 @@
     rangeScale: scale,
     movementPace: pace,
     interiorIngressRecovery: false,
+    isTrainingTarget: function (s) {
+      return !!s && s.faction === 'ge';
+    },
     stationary: function (s) {
       return !!s && s.faction === 'ge';
     },
