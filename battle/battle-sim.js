@@ -410,7 +410,10 @@
             if (sound.isPlaying === true) active++;
             // Read decoded buffer metadata, not an assumed 2-3 second tail.
             // This is report-only; never used for admission or playback.
-            var buffer = sound.getAudioBuffer && sound.getAudioBuffer();
+            var buffer = null;
+            // Babylon's getter can throw before its async sound instance exists
+            // (including a missing/blocked asset). Diagnostics must still work.
+            try { buffer = sound.getAudioBuffer && sound.getAudioBuffer(); } catch (_) {}
             if (buffer && isFinite(buffer.duration) && buffer.duration > 0) {
               measuredClips++;
               minClipSeconds = Math.min(minClipSeconds, buffer.duration);

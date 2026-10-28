@@ -104,6 +104,19 @@ function poolFixture(policy) {
   };
 }
 
+{
+  const w = poolFixture();
+  w.sounds.forEach(sound => {
+    sound.getAudioBuffer = () => {
+      throw new TypeError('instance not initialized');
+    };
+  });
+  const pools = w.audio.detail();
+  assert.equal(pools['m:m1-garand'].decodedClipCount, 0, 'unavailable buffers stay unmeasured');
+  assert.equal(pools['m:m1-garand'].minClipSeconds, null);
+  assert.equal(w.plays(), 0, 'diagnostic snapshot never triggers playback');
+}
+
 for (const [distance, capacity] of [
   [40, 6],
   [200, 30],
