@@ -57,9 +57,11 @@ jobs:
           AUDIO_LAB_TIMEOUT_MS: '200000'
         run: |
           set -euo pipefail
-          for backend in babylon howler; do
-            export AUDIO_LAB_REPORT="reports/full-mix-audio-683/${backend}.json"
-            export AUDIO_LAB_URL="https://test.ivandpopov.com/grasstex/preview/ref-${HEAD_SHA:0:12}/battle/audio_lab.html?fullMix=1&tacticalController=new&duration=145&speed=4&squads=5&occlusion=mixed&audioBackend=${backend}"
+          for variant in babylon-standard howler-off howler-standard howler-high; do
+            backend="${variant%%-*}"
+            quality="${variant#*-}"
+            export AUDIO_LAB_REPORT="reports/full-mix-audio-683/${variant}.json"
+            export AUDIO_LAB_URL="https://test.ivandpopov.com/grasstex/preview/ref-${HEAD_SHA:0:12}/battle/audio_lab.html?fullMix=1&tacticalController=new&duration=145&speed=4&squads=5&occlusion=mixed&audioBackend=${backend}&acoustics=${quality}"
             node scripts/probes/probe_audio_lab.cjs
           done
       - name: Upload actual output/owner diagnostic history

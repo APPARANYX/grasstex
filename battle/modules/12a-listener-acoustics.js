@@ -12,8 +12,7 @@
   var match = /(?:^|[?&])acoustics=(off|standard|high)(?:&|$)/.exec(
     typeof location !== 'undefined' ? location.search || '' : ''
   );
-  var quality =
-    root.BattleAudioBackend && root.BattleAudioBackend.independent ? 'off' : match ? match[1] : 'standard';
+  var quality = match ? match[1] : 'standard';
   // A/B admission only. The existing 24/36 filter slots and mix remain unchanged.
   // prettier-ignore
   var priorityEnabled = typeof location !== 'undefined' &&
@@ -139,7 +138,9 @@
       convolver.buffer = impulse;
       output.gain.value = 0.23;
       convolver.connect(output);
-      var ae = BABYLON.Engine && BABYLON.Engine.audioEngine;
+      var ae = root.BattleAudioBackend
+        ? root.BattleAudioBackend.engine()
+        : BABYLON.Engine && BABYLON.Engine.audioEngine;
       output.connect(trackNode || (ae && ae.masterGain) || ctx.destination);
       wet = { ctx: ctx, input: convolver };
     } catch (_) {
@@ -241,6 +242,26 @@
     var gain = e.gain * (1 - (isVoice ? 0.62 : 0.47) * obstructionAmount);
     stats.sampled++;
     if (obstructionAmount > 0) stats.occluded++;
+    if (e.sound.setAcousticProfile) {
+      var ae = root.BattleAudioBackend.engine(),
+        bus = makeWet(ae.audioContext, ae.masterGain),
+        indoor = nearBuilding(p) || nearBuilding(L),
+        amount = indoor
+          ? quality === 'high'
+            ? 0.28
+            : 0.12
+          : isTail
+            ? 0.045
+            : quality === 'high'
+              ? 0.065
+              : 0.025;
+      var hadChain = !!e.sound._acoustics;
+      e.sound.setVolume(gain);
+      if (e.sound.setAcousticProfile(hz, amount, bus && bus.input, MAX_ACTIVE)) {
+        if (!hadChain) stats.filtered++;
+      } else stats.degraded++;
+      return;
+    }
     filterFor(e);
     try {
       if (e.sound.setVolume) e.sound.setVolume(gain);
@@ -266,7 +287,9 @@
       remain = [];
     for (var i = 0; i < entries.length; i++) {
       var e = entries[i];
+      if (e.sound && e.sound.setAcousticProfile && e.sound.isPlaying === false) continue;
       if (e.until <= t) {
+        if (e.sound && e.sound.neutralizeAcoustics) e.sound.neutralizeAcoustics();
         if (e.send) {
           try {
             e.send.gain.value = 0;
@@ -306,6 +329,7 @@
   // prettier-ignore
   function neutralize(e, rampWet) {
     if (!e || !e.sound) return;
+    if (e.sound.neutralizeAcoustics) { e.sound.neutralizeAcoustics(); return; }
     var f = e.sound._battleAcousticFilter || e.filter,
       send = e.sound._battleAcousticSend || e.send;
     try {
@@ -393,6 +417,7 @@
     // An already queued presentation must not carry a previous battle's acoustic source.
     for (var i = 0; i < entries.length; i++) {
       var e = entries[i];
+      if (e.sound && e.sound.neutralizeAcoustics) e.sound.neutralizeAcoustics();
       if (e.send) {
         try {
           e.send.gain.value = 0;

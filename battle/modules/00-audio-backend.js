@@ -1,15 +1,17 @@
 /* Experimental independent playback: ?audioBackend=howler. Default stays Babylon.
    Owners retain event timing, propagation, clip selection and bounded voice pools.
    A wrapper owns one playback ID; Howls and decoded data are shared by clip URL.
-   Howler mode is deliberately dry: equal-power spatial panning, distance and gain,
-   without Babylon SoundTracks, acoustic filters, reverb or compressor graph edits. */
+   Howler owns playback and optional bounded acoustic chains. No Babylon SoundTrack
+   is touched; acoustics=off retains the validated dry path. */
 (function (root) {
   'use strict';
   if (root.BattleAudioBackend) return;
   var enabled = /(?:^|[?&])audioBackend=howler(?:&|$)/.test((root.location && root.location.search) || '');
   var scenes = new WeakMap(),
     clips = new Map(),
-    active = new Set();
+    active = new Set(),
+    acousticChains = [],
+    nodeChains = new WeakMap();
   var stats = {
     requested: 0,
     started: 0,
@@ -18,7 +20,10 @@
     droppedBusy: 0,
     loadErrors: 0,
     playErrors: 0,
-    peakActive: 0
+    peakActive: 0,
+    acousticAttached: 0,
+    acousticBypassed: 0,
+    acousticErrors: 0
   };
   var errors = [];
   function fail(kind, file, error) {
@@ -134,7 +139,11 @@
       // Register before play(): Howler captures listeners when it emits, then
       // delivers callbacks asynchronously. Late per-play listeners miss starts.
       onplay: function (id) {
-        if (entry.owners.has(id)) stats.started++;
+        var sound = entry.owners.get(id);
+        if (sound) {
+          sound._attachAcoustics();
+          stats.started++;
+        }
       },
       onend: function (id) {
         var sound = entry.owners.get(id);
@@ -226,9 +235,114 @@
   Sound.prototype.detachFromMesh = function () {
     this._mesh = null;
   };
+  // One guarded bridge to pinned Howler 2.2.4's per-playback GainNode. The
+  // shared Howl is never rerouted as a group, so other shots keep their own graph.
+  Sound.prototype._attachAcoustics = function () {
+    var chain = this._acoustics;
+    if (!chain || this._id == null) return;
+    var howl = this._entry.howl,
+      node = null,
+      master = root.Howler.masterGain;
+    try {
+      var instance = howl._soundById && howl._soundById(this._id);
+      node = instance && instance._node;
+      if (!node || !node.context || node.context !== chain.filter.context || !node.disconnect) return;
+      if (chain.node === node || chain.failedNode === node) return;
+      // Howler can recycle an ended node before its async end callback arrives.
+      // Release the old reservation now so that callback cannot reroute this shot.
+      var previous = nodeChains.get(node);
+      if (previous && previous !== chain && previous.owner) previous.owner._releaseAcoustics();
+      node.disconnect(master);
+      node.connect(chain.filter);
+      chain.node = node;
+      nodeChains.set(node, chain);
+      stats.acousticAttached++;
+    } catch (_) {
+      stats.acousticErrors++;
+      chain.failedNode = node;
+      try {
+        if (node) node.disconnect(chain.filter);
+      } catch (_) {}
+      try {
+        if (node) node.connect(master);
+      } catch (_) {}
+    }
+  };
+  Sound.prototype.setAcousticProfile = function (hz, wet, wetInput, limit) {
+    var ctx = root.Howler.ctx,
+      chain = this._acoustics;
+    if (!chain) {
+      chain = acousticChains.find(function (item) {
+        return !item.owner;
+      });
+      if (!chain && acousticChains.length < Math.max(1, Math.min(192, limit || 96))) {
+        var filter = null,
+          send = null;
+        try {
+          filter = ctx.createBiquadFilter();
+          filter.type = 'lowpass';
+          filter.frequency.value = 20000;
+          send = ctx.createGain();
+          send.gain.value = 0;
+          filter.connect(root.Howler.masterGain);
+          filter.connect(send);
+          if (wetInput) send.connect(wetInput);
+          chain = { filter: filter, send: send, owner: null, node: null };
+          acousticChains.push(chain);
+        } catch (_) {
+          try {
+            if (filter) filter.disconnect();
+            if (send) send.disconnect();
+          } catch (_) {}
+          stats.acousticErrors++;
+        }
+      }
+      if (!chain) {
+        stats.acousticBypassed++;
+        return false;
+      }
+      chain.owner = this;
+      this._acoustics = chain;
+    }
+    chain.filter.frequency.setTargetAtTime(hz, ctx.currentTime, 0.045);
+    chain.send.gain.setTargetAtTime(wetInput ? wet : 0, ctx.currentTime, 0.06);
+    this._attachAcoustics();
+    return true;
+  };
+  Sound.prototype.neutralizeAcoustics = function () {
+    var chain = this._acoustics;
+    if (!chain) return;
+    var t = root.Howler.ctx.currentTime;
+    chain.filter.frequency.setTargetAtTime(20000, t, 0.025);
+    chain.send.gain.setTargetAtTime(0, t, 0.008);
+    // Keep an active source connected until its natural end; no mid-shot graph swaps.
+  };
+  Sound.prototype._releaseAcoustics = function () {
+    var chain = this._acoustics;
+    if (!chain) return;
+    if (chain.node) {
+      nodeChains.delete(chain.node);
+      try {
+        chain.node.disconnect(chain.filter);
+        chain.node.connect(root.Howler.masterGain);
+      } catch (_) {
+        stats.acousticErrors++;
+      }
+    }
+    var t = root.Howler.ctx.currentTime;
+    [chain.filter.frequency, chain.send.gain].forEach(function (param, index) {
+      param.cancelScheduledValues(t);
+      param.setValueAtTime(index ? 0 : 20000, t);
+    });
+    chain.node = null;
+    chain.failedNode = null;
+    chain.owner = null;
+    this._acoustics = null;
+  };
   Sound.prototype._finish = function () {
     if (!this._playing) return;
     this._playing = false;
+    this._releaseAcoustics();
     active.delete(this);
     var howl = this._entry.howl,
       id = this._id;
@@ -251,6 +365,7 @@
       (this._scene && this._scene.audioEnabled === false)
     ) {
       stats.droppedUnavailable++;
+      this._releaseAcoustics();
       return false;
     }
     var howl = this._entry.howl,
@@ -276,6 +391,7 @@
       );
       howl.pos(p.x, p.y, -p.z, id);
       howl.rate(this._rate, id);
+      this._attachAcoustics();
       howl.volume(this._gain, id);
       return true;
     } catch (error) {
@@ -292,11 +408,19 @@
     if (this._disposed) return;
     this._disposed = true;
     this.stop();
+    this._releaseAcoustics();
     this.detachFromMesh();
     if (this._scene && scenes.has(this._scene)) scenes.get(this._scene).delete(this);
     if (--this._entry.refs === 0) {
       this._entry.howl.unload();
       clips.delete(this._entry.url);
+    }
+    if (!clips.size) {
+      acousticChains.forEach(function (chain) {
+        chain.filter.disconnect();
+        chain.send.disconnect();
+      });
+      acousticChains = [];
     }
   };
   root.BattleAudioBackend = {
@@ -311,7 +435,11 @@
         {
           name: enabled ? 'howler' : 'babylon',
           version: enabled ? '2.2.4' : null,
-          dry: enabled,
+          dry: enabled && !(root.BattleListenerAcoustics && root.BattleListenerAcoustics.quality !== 'off'),
+          acousticChains: acousticChains.length,
+          acousticActive: acousticChains.filter(function (chain) {
+            return !!chain.owner;
+          }).length,
           active: active.size,
           clips: clips.size,
           errors: errors.slice()

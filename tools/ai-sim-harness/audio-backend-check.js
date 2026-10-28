@@ -16,6 +16,7 @@ function fixture(enabled) {
     constructor(options) {
       this.options = options;
       this.ids = new Set();
+      this.nodes = new Map();
       this.listeners = [];
       howls.push(this);
     }
@@ -25,9 +26,23 @@ function fixture(enabled) {
     play() {
       const id = ++nextId;
       this.ids.add(id);
+      const node = this.recycleNode || audioNode();
+      if (!this.recycleNode) node.connect(root.Howler.masterGain);
+      this.recycleNode = null;
+      if (this.rejectFilter) {
+        const connect = node.connect.bind(node);
+        node.connect = target => {
+          if (target.type === 'lowpass') throw Error('unsupported bridge');
+          connect(target);
+        };
+      }
+      this.nodes.set(id, node);
       const notify = this.options.onplay; // Snapshot listeners at emit time, as Howler does.
       if (notify) events.push(() => notify(id));
       return id;
+    }
+    _soundById(id) {
+      return { _node: this.nodes.get(id) };
     }
     once(event, fn, id) {
       this.listeners.push({ event, fn, id });
@@ -63,10 +78,50 @@ function fixture(enabled) {
   }
   const ctx = {
     state: 'running',
+    currentTime: 0,
+    sampleRate: 12000,
+    createBiquadFilter() {
+      return audioNode();
+    },
+    createGain() {
+      return audioNode();
+    },
+    createConvolver() {
+      return audioNode();
+    },
+    createBuffer(channels, length) {
+      return { getChannelData: () => new Float32Array(length) };
+    },
     resume: async function () {
       this.state = 'running';
     }
   };
+  function audioNode() {
+    const param = () => ({
+      value: 0,
+      setTargetAtTime(v) {
+        this.value = v;
+      },
+      cancelScheduledValues() {},
+      setValueAtTime(v) {
+        this.value = v;
+      }
+    });
+    return {
+      context: ctx,
+      connections: new Set(),
+      frequency: param(),
+      gain: param(),
+      connect(node) {
+        this.connections.add(node);
+      },
+      disconnect(node) {
+        if (node) {
+          if (!this.connections.delete(node)) throw Error('not connected');
+        } else this.connections.clear();
+      }
+    };
+  }
   const root = {
     console: { error() {} },
     location: { search: enabled ? '?audioBackend=howler' : '' },
@@ -169,6 +224,115 @@ function fixture(enabled) {
   assert.equal(bad.isReady(), false);
   assert.equal(B.summary().loadErrors, 1, 'missing files are visible in diagnostics');
   r.dispose();
+  // Real shared acoustics owner -> independent Howler graph, never Babylon's engine.
+  const w = fixture(true);
+  await w.backend.ready;
+  let blocked = false;
+  w.root.setTimeout = () => {};
+  w.root.performance = { now: () => 1000 };
+  w.root.location.search = '?audioBackend=howler&acoustics=standard';
+  w.root.BattleObstacleField = { sightBlocked: () => blocked };
+  Object.defineProperty(w.root.BABYLON.Engine, 'audioEngine', {
+    get() {
+      assert.fail('Howler acoustics touched Babylon engine');
+    }
+  });
+  vm.runInNewContext(
+    fs.readFileSync(path.join(rootPath, 'battle/modules/12a-listener-acoustics.js'), 'utf8'),
+    w.root
+  );
+  const acoustics = w.root.BattleListenerAcoustics;
+  acoustics.bind({ scene: w.scene, obstacles: [], heightAt: () => -3 });
+  const gun = new w.backend.Sound('gun', '/shot.ogg', w.scene);
+  w.howls[0].options.onload();
+  assert.equal(acoustics.quality, 'standard');
+  acoustics.prepare(gun, { x: 40, y: 1, z: 0 }, 'gun', 0.2, w.scene);
+  const chain = gun._acoustics;
+  assert.ok(chain, 'environmental sample allocates a Howler filter chain');
+  gun.play();
+  w.flush();
+  const node = w.howls[0]._soundById(gun._id)._node;
+  assert.ok(node.connections.has(chain.filter), 'this playback is routed through its low-pass filter');
+  assert.ok(!node.connections.has(w.root.Howler.masterGain), 'no duplicate dry route');
+  assert.ok(chain.send.connections.size > 0, 'wet send feeds the shared reverb');
+  const openHz = chain.filter.frequency.value;
+  blocked = true;
+  acoustics.prepare(gun, { x: 40, y: 1, z: 0 }, 'gun', 0.2, w.scene);
+  assert.ok(chain.filter.frequency.value < openHz, 'cover muffles the same live source');
+  assert.ok(gun._gain < 0.2, 'cover attenuation applies before reverb');
+  gun.neutralizeAcoustics();
+  assert.ok(
+    node.connections.has(chain.filter),
+    'priority/expiry neutralization never disconnects an active shot'
+  );
+  assert.equal(chain.send.gain.value, 0);
+  gun.stop();
+  assert.ok(node.connections.has(w.root.Howler.masterGain), 'completed ID safely restores its native route');
+  assert.equal(gun._acoustics, null);
+  const next = new w.backend.Sound('next', '/shot.ogg', w.scene);
+  acoustics.prepare(gun, { x: 40, y: 1, z: 0 }, 'gun', 0.2, w.scene);
+  gun.play();
+  w.flush();
+  const oldId = gun._id,
+    recycled = w.howls[0]._soundById(oldId)._node;
+  w.howls[0].recycleNode = recycled;
+  acoustics.prepare(next, { x: 10, y: 1, z: 0 }, 'gun', 0.2, w.scene);
+  next.play();
+  w.flush();
+  const nextFilter = next._acoustics.filter;
+  assert.ok(recycled.connections.has(nextFilter));
+  w.howls[0].emit('end', oldId);
+  assert.ok(
+    recycled.connections.has(nextFilter),
+    'delayed old completion never disconnects a recycled node from its new filter'
+  );
+  assert.ok(
+    !recycled.connections.has(w.root.Howler.masterGain),
+    'node reuse never adds a duplicate dry connection'
+  );
+  next.stop();
+  const bounded = fixture(true);
+  await bounded.backend.ready;
+  const slots = Array.from(
+    { length: 3 },
+    (_, i) => new bounded.backend.Sound('slot' + i, '/one.mp3', bounded.scene)
+  );
+  bounded.howls[0].options.onload();
+  assert.equal(slots[0].setAcousticProfile(5000, 0, null, 2), true);
+  assert.equal(slots[1].setAcousticProfile(5000, 0, null, 2), true);
+  assert.equal(
+    slots[2].setAcousticProfile(5000, 0, null, 2),
+    false,
+    'filter chains cannot exceed the declared budget'
+  );
+  assert.equal(slots[2].play(), true, 'capacity bypass still plays dry');
+  slots[0].play();
+  slots[0].stop();
+  assert.equal(
+    slots[2].setAcousticProfile(5000, 0, null, 2),
+    true,
+    'a finished source releases a chain for reuse'
+  );
+  assert.equal(bounded.backend.summary().acousticChains, 2, 'graph allocation remains bounded across reuse');
+  const fallback = fixture(true);
+  await fallback.backend.ready;
+  const safe = new fallback.backend.Sound('safe', '/safe.mp3', fallback.scene);
+  fallback.howls[0].options.onload();
+  fallback.howls[0].rejectFilter = true;
+  safe.setAcousticProfile(4000, 0, null, 2);
+  assert.equal(safe.play(), true, 'unsupported filter routing must not stop playback');
+  fallback.flush();
+  assert.ok(
+    fallback.howls[0]._soundById(safe._id)._node.connections.has(fallback.root.Howler.masterGain),
+    'a failed filter connection always restores the dry route'
+  );
+  assert.equal(fallback.backend.summary().acousticErrors, 1);
+  fallback.dispose();
+  bounded.dispose();
+  w.dispose();
+  console.log(
+    'PASS Howler environmental filtering, cover gain, reverb routing, cap bypass, reuse and safe completion'
+  );
   const stress = fs.readFileSync(path.join(rootPath, 'battle/full-audio-stress.js'), 'utf8');
   const declared = Array.from(vm.runInNewContext(/var UNRECORDED = (\[[\s\S]*?\]);/.exec(stress)[1]));
   const expected = fs

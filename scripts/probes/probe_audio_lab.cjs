@@ -86,6 +86,13 @@ const TIMEOUT = Math.max(15000, Number(process.env.AUDIO_LAB_TIMEOUT_MS) || 2400
     if (new URL(URL_TO_RUN).searchParams.get('audioBackend') === 'howler') {
       if (report.backend?.name !== 'howler' || !report.backend.started || report.backend.playErrors || report.backend.loadErrors)
         throw Error('Howler playback failed: ' + JSON.stringify(report.backend));
+      const quality = new URL(URL_TO_RUN).searchParams.get('acoustics') || 'standard';
+      if (quality !== 'off' && (!report.backend.acousticAttached || report.backend.acousticErrors ||
+          !report.acoustics?.stats?.filtered || report.acoustics?.quality !== quality))
+        throw Error('Howler acoustics not confirmed: ' + JSON.stringify({ backend: report.backend, acoustics: report.acoustics }));
+      if (quality === 'off' && (report.backend.acousticAttached || report.acoustics?.stats?.filtered))
+        throw Error('Dry Howler control unexpectedly enabled filters');
+
     }
     if (runtimeErrors.length) throw Error('Browser errors: ' + runtimeErrors.slice(0, 3).join('; '));
   } finally {
