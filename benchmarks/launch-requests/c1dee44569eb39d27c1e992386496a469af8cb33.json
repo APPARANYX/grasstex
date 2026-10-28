@@ -1,0 +1,24 @@
+{
+  "branch": "work/benchmark-launch/owner-adapters-tactical-20261025",
+  "launch_parent_sha": "f34cb0f278b29e79f4434c20b7dc0d157edbcc0c",
+  "launch_sha": "c1dee44569eb39d27c1e992386496a469af8cb33",
+  "note": "Launch parent is preserved; the child's actual checkout SHA must be read from the child run.",
+  "parent_retention_ref": "archive/benchmark-source/f34cb0f278b29e79f4434c20b7dc0d157edbcc0c",
+  "request": {
+    "battle_type": "meeting",
+    "benchmark": "standard",
+    "correlation_id": "oa-f34cb0f2-tactical",
+    "origin_agent": "claude",
+    "purpose": "Same-seed comparison of owner adapters (slice 1a) against #656 parent 2ca9e70",
+    "query_off": "strategicInterception=0",
+    "query_on": "strategicInterception=0",
+    "ref": "work/tactical-owner-adapters-20261025",
+    "seed": "controller-runtime-20261025",
+    "seeds": "1",
+    "sim_seconds": "600",
+    "windows": "0+600"
+  },
+  "schema_version": 1,
+  "source_ref": "work/tactical-owner-adapters-20261025",
+  "source_sha_at_archive": null
+}
