@@ -230,3 +230,64 @@ assert.equal(off.calls.spheres.length, 0, 'fog-only quality switch');
 assert.equal(off.calls.planes.length, 1, 'flash remains without fog');
 assert.equal(off.root.BattleGrenadeFx.status(off.battle).fogVolumes, 0);
 console.log('grenade-fog-check: PASS (area density, immediate footprint, lifecycle, cap, no emitter)');
+
+// Exercise the actual trail helpers with a deterministic flight, independently of GLB loading.
+{
+  let allocated = 0,
+    disposed = 0;
+  class Vec {
+    set(x, y, z) {
+      Object.assign(this, { x, y, z });
+    }
+  }
+  const B = {
+    Vector3: Vec,
+    Color4: class {
+      constructor(r, g, b, a) {
+        Object.assign(this, { r, g, b, a });
+      }
+    },
+    MeshBuilder: {
+      CreateLines(name, options) {
+        if (options.instance) return options.instance;
+        allocated++;
+        return {
+          options,
+          dispose() {
+            disposed++;
+          }
+        };
+      }
+    }
+  };
+  const api = { position: (g, time) => ({ x: time * 30, y: 5, z: 0 }) };
+  const helpers = SRC.slice(SRC.indexOf('  function removeTrail('), SRC.indexOf('  function clear('));
+  const { updateTrail, removeTrail } = new Function(
+    'B',
+    'core',
+    helpers + '; return { updateTrail, removeTrail };'
+  )(B, () => api);
+  const st = { battle: { time: 1, scene: {} }, trails: new Map() };
+  const g = Object.freeze({ id: 8, releasedAt: 0, impactAt: 2, flight: 2 });
+  updateTrail(st, g);
+  const trail = st.trails.get(8);
+  assert.equal(allocated, 1);
+  assert.equal(trail.points.length, 8);
+  for (const p of trail.points)
+    assert.ok(Math.abs(30 - p.x) <= 1.600001, 'trail remains short at high velocity');
+  assert.equal(trail.mesh.options.colors[0].a, 0, 'tail fades to transparent');
+  assert.equal(trail.mesh.isPickable, false);
+  st.battle.time = 1.1;
+  updateTrail(st, g);
+  assert.equal(allocated, 1, 'airborne frames update one mesh instead of accumulating particles');
+  st.battle.time = 2;
+  updateTrail(st, g);
+  assert.equal(st.trails.size, 0, 'trail stops at first ground impact');
+  assert.equal(disposed, 1);
+  st.battle.time = 1;
+  updateTrail(st, g);
+  removeTrail(st, g.id);
+  assert.equal(st.trails.size, 0, 'detonation/removal can clear trail immediately');
+  assert.equal(disposed, 2);
+  console.log('PASS grenade slipstream bounded length, fade, mesh reuse and ground/detonation cleanup');
+}
