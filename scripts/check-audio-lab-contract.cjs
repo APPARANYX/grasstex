@@ -167,6 +167,7 @@ console.log(
       })
     )
   );
+  await limited.idle();
   assert.equal(peak, 2);
   assert.equal(forwarded, 7);
   for (const kind of ['recover', 'refused', 'http404', 'other']) {

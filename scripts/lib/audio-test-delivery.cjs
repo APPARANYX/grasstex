@@ -4,6 +4,7 @@
 module.exports = function audioTestDelivery(limit, wait = ms => new Promise(r => setTimeout(r, ms))) {
   let active = 0;
   const queued = [];
+  const idleWaiters = [];
   const stats = { limit, peak: 0, requests: 0, retries: 0, failures: [] };
   async function handle(route) {
     if (active < limit) active++;
@@ -28,7 +29,11 @@ module.exports = function audioTestDelivery(limit, wait = ms => new Promise(r =>
     } finally {
       if (queued.length) queued.shift()();
       else active--;
+      if (!active && !queued.length) while (idleWaiters.length) idleWaiters.shift()();
     }
   }
-  return { handle, stats };
+  function idle() {
+    return active || queued.length ? new Promise(resolve => idleWaiters.push(resolve)) : Promise.resolve();
+  }
+  return { handle, stats, idle };
 };

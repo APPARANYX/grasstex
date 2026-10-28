@@ -56,6 +56,21 @@ const TIMEOUT = Math.max(15000, Number(process.env.AUDIO_LAB_TIMEOUT_MS) || 2400
     await page.waitForFunction(() => window.__audioLab && window.__audioLab.done === true, null, {
       timeout: TIMEOUT
     });
+    // Drain every requested asset so queued 404s/transport failures cannot be
+    // hidden by the bounded test-host loader when the simulation clock ends.
+    if (delivery) {
+      let timer;
+      try {
+        await Promise.race([
+          delivery.idle(),
+          new Promise((_, reject) => {
+            timer = setTimeout(() => reject(Error('Audio download queue did not drain')), 120000);
+          })
+        ]);
+      } finally {
+        clearTimeout(timer);
+      }
+    }
     const report = await page.evaluate(() => window.__audioLab.final);
     report.browser = {
       userAgent: await page.evaluate(() => navigator.userAgent),
