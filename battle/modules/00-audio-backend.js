@@ -12,6 +12,7 @@
     active = new Set(),
     acousticChains = [],
     acousticBuses = null,
+    listenerState = null,
     nodeChains = new WeakMap();
   var stats = {
     requested: 0,
@@ -80,11 +81,33 @@
   function updateListener(scene) {
     var cam = scene && scene.activeCamera;
     if (!cam || !root.Howler) return;
+    var ctx = root.Howler.ctx;
+    if (!listenerState || listenerState.ctx !== ctx) listenerState = { ctx: ctx };
     var p = cam.globalPosition || cam.position;
-    if (p) root.Howler.pos(p.x, p.y, -p.z);
+    if (
+      p &&
+      (!listenerState.position ||
+        listenerState.position[0] !== p.x ||
+        listenerState.position[1] !== p.y ||
+        listenerState.position[2] !== p.z)
+    ) {
+      root.Howler.pos(p.x, p.y, -p.z);
+      listenerState.position = [p.x, p.y, p.z];
+    }
     var forward = cam.getForwardRay && cam.getForwardRay().direction;
     var up = cam.upVector || { x: 0, y: 1, z: 0 };
-    if (forward) root.Howler.orientation(forward.x, forward.y, -forward.z, up.x, up.y, -up.z);
+    if (forward) {
+      var values = [forward.x, forward.y, -forward.z, up.x, up.y, -up.z];
+      if (
+        !listenerState.orientation ||
+        values.some(function (v, i) {
+          return v !== listenerState.orientation[i];
+        })
+      ) {
+        root.Howler.orientation.apply(root.Howler, values);
+        listenerState.orientation = values;
+      }
+    }
   }
   function bindScene(scene) {
     if (!enabled || !scene || scenes.has(scene)) return;
@@ -218,12 +241,17 @@
     return this._entry.token;
   };
   Sound.prototype.setPosition = function (p) {
-    this._position = point(p);
-    if (this._playing && this._id != null) this._entry.howl.pos(p.x, p.y, -p.z, this._id);
+    var next = point(p),
+      old = this._position;
+    this._position = next;
+    if (this._playing && this._id != null && (old.x !== next.x || old.y !== next.y || old.z !== next.z))
+      this._entry.howl.pos(next.x, next.y, -next.z, this._id);
   };
   Sound.prototype.setVolume = function (gain) {
-    this._gain = Math.max(0, Math.min(1, +gain || 0));
-    if (this._playing && this._id != null) this._entry.howl.volume(this._gain, this._id);
+    var next = Math.max(0, Math.min(1, +gain || 0)),
+      old = this._gain;
+    this._gain = next;
+    if (this._playing && this._id != null && old !== next) this._entry.howl.volume(next, this._id);
   };
   Sound.prototype.setPlaybackRate = function (rate) {
     this._rate = +rate || 1;

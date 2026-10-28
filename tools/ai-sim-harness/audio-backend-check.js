@@ -133,14 +133,31 @@ function fixture(enabled) {
     location: { search: enabled ? '?audioBackend=howler' : '' },
     BABYLON: { Sound: BabylonSound, Engine: { audioEngine: { name: 'babylon-engine' } } },
     Howl,
-    Howler: { ctx, masterGain: {}, usingWebAudio: true, volume() {}, pos() {}, orientation() {} }
+    Howler: {
+      ctx,
+      masterGain: {},
+      usingWebAudio: true,
+      volume() {},
+      pos(...v) {
+        writes.push(['listenerPos', ...v]);
+      },
+      orientation(...v) {
+        writes.push(['listenerOrientation', ...v]);
+      }
+    }
   };
   root.window = root;
   vm.runInNewContext(source, root);
   let render, dispose;
   const scene = {
     audioEnabled: true,
-    activeCamera: { position: { x: 0, y: 1, z: 0 } },
+    activeCamera: {
+      position: { x: 0, y: 1, z: 0 },
+      upVector: { x: 0, y: 1, z: 0 },
+      getForwardRay() {
+        return { direction: { x: 0, y: 0, z: 1 } };
+      }
+    },
     onBeforeRenderObservable: {
       add(fn) {
         render = fn;
@@ -195,6 +212,34 @@ function fixture(enabled) {
   assert.ok(
     r.writes.some(x => x[0] === 'pos' && x[3] === -15),
     'Z conversion preserves Babylon left/right spatial orientation'
+  );
+  const stationaryListenerWrites = r.writes.filter(x => x[0].startsWith('listener')).length;
+  for (let i = 0; i < 200; i++) r.render();
+  assert.equal(
+    r.writes.filter(x => x[0].startsWith('listener')).length,
+    stationaryListenerWrites,
+    'stationary camera never restarts Howler listener AudioParam automation every render frame'
+  );
+  r.scene.activeCamera.position.x += 1;
+  r.render();
+  assert.equal(
+    r.writes.filter(x => x[0] === 'listenerPos').length,
+    2,
+    'camera translation updates listener position once'
+  );
+  r.scene.activeCamera.getForwardRay = () => ({ direction: { x: 1, y: 0, z: 0 } });
+  r.render();
+  assert.equal(
+    r.writes.filter(x => x[0] === 'listenerOrientation').length,
+    2,
+    'camera rotation updates listener orientation'
+  );
+  const sameSourceWrites = r.writes.filter(x => x[0] === 'pos').length;
+  a.setPosition({ x: 3, y: 1, z: 15 });
+  assert.equal(
+    r.writes.filter(x => x[0] === 'pos').length,
+    sameSourceWrites,
+    'unchanged source position does not schedule panner updates'
   );
   const idA = a._id,
     idB = b._id;
