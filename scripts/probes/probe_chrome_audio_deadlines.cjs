@@ -70,7 +70,7 @@ const save = () => fs.writeFileSync(path.join(out, 'capture.json'), JSON.stringi
       }
       const realtime = [];
       for (const [contextId, c] of contexts) {
-        if (c.contextType !== 'realtime') continue;
+        if (c.contextType !== 'realtime' || c.contextState === 'closed') continue;
         try {
           realtime.push({ contextId, ...(await cdp.send('WebAudio.getRealtimeData', { contextId })).realtimeData });
         } catch (e) {
@@ -111,7 +111,7 @@ const save = () => fs.writeFileSync(path.join(out, 'capture.json'), JSON.stringi
     save();
     const values = report.samples.flatMap(s => s.realtime).filter(s => Number.isFinite(s.renderCapacity));
     console.log('CAPTURE COMPLETE:', JSON.stringify({ samples: report.samples.length,
-      realtimeSamples: values.length, maxRenderCapacity: Math.max(...values.map(x => x.renderCapacity)),
+      realtimeSamples: values.length, maxRenderCapacityPercent: Math.max(...values.map(x => x.renderCapacity)) * 100,
       output: path.join(out, 'capture.json') }));
     if (!values.length) throw Error('No Chrome realtime render-capacity measurements captured');
   } finally {
