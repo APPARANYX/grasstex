@@ -82,7 +82,7 @@ for (const script of ['core-runtime.js', 'weapons.js', 'acoustics.js',
   'modules/15-weapon-foley-audio.js', 'modules/15-combat-audio.js',
   'modules/24a-grenade-audio.js', 'battle-sim.js', 'full-audio-stress.js', 'audio-lab.js'])
   assert.ok(html.includes('src="' + script + '"'), 'lab missing required runtime: ' + script);
-assert.ok(deploy.includes('"audio_lab.html"') && deploy.includes('"audio-lab.js"'), 'deployment not managed');
+assert.ok(!deploy.includes('"audio_lab.html"') && !deploy.includes('"audio-lab.js"'), 'diagnostic audio lab must stay preview-only');
 assert.match(preview, /audio_lab\\\.html/, 'preview launcher not staging lab page');
 assert.match(probe, /--autoplay-policy=no-user-gesture-required/, 'headless playback requires autoplay');
 console.log('PASS: audio lab JS syntax, existing pool ownership, 10v10 roster, telemetry and deploy contract');

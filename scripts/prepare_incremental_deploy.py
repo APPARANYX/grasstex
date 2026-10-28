@@ -32,8 +32,10 @@ STATIC_FILES += [(path, path) for path in MANAGED_LAB]
 # Every runtime the page loads. A file missing from this list is simply never uploaded, so the
 # deployed loader ends up requesting a 404 - keep it in step with the script tags in
 # battle/battle_sim.html and the lists in battle_sim_local.php.
+# The diagnostic audio lab is staged by preview.php only. Never publish its
+# lab-named files over protected production paths.
 BATTLE_FILES = [
-    "battle_sim.html","audio_lab.html","audio-lab.js","full-audio-stress.js","core-runtime.js","soldier.js","weapons.js","obstacle-field.js","terrain-features.js",
+    "battle_sim.html","core-runtime.js","soldier.js","weapons.js","obstacle-field.js","terrain-features.js",
     "squad-ai.js","movement-resolver.js","engagement.js","battle-sim.js","camera-controls.js","acoustics.js",
     "scenario-generator.js","battle-navigation.js","town-objectives.js","module-registry.js",
     "ai-policy.js","objective-system.js","battle-telemetry.js","commander-doctrine.js",

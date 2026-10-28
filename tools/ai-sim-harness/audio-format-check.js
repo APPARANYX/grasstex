@@ -28,7 +28,7 @@ function load(search, base) {
   return r.BattleAudioFormat;
 }
 const SIZE = { caf: 8, ogg: 16, mp3: 24 };
-const okFetch = (seen) => (u) => {
+const okFetch = seen => u => {
   seen && seen.push(u);
   const ext = u.split('.').pop();
   return Promise.resolve({ ok: true, arrayBuffer: () => Promise.resolve(new ArrayBuffer(SIZE[ext] || 4)) });
@@ -37,7 +37,8 @@ const okFetch = (seen) => (u) => {
 const decoder = (...exts) =>
   class {
     decodeAudioData(buf, ok, fail) {
-      if (exts.some((e) => SIZE[e] === buf.byteLength)) return Promise.resolve({ length: 48000 }).then((d) => (ok(d), d));
+      if (exts.some(e => SIZE[e] === buf.byteLength))
+        return Promise.resolve({ length: 48000 }).then(d => (ok(d), d));
       const e = new Error('EncodingError');
       fail(e);
       return Promise.reject(e);
@@ -45,7 +46,7 @@ const decoder = (...exts) =>
   };
 class GoodCtx {
   decodeAudioData(buf, ok) {
-    return Promise.resolve({ length: 48000 }).then((d) => (ok(d), d));
+    return Promise.resolve({ length: 48000 }).then(d => (ok(d), d));
   }
 }
 class BadCtx {
@@ -85,7 +86,10 @@ test('a decoded twin switches the twins, and only the twins, to .caf', async () 
   assert.equal(seen.length, 1);
   assert.ok(seen[0].endsWith('.caf'));
   assert.equal(F.url(fire), fire.replace(/\.mp3$/, '.caf'));
-  assert.equal(F.url('/grasstex/Assets/audio/' + fire), '/grasstex/Assets/audio/' + fire.replace(/\.mp3$/, '.caf'));
+  assert.equal(
+    F.url('/grasstex/Assets/audio/' + fire),
+    '/grasstex/Assets/audio/' + fire.replace(/\.mp3$/, '.caf')
+  );
   assert.equal(F.url('combat/flyby/crack-01.mp3'), 'combat/flyby/crack-01.mp3');
   assert.equal(F.url('rifle.mp3'), 'rifle.mp3');
 });
@@ -93,7 +97,10 @@ test('a browser that decodes Ogg but not CAF (Chrome, Firefox) gets the .ogg twi
   const F = load(),
     seen = [];
   assert.equal(await F.probe({ fetch: okFetch(seen), Ctx: decoder('ogg') }), 'ogg');
-  assert.deepEqual(seen.map((u) => u.split('.').pop()), ['caf', 'ogg']);
+  assert.deepEqual(
+    seen.map(u => u.split('.').pop()),
+    ['caf', 'ogg']
+  );
   assert.equal(F.url(fire), fire.replace(/\.mp3$/, '.ogg'));
   assert.equal(F.url('combat/flyby/crack-01.mp3'), 'combat/flyby/crack-01.mp3');
 });
@@ -110,7 +117,10 @@ test('the shipped manifest declares opusTwins "all" (every clip is in grasstex-a
   assert.equal(MANIFEST.opusTwins, 'all');
 });
 test('unverified opusTwins all does not assume effects and voice files exist', async () => {
-  const r = { BATTLE_AUDIO_MANIFEST: Object.assign({}, MANIFEST, { opusTwins: 'all' }), BATTLE_AUDIO_BASE: '/a/' };
+  const r = {
+    BATTLE_AUDIO_MANIFEST: Object.assign({}, MANIFEST, { opusTwins: 'all' }),
+    BATTLE_AUDIO_BASE: '/a/'
+  };
   new Function('window', 'globalThis', 'location', SRC)(r, r, undefined);
   const F = r.BattleAudioFormat;
   assert.equal(await F.probe({ fetch: okFetch(), Ctx: decoder('ogg') }), 'ogg');
@@ -120,7 +130,10 @@ test('unverified opusTwins all does not assume effects and voice files exist', a
   assert.equal(F.url('acoustics.json'), 'acoustics.json');
 });
 test('a deploy-verified complete opus twin inventory can opt back in to all containers', async () => {
-  const r = { BATTLE_AUDIO_MANIFEST: Object.assign({}, MANIFEST, { opusTwinsVerified: true }), BATTLE_AUDIO_BASE: '/a/' };
+  const r = {
+    BATTLE_AUDIO_MANIFEST: Object.assign({}, MANIFEST, { opusTwinsVerified: true }),
+    BATTLE_AUDIO_BASE: '/a/'
+  };
   new Function('window', 'globalThis', 'location', SRC)(r, r, undefined);
   const F = r.BattleAudioFormat;
   assert.equal(await F.probe({ fetch: okFetch(), Ctx: decoder('ogg') }), 'ogg');
@@ -130,7 +143,10 @@ test('?audioFormat=ogg probes Ogg only', async () => {
   const F = load('?audioFormat=ogg'),
     seen = [];
   assert.equal(await F.probe({ fetch: okFetch(seen), Ctx: decoder('caf', 'ogg') }), 'ogg');
-  assert.deepEqual(seen.map((u) => u.split('.').pop()), ['ogg']);
+  assert.deepEqual(
+    seen.map(u => u.split('.').pop()),
+    ['ogg']
+  );
 });
 test('a browser that cannot decode it, a missing twin or no OfflineAudioContext stays MP3', async () => {
   const a = load();
@@ -164,7 +180,7 @@ test('ready resolves to the settled format', async () => {
     console.log('PASS ' + name);
   }
   console.log(`audio-format-check: ${n} checks passed`);
-})().catch((e) => {
+})().catch(e => {
   console.error(e);
   process.exit(1);
 });
