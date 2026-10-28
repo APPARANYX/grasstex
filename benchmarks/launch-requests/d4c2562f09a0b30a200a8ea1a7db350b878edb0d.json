@@ -1,0 +1,24 @@
+{
+  "branch": "work/benchmark-launch/controller-657d-tactical-20261025",
+  "launch_parent_sha": "dbf92c8ff9f613a0acc51e54d06fcc6c4f71054f",
+  "launch_sha": "d4c2562f09a0b30a200a8ea1a7db350b878edb0d",
+  "note": "Launch parent is preserved; the child's actual checkout SHA must be read from the child run.",
+  "parent_retention_ref": "archive/benchmark-source/dbf92c8ff9f613a0acc51e54d06fcc6c4f71054f",
+  "request": {
+    "battle_type": "meeting",
+    "benchmark": "standard",
+    "correlation_id": "657-dbf92c8f-tactical",
+    "origin_agent": "claude",
+    "purpose": "Same-seed legacy-mode comparison of PR #657 head against pinned parent 2ca9e70",
+    "query_off": "strategicInterception=0",
+    "query_on": "strategicInterception=0",
+    "ref": "claude/project-thread-a5sq10",
+    "seed": "controller-runtime-20261025",
+    "seeds": "1",
+    "sim_seconds": "600",
+    "windows": "0+600"
+  },
+  "schema_version": 1,
+  "source_ref": "claude/project-thread-a5sq10",
+  "source_sha_at_archive": "ce4774a50b854035cac89aba13f05efa8443a55e"
+}
