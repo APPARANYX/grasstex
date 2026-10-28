@@ -327,7 +327,7 @@ function stage($branch, $sha, $root, $previewRoot, &$error) {
         $path = $e['path'];
         if ($path === 'battle_sim_local.php') $branchLoaderSha = $e['sha'];
         if ($path === 'runtime-contract.php') $branchContractSha = $e['sha'];
-        if (preg_match('#^battle/(battle_sim\.html|[A-Za-z0-9._-]+\.js|modules/[A-Za-z0-9._-]+\.js)$#', $path)) $files[$path] = $e;
+        if (preg_match('#^battle/(battle_sim\.html|audio_lab\.html|[A-Za-z0-9._-]+\.js|modules/[A-Za-z0-9._-]+\.js)$#', $path)) $files[$path] = $e;
         elseif (preg_match('#^Assets/((soldiers|animations|weapons|vehicles)/[^/]+\.fbx|(weapons|vehicles)/[^/]+\.glb|animations/[^/]+\.bin|effects/.+\.png)$#', $path)
             && strpos($path, '..') === false && strpos($path, '/.') === false && preg_match('#^[A-Za-z0-9 ._()/-]+$#', $path)) $assets[] = $e;
     }
