@@ -397,6 +397,24 @@ test('explicit contact requests conflict with movement and reject malformed fire
     );
   }
 });
+test("the threat is what the squad saw, not the enemy's live state", () => {
+  const w = world();
+  squad(w);
+  assert.equal(w.S.summary(w.q).reason, 'prepare-line');
+  // He stops being a threat out of the squad's sight: nobody has seen it, so the squad still holds.
+  w.target.combatThreat = false;
+  w.b.time += 0.2;
+  squad(w);
+  assert.equal(w.S.summary(w.q).reason, 'prepare-line', 'no omniscient read of his state');
+  assert.equal(live(w, 'fire.control').length, 1);
+  // A man sees it: perception records the non-threat and the contact ends on that sighting.
+  w.r.SquadAI.rememberSeen(w.q.members[0], w.target, w.b, false, 'personally-seen-fixture');
+  w.target.combatThreat = undefined;
+  w.b.time += 0.2;
+  squad(w);
+  assert.notEqual(w.S.summary(w.q).reason, 'prepare-line', 'no longer holding fire on him');
+  clean(w);
+});
 test('contact decisions have no authoritative writes, new timers, random draws or legacy policy calls', () => {
   const src = fs
     .readFileSync(require.resolve('../../battle/modules/13d-tactical-contact-skills.js'), 'utf8')

@@ -1043,6 +1043,25 @@
       battle.time - at <= CONTACT_MEMORY
     );
   }
+  /* What a squad has itself seen of one enemy: the freshest unexpired sighting any living man holds,
+     carrying the threat judgement perception made when he looked (a non-threat is recorded only on
+     sight). True or false from that sighting; null when no man has his own. Never the unit's live state. */
+  function seenThreat(squad, unit, battle) {
+    var key = beliefUnitKey(unit),
+      best = null;
+    if (!SOLDIER_BELIEFS_ON || !squad || !key || !battle) return null;
+    (squad.members || []).forEach(function (s) {
+      var rec = s && !s.dead && s._beliefs && s._beliefs.byKey && s._beliefs.byKey[key];
+      if (
+        rec &&
+        rec.source === 'seen' &&
+        battle.time < rec.expiresAt &&
+        (!best || rec.observedAt > best.observedAt)
+      )
+        best = rec;
+    });
+    return best ? best.combatThreat !== false : null;
+  }
   function ownFirstHandFor(held, unit, battle) {
     if (!held || held.unit !== unit) return null;
     var at = firstHandAt(held);
@@ -1306,7 +1325,16 @@
     /* A living person who ceases to be a combat threat remains visible in the world, but the squad's
        threat contact is no longer about him. Dead contacts keep the old short decay so nearby enemies
        are not erased from the squad picture by one kill. */
-    if (c.unit && threatDisposition(c.unit).kind === 'visible-non-threat') {
+    /* A squad the tactical controller owns drops him on what its men saw of him (seenThreat), not
+       on his live state; legacy keeps its read until it is retired. */
+    var TC = root.BattleTacticalController,
+      owned = !!(c.unit && TC && TC.controls && TC.controls(battle, squad));
+    if (
+      c.unit &&
+      (owned
+        ? seenThreat(squad, c.unit, battle) === false
+        : threatDisposition(c.unit).kind === 'visible-non-threat')
+    ) {
       squad.contact = null;
       return null;
     }
@@ -2434,6 +2462,7 @@
     squadContactsMap: squadContactsMap,
     firstHandAt: firstHandAt,
     hasFirstHandMemory: hasFirstHandMemory,
+    seenThreat: seenThreat,
     CONTACT_MEMORY: CONTACT_MEMORY,
     CONTACT_REFRESH: CONTACT_REFRESH,
     coverMultiplierAt: coverMultiplierAt,
