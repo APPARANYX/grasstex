@@ -1251,8 +1251,12 @@
       return !!s && s.faction === 'ge';
     }
   };
-  if (root.BattleDesktopCamera && root.BattleDesktopCamera.create)
-    root.BattleDesktopCamera.create = installCamera;
+  if (root.BattleDesktopCamera && root.BattleDesktopCamera.create) {
+    var adaptiveCamera = root.BattleDesktopCamera.create;
+    root.BattleDesktopCamera.create = function (opts) {
+      return adaptiveCamera(Object.assign({}, opts, { preferOrbit: true, orbitFactory: installCamera }));
+    };
+  }
   if (root.BattleModules && root.BattleModules.registerSystem)
     root.BattleModules.registerSystem('skills-lab-gait-observer', {
       onSimulationStep: sampleGaits,
