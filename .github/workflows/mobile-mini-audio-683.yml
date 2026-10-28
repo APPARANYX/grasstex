@@ -71,11 +71,13 @@ jobs:
         run: |
           export MOBILE_MINI_URL="https://test.ivandpopov.com/grasstex/preview/ref-${HEAD_SHA:0:12}/battle_sim.php"
           set -euo pipefail
+          probe_status=0
           for backend in babylon howler; do
             export MOBILE_MINI_BACKEND="$backend"
             export MOBILE_MINI_OUT="reports/mobile-mini-audio/$backend"
-            node scripts/probes/probe_mobile_mini_meeting_audio.cjs
+            node scripts/probes/probe_mobile_mini_meeting_audio.cjs || probe_status=1
           done
+          exit "$probe_status"
       - name: Upload results including device viewport screenshots
         if: always()
         uses: actions/upload-artifact@v4

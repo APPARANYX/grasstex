@@ -21,19 +21,40 @@ const seconds = Math.max(12, Math.min(65, +process.env.MOBILE_MINI_SECONDS || 30
 fs.mkdirSync(out, { recursive: true });
 
 const profiles = [
-  { name: 'desktop-192', viewport: { width: 1366, height: 768 },
-    isMobile: false, hasTouch: false, slots: 192 },
-  { name: 'mobile-portrait-192', viewport: { width: 390, height: 844 },
-    isMobile: true, hasTouch: true, slots: 192 },
-  { name: 'mobile-landscape-192', viewport: { width: 844, height: 390 },
-    isMobile: true, hasTouch: true, slots: 192 },
-  { name: 'mobile-portrait-96', viewport: { width: 390, height: 844 },
-    isMobile: true, hasTouch: true, slots: 96 }
+  {
+    name: 'desktop-192',
+    viewport: { width: 1366, height: 768 },
+    isMobile: false,
+    hasTouch: false,
+    slots: 192
+  },
+  {
+    name: 'mobile-portrait-192',
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    hasTouch: true,
+    slots: 192
+  },
+  {
+    name: 'mobile-landscape-192',
+    viewport: { width: 844, height: 390 },
+    isMobile: true,
+    hasTouch: true,
+    slots: 192
+  },
+  {
+    name: 'mobile-portrait-96',
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    hasTouch: true,
+    slots: 96
+  }
 ];
 
 function percentile(sorted, pct) {
-  return sorted.length ? +sorted[Math.min(sorted.length - 1,
-    Math.floor(pct * (sorted.length - 1)))].toFixed(2) : null;
+  return sorted.length
+    ? +sorted[Math.min(sorted.length - 1, Math.floor(pct * (sorted.length - 1)))].toFixed(2)
+    : null;
 }
 function summary(result) {
   const frames = result.frames.filter(x => Number.isFinite(x.fps) && x.fps > 0);
@@ -43,22 +64,31 @@ function summary(result) {
   const listener = result.ending?.listener || {};
   const caps = result.ending?.listenerLimits || {};
   return {
-    name: result.name, profile: result.profile, viewport: result.start.viewport,
-    map: result.start.map, initialSoldiers: result.start.soldiers,
-    seconds, fpsMedian: percentile(fps, 0.5), fpsP05: percentile(fps, 0.05),
+    name: result.name,
+    profile: result.profile,
+    viewport: result.start.viewport,
+    map: result.start.map,
+    initialSoldiers: result.start.soldiers,
+    seconds,
+    fpsMedian: percentile(fps, 0.5),
+    fpsP05: percentile(fps, 0.05),
     fpsMin: fps.length ? +fps[0].toFixed(2) : null,
     framesBelow20: fps.filter(x => x < 20).length,
-    shots: result.ending?.shots || 0, simTime: result.ending?.time || 0,
+    shots: result.ending?.shots || 0,
+    simTime: result.ending?.time || 0,
     listenerActive: result.ending?.acousticActive || 0,
     listenerCap: caps.maxActive || null,
     acousticPrepared: listener.prepared || 0,
     acousticBypassed: listener.skippedCapacity || 0,
     acousticTickMs: listener.acousticTickTotalMs || 0,
-    poolStarts: audio.playRequests || 0, poolBusyDrops: audio.droppedBusy || 0,
+    poolStarts: audio.playRequests || 0,
+    poolBusyDrops: audio.droppedBusy || 0,
     schedulerStarts: sched.startedPrimary || 0,
     schedulerPrimaryLosses: (sched.evictedPrimary || 0) + (sched.rejectedPrimary || 0),
     schedulerMaxGapMs: sched.maxActiveDrainGapMs || 0,
-    browserErrors: result.errors.length, missingAudio: result.missingAudio.length,
+    browserErrors: result.errors.length,
+    missingAudio: result.missingAudio.length,
+    httpErrors: result.httpErrors || [],
     hiddenSamples: result.frames.filter(x => x.visibility !== 'visible').length,
     audioState: result.ending?.audioContextState || null,
     voiceStarts: result.ending?.voice?.played || 0,
@@ -75,24 +105,36 @@ function summary(result) {
 }
 
 (async () => {
-  const browser = await chromium.launch({ headless: true, args: [
-    '--autoplay-policy=no-user-gesture-required',
-    '--disable-dev-shm-usage',
-    '--use-gl=angle', '--use-angle=swiftshader', '--enable-webgl',
-    '--ignore-gpu-blocklist'
-  ] });
+  const browser = await chromium.launch({
+    headless: true,
+    args: [
+      '--autoplay-policy=no-user-gesture-required',
+      '--disable-dev-shm-usage',
+      '--use-gl=angle',
+      '--use-angle=swiftshader',
+      '--enable-webgl',
+      '--ignore-gpu-blocklist'
+    ]
+  });
   const rows = [];
   try {
-    for (const profile of profiles.filter(p => !process.env.MOBILE_MINI_PROFILE || p.name === process.env.MOBILE_MINI_PROFILE)) {
+    for (const profile of profiles.filter(
+      p => !process.env.MOBILE_MINI_PROFILE || p.name === process.env.MOBILE_MINI_PROFILE
+    )) {
       const ctx = await browser.newContext({
-        viewport: profile.viewport, isMobile: profile.isMobile,
-        hasTouch: profile.hasTouch, deviceScaleFactor: profile.isMobile ? 2 : 1,
+        viewport: profile.viewport,
+        isMobile: profile.isMobile,
+        hasTouch: profile.hasTouch,
+        deviceScaleFactor: profile.isMobile ? 2 : 1,
         ignoreHTTPSErrors: true
       });
       const page = await ctx.newPage();
       page.setDefaultTimeout(120000);
-      const errors = [], missingAudio = [];
+      const errors = [],
+        missingAudio = [],
+        httpErrors = [];
       page.on('response', r => {
+        if (!r.ok()) httpErrors.push({ status: r.status(), url: r.url(), type: r.request().resourceType() });
         if (r.url().includes('/Assets/audio/') && !r.ok()) missingAudio.push(r.status() + ' ' + r.url());
       });
       page.on('requestfailed', request => {
@@ -109,25 +151,47 @@ function summary(result) {
       });
       const u = new URL(base);
       const qs = {
-        combatLab: '1', balancedMeeting: '1', labPreset: 'A',
-        labRange: '1', tacticalController: 'new',
-        seed: 'mobile-mini-audio-683', pinSeed: '1',
-        acoustics: 'high', acousticSlots: String(profile.slots),
-        acousticPriority: '1', audioQueues: 'single', audioBackend: backend, audioDiag: '1'
+        combatLab: '1',
+        balancedMeeting: '1',
+        labPreset: 'A',
+        labRange: '1',
+        tacticalController: 'new',
+        seed: 'mobile-mini-audio-683',
+        pinSeed: '1',
+        acoustics: 'high',
+        acousticSlots: String(profile.slots),
+        acousticPriority: '1',
+        audioQueues: 'single',
+        audioBackend: backend,
+        audioDiag: '1'
       };
       Object.entries(qs).forEach(([k, v]) => u.searchParams.set(k, v));
-      const run = { name: profile.name, profile, errors, missingAudio,
-        frames: [], status: 'incomplete', screenshot: null, start: {}, ending: {} };
+      const run = {
+        name: profile.name,
+        profile,
+        errors,
+        missingAudio,
+        httpErrors,
+        frames: [],
+        status: 'incomplete',
+        screenshot: null,
+        start: {},
+        ending: {}
+      };
       try {
         const response = await page.goto(u.toString(), {
-          waitUntil: 'domcontentloaded', timeout: 120000
+          waitUntil: 'domcontentloaded',
+          timeout: 120000
         });
         if (!response || !response.ok()) throw new Error('HTTP ' + response?.status());
-        await page.waitForFunction(() => !!(window.__battle__ &&
-          window.BattleListenerAcoustics && window.__battleRenderLoop__),
-          null, { timeout: 120000 });
+        await page.waitForFunction(
+          () => !!(window.__battle__ && window.BattleListenerAcoustics && window.__battleRenderLoop__),
+          null,
+          { timeout: 120000 }
+        );
         run.start = await page.evaluate(() => {
-          const b = window.__battle__, sc = b.scene.metadata?.battleScenario,
+          const b = window.__battle__,
+            sc = b.scene.metadata?.battleScenario,
             canvas = document.getElementById('renderCanvas');
           const bounds = canvas?.getBoundingClientRect();
           return {
@@ -150,13 +214,18 @@ function summary(result) {
           start.click();
         });
         await page.waitForFunction(() => !window.__battle__.paused, null, { timeout: 15000 });
-        if (warmup) await page.waitForFunction(() =>
-          (window.__battle__?._weaponAudio?.summary?.()?.playRequests || 0) > 0,
-          null, { timeout: warmup * 1000 });
+        if (warmup)
+          await page.waitForFunction(
+            () => (window.__battle__?._weaponAudio?.summary?.()?.playRequests || 0) > 0,
+            null,
+            { timeout: warmup * 1000 }
+          );
         await page.evaluate(() => {
-          const ae = window.BattleAudioBackend ? BattleAudioBackend.engine() : BABYLON.Engine.audioEngine, ctx = ae?.audioContext,
+          const ae = window.BattleAudioBackend ? BattleAudioBackend.engine() : BABYLON.Engine.audioEngine,
+            ctx = ae?.audioContext,
             master = ae?.masterGain;
-          let analyser = null, probeGain = null;
+          let analyser = null,
+            probeGain = null;
           if (ctx && master && ctx.createAnalyser) {
             analyser = ctx.createAnalyser();
             analyser.fftSize = 2048;
@@ -167,8 +236,10 @@ function summary(result) {
             probeGain.connect(ctx.destination);
           }
           window.__mobileMiniStats = {
-            analyser, probeGain,
-            data: [], timer: setInterval(() => {
+            analyser,
+            probeGain,
+            data: [],
+            timer: setInterval(() => {
               let audioRms = null;
               if (analyser) {
                 const raw = new Float32Array(analyser.fftSize);
@@ -177,9 +248,11 @@ function summary(result) {
                 for (const v of raw) sum += v * v;
                 audioRms = Math.sqrt(sum / raw.length);
               }
-              const b = window.__battle__, eng = b.scene.getEngine();
+              const b = window.__battle__,
+                eng = b.scene.getEngine();
               window.__mobileMiniStats.data.push({
-                fps: eng.getFps(), simTime: b.time,
+                fps: eng.getFps(),
+                simTime: b.time,
                 visibility: document.visibilityState,
                 heapBytes: performance.memory?.usedJSHeapSize || 0,
                 acousticActive: window.BattleListenerAcoustics?.active || 0,
@@ -198,19 +271,25 @@ function summary(result) {
           return m.data;
         });
         run.ending = await page.evaluate(() => {
-          const b = window.__battle__, engine = b.scene.getEngine();
-          const audioc = (window.BattleAudioBackend ? BattleAudioBackend.engine() : window.BABYLON.Engine.audioEngine)?.audioContext;
+          const b = window.__battle__,
+            engine = b.scene.getEngine();
+          const audioc = (
+            window.BattleAudioBackend ? BattleAudioBackend.engine() : window.BABYLON.Engine.audioEngine
+          )?.audioContext;
           const value = {
-            time: b.time, shots: (window.BattleAudioScheduler?.stats?.received || 0),
+            time: b.time,
+            shots: window.BattleAudioScheduler?.stats?.received || 0,
             backend: window.BattleAudioBackend?.summary?.(),
             audio: b._weaponAudio?.summary?.() || null,
             voice: window.BattleVoiceScheduler?.summary?.() || null,
             combat: b._combatAudio || null,
             grenades: b._grenadeAudio || null,
             foley: b._weaponFoley || null,
-            mix: { tacticalSafety: !!window.BattleAudioMix?.tacticalSafety,
+            mix: {
+              tacticalSafety: !!window.BattleAudioMix?.tacticalSafety,
               settings: window.BattleAudioMix?.get?.(),
-              stats: { ...window.BattleAudioMix?.stats } },
+              stats: { ...window.BattleAudioMix?.stats }
+            },
             scheduler: { ...window.BattleAudioScheduler?.stats },
             listener: { ...window.BattleListenerAcoustics?.stats },
             listenerLimits: {
@@ -244,8 +323,7 @@ function summary(result) {
         run.status = 'error: ' + String(e.message || e);
         console.error(profile.name + ': ' + run.status);
       } finally {
-        fs.writeFileSync(path.join(out, profile.name + '.json'),
-          JSON.stringify(run, null, 2) + '\n');
+        fs.writeFileSync(path.join(out, profile.name + '.json'), JSON.stringify(run, null, 2) + '\n');
         const short = summary(run);
         console.log('MOBILE_MINI', JSON.stringify(short));
         rows.push(short);
@@ -257,6 +335,8 @@ function summary(result) {
   }
   fs.writeFileSync(path.join(out, 'matrix.json'), JSON.stringify(rows, null, 2) + '\n');
   console.log('MOBILE_MINI_SUMMARY', JSON.stringify(rows));
-  if (rows.some(r => r.status !== 'completed' || r.browserErrors > 0))
-    process.exitCode = 1;
-})().catch(err => { console.error(err.stack || err); process.exitCode = 1; });
+  if (rows.some(r => r.status !== 'completed' || r.browserErrors > 0)) process.exitCode = 1;
+})().catch(err => {
+  console.error(err.stack || err);
+  process.exitCode = 1;
+});
