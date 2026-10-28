@@ -8,6 +8,8 @@ Hosted natural contact QA exports controller maneuver census/history; paired sta
 carry the same data under `coveredBounds.controller`. Require real-map direction, independently
 qualified discharge continuity, physical arrival and role swaps before tactical acceptance.
 
+The native first-contact and ballistic-flight meeting probes report grenade friendly wounds and deaths as physical outcomes; they do not require zero friendly fire. They require nonnegative integer counts with friendly losses included in the totals. Deterministic grenade checks separately cover unsafe commitment/release rejection, legal release followed by late friendly entry, and injury/kill attribution. Do not add automatic grenade avoidance or damage immunity to make a live meeting pass.
+
 ## Test harnesses
 
 All of these run offline in seconds unless noted, and all pass on `main`.

@@ -783,6 +783,19 @@
         }
       }
     },
+    "soldier.reloadStart": {
+      "owner": "modules/46-ammunition-stoppages.js",
+      "writers": {
+        "modules/46-ammunition-stoppages.js": {
+          "as": "owner",
+          "why": "Authoritative delayed reload start; initialize, completion and weapon change clear it."
+        },
+        "modules/12-soldier-animation-events.js": {
+          "as": "fallback",
+          "why": "Legacy start/finish only when BattleAmmunition is absent; production uses the ammunition owner."
+        }
+      }
+    },
     "soldier.reloadUntil": {
       "owner": "modules/46-ammunition-stoppages.js",
       "writers": {

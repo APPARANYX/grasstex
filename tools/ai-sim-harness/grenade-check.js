@@ -794,6 +794,31 @@ test('enemy grenade casualties earn kill credit while friendly and self casualti
   }
 });
 
+test('a legal AI release can still wound a friendly who enters before detonation', () => {
+  const ctx = setup();
+  const { G, b, s, r } = ctx;
+  r.BattleTacticalController = { controls: () => true };
+  const enemy = victim(ctx, 28, 0);
+  s.target = enemy;
+  r.SquadAI.rememberSeen(s, enemy, b, true, 'grenade-late-friendly');
+  const plan = G.assaultThrow(s, b);
+  assert.ok(plan, 'formation is safe when the AI commits');
+  at(ctx, plan.releaseAt);
+  const [g] = G.projectiles(b);
+  assert.ok(g, 'safe AI release remains live');
+  const friend = victim(ctx, g.to.x + 0.5, g.to.z, 'us');
+  friend.hp = 1;
+  at(ctx, g.detonateAt);
+  assert.ok(friend.dead, 'late entry retains physical friendly-fire damage');
+  assert.equal(friend.casualty.by, s.id);
+  assert.equal(friend.casualty.source, 'grenade');
+  assert.equal(G.summary(b).friendlyWounded, 1);
+  assert.equal(G.summary(b).friendlyCasualties, 1);
+  assert.ok(G.summary(b).wounded >= G.summary(b).friendlyWounded);
+  assert.ok(G.summary(b).casualties >= G.summary(b).friendlyCasualties);
+  assert.equal(G.summary(b).unsafeAborts, 0, 'later friendly entry does not retroactively cancel the throw');
+});
+
 test('a friendly grenade wound that later bleeds out preserves source and counts without kill credit', () => {
   const ctx = setup();
   const { G, r, s, b } = ctx;
