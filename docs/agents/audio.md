@@ -1,5 +1,9 @@
 ## Audio
 
+**Map names for preview links:** **mini-target map** means the **Native Tactical Skills Lab** (`skillsLab=1&combatLab=1&tacticalController=new`): US soldiers against stationary, non-firing dummy targets on the 280 × 240 m range. Keep `labDistance=120&labCover=mixed&labRange=1&labMove=autonomous` for the matched target drill. **Mini meeting map** means the live US-versus-German combat map (`combatLab=1&balancedMeeting=1`, without `skillsLab=1`). These names are not interchangeable. The Howler audio comparison uses `audioBackend=howler&audioMix=main&acoustics=off&audioDiag=1` on either map.
+
+Use the branch-workflow preview `/preview/pr-683/battle_sim.php` for the mini-target map and verify that the served page exports `window.SKILLS_LAB=true` and loads `battle/skills-lab.js`. The launcher's immutable `ref-db297da2be9d` preview uses an older trusted PHP loader that ignores `skillsLab` and loads `phase-c-compact-range.js`; its query string alone does not prove which map runs.
+
 `Assets/audio/manifest.json` is the runtime contract, and the runtime never calls an API.
 
 - **Route:** fetch into gitignored `.runtime/`, slice, master, register in `manifest.json`, then push
