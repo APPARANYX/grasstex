@@ -1,0 +1,23 @@
+{
+  "branch": "work/benchmark-launch/tc-667-strategic-20261026",
+  "launch_parent_sha": "99c4b3aa83989e0043ca3b23089d51c7a8380b26",
+  "launch_sha": "fda06c079dbcbee3117c6f07768d58afe5b3398c",
+  "note": "Launch parent is preserved; the child's actual checkout SHA must be read from the child run.",
+  "parent_retention_ref": "archive/benchmark-source/99c4b3aa83989e0043ca3b23089d51c7a8380b26",
+  "request": {
+    "benchmark": "probe-pack",
+    "map": "strategic",
+    "origin_agent": "chatgpt",
+    "probes": "outcome,playtest,causal-inaction,move-stalls,contact-flicker,bound-episodes,squad-idle,retreat-episodes,fire-gates,clear-contact",
+    "purpose": "Controller OFF vs ON; 5km equal-seed 3-scenario smoke",
+    "query_off": "",
+    "query_on": "tacticalController=new",
+    "ref": "work/tactical-controller-contact-march-handoff-20261026",
+    "seed": "tc-667-bundle-strategic",
+    "seeds": 4,
+    "sim_seconds": 900
+  },
+  "schema_version": 1,
+  "source_ref": "work/tactical-controller-contact-march-handoff-20261026",
+  "source_sha_at_archive": "d8e0a3c7798c8aa2868c79bea265343ef297ebc8"
+}
