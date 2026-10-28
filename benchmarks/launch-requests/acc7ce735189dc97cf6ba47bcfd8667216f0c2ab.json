@@ -1,0 +1,24 @@
+{
+  "branch": "work/benchmark-launch/march-provider-cand-strategic-20261026",
+  "launch_parent_sha": "51ccafd1dfd3d208856e02284b35c53341ac1bec",
+  "launch_sha": "acc7ce735189dc97cf6ba47bcfd8667216f0c2ab",
+  "note": "Launch parent is preserved; the child's actual checkout SHA must be read from the child run.",
+  "parent_retention_ref": "archive/benchmark-source/51ccafd1dfd3d208856e02284b35c53341ac1bec",
+  "request": {
+    "battle_type": "meeting",
+    "benchmark": "standard",
+    "correlation_id": "mp-cand-strategic",
+    "origin_agent": "claude",
+    "purpose": "Slice 2 march provider: flag-off same-seed vs main 3357e587, flag-on smoke",
+    "query_off": "",
+    "query_on": "tacticalController=new",
+    "ref": "claude/project-thread-a5sq10",
+    "seed": "controller-runtime-20261025",
+    "seeds": "1",
+    "sim_seconds": "600",
+    "windows": "0+600"
+  },
+  "schema_version": 1,
+  "source_ref": "claude/project-thread-a5sq10",
+  "source_sha_at_archive": "ce4774a50b854035cac89aba13f05efa8443a55e"
+}
