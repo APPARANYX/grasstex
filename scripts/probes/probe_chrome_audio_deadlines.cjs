@@ -66,8 +66,29 @@ const save = () => fs.writeFileSync(path.join(out, 'capture.json'), JSON.stringi
     while (Date.now() - begin < 150000) {
       const elapsedMs = Date.now() - begin;
       if (!enlarged && elapsedMs >= 45000) {
+        await page.bringToFront();
         await cdp.send('Browser.setWindowBounds', { windowId, bounds: { windowState: 'fullscreen' } });
-        report.stages.push({ stage: 'fullscreen-1x', elapsedMs });
+        await page.waitForTimeout(1500);
+        const display = await page.evaluate(() => ({
+          width: screen.width,
+          height: screen.availHeight,
+          actual: innerWidth
+        }));
+        let mode = 'fullscreen';
+        // macOS may acknowledge fullscreen without resizing a background window.
+        if (display.actual < display.width * 0.9) {
+          mode = 'display-sized-window';
+          await cdp.send('Browser.setWindowBounds', { windowId, bounds: { windowState: 'normal' } });
+          await cdp.send('Browser.setWindowBounds', {
+            windowId,
+            bounds: { left: 0, top: 0, width: display.width, height: display.height }
+          });
+          await page.waitForTimeout(1000);
+        }
+        const size = await page.evaluate(() => [innerWidth, innerHeight]);
+        if (size[0] < display.width * 0.9)
+          throw Error('Large-window stage failed to resize: ' + size.join('x'));
+        report.stages.push({ stage: 'fullscreen-1x', elapsedMs: Date.now() - begin, mode, size });
         enlarged = true;
         console.log('STAGE: fullscreen at 1x');
       }
