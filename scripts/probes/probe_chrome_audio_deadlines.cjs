@@ -8,6 +8,8 @@ const path = require('node:path');
 const url = process.env.CHROME_AUDIO_URL;
 if (!url || !/^https:\/\//.test(url)) throw Error('Provide the exact hosted CHROME_AUDIO_URL');
 const out = path.resolve(process.env.CHROME_AUDIO_OUT || '.runtime/chrome-audio-deadlines');
+const fullscreenAfter = Math.max(0, Number(process.env.CHROME_AUDIO_FULLSCREEN_AFTER_MS ?? 45000));
+const fastAfter = Math.max(fullscreenAfter + 1500, Number(process.env.CHROME_AUDIO_FAST_AFTER_MS ?? 75000));
 fs.mkdirSync(out, { recursive: true });
 const report = {
   url,
@@ -15,7 +17,9 @@ const report = {
   stages: [],
   samples: [],
   contexts: [],
-  errors: []
+  errors: [],
+  fullscreenAfterMs: fullscreenAfter,
+  fastAfterMs: fastAfter
 };
 const save = () => fs.writeFileSync(path.join(out, 'capture.json'), JSON.stringify(report, null, 2) + '\n');
 
@@ -65,10 +69,16 @@ const save = () => fs.writeFileSync(path.join(out, 'capture.json'), JSON.stringi
     let enlarged = false,
       fast = false;
     report.stages.push({ stage: 'small-window-1x', elapsedMs: 0 });
-    console.log('CAPTURE STARTED: exact Mini Target URL; 45s small window, 30s fullscreen, then 4x.');
+    console.log(
+      'CAPTURE STARTED: exact Mini Target URL; enlarge at ' +
+        fullscreenAfter +
+        'ms, 4x at ' +
+        fastAfter +
+        'ms.'
+    );
     while (Date.now() - begin < 150000) {
       const elapsedMs = Date.now() - begin;
-      if (!enlarged && elapsedMs >= 45000) {
+      if (!enlarged && elapsedMs >= fullscreenAfter) {
         await page.bringToFront();
         await cdp.send('Browser.setWindowBounds', { windowId, bounds: { windowState: 'fullscreen' } });
         // Lock the raster workload to the original capture, even if macOS moves
@@ -89,7 +99,7 @@ const save = () => fs.writeFileSync(path.join(out, 'capture.json'), JSON.stringi
         enlarged = true;
         console.log('STAGE: fullscreen at 1x');
       }
-      if (!fast && elapsedMs >= 75000) {
+      if (!fast && elapsedMs >= fastAfter) {
         await page.locator('#skillSpeed').click();
         const label = await page.locator('#skillSpeed').innerText();
         if (!/4/.test(label)) throw Error('Expected 4x after one speed click, got ' + label);
