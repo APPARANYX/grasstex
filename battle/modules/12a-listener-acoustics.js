@@ -259,7 +259,7 @@
               : 0.025;
       var hadChain = !!e.sound._acoustics;
       e.sound.setVolume(gain);
-      if (e.sound.setAcousticProfile(hz, amount, bus && bus.input, MAX_ACTIVE)) {
+      if (e.sound.setAcousticProfile(hz, amount, bus && bus.input, MAX_ACTIVE, e.kind)) {
         if (!hadChain) stats.filtered++;
       } else stats.degraded++;
       return;

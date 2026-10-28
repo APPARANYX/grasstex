@@ -1,7 +1,7 @@
 /* Experimental independent playback: ?audioBackend=howler. Default stays Babylon.
    Owners retain event timing, propagation, clip selection and bounded voice pools.
    A wrapper owns one playback ID; Howls and decoded data are shared by clip URL.
-   Howler owns playback and optional bounded acoustic chains. No Babylon SoundTrack
+   Howler owns playback and ten shared clear/muffled category filters. No Babylon SoundTrack
    is touched; acoustics=off retains the validated dry path. */
 (function (root) {
   'use strict';
@@ -11,6 +11,7 @@
     clips = new Map(),
     active = new Set(),
     acousticChains = [],
+    acousticBuses = null,
     nodeChains = new WeakMap();
   var stats = {
     requested: 0,
@@ -235,8 +236,72 @@
   Sound.prototype.detachFromMesh = function () {
     this._mesh = null;
   };
-  // One guarded bridge to pinned Howler 2.2.4's per-playback GainNode. The
-  // shared Howl is never rerouted as a group, so other shots keep their own graph.
+  // Five categories, two fixed filters each. Only per-source gains are automated.
+  var BUS_CUTOFFS = {
+    closeShots: [19000, 900],
+    distantShots: [10000, 900],
+    voices: [14000, 550],
+    foley: [19000, 900],
+    effects: [19000, 900]
+  };
+  function acousticCategory(kind) {
+    return kind === 'gun'
+      ? 'closeShots'
+      : kind === 'gunDistant' || kind === 'tail'
+        ? 'distantShots'
+        : kind === 'voice'
+          ? 'voices'
+          : kind === 'foley'
+            ? 'foley'
+            : 'effects';
+  }
+  function sharedBuses(ctx) {
+    if (acousticBuses) return acousticBuses;
+    var buses = {},
+      allocated = [];
+    try {
+      Object.keys(BUS_CUTOFFS).forEach(function (category) {
+        var filters = BUS_CUTOFFS[category].map(function (hz) {
+          var filter = ctx.createBiquadFilter();
+          allocated.push(filter);
+          filter.type = 'lowpass';
+          filter.frequency.value = Math.min(hz, ctx.sampleRate * 0.49);
+          filter.connect(root.Howler.masterGain);
+          return filter;
+        });
+        buses[category] = { clear: filters[0], muffled: filters[1] };
+      });
+    } catch (error) {
+      allocated.forEach(function (filter) {
+        try {
+          filter.disconnect();
+        } catch (_) {}
+      });
+      throw error;
+    }
+    acousticBuses = buses;
+    return buses;
+  }
+  function ramp(param, value, t, seconds, immediate) {
+    if (param._battleTarget === value) return;
+    if (immediate) {
+      param.cancelScheduledValues(t);
+      param.setValueAtTime(value, t);
+      param._battleTarget = value;
+      return;
+    }
+    // Hold an in-progress gain ramp before replacing it; no unbounded event history.
+    if (typeof param.cancelAndHoldAtTime === 'function') param.cancelAndHoldAtTime(t);
+    else {
+      param.cancelScheduledValues(t);
+      param.setValueAtTime(param.value, t);
+    }
+    if (typeof param.linearRampToValueAtTime === 'function')
+      param.linearRampToValueAtTime(value, t + seconds);
+    else param.setTargetAtTime(value, t, seconds);
+    param._battleTarget = value;
+  }
+  // One guarded bridge to pinned Howler 2.2.4's per-playback GainNode.
   Sound.prototype._attachAcoustics = function () {
     var chain = this._acoustics;
     if (!chain || this._id == null) return;
@@ -246,76 +311,105 @@
     try {
       var instance = howl._soundById && howl._soundById(this._id);
       node = instance && instance._node;
-      if (!node || !node.context || node.context !== chain.filter.context || !node.disconnect) return;
+      if (!node || node.context !== chain.clearGain.context || !node.disconnect) return;
       if (chain.node === node || chain.failedNode === node) return;
-      // Howler can recycle an ended node before its async end callback arrives.
-      // Release the old reservation now so that callback cannot reroute this shot.
       var previous = nodeChains.get(node);
       if (previous && previous !== chain && previous.owner) previous.owner._releaseAcoustics();
       node.disconnect(master);
-      node.connect(chain.filter);
+      node.connect(chain.clearGain);
+      node.connect(chain.muffledGain);
+      node.connect(chain.send);
       chain.node = node;
       nodeChains.set(node, chain);
       stats.acousticAttached++;
     } catch (_) {
       stats.acousticErrors++;
       chain.failedNode = node;
-      try {
-        if (node) node.disconnect(chain.filter);
-      } catch (_) {}
+      [chain.clearGain, chain.muffledGain, chain.send].forEach(function (target) {
+        try {
+          if (node) node.disconnect(target);
+        } catch (_) {}
+      });
       try {
         if (node) node.connect(master);
       } catch (_) {}
     }
   };
-  Sound.prototype.setAcousticProfile = function (hz, wet, wetInput, limit) {
+  Sound.prototype.setAcousticProfile = function (hz, wet, wetInput, limit, kind) {
     var ctx = root.Howler.ctx,
       chain = this._acoustics;
-    if (!chain) {
-      chain = acousticChains.find(function (item) {
-        return !item.owner;
-      });
-      if (!chain && acousticChains.length < Math.max(1, Math.min(192, limit || 96))) {
-        var filter = null,
-          send = null;
-        try {
-          filter = ctx.createBiquadFilter();
-          filter.type = 'lowpass';
-          filter.frequency.value = 20000;
-          send = ctx.createGain();
-          send.gain.value = 0;
-          filter.connect(root.Howler.masterGain);
-          filter.connect(send);
-          if (wetInput) send.connect(wetInput);
-          chain = { filter: filter, send: send, owner: null, node: null };
-          acousticChains.push(chain);
-        } catch (_) {
-          try {
-            if (filter) filter.disconnect();
-            if (send) send.disconnect();
-          } catch (_) {}
-          stats.acousticErrors++;
-        }
-      }
+    try {
+      var category = acousticCategory(kind),
+        buses = sharedBuses(ctx);
       if (!chain) {
-        stats.acousticBypassed++;
-        return false;
+        chain = acousticChains.find(function (item) {
+          return !item.owner;
+        });
+        if (!chain && acousticChains.length < Math.max(1, Math.min(192, limit || 96))) {
+          var nodes = [];
+          try {
+            for (var i = 0; i < 3; i++) {
+              var gain = ctx.createGain();
+              nodes.push(gain);
+              gain.gain.value = 0;
+            }
+            chain = { clearGain: nodes[0], muffledGain: nodes[1], send: nodes[2], owner: null, node: null };
+            acousticChains.push(chain);
+          } catch (error) {
+            nodes.forEach(function (node) {
+              try {
+                node.disconnect();
+              } catch (_) {}
+            });
+            throw error;
+          }
+        }
+        if (!chain) {
+          stats.acousticBypassed++;
+          return false;
+        }
+        chain.owner = this;
+        this._acoustics = chain;
       }
-      chain.owner = this;
-      this._acoustics = chain;
+      if (chain.category !== category) {
+        chain.clearGain.disconnect();
+        chain.muffledGain.disconnect();
+        chain.clearGain.connect(buses[category].clear);
+        chain.muffledGain.connect(buses[category].muffled);
+        chain.category = category;
+      }
+      if (chain.wetInput !== wetInput) {
+        chain.send.disconnect();
+        if (wetInput) chain.send.connect(wetInput);
+        chain.wetInput = wetInput;
+      }
+      var cutoffs = BUS_CUTOFFS[category];
+      var blend = Math.max(
+        0,
+        Math.min(
+          1,
+          Math.log(cutoffs[0] / Math.max(cutoffs[1], hz || cutoffs[0])) / Math.log(cutoffs[0] / cutoffs[1])
+        )
+      );
+      // Linear weights sum to one: the two paths carry the same correlated sound.
+      ramp(chain.clearGain.gain, 1 - blend, ctx.currentTime, 0.045, !this._playing);
+      ramp(chain.muffledGain.gain, blend, ctx.currentTime, 0.045, !this._playing);
+      ramp(chain.send.gain, wetInput ? wet : 0, ctx.currentTime, 0.06, !this._playing);
+      this._attachAcoustics();
+      return true;
+    } catch (_) {
+      stats.acousticErrors++;
+      this._releaseAcoustics();
+      return false;
     }
-    chain.filter.frequency.setTargetAtTime(hz, ctx.currentTime, 0.045);
-    chain.send.gain.setTargetAtTime(wetInput ? wet : 0, ctx.currentTime, 0.06);
-    this._attachAcoustics();
-    return true;
   };
   Sound.prototype.neutralizeAcoustics = function () {
     var chain = this._acoustics;
     if (!chain) return;
     var t = root.Howler.ctx.currentTime;
-    chain.filter.frequency.setTargetAtTime(20000, t, 0.025);
-    chain.send.gain.setTargetAtTime(0, t, 0.008);
-    // Keep an active source connected until its natural end; no mid-shot graph swaps.
+    ramp(chain.clearGain.gain, 1, t, 0.025);
+    ramp(chain.muffledGain.gain, 0, t, 0.025);
+    ramp(chain.send.gain, 0, t, 0.008);
   };
   Sound.prototype._releaseAcoustics = function () {
     var chain = this._acoustics;
@@ -323,16 +417,19 @@
     if (chain.node) {
       nodeChains.delete(chain.node);
       try {
-        chain.node.disconnect(chain.filter);
+        chain.node.disconnect(chain.clearGain);
+        chain.node.disconnect(chain.muffledGain);
+        chain.node.disconnect(chain.send);
         chain.node.connect(root.Howler.masterGain);
       } catch (_) {
         stats.acousticErrors++;
       }
     }
     var t = root.Howler.ctx.currentTime;
-    [chain.filter.frequency, chain.send.gain].forEach(function (param, index) {
-      param.cancelScheduledValues(t);
-      param.setValueAtTime(index ? 0 : 20000, t);
+    [chain.clearGain, chain.muffledGain, chain.send].forEach(function (node) {
+      node.gain.cancelScheduledValues(t);
+      node.gain.setValueAtTime(0, t);
+      delete node.gain._battleTarget;
     });
     chain.node = null;
     chain.failedNode = null;
@@ -417,10 +514,17 @@
     }
     if (!clips.size) {
       acousticChains.forEach(function (chain) {
-        chain.filter.disconnect();
+        chain.clearGain.disconnect();
+        chain.muffledGain.disconnect();
         chain.send.disconnect();
       });
       acousticChains = [];
+      if (acousticBuses)
+        Object.keys(acousticBuses).forEach(function (category) {
+          acousticBuses[category].clear.disconnect();
+          acousticBuses[category].muffled.disconnect();
+        });
+      acousticBuses = null;
     }
   };
   root.BattleAudioBackend = {
@@ -436,6 +540,10 @@
           name: enabled ? 'howler' : 'babylon',
           version: enabled ? '2.2.4' : null,
           dry: enabled && !(root.BattleListenerAcoustics && root.BattleListenerAcoustics.quality !== 'off'),
+          acousticMode: 'double-bus',
+          acousticBuses: acousticBuses ? Object.keys(acousticBuses).length * 2 : 0,
+          acousticFilters: acousticBuses ? Object.keys(acousticBuses).length * 2 : 0,
+          acousticCategories: acousticBuses ? Object.keys(acousticBuses) : [],
           acousticChains: acousticChains.length,
           acousticActive: acousticChains.filter(function (chain) {
             return !!chain.owner;
