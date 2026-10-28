@@ -120,7 +120,7 @@ fs.mkdirSync(out, { recursive: true });
           fs.writeFileSync(`${out}/${name}.json`, JSON.stringify(report, null, 2));
           const audio = report.audio,
             history = audio.outputHistory;
-          assert.equal(audio.diagnosticVersion, 2);
+          assert.equal(audio.diagnosticVersion, 3);
           assert.equal(audio.backend.name, 'howler');
           assert.equal(errors.length, 0, 'browser runtime errors');
           assert.equal(missingAudio.length, 0, 'missing audio files');
@@ -128,6 +128,15 @@ fs.mkdirSync(out, { recursive: true });
           assert.ok(audio.silenceMarkers.length > 0, 'marker must preserve its preceding trace');
           assert.ok(audio.continuity.length >= 100, 'must record sustained continuity');
           assert.ok(!audio.continuity.some(x => x.clockStalled && !x.paused), 'running audio clock stalled');
+          let slowSince = null,
+            maxSlowMs = 0;
+          for (const row of audio.continuity) {
+            if (!row.paused && row.clockSlow) {
+              if (slowSince === null) slowSince = row.realMs;
+              maxSlowMs = Math.max(maxSlowMs, row.realMs - slowSince);
+            } else slowSince = null;
+          }
+          assert.ok(maxSlowMs < 2000, `audio clock below 80% real-time for ${maxSlowMs}ms`);
           let silent = 0,
             silentMax = 0;
           for (const row of history) {

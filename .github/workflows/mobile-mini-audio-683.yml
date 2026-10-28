@@ -62,6 +62,7 @@ jobs:
           tail -100 /tmp/mobile-skills-php.log
           exit 1
       - name: Exact-source Skills Lab preflight before native battle audio
+        id: preflight
         env:
           SKILLS_LAB_URL: http://127.0.0.1:8765/grasstex/battle_sim_local.php
         run: node scripts/probes/probe_skills_lab.cjs
@@ -79,6 +80,7 @@ jobs:
           node scripts/probes/probe_mobile_mini_meeting_audio.cjs
       - name: Required mini-target audio continuity and speed matrix
         id: target
+        if: ${{ !cancelled() && steps.preflight.outcome == 'success' }}
         env:
           TARGET_AUDIO_URL: https://test.ivandpopov.com/grasstex/preview/pr-683/battle_sim.php
           TARGET_AUDIO_SECONDS: '75'
@@ -86,6 +88,7 @@ jobs:
         run: node scripts/probes/probe_target_audio_continuity.cjs
       - name: Informational Babylon comparison
         id: babylon
+        if: ${{ !cancelled() && steps.preflight.outcome == 'success' }}
         continue-on-error: true
         env:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
