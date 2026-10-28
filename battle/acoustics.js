@@ -134,6 +134,7 @@
         if (dual) lanes[e.lane].evicted++;
         target.splice(victim, 1);
       }
+      e.queuedAtMs = performance.now();
       target.push(e);
       if (dual) lanes[e.lane].enqueued++;
       if (e.echo) stats.enqueuedEcho++;
@@ -275,6 +276,24 @@
         return {
           near: Object.assign({ queued: qNear.length }, lanes.near),
           far: Object.assign({ queued: qFar.length }, lanes.far)
+        };
+      },
+      get pressure() {
+        var events = dual ? qNear.concat(qFar) : q;
+        var now = performance.now(),
+          oldestDue = Infinity,
+          oldestQueued = Infinity;
+        events.forEach(function (event) {
+          oldestDue = Math.min(oldestDue, event.due);
+          oldestQueued = Math.min(oldestQueued, event.queuedAtMs);
+        });
+        return {
+          queued: events.length,
+          maxQueue: MAX_QUEUE,
+          maxPerFrame: MAX_PER_FRAME,
+          oldestPendingMs: events.length ? Math.max(0, now - oldestQueued) : 0,
+          overdueMs: events.length ? Math.max(0, now - oldestDue) : 0,
+          nextDueInMs: events.length ? Math.max(0, oldestDue - now) : null
         };
       },
       get queued() {

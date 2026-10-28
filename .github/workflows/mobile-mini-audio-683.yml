@@ -4,6 +4,11 @@ on:
     types: [synchronize]
     paths:
       - scripts/probes/probe_mobile_mini_meeting_audio.cjs
+      - scripts/probes/probe_target_audio_continuity.cjs
+      - battle/battle_sim.html
+      - battle/skills-lab.js
+      - battle/acoustics.js
+      - battle/modules/00-audio-backend.js
       - .github/workflows/mobile-mini-audio-683.yml
 
 permissions:
@@ -17,7 +22,7 @@ jobs:
   mobile-mini:
     if: github.event.pull_request.number == 683
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
         with:
@@ -72,6 +77,13 @@ jobs:
         run: |
           export MOBILE_MINI_URL="https://test.ivandpopov.com/grasstex/preview/ref-${HEAD_SHA:0:12}/battle_sim.php"
           node scripts/probes/probe_mobile_mini_meeting_audio.cjs
+      - name: Required mini-target audio continuity and speed matrix
+        id: target
+        env:
+          TARGET_AUDIO_URL: https://test.ivandpopov.com/grasstex/preview/pr-683/battle_sim.php
+          TARGET_AUDIO_SECONDS: '75'
+          TARGET_AUDIO_OUT: reports/mobile-mini-audio/mini-target
+        run: node scripts/probes/probe_target_audio_continuity.cjs
       - name: Informational Babylon comparison
         id: babylon
         continue-on-error: true
@@ -96,8 +108,10 @@ jobs:
         if: always()
         env:
           HOWLER_OUTCOME: ${{ steps.howler.outcome }}
+          TARGET_OUTCOME: ${{ steps.target.outcome }}
           BABYLON_OUTCOME: ${{ steps.babylon.outcome }}
         run: |
+          echo "Required mini-target continuity: $TARGET_OUTCOME" >> "$GITHUB_STEP_SUMMARY"
           echo "Required Howler: $HOWLER_OUTCOME" >> "$GITHUB_STEP_SUMMARY"
           echo "Informational Babylon: $BABYLON_OUTCOME" >> "$GITHUB_STEP_SUMMARY"
           if [ "$BABYLON_OUTCOME" = failure ]; then

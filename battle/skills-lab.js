@@ -497,7 +497,7 @@
       '<button id="skillSpeed">1×</button><button id="skillReset">Reset seed</button></div>' +
       '<div class="buttons"><button id="skillRetreat">Stage US retreat</button>' +
       '<button id="skillTrace">Vectors ON</button><button id="skillRoutesToggle">Routes ON</button>' +
-      '<button id="skillExport">Export JSON</button></div>' +
+      '<button id="skillExport">Export JSON</button><button id="skillAudioSilence" hidden>Silence happened</button></div>' +
       '<div class="sub">Stage retreat sets only the initial squad retreat state; it does NOT inject bounds, ' +
       'target reports or firing receipts. Never count it as autonomous retreat authorization.</div>' +
       '<div class="stats"><span><strong id="skillTime">0</strong>sim sec</span>' +
@@ -628,11 +628,17 @@
       if (root.__battleUnlockAudio__ && !(await root.__battleUnlockAudio__())) return;
       advance(7);
     };
+    var silence = panel.querySelector('#skillAudioSilence');
+    silence.hidden = new URLSearchParams(location.search).get('audioDiag') !== '1';
+    silence.onclick = function () {
+      if (root.__battleMarkAudioSilence__ && root.__battleMarkAudioSilence__())
+        this.textContent = 'Silence marked · Export JSON';
+    };
     panel.querySelector('#skillSpeed').onclick = function () {
       if (!battle) return;
-      var fast = battle.timeScale !== 4;
-      battle.setTimeScale(fast ? 4 : 1);
-      this.textContent = fast ? '4×' : '1×';
+      var speed = battle.timeScale === 1 ? 2 : battle.timeScale === 2 ? 4 : 1;
+      battle.setTimeScale(speed);
+      this.textContent = speed + '×';
     };
     panel.querySelector('#skillReset').onclick = reset;
     panel.querySelector('#skillRetreat').onclick = stageRetreat;

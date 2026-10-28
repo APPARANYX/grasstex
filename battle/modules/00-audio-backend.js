@@ -441,6 +441,21 @@
             return !!chain.owner;
           }).length,
           active: active.size,
+          playbackAudit: (function () {
+            var playing = 0,
+              unexpectedStopped = 0,
+              byCategory = {};
+            active.forEach(function (sound) {
+              var live = sound._id != null && sound._entry.howl.playing(sound._id);
+              if (live) playing++;
+              else unexpectedStopped++;
+              var category = String(sound.name || 'unknown').split(/[-:]/)[0];
+              var row = byCategory[category] || (byCategory[category] = { active: 0, playing: 0 });
+              row.active++;
+              if (live) row.playing++;
+            });
+            return { playing: playing, unexpectedStopped: unexpectedStopped, byCategory: byCategory };
+          })(),
           clips: clips.size,
           errors: errors.slice()
         },

@@ -265,42 +265,69 @@ window.BattleLoading=(function(){
   // Opt-in continuous master-output trace for real battles (?audioDiag=1).
   // Audio-only synthetic lab uses the same analyser route, but has no renderer or AI.
   var liveAudioHistory=[],liveAudioMeter=null,liveAudioMeterTimer=null;
+  var audioContinuity=[],audioEvents=[],audioMarkers=[],lastAudioSample=null,lastAudioState='';
+  var liveAudioData=null;
+  function audioCopy(value){return value==null?null:JSON.parse(JSON.stringify(value));}
   function liveOutput(){
     if(!liveAudioMeter)return null;
-    var data=new Float32Array(liveAudioMeter.fftSize),sum=0,peak=0;
+    var data=liveAudioData,sum=0,peak=0;
     liveAudioMeter.getFloatTimeDomainData(data);
     for(var i=0;i<data.length;i++){sum+=data[i]*data[i];peak=Math.max(peak,Math.abs(data[i]));}
     return {rms:+Math.sqrt(sum/data.length).toFixed(6),peak:+peak.toFixed(5)};
   }
+  function audioEvent(kind){
+    audioEvents.push({kind:kind,realMs:performance.now(),simTime:battle.time,
+      speed:battle.timeScale,paused:battle.paused,visibility:document.visibilityState,
+      fullscreen:!!document.fullscreenElement,focused:document.hasFocus()});
+    if(audioEvents.length>240)audioEvents.shift();
+  }
+  window.__battleMarkAudioSilence__=function(){
+    if(!liveAudioMeter)return false;
+    audioEvent('user-heard-silence');
+    audioMarkers.push(audioCopy({event:audioEvents[audioEvents.length-1],
+      preceding:audioContinuity.slice(),history:liveAudioHistory.slice()}));
+    if(audioMarkers.length>3)audioMarkers.shift();
+    return true;
+  };
   function enableLiveAudioMeter(){
     if(new URLSearchParams(location.search).get('audioDiag')!=='1'||liveAudioMeter)return;
     var ae=(window.BattleAudioBackend?BattleAudioBackend.engine():BABYLON.Engine.audioEngine),ctx=ae&&ae.audioContext,master=ae&&ae.masterGain;
     if(!ctx||!master||!ctx.createAnalyser)return;
     try{
       liveAudioMeter=ctx.createAnalyser();liveAudioMeter.fftSize=2048;
+      liveAudioData=new Float32Array(liveAudioMeter.fftSize);
       var tap=ctx.createGain();tap.gain.value=0;
       master.connect(liveAudioMeter);liveAudioMeter.connect(tap);tap.connect(ctx.destination);
-      var lastStarts=0;
+      ['visibilitychange','fullscreenchange'].forEach(function(name){document.addEventListener(name,function(){audioEvent(name);});});
+      ['focus','blur'].forEach(function(name){window.addEventListener(name,function(){audioEvent(name);});});
+      ctx.addEventListener('statechange',function(){audioEvent('context:'+ctx.state);});
+      var lastStarts=0,lastDetailMs=-Infinity;
       liveAudioMeterTimer=setInterval(function(){
-        var w=battle._weaponAudio&&battle._weaponAudio.summary(),now=liveOutput(),
-          starts=w&&w.playRequests||0,record={
-            realMs:Math.round(performance.now()),simTime:+battle.time.toFixed(2),
-            context:ctx.state,active:w&&w.active||0,weaponStarts:starts,
-            deltaWeaponStarts:starts-lastStarts,
-            output:now,voice:window.BattleVoiceScheduler&&
-              BattleVoiceScheduler.summary?BattleVoiceScheduler.summary():null,
-            grenade:battle._grenadeAudio&&Object.assign({},battle._grenadeAudio),
-            combat:battle._combatAudio&&{
-              played:Object.assign({},battle._combatAudio.played),
-              dropped:Object.assign({},battle._combatAudio.dropped)
-            },
-            foley:battle._weaponFoley&&Object.assign({},battle._weaponFoley)
-          };
+        var real=performance.now(),clock=ctx.currentTime,now=liveOutput(),stamp=null;
+        try{stamp=ctx.getOutputTimestamp?ctx.getOutputTimestamp():null;}catch(_){}
+        var sample={realMs:real,simTime:battle.time,speed:battle.timeScale,paused:battle.paused,
+          context:ctx.state,contextTime:clock,outputTimestamp:stamp,output:now,
+          wallDeltaMs:lastAudioSample?real-lastAudioSample.realMs:null,
+          contextDeltaMs:lastAudioSample?(clock-lastAudioSample.contextTime)*1000:null};
+        sample.clockStalled=!!(lastAudioSample&&ctx.state==='running'&&lastAudioSample.context==='running'&&sample.wallDeltaMs>=100&&sample.contextDeltaMs<1);
+        audioContinuity.push(sample);if(audioContinuity.length>1200)audioContinuity.shift();
+        lastAudioSample=sample;
+        var state=[battle.timeScale,battle.paused,ctx.state].join(':');
+        if(state!==lastAudioState){audioEvent('playback-state');lastAudioState=state;}
+        if(real-lastDetailMs<1000)return;
+        lastDetailMs=real;
+        var w=battle._weaponAudio&&battle._weaponAudio.summary(),starts=w&&w.playRequests||0;
+        var record=Object.assign({},sample,{
+          active:w&&w.active||0,weaponStarts:starts,deltaWeaponStarts:starts-lastStarts,
+          weapon:w,weaponPools:battle._weaponAudio&&battle._weaponAudio.detail(),
+          backend:window.BattleAudioBackend&&BattleAudioBackend.summary(),
+          queue:window.BattleAudioScheduler&&BattleAudioScheduler.pressure,
+          scheduler:window.BattleAudioScheduler&&BattleAudioScheduler.stats,
+          voice:window.BattleVoiceScheduler&&BattleVoiceScheduler.summary?BattleVoiceScheduler.summary():null,
+          grenade:battle._grenadeAudio,combat:battle._combatAudio,foley:battle._weaponFoley});
         lastStarts=starts;
-        liveAudioHistory.push(record);if(liveAudioHistory.length>240)liveAudioHistory.shift();
-        if(record.deltaWeaponStarts>=2&&now&&now.rms<0.00005)
-          console.warn('[AUDIO] gunfire starts but master output near zero',record);
-      },1000);
+        liveAudioHistory.push(audioCopy(record));if(liveAudioHistory.length>240)liveAudioHistory.shift();
+      },100);
     }catch(err){console.error('[AUDIO] passive output analyser failed',err);}
   }
   window.__battleAudioDiagnostics__=function(){
@@ -318,7 +345,14 @@ window.BattleLoading=(function(){
       voice:window.BattleVoiceScheduler&&BattleVoiceScheduler.summary?BattleVoiceScheduler.summary():null,
       grenade:battle._grenadeAudio,combat:battle._combatAudio,foley:battle._weaponFoley,
       audioFormat:window.BattleAudioFormat&&BattleAudioFormat.state,
-      output:liveOutput(),outputHistory:liveAudioHistory.slice(),
+      output:liveOutput(),outputHistory:audioCopy(liveAudioHistory),
+      continuity:audioCopy(audioContinuity),events:audioCopy(audioEvents),silenceMarkers:audioCopy(audioMarkers),
+      diagnosticVersion:2,
+      environment:{userAgent:navigator.userAgent,build:window.BATTLE_BUILD_DEPLOYED||BUILD,
+        ref:window.BATTLE_REF||null,sampleRate:ae&&ae.audioContext&&ae.audioContext.sampleRate,
+        baseLatency:ae&&ae.audioContext&&ae.audioContext.baseLatency,
+        outputLatency:ae&&ae.audioContext&&ae.audioContext.outputLatency,
+        meterPosition:'master-before-device',sampleIntervalMs:100},
       sceneAudioEnabled:scene.audioEnabled,
       backend:window.BattleAudioBackend&&BattleAudioBackend.summary(),
       acousticQuality:window.BattleListenerAcoustics&&BattleListenerAcoustics.quality,

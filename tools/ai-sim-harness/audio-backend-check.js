@@ -20,6 +20,9 @@ function fixture(enabled) {
       this.listeners = [];
       howls.push(this);
     }
+    playing(id) {
+      return this.ids.has(id);
+    }
     duration() {
       return 4.5;
     }
@@ -185,6 +188,14 @@ function fixture(enabled) {
   assert.equal(b.play(), true);
   r.flush();
   assert.equal(B.summary().started, 2, 'actual Howler play events counted');
+  assert.equal(B.summary().playbackAudit.playing, 2);
+  r.howls[0].ids.delete(a._id);
+  assert.equal(
+    B.summary().playbackAudit.unexpectedStopped,
+    1,
+    'detect stale owner versus Howler playing state'
+  );
+  r.howls[0].ids.add(a._id);
   assert.equal(a.play(), false, 'busy wrapper never acquires a second playback ID');
   assert.ok(
     r.writes.some(x => x[0] === 'pos' && x[3] === -15),
