@@ -39,16 +39,28 @@ jobs:
             "https://test.ivandpopov.com/grasstex/preview/ref-${HEAD_SHA:0:12}/battle_sim.php" \
             -o /tmp/staged-mini-mobile.html
           echo "Staged exact head ref-${HEAD_SHA:0:12}"
+      - name: Exact-source Skills Lab preflight before native battle audio
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          export SKILLS_LAB_URL="https://test.ivandpopov.com/grasstex/preview/ref-${HEAD_SHA:0:12}/battle_sim.php"
+          node scripts/probes/probe_skills_lab.cjs
       - name: Run full Mini Map on desktop and emulated mobile devices
         id: benchmark
         continue-on-error: true
         env:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          MOBILE_MINI_SECONDS: '30'
-          MOBILE_MINI_OUT: 'reports/mobile-mini-audio'
+          MOBILE_MINI_SECONDS: '20'
+          MOBILE_MINI_WARMUP_SECONDS: '150'
+          MOBILE_MINI_PROFILE: 'desktop-192'
         run: |
           export MOBILE_MINI_URL="https://test.ivandpopov.com/grasstex/preview/ref-${HEAD_SHA:0:12}/battle_sim.php"
-          node scripts/probes/probe_mobile_mini_meeting_audio.cjs
+          set -euo pipefail
+          for backend in babylon howler; do
+            export MOBILE_MINI_BACKEND="$backend"
+            export MOBILE_MINI_OUT="reports/mobile-mini-audio/$backend"
+            node scripts/probes/probe_mobile_mini_meeting_audio.cjs
+          done
       - name: Upload results including device viewport screenshots
         if: always()
         uses: actions/upload-artifact@v4

@@ -78,11 +78,11 @@
     // returns 404 for some non-weapon Ogg twins. Preserve proven weapon twins,
     // but keep voice, grenade and other effects on their manifest MP3s until a
     // deploy-time verified per-file twin inventory is available.
-    all = !!(manifest && manifest.opusTwins === 'all' &&
-      manifest.opusTwinsVerified === true);
+    all = !!(manifest && manifest.opusTwins === 'all' && manifest.opusTwinsVerified === true);
     var first = Object.keys(twins)[0];
     var order = ONLY ? (ONLY === 'mp3' ? [] : [ONLY]) : ORDER;
-    if (!order.length || !first || !get || !Ctx || typeof Promise === 'undefined') return Promise.resolve((state = 'mp3'));
+    if (!order.length || !first || !get || !Ctx || typeof Promise === 'undefined')
+      return Promise.resolve((state = 'mp3'));
     state = 'probing';
     var i = 0;
     function next() {

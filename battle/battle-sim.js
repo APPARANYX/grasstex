@@ -240,6 +240,7 @@
     );
   }
   function buildWeaponAudio(scene, audioBase, policy) {
+    var SoundClass = root.BattleAudioBackend ? root.BattleAudioBackend.Sound : BABYLON.Sound;
     // Optional, bounded diagnostic override. Unset keeps the shipping 4-voice far floor.
     // prettier-ignore
     var farFloor =
@@ -290,7 +291,7 @@
         (function (i) {
           var extra = [];
           for (var k = i + takes; k < count; k += takes) extra.push(k);
-          var snd = new BABYLON.Sound(
+          var snd = new SoundClass(
             key + 'Sfx' + i,
             clipUrl(audioBase + files[i]),
             scene,
@@ -299,7 +300,7 @@
                   var buf = snd.getAudioBuffer && snd.getAudioBuffer();
                   if (buf)
                     extra.forEach(function (k) {
-                      voices[k] = new BABYLON.Sound(key + 'Sfx' + k, buf, scene, null, opts);
+                      voices[k] = new SoundClass(key + 'Sfx' + k, buf, scene, null, opts);
                     });
                 }
               : null,
@@ -340,13 +341,19 @@
       if (!voices) return;
       var counters = poolStats[k];
       counters.attempts++;
-      var ae = BABYLON.Engine && BABYLON.Engine.audioEngine;
+      var ae = root.BattleAudioBackend
+        ? root.BattleAudioBackend.engine()
+        : BABYLON.Engine && BABYLON.Engine.audioEngine;
       /* Sound.play queues a delayed start while locked; such a request is not
          reflected by isPlaying yet and could accumulate behind the pool cap. */
       // Chromium/Babylon 9 can report a running WebAudio context while the
-      // legacy unlocked flag lags after a gesture. Do not silence every round
-      // just because that flag is stale: the context state is authoritative.
-      if (ae && ae.unlocked === false && (!ae.audioContext || ae.audioContext.state !== 'running')) {
+      // legacy unlocked flag lags after a gesture. The actual context wins in
+      // both directions, including a suspension with a stale unlocked=true.
+      var ctx = ae && ae.audioContext;
+      if (
+        (scene && scene.audioEnabled === false) ||
+        (ctx ? ctx.state !== 'running' : ae && ae.unlocked === false)
+      ) {
         counters.droppedLocked++;
         return void stats.droppedLocked++;
       }
@@ -379,7 +386,7 @@
           if (voice.setVolume) voice.setVolume(gain);
         }
         if (voice.setPlaybackRate) voice.setPlaybackRate(rate || 1);
-        voice.play();
+        if (voice.play() === false) return;
         stats.playRequests++;
         counters.started++;
       } catch (_) {

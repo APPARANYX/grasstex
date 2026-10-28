@@ -300,7 +300,7 @@
           var scene = soldier.root.getScene(),
             base = root.BATTLE_AUDIO_BASE || 'https://test.ivandpopov.com/grasstex/Assets/audio/';
           root.GTLog('[VOICE] request ' + base + file);
-          entry.sound = new BABYLON.Sound(
+          entry.sound = new (root.BattleAudioBackend ? root.BattleAudioBackend.Sound : BABYLON.Sound)(
             'voice-' + file,
             root.BattleAudioFormat ? root.BattleAudioFormat.url(base + file) : base + file,
             scene,

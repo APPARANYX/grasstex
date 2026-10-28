@@ -73,7 +73,7 @@ const TIMEOUT = Math.max(15000, Number(process.env.AUDIO_LAB_TIMEOUT_MS) || 2400
       throw Error('Failed audio file requests: ' + missingAudio.slice(0, 3).join('; '));
     if (new URL(URL_TO_RUN).searchParams.get('fullMix') === '1') {
       const o = report.ownerAudio || {}, e = o.eventInputs || {};
-      if (!report.audioMix?.tacticalSafety)
+      if (report.backend?.name !== 'howler' && !report.audioMix?.tacticalSafety)
         throw Error('Full mix is not using the battle tactical compressor');
       if (!e.fireEvents || !e.combatEvents || !e.grenadeEvents || !e.voiceAccepted || !e.foleyEvents)
         throw Error('Missing full-mix event coverage: ' + JSON.stringify(e));
@@ -82,6 +82,10 @@ const TIMEOUT = Math.max(15000, Number(process.env.AUDIO_LAB_TIMEOUT_MS) || 2400
           !(o.voice?.played > 0) ||
           !(Object.values(o.foley?.played || {}).reduce((a, b) => a + b, 0) > 0))
         throw Error('Full-mix owner sound playback not confirmed: ' + JSON.stringify(o));
+    }
+    if (new URL(URL_TO_RUN).searchParams.get('audioBackend') === 'howler') {
+      if (report.backend?.name !== 'howler' || !report.backend.started || report.backend.playErrors || report.backend.loadErrors)
+        throw Error('Howler playback failed: ' + JSON.stringify(report.backend));
     }
     if (runtimeErrors.length) throw Error('Browser errors: ' + runtimeErrors.slice(0, 3).join('; '));
   } finally {

@@ -20,7 +20,7 @@ assert.match(
 assert.match(section, /getAudioBuffer/, 'decoded take is reused');
 assert.match(
   section,
-  /new BABYLON\.Sound\(key\s*\+\s*'Sfx'\s*\+\s*k,\s*buf,\s*scene,\s*null,\s*opts\)/,
+  /new SoundClass\(key\s*\+\s*'Sfx'\s*\+\s*k,\s*buf,\s*scene,\s*null,\s*opts\)/,
   'extra voices reuse decoded buffer'
 );
 assert.match(section, /voices\[k\]\s*=/, 'extra voices keep stable playback slots');
@@ -180,5 +180,17 @@ for (const [distance, capacity] of [
   const w = poolFixture();
   assert.equal(w.audio.detail()['m:m1-garand:far'].capacity, 32,
     'normal battle default uses measured 32-voice distant model pool');
+}
+{
+  const w = poolFixture();
+  w.load();
+  w.engine.unlocked = true;
+  w.engine.audioContext = { state: 'suspended' };
+  w.shoot(40, 30);
+  assert.equal(w.plays(), 0, 'suspended context wins over stale unlocked=true');
+  w.engine.audioContext.state = 'running';
+  w.engine.unlocked = false;
+  w.shoot(40, 1);
+  assert.equal(w.plays(), 1, 'running context wins over stale unlocked=false');
 }
 console.log('weapon-shot-buffer-check: format, sharing and bounded dense playback passed');

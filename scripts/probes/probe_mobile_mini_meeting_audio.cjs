@@ -15,6 +15,8 @@ const base = process.env.MOBILE_MINI_URL;
 if (!base || !/^https?:\/\//.test(base))
   throw new Error('Provide staged MOBILE_MINI_URL pointing at battle_sim.php');
 const out = path.resolve(process.env.MOBILE_MINI_OUT || 'reports/mobile-mini-audio');
+const backend = process.env.MOBILE_MINI_BACKEND || 'babylon';
+const warmup = Math.max(0, Math.min(180, +process.env.MOBILE_MINI_WARMUP_SECONDS || 0));
 const seconds = Math.max(12, Math.min(65, +process.env.MOBILE_MINI_SECONDS || 30));
 fs.mkdirSync(out, { recursive: true });
 
@@ -81,7 +83,7 @@ function summary(result) {
   ] });
   const rows = [];
   try {
-    for (const profile of profiles) {
+    for (const profile of profiles.filter(p => !process.env.MOBILE_MINI_PROFILE || p.name === process.env.MOBILE_MINI_PROFILE)) {
       const ctx = await browser.newContext({
         viewport: profile.viewport, isMobile: profile.isMobile,
         hasTouch: profile.hasTouch, deviceScaleFactor: profile.isMobile ? 2 : 1,
@@ -111,7 +113,7 @@ function summary(result) {
         labRange: '1', tacticalController: 'new',
         seed: 'mobile-mini-audio-683', pinSeed: '1',
         acoustics: 'high', acousticSlots: String(profile.slots),
-        acousticPriority: '1', audioQueues: 'single'
+        acousticPriority: '1', audioQueues: 'single', audioBackend: backend, audioDiag: '1'
       };
       Object.entries(qs).forEach(([k, v]) => u.searchParams.set(k, v));
       const run = { name: profile.name, profile, errors, missingAudio,
@@ -148,8 +150,11 @@ function summary(result) {
           start.click();
         });
         await page.waitForFunction(() => !window.__battle__.paused, null, { timeout: 15000 });
+        if (warmup) await page.waitForFunction(() =>
+          (window.__battle__?._weaponAudio?.summary?.()?.playRequests || 0) > 0,
+          null, { timeout: warmup * 1000 });
         await page.evaluate(() => {
-          const ae = BABYLON.Engine.audioEngine, ctx = ae?.audioContext,
+          const ae = window.BattleAudioBackend ? BattleAudioBackend.engine() : BABYLON.Engine.audioEngine, ctx = ae?.audioContext,
             master = ae?.masterGain;
           let analyser = null, probeGain = null;
           if (ctx && master && ctx.createAnalyser) {
@@ -194,9 +199,10 @@ function summary(result) {
         });
         run.ending = await page.evaluate(() => {
           const b = window.__battle__, engine = b.scene.getEngine();
-          const audioc = window.BABYLON.Engine.audioEngine?.audioContext;
+          const audioc = (window.BattleAudioBackend ? BattleAudioBackend.engine() : window.BABYLON.Engine.audioEngine)?.audioContext;
           const value = {
             time: b.time, shots: (window.BattleAudioScheduler?.stats?.received || 0),
+            backend: window.BattleAudioBackend?.summary?.(),
             audio: b._weaponAudio?.summary?.() || null,
             voice: window.BattleVoiceScheduler?.summary?.() || null,
             combat: b._combatAudio || null,
@@ -231,6 +237,8 @@ function summary(result) {
           throw new Error('SILENT AUDIO: no measurable output while gunshot pool active');
         if (missingAudio.length)
           throw new Error('AUDIO ASSET FAILURE: ' + missingAudio.slice(0, 3).join('; '));
+        if (backend === 'howler' && (run.ending.backend?.name !== 'howler' || !run.ending.backend?.started))
+          throw new Error('No confirmed Howler playback');
         run.status = 'completed';
       } catch (e) {
         run.status = 'error: ' + String(e.message || e);

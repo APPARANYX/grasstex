@@ -20,8 +20,9 @@ function test(name, fn) {
   n++;
   console.log('PASS ' + name);
 }
-function load(search) {
+function load(search, engine) {
   const r = {};
+  if (engine) r.BABYLON = { Engine: { audioEngine: engine } };
   if (search != null) r.location = { search };
   new Function('window', 'globalThis', 'location', CORE)(r, r, r.location);
   new Function('window', 'globalThis', 'location', SRC)(r, r, r.location);
@@ -111,7 +112,7 @@ function rig(opts = {}) {
   });
   const shots = [];
   sim.onShot = (...a) => shots.push(a);
-  F.install(sim, {
+  (opts.engine ? load(undefined, opts.engine) : F).install(sim, {
     voices,
     now: () => t,
     camera: () => ({ position: cam }),
@@ -119,6 +120,7 @@ function rig(opts = {}) {
   });
   return {
     sim,
+    voices,
     played,
     later,
     travel,
@@ -333,4 +335,23 @@ test('?combatAudio=0 installs nothing', () => {
   assert.equal(sim.onShot, before);
 });
 
+test('suspended combat audio cannot consume the pool or replay a backlog after resume', () => {
+  const engine = { unlocked: true, audioContext: { state: 'suspended' } };
+  const r = rig({ engine });
+  for (let i = 0; i < 20; i++) r.sim.onShot(rifle, null, false, 400, shot(2));
+  assert.equal(r.played.length, 0);
+  assert.equal(r.sim._combatAudio.droppedUnavailable, 20);
+  engine.audioContext.state = 'running';
+  r.sim.onShot(rifle, null, false, 400, shot(2));
+  assert.equal(r.played.length, 1);
+});
+test('unready combat clips do not consume the group rate limit', () => {
+  const r = rig();
+  for (const v of r.voices['flyby.crack']) v.sound.isReady = () => false;
+  r.sim.onShot(rifle, null, false, 400, shot(2));
+  assert.equal(r.played.length, 0);
+  r.voices['flyby.crack'][0].sound.isReady = () => true;
+  r.sim.onShot(rifle, null, false, 400, shot(2));
+  assert.equal(r.played.length, 1);
+});
 console.log(`combat-audio-check: ${n} passed`);

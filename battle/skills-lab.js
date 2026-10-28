@@ -828,6 +828,7 @@
     var data = diagnostics();
     return {
       type: 'native-tactical-skills-lab',
+      audio: root.__battleAudioDiagnostics__ ? root.__battleAudioDiagnostics__() : null,
       isolated: true,
       seed:
         (scene && scene.metadata && scene.metadata.battleScenario && scene.metadata.battleScenario.seed) ||

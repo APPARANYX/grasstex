@@ -8,7 +8,7 @@ const vm = require('node:vm');
 
 const REPO = path.resolve(__dirname, '..', '..');
 
-function runModule(rel, invalidate) {
+function runModule(rel, invalidate, suspended = false) {
   const ready = [];
   const sounds = [];
   const errors = [];
@@ -70,7 +70,7 @@ function runModule(rel, invalidate) {
     }
   }
 
-  ctx.BABYLON = { Sound };
+  ctx.BABYLON = { Sound, Engine: { audioEngine: { unlocked: true, audioContext: { state: 'running' } } } };
   ctx.window = ctx;
   ctx.globalThis = ctx;
   vm.createContext(ctx);
@@ -105,6 +105,19 @@ function runModule(rel, invalidate) {
     assert.equal(sounds[0].played, 0, rel + ': no obsolete Sound.play');
     return;
   }
+  if (suspended) {
+    ctx.BABYLON.Engine.audioEngine.audioContext.state = 'suspended';
+    ready[0]();
+    assert.equal(handle.started, false, 'no voice starts while context is suspended');
+    assert.equal(handle.ended, true, 'unavailable voice handle completes');
+    assert.equal(sounds[0].played, 0);
+    ctx.BABYLON.Engine.audioEngine.audioContext.state = 'running';
+    ctx.performance.now = () => 6000;
+    const next = ctx.BattleVoiceScheduler.enqueue(soldier, 'engage', null, { priority: 'tactical' });
+    assert.equal(next.started, true, 'new voice starts after resume');
+    assert.equal(sounds[0].played, 1, 'no old voice backlog');
+    return;
+  }
   ready[0]();
 
   assert.equal(handle.started, true, rel + ': playback handle starts after ready');
@@ -137,6 +150,8 @@ function runModule(rel, invalidate) {
   assert.deepEqual(errors, [], rel + ': playback does not fall into the error handler');
 }
 
+runModule('battle/modules/09-voice-runtime.js', null, true);
+runModule('battle/modules/11-voice-variation.js', null, true);
 runModule('battle/modules/09-voice-runtime.js');
 runModule('battle/modules/11-voice-variation.js');
 

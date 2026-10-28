@@ -18,7 +18,13 @@
     failed = {},
     activeSounds = 0,
     MAX_VOICES = 4,
-    voiceStats = { played: 0, droppedBusyClip: 0, droppedCapacity: 0, staleRecovered: 0 },
+    voiceStats = {
+      played: 0,
+      droppedBusyClip: 0,
+      droppedCapacity: 0,
+      staleRecovered: 0,
+      droppedUnavailable: 0
+    },
     debugVoice = /[?&]voiceDebug=(?:1|on|true)(?:&|#|$)/i.test((root.location && root.location.search) || '');
   function voiceLog(s) {
     if (debugVoice && root.GTLog) root.GTLog(s);
@@ -245,6 +251,19 @@
     } catch (_) {}
   }
   function playAt(entry, req) {
+    var ae = root.BattleAudioBackend
+        ? root.BattleAudioBackend.engine()
+        : root.BABYLON && root.BABYLON.Engine && root.BABYLON.Engine.audioEngine,
+      ctx = ae && ae.audioContext,
+      scene = req.soldier && req.soldier.root && req.soldier.root.getScene && req.soldier.root.getScene();
+    if (
+      (scene && scene.audioEnabled === false) ||
+      (ctx ? ctx.state !== 'running' : ae && ae.unlocked === false)
+    ) {
+      voiceStats.droppedUnavailable++;
+      finish(req);
+      return req.handle;
+    }
     if (
       !root.BattleVoiceEligibility.allows(req.soldier, req.type) ||
       req.soldier.squad !== req.squad ||
@@ -294,7 +313,14 @@
           voiceGain,
           mesh.getScene()
         );
-      s.play();
+      if (s.play() === false) {
+        entry.currentReq = null;
+        entry.playing = false;
+        activeSounds = Math.max(0, activeSounds - 1);
+        voiceStats.droppedUnavailable++;
+        finish(req);
+        return req.handle;
+      }
       req.handle.started = true;
       voiceStats.played++;
       voiceLog(
@@ -385,7 +411,7 @@
     };
     try {
       var scene = soldier.root.getScene();
-      entry.sound = new BABYLON.Sound(
+      entry.sound = new (root.BattleAudioBackend ? root.BattleAudioBackend.Sound : BABYLON.Sound)(
         'voice-' + file,
         url,
         scene,

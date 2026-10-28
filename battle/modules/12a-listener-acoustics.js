@@ -12,7 +12,8 @@
   var match = /(?:^|[?&])acoustics=(off|standard|high)(?:&|$)/.exec(
     typeof location !== 'undefined' ? location.search || '' : ''
   );
-  var quality = match ? match[1] : 'standard';
+  var quality =
+    root.BattleAudioBackend && root.BattleAudioBackend.independent ? 'off' : match ? match[1] : 'standard';
   // A/B admission only. The existing 24/36 filter slots and mix remain unchanged.
   // prettier-ignore
   var priorityEnabled = typeof location !== 'undefined' &&
