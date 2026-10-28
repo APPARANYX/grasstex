@@ -1,0 +1,23 @@
+{
+  "branch": "work/benchmark-launch/contact-baseline-5k-0135",
+  "launch_parent_sha": "3357e5873ca2c63a342072f93d5f010f6d45fd28",
+  "launch_sha": "5b25d2b2404a1cc4ffd26d372f110463878e1504",
+  "note": "Launch parent is preserved; the child's actual checkout SHA must be read from the child run.",
+  "parent_retention_ref": "main-ancestor",
+  "request": {
+    "battle_type": "meeting",
+    "benchmark": "standard",
+    "correlation_id": "pr-663-baseline-5k",
+    "origin_agent": "chatgpt",
+    "purpose": "Slice 3 source-pinned disabled parity and opt-in contact validation",
+    "query_off": "strategicInterception=1",
+    "query_on": "strategicInterception=1",
+    "ref": "work/tactical-contact-baseline-3357e587",
+    "seed": "controller-contact-20261026",
+    "seeds": "1",
+    "windows": "0+600"
+  },
+  "schema_version": 1,
+  "source_ref": "work/tactical-contact-baseline-3357e587",
+  "source_sha_at_archive": "3357e5873ca2c63a342072f93d5f010f6d45fd28"
+}
