@@ -1583,7 +1583,7 @@
     woundModel: ['wounds'], // what a round that struck a man does to him (default: flat hp damage)
     areaFireGate: ['ammunition'], // before a suppressive shot
     roundGate: ['ammunition'], // before each further round of an automatic burst: still loaded, not stopped
-    afterShot: ['ammunition'], // a round left the weapon: ammo, heat, stoppages
+    afterShot: ['ammunition'], // a round committed: (soldier, battle, muzzleDelay), ammo, heat, stoppages
     squadCommand: ['squad-leader'], // the squad's command owner; without one a squad only reports status
     beforeSoldier: ['soldier-mind', 'sidearm', 'weapon-cycle'], // each soldier AI tick, before perception
     afterSoldier: ['weapon-cycle'], // after engagement and movement resolution
@@ -1625,7 +1625,7 @@
       if (!fired) reportGunfire(shooter, battle);
       fired++;
       battle.onFire && battle.onFire(shooter, delay);
-      EXT.run('afterShot', shooter, battle);
+      EXT.run('afterShot', shooter, battle, delay);
     }
     return fired;
   }

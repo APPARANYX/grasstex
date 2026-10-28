@@ -135,6 +135,164 @@ owner.advance(fx, 0.11);
 assert.ok(Math.abs(fx.overlay - 0.5) < 1e-9);
 assert.ok(Math.abs(fx.aim - 0.11 / 0.3) < 1e-9);
 assert.equal(clock.length, 4);
+// Exercise live state selection and real mixer clocks, including overlapping hit/suppression.
+vm.runInNewContext(fs.readFileSync(path.join(dir, '52-fbx-clip-mixer.js'), 'utf8'), ctx);
+const mixer = ctx.window.BattleFbxClipMixer.create(30);
+const realClips = Object.fromEntries(
+  require('../../scripts/lib/clip-pack-sources.cjs')
+    .readHeader()
+    .header.clips.map(c => [c.key, { key: c.key, duration: c.duration, loop: c.loop, speed: 2 }])
+);
+for (let i = 0; i < 8; i++) {
+  realClips['run' + i].speed = 4;
+  realClips['sprint' + i].speed = 6;
+}
+const live = factory.create({ ...deps, ...mixer, IDLE_VARIANTS: ['idleFidget'] });
+function man() {
+  return {
+    root: { position: { x: 0, y: 0, z: 0 }, rotation: { y: 0 } },
+    weapon: { kind: 'rifle' },
+    isPlayer: true,
+    _locomotionGait: 'walk',
+    _fbx: {
+      lib: { clips: realClips },
+      lower: { entries: [] },
+      upper: { entries: [] },
+      vx: 0,
+      vz: 0,
+      yawRate: 0,
+      sector: 0,
+      stance: 'stand',
+      fireShot: 0,
+      fireSeen: 0,
+      fireHold: 0,
+      reloadShot: 0,
+      reloadSeen: 0,
+      overlay: 0,
+      aim: 0,
+      moving: false
+    }
+  };
+}
+function step(s, speed = 0, count = 1) {
+  for (let i = 0; i < count; i++) {
+    s.root.position.z += speed * 0.05;
+    live.update(s, {}, 0.05);
+  }
+}
+{
+  const s = man(),
+    f = s._fbx;
+  step(s);
+  step(s, 3, 30);
+  assert.equal(f.family, 'walk');
+  s._locomotionGait = 'run';
+  step(s, 3);
+  assert.equal(f.family, 'run', 'run input escapes walking hysteresis without a stance toggle');
+  assert.equal(mixer.topEntry(f.lower).clip.key, 'run0');
+  s.crouching = true;
+  s._locomotionGait = 'crouchSprint';
+  step(s, 3, 10);
+  assert.equal(f.family, 'crouchRun');
+  s.crouching = false;
+  s._locomotionGait = 'run';
+  step(s, 3, 10);
+  assert.equal(f.family, 'run', 'standing again retains the same running family');
+  s._locomotionGait = 'walk';
+  step(s, 3);
+  assert.equal(f.family, 'walk', 'release run selects walk at the same measured speed');
+  s.isPlayer = false;
+  step(s, 6, 30);
+  assert.equal(f.family, 'sprint', 'AI still selects its family from measured motion');
+}
+{
+  const s = man(),
+    f = s._fbx;
+  step(s);
+  assert.equal(mixer.topEntry(f.lower).clip.key, 'idleFidget');
+  s.playerAimPoint = { x: 0, y: 1.5, z: 30 };
+  step(s);
+  assert.equal(mixer.topEntry(f.lower).clip.key, 'aim', 'stationary aimed legs use the planted aim pose');
+  live.play(tags.fire, {}, s);
+  step(s, 0, 6);
+  assert.equal(mixer.topEntry(f.lower).clip.key, 'aim');
+  assert.equal(mixer.topEntry(f.upper).clip.key, 'fire');
+  assert.equal(f.lower.entries.length, 1, 'random idle legs fade out while firing');
+  s.playerAimPoint = null;
+  step(s, 0, 30);
+  assert.equal(mixer.topEntry(f.lower).clip.key, 'idleFidget', 'relaxed idle returns after shooting');
+}
+for (const stance of ['stand', 'crouch', 'prone']) {
+  const s = man(),
+    f = s._fbx;
+  s.crouching = stance === 'crouch';
+  s.prone = stance === 'prone';
+  f.stance = stance;
+  step(s);
+  s.suppressedUntil = 10;
+  live.play(tags.hit, {}, s);
+  step(s);
+  assert.ok(f.hitHold <= 0.450001, stance + ' hit completes within 450ms');
+  assert.equal(f.flinchHold, 0, 'the same hit cannot also queue a suppression reaction');
+  assert.equal(f.aimWanted, false, 'aim correction yields during recoil');
+  step(s, 0, 11);
+  assert.equal(f.hitHold, 0);
+  assert.equal(f.overlayTarget, 0, 'hit overlay releases rather than holding the last head pose');
+}
+{
+  const s = man(),
+    f = s._fbx;
+  step(s);
+  // Force the presentation-only random flinch choice.
+  vm.runInNewContext('Math.random = () => 0', ctx);
+  s.suppressedUntil = 10;
+  step(s);
+  assert.equal(f.flinchKey, 'hit', 'suppression uses a short recoil rather than shielding/looking around');
+  assert.ok(f.flinchHold <= 0.350001);
+  step(s, 0, 9);
+  assert.equal(f.flinchHold, 0);
+  assert.equal(f.overlayTarget, 0);
+}
+// A final burst round may still be scheduled when ammunition requests reload.
+for (const delay of [0, 0.3]) {
+  const s = man(),
+    f = s._fbx;
+  step(s);
+  live.play(tags.fire, { delay: 0 }, s);
+  if (delay) live.play(tags.fire, { delay }, s);
+  s.reloading = true;
+  live.play(tags.reload, { duration: 2.5 }, s);
+  const wait = 0.5 + delay;
+  step(s, 0, Math.round(wait / 0.05) - 1);
+  assert.notEqual(
+    mixer.topEntry(f.upper).clip.key,
+    'reload',
+    'reload must wait past the final muzzle offset'
+  );
+  assert.equal(f.reloadSeen, 0, 'pending reload does not restart the fire clip');
+  live.update(s, {}, 0);
+  assert.notEqual(mixer.topEntry(f.upper).clip.key, 'reload', 'paused animation cannot consume the delay');
+  step(s);
+  assert.equal(mixer.topEntry(f.upper).clip.key, 'reload');
+  assert.equal(f.reloadSeen, 1);
+  assert.ok(
+    Math.abs(mixer.topEntry(f.upper).rate - realClips.reload.duration / 2.5) < 1e-6,
+    'delayed presentation preserves the full authoritative reload duration'
+  );
+  assert.equal(s.reloading, true, 'presentation never edits ammunition state');
+  s.reloading = false;
+  step(s, 0, 30);
+  assert.equal(f.overlayTarget, 0, 'reload pose yields when gameplay completes');
+}
+{
+  const s = man(),
+    f = s._fbx;
+  step(s);
+  s.reloading = true;
+  live.play(tags.reload, { duration: 2.5 }, s);
+  step(s);
+  assert.equal(mixer.topEntry(f.upper).clip.key, 'reload', 'no recent shot needs no artificial wait');
+}
 console.log(
-  'PASS #456 R3 animation state tag triggers, burst and reload timing, stance-specific throw, death clip, deterministic layer clocks, overlay/aim blending and module ownership'
+  'PASS #456 R3 animation state tag triggers, burst and reload timing, stance-specific throw, death clip, deterministic layer clocks, possessed gait selection, planted firing legs, brief hit/suppression recoil, final-shot reload delay and module ownership'
 );

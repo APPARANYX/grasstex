@@ -233,9 +233,11 @@
     if (!p || !L) return;
     var d = distance(p, L),
       obstructionAmount = obstruction(p, L, d);
-    var distant = cap((d - 12) / 340, 0, 1);
     var isVoice = e.kind === 'voice',
       isTail = e.kind === 'tail';
+    // Speech is audible over a much shorter range than gunfire. Let its
+    // high frequencies fall away within that range, independently of gain.
+    var distant = isVoice ? cap((d - 8) / 72, 0, 1) : cap((d - 12) / 340, 0, 1);
     var hz = (isVoice ? 14000 : 19000) * (1 - 0.8 * distant);
     hz *= 1 - (isVoice ? 0.77 : 0.68) * obstructionAmount;
     hz = cap(hz, isVoice ? 550 : 900, 20000);

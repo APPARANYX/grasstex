@@ -4,6 +4,8 @@
 
 Use the branch-workflow preview `/preview/pr-683/battle_sim.php` for the mini-target map and verify that the served page exports `window.SKILLS_LAB=true` and loads `battle/skills-lab.js`. The launcher's immutable `ref-db297da2be9d` preview uses an older trusted PHP loader that ignores `skillsLab` and loads `phase-c-compact-range.js`; its query string alone does not prove which map runs.
 
+The Howler preview supports `acoustics=standard` (distance low-pass, terrain/cover muffling and light shared reverb) and `high`, as well as `off` for the dry control. Infantry gunfire, voices, weapon handling, combat effects and grenades use the backend adapter. The tactical compressor remains bypassed on Howler. Catalog samples of ambience, footsteps, vehicles and aircraft in the full-mix stress harness are asset/playback coverage, not proof of live gameplay integration for those categories. Voices have a separate 8–80 m brightness curve (14 kHz near, about 9 kHz at 40 m, 2.8 kHz at 80 m), applied before additional obstruction muffling; gunfire keeps the longer distance curve. Spatial attenuation still owns distance volume.
+
 `Assets/audio/manifest.json` is the runtime contract, and the runtime never calls an API.
 
 - **Route:** fetch into gitignored `.runtime/`, slice, master, register in `manifest.json`, then push

@@ -283,10 +283,12 @@
     }
     function startReload(s) {
       var c = clips(modelOf(s)),
-        len = wallMs(Math.max(0.5, (+s.reloadUntil || 0) - (+sim.time || 0)));
+        start = Math.max(+sim.time || 0, +s.reloadStart || 0),
+        delay = wallMs(start - (+sim.time || 0)),
+        len = wallMs(Math.max(0.5, (+s.reloadUntil || 0) - start));
       reloadStages(c).forEach(function (stage) {
         stats.scheduled++;
-        later(len * stage.at, function () {
+        later(delay + len * stage.at, function () {
           if (!s.dead && s.reloading) play(s, stage.action, false);
         });
       });

@@ -285,6 +285,28 @@ for (const slots of [24, 48, 96, 192]) {
   assert.equal(w.api.stats.acousticTicks, 1);
   assert.ok(w.api.stats.sampled >= slots * 2, 'all tracked sounds receive periodic sampling');
 }
+// Speech loses brightness over its audible range without changing the existing gain curve.
+for (const kind of ['voice', 'gun']) {
+  const w = world('standard', true);
+  const cutoffs = [];
+  for (const d of [5, 40, 80]) {
+    w.api.prepare(w.sound, { x: d, y: 1.6, z: 0 }, kind, 0.24, w.scene);
+    cutoffs.push(w.sound._battleAcousticFilter.frequency.value);
+    assert.equal(w.sound.volume, 0.24, 'distance filtering leaves gain to the spatial mixer');
+  }
+  assert.ok(cutoffs[0] > cutoffs[1] && cutoffs[1] > cutoffs[2]);
+  if (kind === 'voice') {
+    assert.equal(cutoffs[0], 14000);
+    assert.ok(cutoffs[1] > 8500 && cutoffs[1] < 9500, '40m speech has audible high-frequency loss');
+    assert.ok(cutoffs[2] > 2700 && cutoffs[2] < 2900, '80m speech is distant and muffled');
+    w.block(true);
+    w.tick();
+    assert.ok(w.sound._battleAcousticFilter.frequency.value < cutoffs[2], 'cover further muffles speech');
+    assert.ok(w.sound.volume < 0.24);
+  } else {
+    assert.ok(cutoffs[2] > 15000, 'gunfire retains its longer-range acoustic curve');
+  }
+}
 assert.equal(world('high', true).api.maxActive, 192);
 assert.equal(world('standard', true, '&acousticSlots=50000').api.maxActive, 192);
 assert.equal(world('standard', true, '&acousticSlots=1').api.maxActive, 1);

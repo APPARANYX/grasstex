@@ -195,6 +195,20 @@ test("a reload near the camera plays the model's stages in order, a far one play
   far.advance(3000);
   assert.deepEqual(far.played, []);
 });
+test('reload handling waits for the authoritative future start and keeps the full stage spacing', () => {
+  const r = rig([man(1, 'kar98k', 'rifle')], { x: 0, y: 1.6, z: 0 });
+  r.advance(16);
+  r.men[0].reloading = true;
+  r.men[0].reloadStart = 0.8;
+  r.men[0].reloadUntil = 3.3;
+  r.advance(800);
+  assert.deepEqual(r.played, [], 'no reload handling during the last-shot settling interval');
+  r.advance(400);
+  assert.deepEqual(r.played, ['reloadBoltOpen']);
+  r.advance(2500);
+  assert.deepEqual(r.played, ['reloadBoltOpen', 'reloadStripperClip', 'reloadBoltClose']);
+});
+
 test('a man killed mid-reload plays no further stages', () => {
   const r = rig([man(3, 'kar98k', 'rifle')], { x: 0, y: 1.6, z: 0 });
   r.advance(16);
