@@ -1,0 +1,24 @@
+{
+  "branch": "work/benchmark-launch/controller-parent-20261025",
+  "launch_parent_sha": "2ca9e70aa886bb204369de1524e87709ab2f9306",
+  "launch_sha": "cb9eb1fc70a0b043df63dd8619dc0d2bf2986812",
+  "note": "Launch parent is preserved; the child's actual checkout SHA must be read from the child run.",
+  "parent_retention_ref": "archive/benchmark-source/2ca9e70aa886bb204369de1524e87709ab2f9306",
+  "request": {
+    "battle_type": "meeting",
+    "benchmark": "standard",
+    "correlation_id": "602-controller-parent",
+    "origin_agent": "chatgpt",
+    "purpose": "Pinned pre-controller baseline; equal flag arms; compare against runtime foundation",
+    "query_off": "",
+    "query_on": "",
+    "ref": "work/exclusive-tactical-contract-20261025",
+    "seed": "controller-runtime-20261025",
+    "seeds": "1",
+    "sim_seconds": "600",
+    "windows": "0+600"
+  },
+  "schema_version": 1,
+  "source_ref": "work/exclusive-tactical-contract-20261025",
+  "source_sha_at_archive": null
+}
