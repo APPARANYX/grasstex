@@ -307,6 +307,15 @@ for (const kind of ['voice', 'gun']) {
     assert.ok(cutoffs[2] > 15000, 'gunfire retains its longer-range acoustic curve');
   }
 }
+{
+  const w = world('standard', true, '&acousticReverb=off');
+  w.context.createConvolver = () => assert.fail('reverb-off must never create a convolver');
+  assert.equal(w.api.reverbEnabled, false);
+  assert.equal(w.api.prepare(w.sound, w.position, 'gun', 0.2, w.scene), true);
+  assert.ok(w.sound._battleAcousticFilter, 'reverb-only bypass preserves filtering');
+  assert.equal(w.sound._battleAcousticSend, undefined);
+}
+assert.equal(world('standard', true).api.reverbEnabled, true);
 assert.equal(world('high', true).api.maxActive, 192);
 assert.equal(world('standard', true, '&acousticSlots=50000').api.maxActive, 192);
 assert.equal(world('standard', true, '&acousticSlots=1').api.maxActive, 1);

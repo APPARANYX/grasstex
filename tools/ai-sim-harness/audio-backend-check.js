@@ -32,7 +32,7 @@ function fixture(enabled) {
       if (this.rejectFilter) {
         const connect = node.connect.bind(node);
         node.connect = target => {
-          if (target.type === 'lowpass') throw Error('unsupported bridge');
+          if (target !== root.Howler.masterGain) throw Error('unsupported bridge');
           connect(target);
         };
       }
@@ -99,11 +99,17 @@ function fixture(enabled) {
   function audioNode() {
     const param = () => ({
       value: 0,
+      operations: [],
+      linearRampToValueAtTime(v) {
+        this.value = v;
+        this.operations.push('ramp');
+      },
       setTargetAtTime(v) {
         this.value = v;
       },
       cancelScheduledValues() {},
       setValueAtTime(v) {
+        this.operations.push('value');
         this.value = v;
       }
     });
@@ -127,14 +133,31 @@ function fixture(enabled) {
     location: { search: enabled ? '?audioBackend=howler' : '' },
     BABYLON: { Sound: BabylonSound, Engine: { audioEngine: { name: 'babylon-engine' } } },
     Howl,
-    Howler: { ctx, masterGain: {}, usingWebAudio: true, volume() {}, pos() {}, orientation() {} }
+    Howler: {
+      ctx,
+      masterGain: {},
+      usingWebAudio: true,
+      volume() {},
+      pos(...v) {
+        writes.push(['listenerPos', ...v]);
+      },
+      orientation(...v) {
+        writes.push(['listenerOrientation', ...v]);
+      }
+    }
   };
   root.window = root;
   vm.runInNewContext(source, root);
   let render, dispose;
   const scene = {
     audioEnabled: true,
-    activeCamera: { position: { x: 0, y: 1, z: 0 } },
+    activeCamera: {
+      position: { x: 0, y: 1, z: 0 },
+      upVector: { x: 0, y: 1, z: 0 },
+      getForwardRay() {
+        return { direction: { x: 0, y: 0, z: 1 } };
+      }
+    },
     onBeforeRenderObservable: {
       add(fn) {
         render = fn;
@@ -189,6 +212,34 @@ function fixture(enabled) {
   assert.ok(
     r.writes.some(x => x[0] === 'pos' && x[3] === -15),
     'Z conversion preserves Babylon left/right spatial orientation'
+  );
+  const stationaryListenerWrites = r.writes.filter(x => x[0].startsWith('listener')).length;
+  for (let i = 0; i < 200; i++) r.render();
+  assert.equal(
+    r.writes.filter(x => x[0].startsWith('listener')).length,
+    stationaryListenerWrites,
+    'stationary camera never restarts Howler listener AudioParam automation every render frame'
+  );
+  r.scene.activeCamera.position.x += 1;
+  r.render();
+  assert.equal(
+    r.writes.filter(x => x[0] === 'listenerPos').length,
+    2,
+    'camera translation updates listener position once'
+  );
+  r.scene.activeCamera.getForwardRay = () => ({ direction: { x: 1, y: 0, z: 0 } });
+  r.render();
+  assert.equal(
+    r.writes.filter(x => x[0] === 'listenerOrientation').length,
+    2,
+    'camera rotation updates listener orientation'
+  );
+  const sameSourceWrites = r.writes.filter(x => x[0] === 'pos').length;
+  a.setPosition({ x: 3, y: 1, z: 15 });
+  assert.equal(
+    r.writes.filter(x => x[0] === 'pos').length,
+    sameSourceWrites,
+    'unchanged source position does not schedule panner updates'
   );
   const idA = a._id,
     idB = b._id;
@@ -248,21 +299,40 @@ function fixture(enabled) {
   assert.equal(acoustics.quality, 'standard');
   acoustics.prepare(gun, { x: 40, y: 1, z: 0 }, 'gun', 0.2, w.scene);
   const chain = gun._acoustics;
-  assert.ok(chain, 'environmental sample allocates a Howler filter chain');
+  assert.ok(chain, 'environmental sample allocates a Howler bus route');
+  assert.ok(
+    chain.clearGain.gain.value + chain.muffledGain.gain.value > 0.999,
+    'new shot starts at full bus weight instead of fading away its attack'
+  );
+  assert.ok(
+    !chain.clearGain.gain.operations.includes('ramp'),
+    'idle preparation sets initial gains immediately'
+  );
   gun.play();
   w.flush();
   const node = w.howls[0]._soundById(gun._id)._node;
-  assert.ok(node.connections.has(chain.filter), 'this playback is routed through its low-pass filter');
+  assert.ok(
+    node.connections.has(chain.clearGain) && node.connections.has(chain.muffledGain),
+    'playback feeds both category buses'
+  );
   assert.ok(!node.connections.has(w.root.Howler.masterGain), 'no duplicate dry route');
   assert.ok(chain.send.connections.size > 0, 'wet send feeds the shared reverb');
-  const openHz = chain.filter.frequency.value;
+  const openMuffled = chain.muffledGain.gain.value;
   blocked = true;
   acoustics.prepare(gun, { x: 40, y: 1, z: 0 }, 'gun', 0.2, w.scene);
-  assert.ok(chain.filter.frequency.value < openHz, 'cover muffles the same live source');
+  assert.ok(chain.muffledGain.gain.value > openMuffled, 'cover moves the live source toward the muffled bus');
   assert.ok(gun._gain < 0.2, 'cover attenuation applies before reverb');
+  assert.ok(chain.clearGain.gain.operations.includes('ramp'), 'live occlusion changes ramp gains');
+  const gainOperations = chain.clearGain.gain.operations.length;
+  acoustics.prepare(gun, { x: 40, y: 1, z: 0 }, 'gun', 0.2, w.scene);
+  assert.equal(
+    chain.clearGain.gain.operations.length,
+    gainOperations,
+    'unchanged profile does not schedule another gain ramp'
+  );
   gun.neutralizeAcoustics();
   assert.ok(
-    node.connections.has(chain.filter),
+    node.connections.has(chain.clearGain),
     'priority/expiry neutralization never disconnects an active shot'
   );
   assert.equal(chain.send.gain.value, 0);
@@ -279,7 +349,7 @@ function fixture(enabled) {
   acoustics.prepare(next, { x: 10, y: 1, z: 0 }, 'gun', 0.2, w.scene);
   next.play();
   w.flush();
-  const nextFilter = next._acoustics.filter;
+  const nextFilter = next._acoustics.clearGain;
   assert.ok(recycled.connections.has(nextFilter));
   w.howls[0].emit('end', oldId);
   assert.ok(
@@ -313,7 +383,61 @@ function fixture(enabled) {
     true,
     'a finished source releases a chain for reuse'
   );
-  assert.equal(bounded.backend.summary().acousticChains, 2, 'graph allocation remains bounded across reuse');
+  assert.equal(
+    bounded.backend.summary().acousticChains,
+    2,
+    'per-source gain routes remain bounded across reuse'
+  );
+  // Shared filters stay fixed while independently positioned sources vary their mix.
+  const sharing = fixture(true);
+  await sharing.backend.ready;
+  const voices = Array.from(
+    { length: 100 },
+    (_, i) => new sharing.backend.Sound('voice-' + i, '/shared.mp3', sharing.scene)
+  );
+  sharing.howls[0].options.onload();
+  const kinds = ['gun', 'gunDistant', 'voice', 'foley', 'combat'];
+  voices.forEach((sound, i) => {
+    assert.equal(sound.setAcousticProfile(6000, 0.025, null, 192, kinds[i % 5]), true);
+    sound.play();
+  });
+  sharing.flush();
+  assert.equal(
+    sharing.backend.summary().acousticFilters,
+    10,
+    '100 sources allocate exactly ten shared filters'
+  );
+  assert.equal(sharing.backend.summary().acousticCategories.length, 5);
+  const near = voices[0]._acoustics;
+  const nearAgain = voices[5]._acoustics;
+  const distant = voices[1]._acoustics;
+  assert.equal(
+    [...near.clearGain.connections][0],
+    [...nearAgain.clearGain.connections][0],
+    'same-category sources share one clear filter'
+  );
+  assert.notEqual(
+    [...near.clearGain.connections][0],
+    [...distant.clearGain.connections][0],
+    'close and distant shots have separate buses'
+  );
+  const sharedFilter = [...near.clearGain.connections][0];
+  const fixedCutoff = sharedFilter.frequency.value;
+  const neighborBlend = nearAgain.muffledGain.gain.value;
+  voices[0].setAcousticProfile(900, 0, null, 192, 'gun');
+  assert.equal(sharedFilter.frequency.value, fixedCutoff, 'source changes never automate a bus cutoff');
+  assert.equal(
+    nearAgain.muffledGain.gain.value,
+    neighborBlend,
+    'obstructing one source does not muffle its neighbor'
+  );
+  assert.ok(
+    Math.abs(near.clearGain.gain.value + near.muffledGain.gain.value - 1) < 1e-10,
+    'correlated clear/muffled mix has unity total weight'
+  );
+  voices.forEach(sound => sound.stop());
+  sharing.dispose();
+  assert.equal(sharing.backend.summary().acousticFilters, 0, 'last scene disposal releases shared filters');
   const fallback = fixture(true);
   await fallback.backend.ready;
   const safe = new fallback.backend.Sound('safe', '/safe.mp3', fallback.scene);
