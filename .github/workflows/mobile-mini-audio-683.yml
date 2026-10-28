@@ -20,6 +20,8 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -39,12 +41,25 @@ jobs:
             "https://test.ivandpopov.com/grasstex/preview/ref-${HEAD_SHA:0:12}/battle_sim.php" \
             -o /tmp/staged-mini-mobile.html
           echo "Staged exact head ref-${HEAD_SHA:0:12}"
+      # The immutable host preview uses an older trusted PHP loader which does
+      # not implement skillsLab. Serve the exact checkout for this prerequisite,
+      # as Native Tactical Skills Lab QA does; keep real audio on the hosted map.
+      - name: Serve exact-source Skills Lab preflight
+        run: |
+          php -l battle_sim_local.php
+          mkdir -p /tmp/mobile-skills-site
+          ln -s "$GITHUB_WORKSPACE" /tmp/mobile-skills-site/grasstex
+          PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8765 -t /tmp/mobile-skills-site > /tmp/mobile-skills-php.log 2>&1 &
+          for i in $(seq 1 35); do
+            if curl -fsS 'http://127.0.0.1:8765/grasstex/battle_sim_local.php?seed=mobile-skills-health' >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          tail -100 /tmp/mobile-skills-php.log
+          exit 1
       - name: Exact-source Skills Lab preflight before native battle audio
         env:
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: |
-          export SKILLS_LAB_URL="https://test.ivandpopov.com/grasstex/preview/ref-${HEAD_SHA:0:12}/battle_sim.php"
-          node scripts/probes/probe_skills_lab.cjs
+          SKILLS_LAB_URL: http://127.0.0.1:8765/grasstex/battle_sim_local.php
+        run: node scripts/probes/probe_skills_lab.cjs
       - name: Run full Mini Map on desktop and emulated mobile devices
         id: benchmark
         continue-on-error: true
