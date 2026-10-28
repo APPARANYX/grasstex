@@ -1,0 +1,24 @@
+{
+  "branch": "work/benchmark-launch/move-adapters-ctrl-tactical-20261026",
+  "launch_parent_sha": "31b255af986293d83f7c4128c6ea9b72a6ba6a75",
+  "launch_sha": "5ab23b80eb5c8f19583cb5a96e7fef9e9ad146f0",
+  "note": "Launch parent is preserved; the child's actual checkout SHA must be read from the child run.",
+  "parent_retention_ref": "main-ancestor",
+  "request": {
+    "battle_type": "meeting",
+    "benchmark": "standard",
+    "correlation_id": "ma-ctrl-tactical",
+    "origin_agent": "claude",
+    "purpose": "Same-seed: movement adapters (slice 1b) 31b255af vs main 31b255af",
+    "query_off": "strategicInterception=0",
+    "query_on": "strategicInterception=0",
+    "ref": "main",
+    "seed": "controller-runtime-20261025",
+    "seeds": "1",
+    "sim_seconds": "600",
+    "windows": "0+600"
+  },
+  "schema_version": 1,
+  "source_ref": "main",
+  "source_sha_at_archive": "b913a7429d8cb4173c303a90e73a6c8be6958713"
+}
