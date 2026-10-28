@@ -113,24 +113,28 @@
       mesh.isPickable = false;
     });
     holder.rotationQuaternion = new B.Quaternion();
+    tintGrenade(holder, name);
     return holder;
   }
-  /* The imported materials are preserved on the soldier's hand prop. Only the
-     projectile gets its own darker olive/brown surface, retaining authored
-     normal maps, roughness and textures. Subtle emission prevents a black blob
-     against dark terrain. The visual material never changes collision/damage. */
-  function tintProjectile(holder, name) {
+  /* Keep authored roughness, metal and normal detail, but use a darker green
+     painted body on both held and thrown grenades. Wood/steel retain their own
+     material colors rather than inheriting the green body tint. */
+  function tintGrenade(holder, name) {
     var materials = [];
     holder.getChildMeshes().forEach(function (mesh, index) {
       var original = mesh.material;
       if (!original || typeof original.clone !== 'function') return;
       var material = original.clone(name + '-dark-' + index);
       if (!material) return;
-      if (material.albedoColor && material.albedoColor.scaleInPlace) material.albedoColor.scaleInPlace(0.62);
-      if (material.diffuseColor && material.diffuseColor.scaleInPlace)
-        material.diffuseColor.scaleInPlace(0.62);
+      var painted = /painted|olive|cast iron/i.test(original.name || '');
+      ['albedoColor', 'diffuseColor'].forEach(function (key) {
+        var color = material[key];
+        if (!color) return;
+        if (painted && color.set) color.set(0.055, 0.1, 0.045);
+        else if (color.scaleInPlace) color.scaleInPlace(0.45);
+      });
       if (material.emissiveColor && material.emissiveColor.set)
-        material.emissiveColor.set(0.026, 0.028, 0.02);
+        material.emissiveColor.set(0.004, 0.008, 0.003);
       mesh.material = material;
       materials.push(material);
     });
@@ -416,7 +420,6 @@ void main(void) {
       if (!node) {
         node = prop(st, g.byFaction, 'grenadeProjectile-' + g.id);
         if (!node) return;
-        tintProjectile(node, 'grenadeProjectile-' + g.id);
         st.live.set(g.id, node);
       }
       var p = api.position(g, battle.time),
@@ -428,7 +431,7 @@ void main(void) {
       /* Authoritative grenade points now include ground-contact bounce/roll. The
          pitch advances by ground distance after contact instead of spinning on
          an unrelated timer. Deliberate scale exaggeration is visual-only. */
-      node.scaling.setAll(age < impactAt ? 1.9 : 1.45);
+      node.scaling.setAll(age < impactAt ? 1.5 : 1.15);
       B.Quaternion.FromEulerAnglesToRef(
         age < impactAt ? age * 8 : impactAt * 8 + roll,
         g.id * 1.7,
