@@ -56,6 +56,17 @@ function percentile(sorted, pct) {
     ? +sorted[Math.min(sorted.length - 1, Math.floor(pct * (sorted.length - 1)))].toFixed(2)
     : null;
 }
+// These per-model calibration overrides are optional in loadSidecars(); the
+// shipping backend always applies built-in seats when a sidecar is absent.
+function optionalCalibration(url) {
+  try {
+    return /\/Assets\/soldiers\/(?:us|ge)-(?:paratrooper|scout|gunner|engineer|captain)\.fbx\.json$/.test(
+      new URL(url).pathname
+    );
+  } catch (_) {
+    return false;
+  }
+}
 function summary(result) {
   const frames = result.frames.filter(x => Number.isFinite(x.fps) && x.fps > 0);
   const fps = frames.map(x => x.fps).sort((a, b) => a - b);
@@ -65,6 +76,7 @@ function summary(result) {
   const caps = result.ending?.listenerLimits || {};
   return {
     name: result.name,
+    backend: result.backend,
     profile: result.profile,
     viewport: result.start.viewport,
     map: result.start.map,
@@ -89,6 +101,7 @@ function summary(result) {
     browserErrors: result.errors.length,
     missingAudio: result.missingAudio.length,
     httpErrors: result.httpErrors || [],
+    optionalCalibrationMissing: result.optionalCalibrationMissing || [],
     hiddenSamples: result.frames.filter(x => x.visibility !== 'visible').length,
     audioState: result.ending?.audioContextState || null,
     voiceStarts: result.ending?.voice?.played || 0,
@@ -132,9 +145,12 @@ function summary(result) {
       page.setDefaultTimeout(120000);
       const errors = [],
         missingAudio = [],
-        httpErrors = [];
+        httpErrors = [],
+        optionalCalibrationMissing = [];
       page.on('response', r => {
-        if (!r.ok()) httpErrors.push({ status: r.status(), url: r.url(), type: r.request().resourceType() });
+        if (r.status() === 404 && optionalCalibration(r.url())) optionalCalibrationMissing.push(r.url());
+        else if (r.status() >= 400)
+          httpErrors.push({ status: r.status(), url: r.url(), type: r.request().resourceType() });
         if (r.url().includes('/Assets/audio/') && !r.ok()) missingAudio.push(r.status() + ' ' + r.url());
       });
       page.on('requestfailed', request => {
@@ -145,6 +161,7 @@ function summary(result) {
       page.on('console', msg => {
         if (msg.type() === 'error') {
           const line = msg.text();
+          if (/^Failed to load resource:.*404/.test(line) && optionalCalibration(msg.location().url)) return;
           if (/Assets\/audio\//i.test(line)) missingAudio.push(line.slice(0, 250));
           else errors.push(line.slice(0, 500));
         }
@@ -169,9 +186,11 @@ function summary(result) {
       const run = {
         name: profile.name,
         profile,
+        backend,
         errors,
         missingAudio,
         httpErrors,
+        optionalCalibrationMissing,
         frames: [],
         status: 'incomplete',
         screenshot: null,
