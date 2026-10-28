@@ -29,7 +29,10 @@ const save = () => fs.writeFileSync(path.join(out, 'capture.json'), JSON.stringi
     args: ['--autoplay-policy=no-user-gesture-required', '--disable-extensions', '--window-size=1000,700']
   });
   try {
-    const context = await browser.newContext({ viewport: null });
+    const context = await browser.newContext({
+      viewport: { width: 1000, height: 613 },
+      deviceScaleFactor: 1
+    });
     const page = await context.newPage();
     const cdp = await context.newCDPSession(page);
     const contexts = new Map();
@@ -68,27 +71,21 @@ const save = () => fs.writeFileSync(path.join(out, 'capture.json'), JSON.stringi
       if (!enlarged && elapsedMs >= 45000) {
         await page.bringToFront();
         await cdp.send('Browser.setWindowBounds', { windowId, bounds: { windowState: 'fullscreen' } });
-        await page.waitForTimeout(1500);
-        const display = await page.evaluate(() => ({
-          width: screen.width,
-          height: screen.availHeight,
-          actual: innerWidth
-        }));
-        let mode = 'fullscreen';
-        // macOS may acknowledge fullscreen without resizing a background window.
-        if (display.actual < display.width * 0.9) {
-          mode = 'display-sized-window';
-          await cdp.send('Browser.setWindowBounds', { windowId, bounds: { windowState: 'normal' } });
-          await cdp.send('Browser.setWindowBounds', {
-            windowId,
-            bounds: { left: 0, top: 0, width: display.width, height: display.height }
-          });
-          await page.waitForTimeout(1000);
-        }
-        const size = await page.evaluate(() => [innerWidth, innerHeight]);
-        if (size[0] < display.width * 0.9)
-          throw Error('Large-window stage failed to resize: ' + size.join('x'));
-        report.stages.push({ stage: 'fullscreen-1x', elapsedMs: Date.now() - begin, mode, size });
+        // Lock the raster workload to the original capture, even if macOS moves
+        // the window between external 1x and internal Retina displays.
+        const width = Number(process.env.CHROME_AUDIO_LARGE_WIDTH) || 3440;
+        const height = Number(process.env.CHROME_AUDIO_LARGE_HEIGHT) || 1440;
+        await page.setViewportSize({ width, height });
+        await page.waitForTimeout(1000);
+        const size = await page.evaluate(() => [innerWidth, innerHeight, devicePixelRatio]);
+        if (size[0] !== width || size[1] !== height || size[2] !== 1)
+          throw Error('Large render viewport mismatch: ' + size.join('x'));
+        report.stages.push({
+          stage: 'fullscreen-1x',
+          elapsedMs: Date.now() - begin,
+          mode: 'fullscreen-with-fixed-render-viewport',
+          size
+        });
         enlarged = true;
         console.log('STAGE: fullscreen at 1x');
       }
