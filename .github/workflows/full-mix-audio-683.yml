@@ -15,6 +15,7 @@ on:
       - battle/modules/15-weapon-foley-audio.js
       - battle/modules/24a-grenade-audio.js
       - scripts/probes/probe_audio_lab.cjs
+      - scripts/lib/audio-test-delivery.cjs
       - .github/workflows/full-mix-audio-683.yml
 
 permissions:
@@ -58,6 +59,7 @@ jobs:
         env:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           AUDIO_LAB_TIMEOUT_MS: '200000'
+          AUDIO_LAB_FETCH_CONCURRENCY: '4'
         run: |
           set -euo pipefail
           required_status=0
@@ -75,6 +77,7 @@ jobs:
         env:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           AUDIO_LAB_TIMEOUT_MS: '200000'
+          AUDIO_LAB_FETCH_CONCURRENCY: '4'
           AUDIO_LAB_REPORT: reports/full-mix-audio-683/babylon-standard.json
         run: |
           export AUDIO_LAB_URL="https://test.ivandpopov.com/grasstex/preview/ref-${HEAD_SHA:0:12}/battle/audio_lab.html?fullMix=1&tacticalController=new&duration=145&speed=4&squads=5&occlusion=mixed&audioBackend=babylon&acoustics=standard"
