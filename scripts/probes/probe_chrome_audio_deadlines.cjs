@@ -146,8 +146,18 @@ const save = () => fs.writeFileSync(path.join(out, 'capture.json'), JSON.stringi
         try {
           outputTimestamp = ctx?.getOutputTimestamp?.();
         } catch (_) {}
+        const pannerModels = {};
+        for (const howl of window.Howler?._howls || []) {
+          for (const sound of howl._sounds || []) {
+            if (sound._paused || !sound._panner) continue;
+            const model = sound._panner.panningModel || sound._panner.constructor.name;
+            pannerModels[model] = (pannerModels[model] || 0) + 1;
+          }
+        }
         return {
           audio,
+          pannerModels,
+          reverbEnabled: window.BattleListenerAcoustics?.reverbEnabled,
           contextTime: ctx?.currentTime,
           baseLatency: ctx?.baseLatency,
           outputLatency: ctx?.outputLatency,

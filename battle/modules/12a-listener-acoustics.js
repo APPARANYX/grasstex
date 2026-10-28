@@ -13,6 +13,7 @@
     typeof location !== 'undefined' ? location.search || '' : ''
   );
   var quality = match ? match[1] : 'standard';
+  var reverbEnabled = !/(?:^|[?&])acousticReverb=(?:off|0)(?:&|$)/.test(location.search || '');
   // A/B admission only. The existing 24/36 filter slots and mix remain unchanged.
   // prettier-ignore
   var priorityEnabled = typeof location !== 'undefined' &&
@@ -119,6 +120,7 @@
     return false;
   }
   function makeWet(ctx, trackNode) {
+    if (!reverbEnabled) return null;
     if (wet && wet.ctx === ctx) return wet;
     if (!ctx || !ctx.createConvolver || !ctx.createGain || !ctx.createBuffer) return null;
     try {
@@ -442,6 +444,7 @@
   }
   root.BattleListenerAcoustics = {
     quality: quality,
+    reverbEnabled: reverbEnabled,
     maxActive: MAX_ACTIVE,
     defaultMaxActive: defaultActive,
     tickIntervalMs: TICK_MS,
