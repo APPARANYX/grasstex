@@ -1,0 +1,77 @@
+name: ⭐ Sprint Gait to FBX Clip Audit
+
+# Read-only, no injected tactical decisions. Collect the exact lower-body FBX
+# selected for native US sprint movement at each fixed 0.15-second sim step.
+on:
+  pull_request:
+    paths:
+      - scripts/probes/probe_skills_sprint_clip.cjs
+      - .github/workflows/tactical-sprint-clip-audit.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sprint-clip-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  native-sprint-clip:
+    name: 120m mixed cover / actual gait versus FBX
+    runs-on: ubuntu-latest
+    timeout-minutes: 24
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Check probe and install Chromium
+        run: |
+          node --check scripts/probes/probe_skills_sprint_clip.cjs
+          php -l battle_sim_local.php
+          npm install --no-save --no-package-lock playwright@1.58.2
+          npx playwright install --with-deps chromium
+      - name: Start exact-source sandbox PHP battle
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/sprint-clip-site
+          ln -s "$GITHUB_WORKSPACE" /tmp/sprint-clip-site/grasstex
+          PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8765 -t /tmp/sprint-clip-site > /tmp/sprint-clip-php.log 2>&1 &
+          for i in $(seq 1 40); do
+            if curl -fsS 'http://127.0.0.1:8765/grasstex/battle_sim_local.php?seed=clip-health' >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          tail -100 /tmp/sprint-clip-php.log
+          exit 1
+      - name: Observe real AI sprint gait and active lower-body FBX clip
+        env:
+          SPRINT_SECONDS: '210'
+          SPRINT_MODES: autonomous,purposeful
+          SPRINT_SEED: skills-range-0001
+          SPRINT_OUT: reports/sprint-clip-audit
+        run: node scripts/probes/probe_skills_sprint_clip.cjs
+      - name: Report sprint and clip pairing
+        if: success()
+        run: |
+          python3 - <<'PY'
+          import json
+          r = json.load(open('reports/sprint-clip-audit/summary.json'))
+          print('SHA:', r['sha'])
+          for s in r['summaries']:
+              print(s['mode'], 'sprint ticks:', s['ticks'],
+                    'FBX sprint clip:', s['clipSprint'],
+                    'visible FBX sprint:', s['visibleSprint'],
+                    'fast non-sprint FBX:', s['fastNonSprintClip'],
+                    'screenshot:', s['screenshot'])
+          PY
+      - name: Preserve full gait-to-FBX evidence and screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-sprint-clip-evidence
+          path: reports/sprint-clip-audit/
+          if-no-files-found: warn
+          retention-days: 30
+      - name: PHP server diagnostics
+        if: failure()
+        run: tail -120 /tmp/sprint-clip-php.log || true
