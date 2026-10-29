@@ -205,6 +205,29 @@ function step(s, speed = 0, count = 1) {
   step(s, 6, 30);
   assert.equal(f.family, 'sprint', 'AI still selects its family from measured motion');
 }
+/* Real imported rifle Run/Sprint clips differ by only 0.05 m/s. A live bound
+ * must break the retained Run family once physically fast, rather than
+ * displaying Rifle Run at 1.5x throughout an authoritative sprint. */
+{
+  const s = man(),
+    f = s._fbx;
+  s.isPlayer = false;
+  f.lib = { clips: { ...realClips, sprint0: { ...realClips.sprint0, speed: 4.15 } } };
+  s._locomotionGait = 'run';
+  step(s, 4.2, 20);
+  f.family = 'run'; // the common pre-bound animation, intentionally sticky
+  s._locomotionGait = 'sprint';
+  step(s, 6.2, 12);
+  assert.ok(f.speed > 5.2, 'physical sprint is well above the authored clip cadence');
+  assert.equal(f.family, 'sprint', 'AI sprint uses Sprint clip despite similar Run natural speed');
+  assert.equal(mixer.topEntry(f.lower).clip.key, 'sprint0');
+  step(s, 0.8, 24);
+  assert.notEqual(f.family, 'sprint', 'near-station slowdown does not play slow-motion Sprint');
+  s.crouching = true;
+  s._locomotionGait = 'crouchRun';
+  step(s, 3, 12);
+  assert.equal(f.family, 'crouchRun', 'crouch movement retains its existing clip family');
+}
 {
   const s = man(),
     f = s._fbx;
