@@ -226,7 +226,10 @@ function step(s, speed = 0, count = 1) {
   s.crouching = true;
   s._locomotionGait = 'crouchRun';
   step(s, 3, 12);
-  assert.ok(['crouch', 'crouchRun'].includes(f.family), 'AI sprint correction does not select upright FBX during crouch movement');
+  assert.ok(
+    ['crouch', 'crouchRun'].includes(f.family),
+    'AI sprint correction does not select upright FBX during crouch movement'
+  );
 }
 {
   const s = man(),
