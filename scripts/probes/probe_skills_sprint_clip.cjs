@@ -73,8 +73,19 @@ fs.mkdirSync(OUT, { recursive: true });
             maxSeconds, tick: 0.15, ticks: 0, firstVisual: null, episodes: [],
             lastGait: {}, examples: [], totals: {}, byGait: {}, byFamily: {},
             sprint: { ticks: 0, withFbx: 0, noFbx: 0, familySprint: 0,
-              clipSprint: 0, visibleSprint: 0, fastTicks: 0, fastNonSprintClip: 0 },
+              clipSprint: 0, visibleSprint: 0, fastTicks: 0, fastNonSprintClip: 0,
+              aimRequestedDuringSprint: 0, aimOverlayDuringSprint: 0, firePoseDuringSprint: 0,
+              actualShotsWhileFastSprinting: 0 },
             clips, captures: 0
+          };
+          /* Read-only real discharge observer: preserve the previous callback. */
+          const previousFire = sim.onFire;
+          sim.onFire = function (soldier) {
+            if (soldier && soldier.faction === 'us' && soldier.moving &&
+                soldier._locomotionGait === 'sprint' &&
+                (soldier.moveSpeed || 0) > Math.max(0.16, (soldier.speed || 1) * 0.12))
+              window.__sprintClipAudit.sprint.actualShotsWhileFastSprinting++;
+            if (previousFire) return previousFire.apply(this, arguments);
           };
           sim.pause();
           return { start: +sim.time.toFixed(3), roster: clips, lab: {
@@ -137,6 +148,14 @@ fs.mkdirSync(OUT, { recursive: true });
                 if (family === 'sprint') a.sprint.familySprint++;
                 if (clipSprint) a.sprint.clipSprint++;
                 if (clipSprint && top.w >= 0.6) a.sprint.visibleSprint++;
+                const upper = fx.upper && fx.upper.entries[fx.upper.entries.length - 1],
+                  upperKey = upper && upper.clip && upper.clip.key;
+                if (clipSprint && fx.aimWanted) a.sprint.aimRequestedDuringSprint++;
+                if (clipSprint && fx.overlayTarget > 0.01 && upperKey === 'aim')
+                  a.sprint.aimOverlayDuringSprint++;
+                if (clipSprint && fx.overlayTarget > 0.01 &&
+                    (upperKey === 'fire' || upperKey === 'fireAuto'))
+                  a.sprint.firePoseDuringSprint++;
                 const fast = fx.speed >= 5.2;
                 if (fast) {
                   a.sprint.fastTicks++;
@@ -153,6 +172,10 @@ fs.mkdirSync(OUT, { recursive: true });
                   commandedGroundSpeed: +(s._locomotionGroundSpeed || 0).toFixed(2),
                   worldMoveSpeed: +(s.moveSpeed || 0).toFixed(2),
                   clipSprint, weaponKind: fx.weaponKind,
+                  upperClip: upperKey || null,
+                  upperBlendTarget: +fx.overlayTarget.toFixed(2),
+                  upperBlendWeight: +fx.overlay.toFixed(2),
+                  spineAimWanted: !!fx.aimWanted, spineAimWeight: +fx.aim.toFixed(2),
                   x: +s.root.position.x.toFixed(2), z: +s.root.position.z.toFixed(2)
                 };
                 if (a.examples.length < 100 && (a.examples.length < 25 || fast || !clipSprint))
@@ -163,8 +186,8 @@ fs.mkdirSync(OUT, { recursive: true });
                   const camera = b.scene.activeCamera;
                   if (camera && typeof camera.setTarget === 'function') {
                     camera.setTarget(new BABYLON.Vector3(s.root.position.x, s.root.position.y + 1.1, s.root.position.z));
-                    if ('radius' in camera) camera.radius = 15;
-                    if ('beta' in camera) camera.beta = 1.15;
+                    if ('radius' in camera) camera.radius = 8;
+                    if ('beta' in camera) camera.beta = 1.12;
                   }
                   visual = sample;
                   break;
@@ -206,6 +229,14 @@ fs.mkdirSync(OUT, { recursive: true });
         assert.ok(result.time >= SECONDS - 0.5, 'full timed tactical lab not reached');
         assert.ok(result.elapsedTicks >= 100, 'insufficient native observations');
         assert.equal(result.countUS, initial.roster.length, 'US roster changed unexpectedly');
+        assert.equal(result.sprint.aimRequestedDuringSprint, 0,
+          'AI sprint is still running spine target IK over the authored upper body');
+        assert.equal(result.sprint.aimOverlayDuringSprint, 0,
+          'AI sprint still layers rifle aiming over its authored running upper body');
+        assert.equal(result.sprint.firePoseDuringSprint, 0,
+          'AI sprint still layers shot animation over its authored running upper body');
+        assert.equal(result.sprint.actualShotsWhileFastSprinting, 0,
+          'native combat fired real rounds while moving beyond the firing speed gate');
         summaries.push({
           mode, simulationSeconds: result.time,
           ...result.sprint,
