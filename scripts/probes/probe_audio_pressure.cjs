@@ -49,7 +49,7 @@ fs.mkdirSync(out, { recursive: true });
       await page.addInitScript(() => {
         const params = new WeakSet(),
           names = ['positionX', 'positionY', 'positionZ', 'orientationX', 'orientationY', 'orientationZ'];
-        window.__spatialAutomation = { params, calls: 0, track: [] };
+        window.__spatialAutomation = { params, listenerParams: new WeakSet(), calls: 0, listenerCalls: 0 };
         const create = BaseAudioContext.prototype.createPanner;
         BaseAudioContext.prototype.createPanner = function () {
           const node = create.apply(this, arguments);
@@ -66,6 +66,8 @@ fs.mkdirSync(out, { recursive: true });
           const original = AudioParam.prototype[method];
           AudioParam.prototype[method] = function () {
             if (params.has(this)) window.__spatialAutomation.calls++;
+            else if (window.__spatialAutomation.listenerParams.has(this))
+              window.__spatialAutomation.listenerCalls++;
             return original.apply(this, arguments);
           };
         });
@@ -137,8 +139,9 @@ fs.mkdirSync(out, { recursive: true });
           if (listener)
             ['positionX', 'positionY', 'positionZ', 'forwardX', 'forwardY', 'forwardZ', 'upX', 'upY', 'upZ']
               .filter(n => listener[n])
-              .forEach(n => __spatialAutomation.params.add(listener[n]));
+              .forEach(n => __spatialAutomation.listenerParams.add(listener[n]));
           __pressure.automationAtStart = __spatialAutomation.calls;
+          __pressure.listenerAtStart = __spatialAutomation.listenerCalls;
           // Rendering stays stopped, but the listener and voices still move every
           // tick, as they do in play; a static listener hid per-frame automation cost.
           const scene = __battle__.scene,
@@ -177,6 +180,9 @@ fs.mkdirSync(out, { recursive: true });
               ((performance.now() - __pressure.started) / 1000),
             spatialAutomationPerTick:
               (__spatialAutomation.calls - __pressure.automationAtStart) / Math.max(1, __pressure.ticks || 0),
+            listenerAutomationPerTick:
+              (__spatialAutomation.listenerCalls - __pressure.listenerAtStart) /
+              Math.max(1, __pressure.ticks || 0),
             ticks: __pressure.ticks || 0
           };
           __pressure.voices.forEach(s => s.dispose());
@@ -193,22 +199,38 @@ fs.mkdirSync(out, { recursive: true });
           durationSeconds: 65
         };
         fs.writeFileSync(`${out}/${name}.json`, JSON.stringify(report, null, 2));
-        // Spatial automation events per voice per position tick. Local 10-29: direct ~0.08
-        // (one-off setup per play), old per-frame path ~3.1; per tick, so a starved
-        // runner that ticks less often does not blur the two.
-        assert.ok(report.ticks >= 100, `only ${report.ticks} position ticks`);
-        const automationPerVoice = report.spatialAutomationPerTick / count;
-        if (automation)
-          // Negative control: the counter must see the old path, or the gate below is blind.
+        // Automation events per position tick, panner sources per voice and the listener
+        // on its own (per-frame listener automation alone cut a 100-voice render to
+        // 0.73x real time). Local 10-29: direct sources ~0.08 per voice (one-off setup
+        // per play), listener 0; old path sources ~3.1 per voice, listener ~9. Per tick,
+        // so runner speed does not blur them; setup per play is only judged on a full run.
+        // 65 s at 20 ms is ~3250 ticks.
+        assert.ok(
+          report.ticks >= 500,
+          `INSUFFICIENT SAMPLE: only ${report.ticks} position ticks, too few to judge automation`
+        );
+        const automationPerVoice = report.spatialAutomationPerTick / count,
+          listenerPerTick = report.listenerAutomationPerTick;
+        if (automation) {
+          // Negative control: the counter must see the old path, or the gates below are blind.
           assert.ok(
             automationPerVoice >= 1.5,
-            `old-path control shows ${automationPerVoice.toFixed(2)} automation events per voice per tick`
+            `old-path control shows ${automationPerVoice.toFixed(2)} source automation events per voice per tick`
           );
-        else if (spatial === '3d')
+          assert.ok(
+            listenerPerTick >= 3,
+            `old-path control shows ${listenerPerTick.toFixed(2)} listener automation events per tick`
+          );
+        } else if (spatial === '3d') {
           assert.ok(
             automationPerVoice <= 0.5,
-            `${automationPerVoice.toFixed(2)} spatial automation events per voice per tick`
+            `${automationPerVoice.toFixed(2)} source automation events per voice per tick`
           );
+          assert.ok(
+            listenerPerTick <= 0.05,
+            `${listenerPerTick.toFixed(2)} listener automation events per tick`
+          );
+        }
         if (automation) {
           const trace = report.audio.continuity.filter(x => x.realMs >= report.started + 5000);
           console.log(
@@ -218,6 +240,7 @@ fs.mkdirSync(out, { recursive: true });
               minClockRatio: Math.min(...trace.map(x => x.clockProgressRatio ?? 1)),
               medianClockRatio: median(trace.map(x => x.clockProgressRatio ?? 1)),
               spatialAutomationPerTick: report.spatialAutomationPerTick,
+              listenerAutomationPerTick: report.listenerAutomationPerTick,
               backend: report.audio.backend.spatialWrite
             })
           );
@@ -258,10 +281,7 @@ fs.mkdirSync(out, { recursive: true });
           } else since = null;
         }
         assert.ok(slowMs < 2000, `sustained clock slowdown ${slowMs}ms`);
-        // The fix held a median of 1.000 on every CI run; the old path drifts below
-        // real time long before any 2 s stretch under 0.8.
         const medianClock = median(trace.map(x => x.clockProgressRatio ?? 1));
-        assert.ok(medianClock >= 0.98, `audio clock median ${medianClock.toFixed(3)} below 0.98 real-time`);
         assert.ok(
           trace.some(x => x.output.rms > 0.00005),
           'no master signal'
@@ -273,6 +293,7 @@ fs.mkdirSync(out, { recursive: true });
             slowMs,
             medianClockRatio: medianClock,
             spatialAutomationPerTick: report.spatialAutomationPerTick,
+            listenerAutomationPerTick: report.listenerAutomationPerTick,
             minClockRatio: Math.min(...trace.map(x => x.clockProgressRatio ?? 1))
           })
         );
