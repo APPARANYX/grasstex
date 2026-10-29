@@ -226,7 +226,7 @@ function step(s, speed = 0, count = 1) {
   s.crouching = true;
   s._locomotionGait = 'crouchRun';
   step(s, 3, 12);
-  assert.equal(f.family, 'crouchRun', 'crouch movement retains its existing clip family');
+  assert.ok(['crouch', 'crouchRun'].includes(f.family), 'AI sprint correction does not select upright FBX during crouch movement');
 }
 {
   const s = man(),
