@@ -199,6 +199,16 @@ function fixture(enabled, spatial, extraSearch) {
   assert.equal(b.play(), true);
   r.flush();
   assert.equal(B.summary().started, 2, 'actual Howler play events counted');
+  assert.equal(B.summary().inRangeStarts, 2, 'starts inside their distance range counted');
+  const far = new B.Sound('far', '/shot.ogg', r.scene, null, { maxDistance: 145 });
+  far.setPosition({ x: 0, y: 1, z: 171 });
+  assert.equal(far.play(), true);
+  r.flush();
+  assert.equal(B.summary().started, 3);
+  assert.equal(B.summary().inRangeStarts, 2, 'a start past linear maxDistance is expected silence');
+  far.stop();
+  far.dispose();
+  r.flush();
   assert.equal(B.summary().playbackAudit.playing, 2);
   r.howls[0].ids.delete(a._id);
   assert.equal(

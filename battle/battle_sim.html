@@ -318,7 +318,7 @@ window.BattleLoading=(function(){
       ['visibilitychange','fullscreenchange'].forEach(function(name){document.addEventListener(name,function(){audioEvent(name);});});
       ['focus','blur'].forEach(function(name){window.addEventListener(name,function(){audioEvent(name);});});
       ctx.addEventListener('statechange',function(){audioEvent('context:'+ctx.state);});
-      var lastStarts=0,lastDetailMs=-Infinity;
+      var lastStarts=0,lastInRange=0,lastDetailMs=-Infinity;
       liveAudioMeterTimer=setInterval(function(){
         var real=performance.now(),clock=ctx.currentTime,now=liveOutput(),stamp=null;
         try{stamp=ctx.getOutputTimestamp?ctx.getOutputTimestamp():null;}catch(_){}
@@ -349,21 +349,22 @@ window.BattleLoading=(function(){
         if(state!==lastAudioState){audioEvent('playback-state');lastAudioState=state;}
         if(real-lastDetailMs<1000)return;
         lastDetailMs=real;
-        var w=battle._weaponAudio&&battle._weaponAudio.summary(),starts=w&&w.playRequests||0;
+        var w=battle._weaponAudio&&battle._weaponAudio.summary(),starts=w&&w.playRequests||0,
+          be=window.BattleAudioBackend&&BattleAudioBackend.summary(),inRange=be&&be.inRangeStarts||0;
         var chunks=meterChunks.splice(0),frames=0,maxRms=0;
         chunks.forEach(function(c){frames+=c.frames;maxRms=Math.max(maxRms,c.rms);});
         var record=Object.assign({},sample,{
           audioWindow:{source:liveMeterNode?'worklet':'none',chunks:chunks.length,
             audioMs:+(frames/ctx.sampleRate*1000).toFixed(1),maxRms:+maxRms.toFixed(6),
             chunkRms:chunks.map(function(c){return +c.rms.toFixed(6);})},
-          active:w&&w.active||0,weaponStarts:starts,deltaWeaponStarts:starts-lastStarts,
+          active:w&&w.active||0,weaponStarts:starts,deltaWeaponStarts:starts-lastStarts,deltaInRangeStarts:inRange-lastInRange,
           weapon:w,weaponPools:battle._weaponAudio&&battle._weaponAudio.detail(),
-          backend:window.BattleAudioBackend&&BattleAudioBackend.summary(),
+          backend:be,
           queue:window.BattleAudioScheduler&&BattleAudioScheduler.pressure,
           scheduler:window.BattleAudioScheduler&&BattleAudioScheduler.stats,
           voice:window.BattleVoiceScheduler&&BattleVoiceScheduler.summary?BattleVoiceScheduler.summary():null,
           grenade:battle._grenadeAudio,combat:battle._combatAudio,foley:battle._weaponFoley});
-        lastStarts=starts;
+        lastStarts=starts;lastInRange=inRange;
         liveAudioHistory.push(audioCopy(record));if(liveAudioHistory.length>240)liveAudioHistory.shift();
       },100);
     }catch(err){console.error('[AUDIO] passive output analyser failed',err);}

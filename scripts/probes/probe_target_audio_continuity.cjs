@@ -141,21 +141,24 @@ fs.mkdirSync(out, { recursive: true });
           // audio thread since the previous row (audioWindow). A second counts as audible
           // if any chunk reaches SIGNAL; a single shot fills only part of a second, so
           // there is no per-second coverage bar, but the share of busy seconds is gated.
+          // A busy second also needs 2+ starts inside their own distance model's range:
+          // the dry path's linear model is silent past maxDistance by design.
           const SIGNAL = 0.00005,
             AUDIBLE_SHARE = 0.85;
-          const busy = history.filter(row => !row.paused && row.deltaWeaponStarts >= 2);
+          const isBusy = row => !row.paused && row.deltaWeaponStarts >= 2 && row.deltaInRangeStarts >= 2;
+          const busy = history.filter(isBusy);
           const thin = busy.filter(
             row => !row.audioWindow || row.audioWindow.source !== 'worklet' || row.audioWindow.audioMs < 500
           );
           assert.ok(
             busy.length >= 20 && thin.length <= busy.length * 0.1,
-            `too few reads or starts to judge: ${busy.length} seconds with 2+ starts, ${thin.length} with under 500 ms measured`
+            `too few reads or starts to judge: ${busy.length} seconds with 2+ in-range starts, ${thin.length} with under 500 ms measured`
           );
           const audible = row => row.audioWindow && row.audioWindow.maxRms >= SIGNAL;
           let silent = 0,
             silentMax = 0;
           for (const row of history) {
-            silent = !row.paused && row.deltaWeaponStarts >= 2 && !audible(row) ? silent + 1 : 0;
+            silent = isBusy(row) && !audible(row) ? silent + 1 : 0;
             silentMax = Math.max(silentMax, silent);
           }
           const audibleShare = busy.filter(audible).length / busy.length;
@@ -176,7 +179,7 @@ fs.mkdirSync(out, { recursive: true });
           assert.ok(silentMax < 3, 'sustained internal silence while gunshots start');
           assert.ok(
             audibleShare >= AUDIBLE_SHARE,
-            `only ${(audibleShare * 100).toFixed(0)}% of seconds with 2+ starts carried signal`
+            `only ${(audibleShare * 100).toFixed(0)}% of seconds with 2+ in-range starts carried signal`
           );
           const live = audio.continuity.filter(x => !x.paused);
           const achievedSpeed =

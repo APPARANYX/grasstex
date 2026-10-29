@@ -26,6 +26,7 @@
   var stats = {
     requested: 0,
     started: 0,
+    inRangeStarts: 0,
     ended: 0,
     droppedUnavailable: 0,
     droppedBusy: 0,
@@ -191,6 +192,8 @@
         if (sound) {
           sound._attachAcoustics();
           stats.started++;
+          // A start past its own audible range is expected silence, not lost output.
+          if (sound._gain > 0 && sound._distanceGain() > 0) stats.inRangeStarts++;
         }
       },
       onend: function (id) {
@@ -266,8 +269,8 @@
   };
   // Diagnostic-only mono route: preserve Web Audio distance attenuation while
   // excluding PannerNodes. Default 3D routing and gain remain unchanged.
-  Sound.prototype._applyFlatGain = function () {
-    if (!this._playing || this._id == null) return;
+  // Distance gain the listener would get from this sound's distance model.
+  Sound.prototype._distanceGain = function () {
     var o = this._options,
       cam = this._scene && this._scene.activeCamera;
     var listener = cam && (cam.globalPosition || cam.position),
@@ -291,7 +294,11 @@
               ? 1
               : 1 - (rolloff * (distance - ref)) / (max - ref);
     }
-    this._entry.howl.volume(this._gain * Math.max(0, Math.min(1, gain)), this._id);
+    return Math.max(0, Math.min(1, gain));
+  };
+  Sound.prototype._applyFlatGain = function () {
+    if (!this._playing || this._id == null) return;
+    this._entry.howl.volume(this._gain * this._distanceGain(), this._id);
   };
   Sound.prototype.setPosition = function (p) {
     this._position = point(p);
