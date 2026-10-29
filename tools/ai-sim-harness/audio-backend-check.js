@@ -206,6 +206,8 @@ function fixture(enabled, spatial, extraSearch) {
   r.flush();
   assert.equal(B.summary().started, 3);
   assert.equal(B.summary().inRangeStarts, 2, 'a start past linear maxDistance is expected silence');
+  assert.equal(B.summary().outOfRangeStarts, 1, 'out-of-range starts are reported, not dropped');
+  assert.equal(B.summary().mutedStarts, 0);
   far.stop();
   far.dispose();
   r.flush();

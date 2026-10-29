@@ -145,6 +145,21 @@ fs.mkdirSync(out, { recursive: true });
           // the dry path's linear model is silent past maxDistance by design.
           const SIGNAL = 0.00005,
             AUDIBLE_SHARE = 0.85;
+          assert.ok(
+            history.every(row => row.audioWindow && Array.isArray(row.audioWindow.chunkRms)),
+            'history row without an audio-thread meter window'
+          );
+          // The in-range split must account for every start, and its share must stay
+          // near calibration (10-29, both arms: off 0.18-0.26, standard 0.54-0.55), so a
+          // gain or position bug cannot drop starts out of the judged population.
+          const b = audio.backend,
+            judged = b.inRangeStarts + b.outOfRangeStarts + b.mutedStarts;
+          assert.equal(judged, b.started, 'every start is in range, out of range or muted');
+          const inRangeShare = b.inRangeStarts / Math.max(1, b.started);
+          assert.ok(
+            inRangeShare >= (acoustics === 'off' ? 0.12 : 0.45),
+            `only ${(inRangeShare * 100).toFixed(0)}% of starts in range of the listener`
+          );
           const isBusy = row => !row.paused && row.deltaWeaponStarts >= 2 && row.deltaInRangeStarts >= 2;
           const busy = history.filter(isBusy);
           const thin = busy.filter(
@@ -171,6 +186,8 @@ fs.mkdirSync(out, { recursive: true });
               0
             ) / busy.length;
           report.probe.silence = {
+            starts: { inRange: b.inRangeStarts, outOfRange: b.outOfRangeStarts, muted: b.mutedStarts },
+            inRangeShare,
             busySeconds: busy.length,
             audibleShare,
             meanChunkCoverage: coverage,

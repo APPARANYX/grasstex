@@ -27,6 +27,8 @@
     requested: 0,
     started: 0,
     inRangeStarts: 0,
+    outOfRangeStarts: 0,
+    mutedStarts: 0,
     ended: 0,
     droppedUnavailable: 0,
     droppedBusy: 0,
@@ -193,7 +195,10 @@
           sound._attachAcoustics();
           stats.started++;
           // A start past its own audible range is expected silence, not lost output.
-          if (sound._gain > 0 && sound._distanceGain() > 0) stats.inRangeStarts++;
+          // The split is reported so a gain or position bug cannot quietly shrink it.
+          if (!(sound._gain > 0)) stats.mutedStarts++;
+          else if (sound._distanceGain() > 0) stats.inRangeStarts++;
+          else stats.outOfRangeStarts++;
         }
       },
       onend: function (id) {

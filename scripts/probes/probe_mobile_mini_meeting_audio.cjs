@@ -363,6 +363,8 @@ function summary(result) {
           throw new Error('INVALID AUDIO STRESS: no real gunshot starts despite live battle');
         // Judge only seconds in which the gunshot pool started a sound; a start late
         // in a second may first be heard in the next one.
+        if (run.meterRows.some(x => !x.audioWindow))
+          throw new Error('METER FAILURE: history row without an audio-thread meter window');
         const rows = run.meterRows,
           windowStarts = rows.reduce((n, x) => n + Math.max(0, x.deltaWeaponStarts || 0), 0),
           thin = rows.filter(
