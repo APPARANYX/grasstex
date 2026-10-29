@@ -4,7 +4,7 @@ name: ⭐ Dispatch Phase C Standard Comparisons
 # runs appear under "M3C Standard Benchmark", not only our natural-field QA.
 on:
   pull_request:
-    # Full acceptance runs only when a draft is marked ready to review.
+    # Heavy checks run when a draft is promoted for review, not on every push.
     types: [ready_for_review]
     paths:
       - .github/workflows/phase-c-m3c-dispatch.yml
@@ -15,6 +15,7 @@ on:
       - scripts/probes/probe_phase_c_natural.cjs
   workflow_dispatch:
 
+# A subsequent ready-for-review replaces any incomplete same-PR run.
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: true

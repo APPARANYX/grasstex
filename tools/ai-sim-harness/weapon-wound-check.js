@@ -32,7 +32,15 @@ function setup(opts) {
   H.resetIds();
   const r = H.bootstrap();
   r.BattleModules.unitsFor = b => (b._roster.us || []).concat(b._roster.ge || []);
-  if (opts.ammo) load(r, 'battle/modules/46-ammunition-stoppages.js');
+  let ammoSystem;
+  if (opts.ammo) {
+    const register = r.BattleModules.registerSystem;
+    r.BattleModules.registerSystem = (id, spec) => {
+      if (id === 'ammunition-stoppages') ammoSystem = spec;
+      register(id, spec);
+    };
+    load(r, 'battle/modules/46-ammunition-stoppages.js');
+  }
   if (opts.ranges) load(r, 'battle/modules/10-effective-ranges.js');
   /* Every round misses: cadence is about the trigger, not the dice. */
   if (opts.miss) r.SquadAI.extend('shotModel', 'ballistics', () => false);
@@ -41,7 +49,7 @@ function setup(opts) {
   b.onFire = (s, delay) => fired.push({ id: s.id, t: b.time, delay: delay || 0 });
   const us = H.addSquad(r, b, { id: 'us-0', faction: 'us', x: 0, z: 0, objective: { x: 0, z: 100 } });
   const ge = H.addSquad(r, b, { id: 'ge-0', faction: 'ge', x: 0, z: 60, objective: { x: 0, z: -100 } });
-  return { r, b, us, ge, fired };
+  return { r, b, us, ge, fired, ammoSystem };
 }
 const role = (sq, name) => sq.members.find(s => s.role === name);
 /* Hold the trigger for `seconds` at the AI tick, the way Engagement calls tryFire. */
@@ -122,6 +130,46 @@ test('a burst stops when the belt runs dry and the gun reloads', () => {
   assert.equal(r.SquadAI.tryFire(mg, b), true);
   assert.equal(fired.filter(f => f.id === mg.id).length, 2, 'only the rounds left in the belt');
   assert.equal(mg.reloading, true);
+});
+
+test('reload blocks fire through final burst offset, settling delay and full reload duration', () => {
+  for (const rounds of [1, 2]) {
+    const { r, b, ge, us, fired, ammoSystem } = setup({ miss: true, ammo: true });
+    const mg = role(ge, 'gunner');
+    r.BattleAmmunition.initialize(mg, b);
+    mg.weapon.ammo = rounds;
+    mg.fireCooldown = 0;
+    mg.target = role(us, 'rifleman');
+    const animations = [];
+    r.BattleSoldierModel = {
+      TAGS: { reload: 'reload' },
+      triggerAnimation: (s, tag, data) => animations.push(data)
+    };
+    assert.equal(r.SquadAI.tryFire(mg, b), true);
+    const last = fired.filter(f => f.id === mg.id).at(-1);
+    const start = last.t + last.delay + 0.5;
+    assert.ok(Math.abs(mg.reloadStart - start) < 1e-9);
+    assert.ok(Math.abs(mg.reloadUntil - (start + mg.weapon.stats.reloadTime)) < 1e-9);
+    assert.equal(animations.length, 1);
+    assert.ok(Math.abs(animations[0].delay - (last.delay + 0.5)) < 1e-9);
+    assert.equal(animations[0].duration, mg.weapon.stats.reloadTime, 'no shortened reload');
+    const done = mg.reloadUntil;
+    for (const time of [start - 0.01, done - 0.5, done - 0.001]) {
+      b.time = time;
+      ammoSystem.onSimulationStep(b, { dt: 0 });
+      assert.equal(mg.weapon.ammo, 0);
+      assert.equal(mg.reloading, true);
+      assert.equal(r.BattleAmmunition.available(mg), false);
+      mg.fireCooldown = 0;
+      assert.equal(r.SquadAI.tryFire(mg, b), false, 'cannot fire before reload actually completes');
+    }
+    b.time = done;
+    ammoSystem.onSimulationStep(b, { dt: 0 });
+    assert.equal(mg.reloading, false);
+    assert.ok(mg.weapon.ammo > 0);
+    assert.equal(r.BattleAmmunition.available(mg), true);
+    assert.equal(mg.reloadStart, 0, 'completion clears the presentation start');
+  }
 });
 
 test('scouts: US M1 Carbine, GE FG 42 on the full-power round with the rifle reach', () => {

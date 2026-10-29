@@ -35,6 +35,22 @@
   /* See 11-voice-variation.js: attachToMesh tracks the soldier every frame instead of a
      one-time setPosition snapshot, so the emitter doesn't get left behind mid-line. */
   function playAt(entry, req) {
+    var ae = root.BattleAudioBackend
+        ? root.BattleAudioBackend.engine()
+        : root.BABYLON && root.BABYLON.Engine && root.BABYLON.Engine.audioEngine,
+      ctx = ae && ae.audioContext,
+      scene = req.soldier && req.soldier.root && req.soldier.root.getScene && req.soldier.root.getScene();
+    if (
+      (scene && scene.audioEnabled === false) ||
+      (ctx ? ctx.state !== 'running' : ae && ae.unlocked === false)
+    ) {
+      finish(req);
+      return req.handle;
+    }
+    if (entry.sound && entry.sound.isPlaying === true) {
+      finish(req);
+      return req.handle;
+    }
     if (
       !root.BattleVoiceEligibility.allows(req.soldier, req.handle.type) ||
       req.soldier.squad !== req.squad ||
@@ -77,7 +93,10 @@
           voiceGain,
           mesh.getScene()
         );
-      s.play();
+      if (s.play() === false) {
+        finish(req);
+        return req.handle;
+      }
       req.handle.started = true;
       root.GTLog('[VOICE] play ' + entry.file + ' lane=' + req.lane);
     } catch (e) {
@@ -138,7 +157,7 @@
     entry = cache[file] = { file: file, sound: null, ready: false, pending: [req] };
     try {
       var scene = soldier.root.getScene();
-      entry.sound = new BABYLON.Sound(
+      entry.sound = new (root.BattleAudioBackend ? root.BattleAudioBackend.Sound : BABYLON.Sound)(
         'voice-' + file,
         url,
         scene,

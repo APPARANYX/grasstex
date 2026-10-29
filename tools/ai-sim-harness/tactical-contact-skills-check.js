@@ -144,6 +144,25 @@ test('a selected grenade finisher commits and releases through native owners wit
   );
   clean(w);
 });
+test('grenade owner explains unavailable personal opportunities without creating an order', () => {
+  const w = world(24);
+  const systems = {};
+  w.r.BattleModules.registerSystem = (id, s) => (systems[id] = s);
+  loadModule(w.r, 'battle/modules/14-z-ballistic-raycast.js', { location: w.r.location });
+  delete w.r.BattleGrenades;
+  loadModule(w.r, 'battle/modules/23-grenades.js', { location: w.r.location });
+  squad(w);
+  const G = w.r.BattleGrenades,
+    s = w.q.members[4],
+    before = w.TC.summary(w.b).actions;
+  s.moving = true;
+  assert.equal(G.assaultAssessment(s, w.b).reason, 'already-moving');
+  s.moving = false;
+  s.grenades = 0;
+  assert.equal(G.assaultAssessment(s, w.b).reason, 'no-grenades');
+  assert.equal(w.TC.summary(w.b).actions, before, 'read-only assessment may not publish orders');
+  clean(w);
+});
 test('controller publishes HOLD through Meso and the native per-man preparation keeps fire closed', () => {
   const w = world();
   squad(w);

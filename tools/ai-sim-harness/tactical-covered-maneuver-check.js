@@ -175,6 +175,34 @@ function until(w, predicate, seconds = 20) {
     'condition did not occur: ' + JSON.stringify(w.M.summary(w.q)) + ' ' + JSON.stringify(w.TC.summary(w.b))
   );
 }
+test('leader and machine gun require two real forward firing riflemen before a single covered relocation', () => {
+  const w = world();
+  const Q = w.r.BattleSquadStability;
+  const A = w.r.SquadAI;
+  const gunner = w.q.members.find(s => A.isMachineGun(s));
+  const leader = A.leaderOf(w.q);
+  const shooters = w.q.members.filter(s => s !== leader && !A.isMachineGun(s)).slice(0, 2);
+  const param = { direction: 'forward', team: 'alpha', moverId: String(gunner.id), supportRelocation: true };
+  w.q.inContact = true; // the native Meso gate requires active, reported squad contact
+  assert.equal(Q.controllerBound.begin(w.q, w.b, param), null, 'no forward riflemen yet');
+  shooters.forEach(s => (s.root.position.z += 65));
+  assert.equal(Q.controllerBound.begin(w.q, w.b, param), null, 'positions alone are not shooting receipts');
+  const original = w.E.supportDischarged;
+  w.E.supportDischarged = (s, sim, since) => shooters.includes(s);
+  const h = Q.controllerBound.begin(w.q, w.b, param);
+  assert.ok(h && h.supportRelocation, 'one rear MG can relocate behind two independently firing riflemen');
+  assert.equal(h.movers.length, 1);
+  assert.equal(h.movers[0], gunner);
+  assert.ok(h.holders.includes(leader), 'the squad leader remains available to command');
+  assert.equal(
+    Q.controllerBound.begin(w.q, w.b, { ...param, moverId: String(leader.id) }),
+    null,
+    'one support move at a time'
+  );
+  assert.ok(Q.controllerBound.end(w.q, w.b, h));
+  w.E.supportDischarged = original;
+  clean(w);
+});
 test('new-controller formation authorizations have one movement writer; legacy stays unchanged', () => {
   const w = world();
   const s = w.q.members[4];
@@ -216,6 +244,23 @@ test('Meso publication and cleanup keep their real owner inside another module h
   Q.publish(w.q, w.b, s, { x: 24, z: 14 }, 'owner-test-3');
   assert.ok(P.conflicts(w.b).length > 0, 'a genuine intervening foreign destination is still detected');
 });
+test('diagnostics preserve the UI contract for movers with no personal contact', () => {
+  const w = world();
+  const native = w.r.BattleCoverPositions.boundThreats;
+  const missing = w.q.members[7];
+  w.r.BattleCoverPositions.boundThreats = (man, sim) => (man === missing ? [] : native(man, sim));
+  until(
+    w,
+    () => w.M.summary(w.q)?.diagnostic?.teams?.some(t => t.result === 'no-personal-reported-contact'),
+    8
+  );
+  const t = w.M.summary(w.q).diagnostic.teams.find(row => row.moverId === String(missing.id));
+  assert.equal(t.result, 'no-personal-reported-contact');
+  assert.deepEqual(t.moverFailures, []);
+  assert.deepEqual(t.routeRejections, {});
+  assert.equal(t.candidates, 0);
+  clean(w);
+});
 test('advance waits for real discharges, personal movement adoption, physical arrival and alternates teams', () => {
   const w = world();
   squad(w);
@@ -234,6 +279,24 @@ test('advance waits for real discharges, personal movement adoption, physical ar
   assert.ok(new Set(arrived).size >= 2, 'different soldiers check in independently');
   clean(w);
 });
+test('refusal of one personal bound preserves an already accepted peer order', () => {
+  const w = world(),
+    E = w.r.BattleEngagement.controllerCombat,
+    native = E.bound;
+  let requested = 0;
+  E.bound = function () {
+    requested++;
+    if (requested === 2) return null;
+    return native.apply(this, arguments);
+  };
+  until(w, () => requested >= 2 && w.M.summary(w.q)?.phase === 'moving', 40);
+  assert.ok(live(w, 'combat.bound').length >= 1, 'a valid peer order must survive');
+  assert.equal(w.M.summary(w.q).personalOrdersRejected, 1);
+  assert.equal(w.M.summary(w.q).windowsStarted, 1);
+  until(w, () => w.M.summary(w.q).checkins >= 1, 35);
+  assert.ok(w.M.summary(w.q).personalOrdersAccepted >= 1);
+  clean(w);
+});
 test('recently firing riflemen can continue covered movement while two real shooters remain', () => {
   const w = world();
   const pick = w.r.BattleTacticalContactRoute.pick;
@@ -249,8 +312,8 @@ test('recently firing riflemen can continue covered movement while two real shoo
     });
   until(w, () => firing().length >= 7, 30);
   w.r.BattleTacticalContactRoute.pick = pick;
-  // Change the real decision basis, as a contact/position/readiness change would.
-  w.q.members[2].root.position.x += 1.1;
+  // A new real shot receipt must invalidate a denied cover plan even if the
+  // fireteam has not changed position. No synthetic location change required.
   until(w, () => live(w, 'combat.bound').length >= 1, 20);
   const movers = new Set(live(w, 'combat.bound').map(a => a.actorId));
   assert.ok(firing().filter(s => !movers.has(String(s.id))).length >= 2);

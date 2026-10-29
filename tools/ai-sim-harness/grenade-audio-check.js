@@ -19,8 +19,9 @@ function test(name, fn) {
   console.log('PASS ' + name);
 }
 const pending = new Set();
-function load(search) {
+function load(search, engine) {
   const r = {};
+  if (engine) r.BABYLON = { Engine: { audioEngine: engine } };
   if (search != null) r.location = { search };
   new Function('window', 'globalThis', 'location', CORE)(r, r, r.location);
   r.BattleGrenades = {
@@ -68,7 +69,8 @@ function man(id, faction, x) {
   const s = { id, faction, dead: false, root: { position: Object.freeze({ x, y: 0, z: 0 }) } };
   return Object.freeze(s);
 }
-function rig() {
+function rig(opts = {}) {
+  let t = 0;
   pending.clear();
   const played = [],
     travel = [],
@@ -105,9 +107,9 @@ function rig() {
       throw new Error('grenade audio read the RNG');
     }
   });
-  A.install(sim, {
+  (opts.engine ? load(undefined, opts.engine) : A).install(sim, {
     voices,
-    now: () => 0,
+    now: () => t,
     camera: () => ({ position: cam }),
     later: (ms, fn) => {
       travel.push(ms);
@@ -117,6 +119,10 @@ function rig() {
   });
   return {
     sim,
+    voices,
+    advance: ms => {
+      t += ms;
+    },
     us,
     ge,
     farUs,
@@ -207,5 +213,36 @@ test('?grenadeAudio=0 and ?grenades=0 install nothing', () => {
     assert.equal(sim.onGrenade, null, q);
   }
   assert.equal(load('?grenadeAudio=1').on, true);
+});
+test('long explosions are never reused after their estimated three-second end', () => {
+  const r = rig();
+  for (const v of r.voices.explosion) {
+    v.sound.isPlaying = true;
+    v.sound.setPosition = () => assert.fail('moved a live explosion');
+  }
+  r.advance(5000);
+  r.sim.onGrenadeBurst({ to: { x: 10, y: 0, z: 0 } });
+  assert.equal(r.played.length, 0);
+  assert.equal(r.sim._grenadeAudio.dropped, 1);
+});
+test('unready explosions drop, then a newly ready slot can play', () => {
+  const r = rig();
+  for (const v of r.voices.explosion) v.sound.isReady = () => false;
+  r.sim.onGrenadeBurst({ to: { x: 10, y: 0, z: 0 } });
+  assert.equal(r.played.length, 0);
+  r.voices.explosion[0].sound.isReady = () => true;
+  r.sim.onGrenadeBurst({ to: { x: 10, y: 0, z: 0 } });
+  assert.equal(r.played.length, 1);
+});
+test('suspended context drops grenades even with stale unlocked=true; recovery has no backlog', () => {
+  const engine = { unlocked: true, audioContext: { state: 'suspended' } };
+  const r = rig({ engine });
+  for (let i = 0; i < 20; i++) r.sim.onGrenadeBurst({ to: { x: 10, y: 0, z: 0 } });
+  assert.equal(r.played.length, 0);
+  assert.equal(r.sim._grenadeAudio.droppedUnavailable, 20);
+  engine.audioContext.state = 'running';
+  engine.unlocked = false;
+  r.sim.onGrenadeBurst({ to: { x: 10, y: 0, z: 0 } });
+  assert.equal(r.played.length, 1);
 });
 console.log(`grenade-audio-check: ${n} passed`);

@@ -1,7 +1,8 @@
 /* Deterministic individual soldier morphology + realistic infantry gait selection.
    Ground speeds are based on loaded WW2 infantry movement bands supplied for the lab:
    walk 1.1-1.4 m/s, run 3.5-4.5, sprint 5.5-6.7, crouch walk .7-1.0,
-   crouch run 2.5-3.5, low crawl .15-.30 and high/fast crawl .5-.8.
+   crouch run 2.5-3.5, committed crouch sprint 3.7-4.8, low crawl .15-.30,
+   rapid prone crawl .8-1.25 and ordinary fast crawl .5-.8.
 
    battle-sim's legacy integrator still applies .58 while crouched and .23 while crawling.  This
    module is the single speed owner and compensates for those factors so the resulting GROUND speed
@@ -20,6 +21,8 @@
     sprint: [5.5, 6.7],
     crouchWalk: [0.7, 1.0],
     crouchRun: [2.5, 3.5],
+    crouchSprint: [3.7, 4.8],
+    fastCrawl: [0.8, 1.25],
     proneNormal: [0.15, 0.3],
     proneFast: [0.5, 0.8]
   };
@@ -31,6 +34,8 @@
       sprint: 5.95,
       crouchWalk: 0.86,
       crouchRun: 2.95,
+      crouchSprint: 4.25,
+      fastCrawl: 1.05,
       proneNormal: 0.22,
       proneFast: 0.62
     },
@@ -40,6 +45,8 @@
       sprint: 5.9,
       crouchWalk: 0.84,
       crouchRun: 2.9,
+      crouchSprint: 4.2,
+      fastCrawl: 1.02,
       proneNormal: 0.22,
       proneFast: 0.62
     },
@@ -49,6 +56,8 @@
       sprint: 5.5,
       crouchWalk: 0.75,
       crouchRun: 2.55,
+      crouchSprint: 3.8,
+      fastCrawl: 0.9,
       proneNormal: 0.18,
       proneFast: 0.52
     },
@@ -58,6 +67,8 @@
       sprint: 6.5,
       crouchWalk: 0.95,
       crouchRun: 3.4,
+      crouchSprint: 4.7,
+      fastCrawl: 1.2,
       proneNormal: 0.28,
       proneFast: 0.75
     },
@@ -67,6 +78,8 @@
       sprint: 5.7,
       crouchWalk: 0.8,
       crouchRun: 2.75,
+      crouchSprint: 4.05,
+      fastCrawl: 0.98,
       proneNormal: 0.2,
       proneFast: 0.58
     }
@@ -77,6 +90,8 @@
     sprint: 1.0,
     crouchWalk: 0.46,
     crouchRun: 0.88,
+    crouchSprint: 1.0,
+    fastCrawl: 1.0,
     proneNormal: 0.34,
     proneFast: 0.86
   };
@@ -116,7 +131,14 @@
   }
   function phenotype(s) {
     if (!s) return null;
-    if (s.phenotype && s.phenotype.version === '68-gaits') return s.phenotype;
+    if (
+      s.phenotype &&
+      s.phenotype.version === '68-gaits' &&
+      s.phenotype.gaits &&
+      s.phenotype.gaits.crouchSprint &&
+      s.phenotype.gaits.fastCrawl
+    )
+      return s.phenotype;
     var height = 0.94 + unitRand(s, 'height') * 0.12,
       width = 0.88 + unitRand(s, 'width') * 0.24,
       depth = 0.92 + unitRand(s, 'depth') * 0.18,
@@ -132,7 +154,11 @@
     var pace = St ? St.scale(s, 'pace') : 1;
     var g = {};
     Object.keys(LIMITS).forEach(function (name) {
-      g[name] = gaitValue(base, speedFactor * (name === 'sprint' || name === 'crouchRun' ? pace : 1), name);
+      g[name] = gaitValue(
+        base,
+        speedFactor * (name === 'sprint' || name === 'crouchRun' || name === 'crouchSprint' ? pace : 1),
+        name
+      );
     });
     var p = {
       version: '68-gaits',
@@ -147,6 +173,8 @@
       sprintSpeed: g.sprint,
       crouchWalkSpeed: g.crouchWalk,
       crouchRunSpeed: g.crouchRun,
+      crouchSprintSpeed: g.crouchSprint,
+      fastCrawlSpeed: g.fastCrawl,
       proneNormalSpeed: g.proneNormal,
       proneFastSpeed: g.proneFast
     };
@@ -156,6 +184,8 @@
     s.sprintSpeed = g.sprint;
     s.crouchWalkSpeed = g.crouchWalk;
     s.crouchRunSpeed = g.crouchRun;
+    s.crouchSprintSpeed = g.crouchSprint;
+    s.fastCrawlSpeed = g.fastCrawl;
     s.proneNormalSpeed = g.proneNormal;
     s.proneFastSpeed = g.proneFast;
     s.speed = g.run;
@@ -275,6 +305,25 @@
        by Engagement/Command Reception, and a short crawl remains a live choice. */
     var E = root.BattleEngagement,
       nativeStance = E && E.transitStanceOf && E.transitStanceOf(s, sim);
+    /* A new-controller covered mover has one certified transit stance from
+       Engagement. Reuse it here for gait rather than independently promoting
+       a crouched route to a standing sprint. No second stance writer. */
+    if (bound && nativeStance && nativeStance.reason === 'controller:covered-bound')
+      return {
+        stance: nativeStance.stance,
+        gait:
+          nativeStance.stance === 'stand'
+            ? 'sprint'
+            : nativeStance.stance === 'crawl'
+              ? d > 1.5
+                ? 'fastCrawl'
+                : 'proneFast'
+              : d > 1.5
+                ? 'crouchSprint'
+                : 'crouchRun',
+        reason: 'native-covered-bound',
+        caution: 'certified-contact-route'
+      };
     if (bound && suppressed && (s.crawling || (nativeStance && nativeStance.stance === 'crawl')))
       return { stance: 'crawl', gait: 'proneFast', reason: 'suppressed-short-crawl', caution: 'suppressed' };
     if (bound) {
@@ -377,13 +426,13 @@
     if (!player && validPlan) return plan.gait;
     if (s.prone) {
       if (!s.crawling) return 'proneNormal';
-      if (player) return player.pace === 'run' ? 'proneFast' : 'proneNormal';
+      if (player) return player.pace === 'run' ? 'fastCrawl' : 'proneNormal';
       return urgent || e.state === 'bound' || d > 4 ? 'proneFast' : 'proneNormal';
     }
     var crouched = !!(s.tacticalCrouch || s.crouching || suppressedCrouch(s, now));
     if (crouched) {
       if (s.reloading || s.clearingStoppage) return 'crouchWalk';
-      if (player) return player.pace === 'run' ? 'crouchRun' : 'crouchWalk';
+      if (player) return player.pace === 'run' ? 'crouchSprint' : 'crouchWalk';
       /* The compact Phase C lab can compare native gait selection with purposeful
          contact repositioning. A firing-station order is still a tactical move when
          the fleeting contact flag drops during ingress; move at a crouch-run until

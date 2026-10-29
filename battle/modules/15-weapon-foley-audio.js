@@ -140,7 +140,7 @@
           pools[model + '.' + action] = c[action].map(function (file, i) {
             return {
               endsAt: 0,
-              sound: new BABYLON.Sound(
+              sound: new (root.BattleAudioBackend ? root.BattleAudioBackend.Sound : BABYLON.Sound)(
                 'foley-' + model + '-' + action + i,
                 root.BattleAudioFormat ? root.BattleAudioFormat.url(base + file) : base + file,
                 scene,
@@ -177,7 +177,13 @@
       pools = opts.voices || {},
       seen = typeof WeakMap !== 'undefined' ? new WeakMap() : null,
       count = 0,
-      stats = (sim._weaponFoley = { played: {}, scheduled: 0 });
+      stats = (sim._weaponFoley = {
+        played: {},
+        scheduled: 0,
+        droppedUnavailable: 0,
+        droppedBusyOrNotReady: 0,
+        errors: 0
+      });
     if (!seen) return sim;
     /* Voices are built once the audio format is settled (modules/00-audio-format.js). */
     if (!opts.voices && typeof BABYLON !== 'undefined' && scene) {
@@ -213,14 +219,29 @@
       if (d > (tail ? TAIL_RANGE : FOLEY_RANGE)) return;
       var gain = tail ? tailGain(d) : foleyGain(d);
       later((d / SPEED_OF_SOUND) * 1000, function () {
+        var ae = root.BattleAudioBackend
+            ? root.BattleAudioBackend.engine()
+            : root.BABYLON && root.BABYLON.Engine && root.BABYLON.Engine.audioEngine,
+          ctx = ae && ae.audioContext;
+        if (
+          (scene && scene.audioEnabled === false) ||
+          (ctx ? ctx.state !== 'running' : ae && ae.unlocked === false)
+        ) {
+          stats.droppedUnavailable++;
+          return;
+        }
         var t = now(),
           free = pool.filter(function (v) {
-            return v.endsAt <= t && !(v.sound && v.sound.isPlaying === true);
+            return (
+              v.endsAt <= t &&
+              v.sound &&
+              v.sound.isPlaying !== true &&
+              (!v.sound.isReady || v.sound.isReady())
+            );
           });
-        if (!free.length) return;
+        if (!free.length) return void stats.droppedBusyOrNotReady++;
         var v = free[(hash01(((+s.id || 0) * 7919) ^ count++) * free.length) | 0];
         v.endsAt = t + (tail ? 2500 : 900);
-        stats.played[action] = (stats.played[action] || 0) + 1;
         try {
           var snd = v.sound;
           if (snd.setPosition)
@@ -233,8 +254,11 @@
           if (!acoustics || !acoustics.prepare(snd, p, tail ? 'tail' : 'foley', gain, scene))
             if (snd.setVolume) snd.setVolume(gain);
           if (snd.setPlaybackRate) snd.setPlaybackRate(1);
-          snd.play();
-        } catch (_) {}
+          if (snd.play() === false) return;
+          stats.played[action] = (stats.played[action] || 0) + 1;
+        } catch (_) {
+          stats.errors++;
+        }
       });
     }
     /* Wall-clock ms for sim seconds: the battle runs at timeScale. */
@@ -259,10 +283,12 @@
     }
     function startReload(s) {
       var c = clips(modelOf(s)),
-        len = wallMs(Math.max(0.5, (+s.reloadUntil || 0) - (+sim.time || 0)));
+        start = Math.max(+sim.time || 0, +s.reloadStart || 0),
+        delay = wallMs(start - (+sim.time || 0)),
+        len = wallMs(Math.max(0.5, (+s.reloadUntil || 0) - start));
       reloadStages(c).forEach(function (stage) {
         stats.scheduled++;
-        later(len * stage.at, function () {
+        later(delay + len * stage.at, function () {
           if (!s.dead && s.reloading) play(s, stage.action, false);
         });
       });

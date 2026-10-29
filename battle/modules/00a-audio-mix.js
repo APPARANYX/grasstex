@@ -23,8 +23,10 @@
   /* Main keeps its established soundtrack. Dense new-controller fire can
      sum many otherwise safe one-shots into a clipped bus. Keep an exact
      ?audioMix=main comparison; ?audioMix=legacy bypasses routing entirely. */
+  var independent = !!(root.BattleAudioBackend && root.BattleAudioBackend.independent);
   var tacticalSafety =
-    /(?:^|[?&])tacticalController=new(?:&|$)/.test(search) &&
+    !independent &&
+    (/(?:^|[?&])tacticalController=new(?:&|$)/.test(search) || /(?:^|[?&])fullMix=1(?:&|$)/.test(search)) &&
     !/(?:^|[?&])audioMix=(?:legacy|main)(?:&|$)/.test(search);
   var defaults = { master: 100, weapons: 100, voices: 100, effects: 100 };
   var settings = {};
@@ -84,7 +86,7 @@
      Babylon 9. Disconnect only that connection and reinsert one compressor
      into the same route; leave each spatial Sound's graph intact. */
   function install(scene) {
-    if (!scene || !sceneLimiter || legacy) return false;
+    if (!scene || !sceneLimiter || legacy || independent) return false;
     if (sceneLimiter.has(scene)) return true;
     try {
       var ae = root.BABYLON && root.BABYLON.Engine && root.BABYLON.Engine.audioEngine,
@@ -127,7 +129,8 @@
     }
   }
   function ensureLimiter(scene) {
-    if (!scene || !sceneLimiter || legacy || sceneLimiter.has(scene) || pending.has(scene)) return;
+    if (!scene || !sceneLimiter || legacy || independent || sceneLimiter.has(scene) || pending.has(scene))
+      return;
     if (install(scene)) return;
     if (typeof setTimeout !== 'function') return;
     var attempts = 0;

@@ -41,6 +41,7 @@ never decides tactics, ammo, hits or paths.
   and that drift becomes their natural ground speed. Playback rate is ground speed ÷ clip speed.
   The upper-body overlay (aim/fire/reload) sits on the lower locomotion layer. The weapon grip snaps
   to a right-palm anchor, the fore-end runs through the left palm, and aim uses a capped spine twist (≤40°).
+- Possessed locomotion uses the movement owner's `_locomotionGait` to select walk/run/sprint families while moving; actual ground speed still sets playback rate. AI retains speed-based family selection. Stationary rifle aim/fire/reload uses the planted aim base rather than a random relaxed idle on the legs. Non-lethal hits finish within 450 ms; suppression uses a short stance-appropriate hit recoil (at most 350 ms) rather than the multi-second shielding/look-around clips, and does not stack a new flinch over a hit. Reload presentation waits until 500 ms after the final scheduled muzzle discharge (including burst offsets), then plays for the full authoritative reload duration. Ammunition owns the matching future `reloadStart` and delayed `reloadUntil`; foley stages follow that same window. Animation selects and times presentation; ammunition remains the owner of readiness.
 - No fallback in the game: the page waits for the FBX soldiers however long they take, and a failed
   load shows the load error (`BattleSoldierModel.preload` rejects). Each soldier is a bare body
   (`BattleSoldierModel.createBody`: root, pose root, weapon socket, no meshes) wearing his model,

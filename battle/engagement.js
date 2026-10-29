@@ -100,7 +100,22 @@
       fire = s && s.squad && s.squad.fireControl;
     // A movement-plan change cannot turn an active HOLD/PRECISION firing line
     // into upright transit. Keep Engagement's native preparation posture.
-    if (fire && (fire.state === 'hold' || fire.state === 'precision')) plan = null;
+    /* An actually adopted native cover-bound already passed Meso, personal
+       command adoption and independent support-fire gates. The squad's HOLD
+       preparation applies to stationary shooters, not this committed mover.
+       All other locomotion and speculative bound plans still fail closed. */
+    var nativeMover = !!(
+      plan &&
+      plan.reason === 'native-covered-bound' &&
+      pending &&
+      pending.reason === 'controller:covered-bound' &&
+      s.eng &&
+      s.eng.state === 'bound' &&
+      s._movementResolver &&
+      s._movementResolver.goal &&
+      s._movementResolver.goal.kind === 'cover-bound'
+    );
+    if (fire && (fire.state === 'hold' || fire.state === 'precision') && !nativeMover) plan = null;
     if (s.eng) s.eng.transitStance = null;
     if (plan) commitStance(s, battle, plan.stance, 0.45, 'body-autonomy:' + plan.reason);
     else if (pending) commitStance(s, battle, pending.stance, pending.seconds, pending.reason);
@@ -2306,7 +2321,31 @@
           task.reason = 'physical-arrival';
         } else {
           if (e.state !== 'bound') transition(s, battle, 'bound', 0, 'controller:covered-bound');
-          transitStance(s, battle, 'crouch', 1, 'controller:covered-bound');
+          /* Only Engagement commits the stance. Certify the native B→C physical
+             route at standing height once, from the mover's OWN reported contacts.
+             A threatened/uncertified route stays a crouch-run, never an unsafe
+             standing sprint. This does not create a movement/speed writer. */
+          if (!task.transitGait) {
+            var reports = root.BattleCoverPositions.boundThreats(s, battle),
+              route = root.BattleTacticalContactRoute,
+              unsafe = (s.suppressedUntil || 0) > battle.time || underFireNow(s, battle);
+            task.transitGait =
+              s.prone && (s.crawling || unsafe)
+                ? 'fastCrawl'
+                : !unsafe &&
+                    reports.length &&
+                    route &&
+                    route.evaluate(s, battle, task.point, reports, false, 'stand').eligible
+                  ? 'sprint'
+                  : 'crouchSprint';
+          }
+          transitStance(
+            s,
+            battle,
+            task.transitGait === 'sprint' ? 'stand' : task.transitGait === 'fastCrawl' ? 'crawl' : 'crouch',
+            1,
+            'controller:covered-bound'
+          );
           move(s, battle, task.point, 'cover-bound');
           s.state = 'engage';
           s.setUp = false;

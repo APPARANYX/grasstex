@@ -151,6 +151,8 @@
       passes = [{ victim: target, entry: { x: tp.x, y: (tp.y || 0) + 1.2, z: tp.z }, wound: null }];
     }
     passes.forEach(function (p) {
+      var lab = root.PhaseCCombatLab;
+      if (lab && lab.isTrainingTarget && lab.isTrainingTarget(p.victim || target)) return;
       var at = v3(p.entry);
       if (!at) return;
       var d = dist(at, L);
@@ -215,7 +217,7 @@
         pools[group + '.' + kind] = files(group, kind).map(function (f, i) {
           return {
             endsAt: 0,
-            sound: new BABYLON.Sound(
+            sound: new (root.BattleAudioBackend ? root.BattleAudioBackend.Sound : BABYLON.Sound)(
               'combat-' + group + '-' + kind + i,
               root.BattleAudioFormat ? root.BattleAudioFormat.url(base + f) : base + f,
               scene,
@@ -252,7 +254,13 @@
       lastCry = {},
       pools = opts.voices || {},
       limits = {},
-      stats = (sim._combatAudio = { played: {}, dropped: {}, limits: limits });
+      stats = (sim._combatAudio = {
+        played: {},
+        dropped: {},
+        limits: limits,
+        droppedUnavailable: 0,
+        errors: 0
+      });
     /* Voices are built once the audio format is settled (modules/00-audio-format.js: Opus twins or MP3). */
     if (!opts.voices && typeof BABYLON !== 'undefined' && scene) {
       var F = root.BattleAudioFormat,
@@ -277,13 +285,31 @@
     function sound(s) {
       var pool = pools[s.group + '.' + s.kind];
       if (!pool || !pool.length) return;
+      var ae = root.BattleAudioBackend
+          ? root.BattleAudioBackend.engine()
+          : root.BABYLON && root.BABYLON.Engine && root.BABYLON.Engine.audioEngine,
+        ctx = ae && ae.audioContext;
+      if (
+        (scene && scene.audioEnabled === false) ||
+        (ctx ? ctx.state !== 'running' : ae && ae.unlocked === false)
+      ) {
+        stats.dropped[s.group]++;
+        stats.droppedUnavailable++;
+        return;
+      }
       var t = now(),
         free = [];
       /* The estimated end time is a lower bound only: some encoded clips
          outlast their category estimate. Do not restart a Babylon source
          that is still audibly playing or it will crack/cut mid-sample. */
       for (var i = 0; i < pool.length; i++)
-        if (pool[i].endsAt <= t && !(pool[i].sound && pool[i].sound.isPlaying === true)) free.push(pool[i]);
+        if (
+          pool[i].endsAt <= t &&
+          pool[i].sound &&
+          pool[i].sound.isPlaying !== true &&
+          (!pool[i].sound.isReady || pool[i].sound.isReady())
+        )
+          free.push(pool[i]);
       if (!free.length) return void stats.dropped[s.group]++;
       var len = GROUPS[s.group].len;
       len = typeof len === 'object' ? len[s.kind] : len;
@@ -291,7 +317,6 @@
       if (s.group === 'pain' && s.who != null) lastCry[s.who] = t;
       var v = free[((count++ + hash01(seedOf(s.point, count)) * free.length) | 0) % free.length];
       v.endsAt = t + len * 1000;
-      stats.played[s.group]++;
       try {
         var snd = v.sound,
           p = s.point;
@@ -305,8 +330,11 @@
         if (!acoustics || !acoustics.prepare(snd, p, s.group === 'pain' ? 'voice' : 'combat', s.gain, scene))
           if (snd.setVolume) snd.setVolume(s.gain);
         if (snd.setPlaybackRate) snd.setPlaybackRate(1);
-        snd.play();
-      } catch (_) {}
+        if (snd.play() === false) return;
+        stats.played[s.group]++;
+      } catch (_) {
+        stats.errors++;
+      }
     }
     function emit(s) {
       if (!s) return;

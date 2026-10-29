@@ -26,7 +26,7 @@
   function point(p) {
     return { x: +p.x, z: +p.z };
   }
-  function threatVisible(sim, at, reports) {
+  function threatVisible(sim, at, reports, stance) {
     var A = root.SquadAI;
     if (!A || !A.hasLineOfSight || !sim.heightAt) return true;
     var h = sim.heightAt(at.x, at.z);
@@ -34,7 +34,10 @@
       var p = reports[k];
       if (
         A.hasLineOfSight(
-          { root: { position: { x: at.x, z: at.z, y: h + 1.0 } }, crouching: true },
+          {
+            root: { position: { x: at.x, z: at.z, y: h + (stance === 'stand' ? 1.6 : 1.0) } },
+            crouching: stance !== 'stand'
+          },
           { root: { position: { x: p.x, z: p.z, y: sim.heightAt(p.x, p.z) + 1.6 } } },
           sim.heightAt,
           sim.obstacles
@@ -87,7 +90,7 @@
     if (straight > MAX_HOP || total < MIN_HOP) return { ok: false, reason: 'outside-contact-hop' };
     return { ok: true, distance: total, points: points, detour: points.length > 2 };
   }
-  function edge(sim, from, to, reports, underFire, strict, budget) {
+  function edge(sim, from, to, reports, underFire, strict, budget, stance) {
     var out = { eligible: false, reason: 'unknown', distance: distance(from, to), exposure: 1 };
     if (!reports || !reports.length) {
       out.reason = 'missing-reported-contact';
@@ -115,7 +118,7 @@
         var t = i / steps,
           at = { x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t };
         samples++;
-        if (threatVisible(sim, at, reports)) exposed++;
+        if (threatVisible(sim, at, reports, stance)) exposed++;
       }
     }
     out.distance = transit.distance;
@@ -129,13 +132,13 @@
     out.reason = transit.detour ? 'native-egress-ingress-detour' : 'traversable-real-cover-leg';
     return out;
   }
-  function evaluate(s, sim, dest, reports, underFire) {
+  function evaluate(s, sim, dest, reports, underFire, stance) {
     if (!s || !s.root || !dest)
       return { eligible: false, reason: 'missing-actor-or-waypoint', distance: Infinity, exposure: 1 };
     /* A live movement request is validated independently, never throttled by
        the planning graph's performance budget. The actual physical mover will
        then revalidate and navigate its own B→B1→C sequence. */
-    return edge(sim, s.root.position, dest, reports, underFire, true, null);
+    return edge(sim, s.root.position, dest, reports, underFire, true, null, stance);
   }
   function crossTrack(p, start, goal) {
     var dx = goal.x - start.x,

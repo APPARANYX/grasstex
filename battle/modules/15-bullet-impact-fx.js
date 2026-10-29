@@ -673,7 +673,9 @@
             }
           ];
     for (var i = 0; i < passes.length; i++) {
-      var pass = passes[i];
+      var pass = passes[i],
+        lab = root.PhaseCCombatLab;
+      if (lab && lab.isTrainingTarget && lab.isTrainingTarget(pass.victim || shot.victim)) continue;
       burst(sim, { impact: pass.entry, normal: neg(pass.direction) }, 'blood', st);
       woundDecal(sim, st, pass, rng, false);
       bloodOnGround(sim, st, pass, rng);

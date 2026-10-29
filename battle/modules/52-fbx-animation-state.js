@@ -26,9 +26,13 @@
         if (tag === TAGS.fire) {
           fx.fireShot++;
           fx.fireBurst = +(data && data.delay) > 0;
+          // Burst rounds arrive together with future muzzle offsets. Reload must
+          // leave half a second after the final scheduled discharge, not this tick.
+          fx.shotSettle = Math.max(fx.shotSettle || 0, 0.5 + Math.max(0, +(data && data.delay) || 0));
         } else if (tag === TAGS.hit) fx.hitShot = (fx.hitShot || 0) + 1;
         else if (tag === TAGS.reload) {
           fx.reloadShot++;
+          fx.reloadWait = data && data.delay != null ? Math.max(0, +data.delay || 0) : fx.shotSettle || 0;
           fx.reloadDuration =
             +(data && data.duration) ||
             (soldier.weapon && soldier.weapon.stats && soldier.weapon.stats.reloadTime) ||
@@ -232,6 +236,9 @@
         if (!fx) return false;
         var clips = fx.lib.clips;
         dt = Math.max(0, +dt || 0);
+        fx.shotSettle = Math.max(0, (fx.shotSettle || 0) - dt);
+        fx.reloadWait = Math.max(0, (fx.reloadWait || 0) - dt);
+        var reloadVisible = !!soldier.reloading && fx.reloadWait < 1e-6;
         if (soldier.weapon && soldier.weapon.kind) {
           fx.weaponKind = soldier.weapon.kind;
           fx.weaponModel = soldier.weapon.model || null;
@@ -399,6 +406,14 @@
         var turning = !moving && Math.abs(fx.yawRate) > (fx.turning ? 0.35 : 0.6);
         fx.turning = turning;
         var pistol = fx.weaponKind === 'pistol',
+          engaged = !!(
+            soldier.target ||
+            (soldier.isPlayer && soldier.playerAimPoint) ||
+            (state && state.aimPoint) ||
+            soldier.reloading ||
+            fx.fireHold > 0 ||
+            fx.fireShot !== fx.fireSeen
+          ),
           clip,
           rate = 1;
         if (turning) {
@@ -423,7 +438,9 @@
                   : 'crouchIdle'
                 : pistol
                   ? 'pistolIdle'
-                  : null;
+                  : engaged
+                    ? 'aim'
+                    : null;
           if (!idleKey) {
             /* A standing rifleman at rest picks an idle variant when he stops, and keeps it. */
             if (!fx.idleKey) {
@@ -449,7 +466,41 @@
               : pistol
                 ? ['pistolWalk', 'pistolRun']
                 : ['walk', 'run', 'sprint'];
-          var family = familyOf(fx, clips, speed, families);
+          /* Possession already has an authoritative gait. Speed-only hysteresis
+           can keep a sped-up walk selected until a stance change clears it. */
+          var gait = soldier.isPlayer && soldier._locomotionGait,
+            playerFamily =
+              stance === 'crouch'
+                ? gait === 'crouchSprint' || gait === 'crouchRun'
+                  ? 'crouchRun'
+                  : gait === 'crouchWalk'
+                    ? 'crouch'
+                    : null
+                : pistol
+                  ? gait === 'run' || gait === 'sprint'
+                    ? 'pistolRun'
+                    : gait === 'walk'
+                      ? 'pistolWalk'
+                      : null
+                  : gait === 'run' || gait === 'sprint' || gait === 'walk'
+                    ? gait
+                    : null;
+          /* AI sprint is a real locomotion decision, not a visual guess. Retargeted
+           * rifle Run and Sprint clips have almost identical natural speeds
+           * (roughly 4.25/4.30 m/s). Speed matching plus family stickiness left
+           * most 5.5-6.7 m/s bounds displaying the ordinary Run animation.
+           * Select Sprint once actual movement has accelerated enough to play
+           * the authored clip at a sensible rate. Keep acceleration, slowdown,
+           * crouch/pistol families, and the existing possessed-player behavior. */
+          var aiSprintFamily =
+              !soldier.isPlayer &&
+              stance === 'stand' &&
+              !pistol &&
+              soldier._locomotionGait === 'sprint' &&
+              speed >= (clips.sprint0.speed || 4.5) * 0.85
+                ? 'sprint'
+                : null,
+            family = playerFamily || aiSprintFamily || familyOf(fx, clips, speed, families);
           fx.family = family;
           fx.sector = sectorOf(fx, angle);
           clip = clips[family + fx.sector];
@@ -457,6 +508,17 @@
         }
         setClip(fx.lower, clip, rate, 0.25, false, true);
 
+        /* During an actual upright AI sprint, the authored Sprint clip must
+         * own BOTH halves of the pose. Target memory stays with Engagement;
+         * it is not permission to shoulder the rifle at a full run. Aiming
+         * and shot follow-through fade out, while hits/flinches and other
+         * genuine reactions may still interrupt the upper body. */
+        var sprintPose =
+          !soldier.isPlayer &&
+          stance === 'stand' &&
+          !pistol &&
+          soldier._locomotionGait === 'sprint' &&
+          fx.family === 'sprint';
         var over = null,
           orate = 1,
           restart = false,
@@ -469,7 +531,7 @@
           fx.fireHold = 0.9;
           restart = !fx.fireBurst && !pistol;
         }
-        if (fx.reloadShot !== fx.reloadSeen) {
+        if (reloadVisible && fx.reloadShot !== fx.reloadSeen) {
           fx.reloadSeen = fx.reloadShot;
           restart = true;
         }
@@ -483,11 +545,12 @@
                 : fx.speed > 2.4
                   ? 'hitRun'
                   : 'hit';
-        var HIT_RATE = { hit: 1, hitCrouch: 1.6, hitProne: 1.2, hitRun: 1, pistolHit: 2.2 };
         if ((fx.hitShot || 0) !== (fx.hitSeen || 0)) {
           fx.hitSeen = fx.hitShot;
           fx.hitKey = hitKey;
-          fx.hitHold = clips[hitKey].duration / HIT_RATE[hitKey];
+          // Retain the authored stance hit, with at most 0.45 seconds of recoil.
+          fx.hitRate = Math.max(1, clips[hitKey].duration / 0.45);
+          fx.hitHold = clips[hitKey].duration / fx.hitRate;
           restart = true;
         }
         /* Suppressive fire landing close extends suppressedUntil; a fresh extension may be a flinch (at
@@ -501,23 +564,26 @@
           fx.flinchCool <= 0 &&
           stance !== 'prone' &&
           !soldier.reloading &&
-          fx.fireHold <= 0
+          fx.fireHold <= 0 &&
+          fx.hitHold <= 0
         ) {
           fx.flinchCool = 10;
           if (Math.random() < 0.6) {
-            fx.flinchKey = stance === 'crouch' ? 'flinchCrouch' : 'flinch';
-            fx.flinchHold = clips[fx.flinchKey].duration / FLINCH_RATE;
+            // The old shielding/looking-around clips held the head up for seconds.
+            fx.flinchKey = stance === 'crouch' ? 'hitCrouch' : pistol ? 'pistolHit' : 'hit';
+            fx.flinchRate = Math.max(FLINCH_RATE, clips[fx.flinchKey].duration / 0.35);
+            fx.flinchHold = clips[fx.flinchKey].duration / fx.flinchRate;
             restart = true;
           }
         }
         fx.lastSupp = supp;
         if (fx.hitHold > 0) {
           over = fx.hitKey;
-          orate = HIT_RATE[over];
+          orate = fx.hitRate;
         } else if (fx.flinchHold > 0 && fx.fireHold <= 0 && !soldier.reloading) {
           over = fx.flinchKey;
-          orate = FLINCH_RATE;
-        } else if (soldier.reloading) {
+          orate = fx.flinchRate;
+        } else if (reloadVisible) {
           over = stance === 'prone' ? 'reloadProne' : stance === 'crouch' ? 'reloadCrouch' : 'reload';
           orate = clips[over].duration / Math.max(0.5, fx.reloadDuration);
         } else if (fx.fireHold > 0) {
@@ -548,26 +614,32 @@
               : 'aim';
           restart = false;
         } else restart = false;
+        if (sprintPose && (over === 'aim' || over === 'fire' || over === 'fireAuto')) over = null;
         if (over) {
           setClip(fx.upper, clips[over], orate, 0.16, restart, false);
           fx.overlayTarget = 1;
         } else fx.overlayTarget = 0;
-        fx.supportReleased = !!(soldier.reloading || fx.hitHold > 0 || fx.flinchHold > 0);
+        fx.supportReleased = !!(reloadVisible || fx.hitHold > 0 || fx.flinchHold > 0);
         /* The pistol cup times a hit or flinch release from that clip's own motion (cupEnvelope). */
         if (fx.hitHold > 0) {
           fx.cupClipKey = fx.hitKey;
-          fx.cupClipT = clips[fx.hitKey].duration - fx.hitHold * HIT_RATE[fx.hitKey];
+          fx.cupClipT = clips[fx.hitKey].duration - fx.hitHold * fx.hitRate;
         } else if (over && over === fx.flinchKey) {
           fx.cupClipKey = over;
-          fx.cupClipT = clips[over].duration - fx.flinchHold * FLINCH_RATE;
+          fx.cupClipT = clips[over].duration - fx.flinchHold * fx.flinchRate;
         } else fx.cupClipKey = null;
         var t = soldier.target && soldier.target.root && soldier.target.root.position;
         /* A possessed man aims where the player's crosshair is (aimSpine adds 1.2 m to a target's ground point).
        Otherwise presentation may supply a static last-seen point; it never becomes soldier.target. */
         if (!t && playerAt) t = { x: playerAt.x, y: playerAt.y - 1.2, z: playerAt.z };
         if (!t && visualAt) t = visualAt;
-        fx.aimWanted = !soldier.reloading && (!!t || fx.fireHold > 0);
-        fx.aimAt = t || null;
+        fx.aimWanted =
+          !sprintPose &&
+          !soldier.reloading &&
+          fx.hitHold <= 0 &&
+          fx.flinchHold <= 0 &&
+          (!!t || fx.fireHold > 0);
+        fx.aimAt = sprintPose ? null : t || null;
         advance(fx, dt);
         return true;
       }

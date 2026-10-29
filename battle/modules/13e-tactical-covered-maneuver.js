@@ -33,6 +33,17 @@
         history: [],
         completed: 0,
         failed: 0,
+        windowsStarted: 0,
+        windowsCompleted: 0,
+        windowsPartiallyCompleted: 0,
+        windowsAborted: 0,
+        personalOrdersAccepted: 0,
+        personalOrdersRejected: 0,
+        personalOrdersInterrupted: 0,
+        plannedNeverSubmitted: 0,
+        supportRelocationsStarted: 0,
+        supportRelocationsCheckedIn: 0,
+        rejectedReplacementIds: new Set(),
         byDirection: {
           forward: { started: 0, completed: 0, aborted: 0 },
           back: { started: 0, completed: 0, aborted: 0 }
@@ -67,6 +78,7 @@
     st.arrived.add(id);
     st.completed++;
     st.checkins++;
+    if (st.supportRelocation) st.supportRelocationsCheckedIn++;
     st.lastMoverId = id;
     var route = st.routes.get(id);
     if (route) {
@@ -103,7 +115,10 @@
     if (st.arrived.has(id) || st.interrupted.has(id)) return;
     st.interrupted.add(id);
     var actionId = st.actions.get(id);
-    if (actionId) ctx.finish(actionId, reason);
+    if (actionId) {
+      st.personalOrdersInterrupted++;
+      ctx.finish(actionId, reason);
+    }
     st.actions.delete(id);
     root.BattleSquadStability.controllerBound.resolveMover(ctx.squad, ctx.sim, p.man);
     st.routes.delete(id);
@@ -112,6 +127,13 @@
     st.phase = 'moving';
   }
   function end(ctx, st, reason, success) {
+    var ordered = new Set(st.actions.keys());
+    if (st.window) {
+      if (success && st.interrupted.size === 0) st.windowsCompleted++;
+      else if (success) st.windowsPartiallyCompleted++;
+      else st.windowsAborted++;
+    }
+    st.personalOrdersInterrupted += st.actions.size;
     st.actions.forEach(function (id) {
       ctx.finish(id, reason);
     });
@@ -127,6 +149,7 @@
         var id = String(p.man.id);
         if (!st.arrived.has(id) && !st.interrupted.has(id)) {
           st.failed++;
+          if (!ordered.has(id)) st.plannedNeverSubmitted++;
           st.routes.delete(id);
         }
       });
@@ -134,6 +157,8 @@
     note(ctx, st, success ? 'completed' : 'aborted', reason);
     st.arrived.clear();
     st.interrupted.clear();
+    st.rejectedReplacementIds.clear();
+    st.supportRelocation = false;
   }
   function viable(s, sim) {
     var E = root.BattleEngagement,
@@ -163,12 +188,24 @@
     return JSON.stringify([
       ctx.squad.state === 'retreat' || ctx.squad.commandPhase === 'retreat',
       ctx.squad.commandPhase,
+      !!ctx.squad.inContact,
       root.BattleNavigation && root.BattleNavigation.version,
       rs.map(function (r) {
         return [Math.round(r.x), Math.round(r.z)];
       }),
       men(ctx.squad).map(function (s) {
-        return [s.id, Math.round(s.root.position.x), Math.round(s.root.position.z), viable(s, ctx.sim)];
+        /* A newly discharged covering weapon can unlock a previously refused
+           support relocation even when every position and contact stays fixed.
+           This is evidence-versioning, not an arbitrary release timer. */
+        var A = root.BattleAmmunition,
+          shot = A && A.shotEvidence && A.shotEvidence(s, ctx.sim);
+        return [
+          s.id,
+          Math.round(s.root.position.x),
+          Math.round(s.root.position.z),
+          viable(s, ctx.sim),
+          shot && Number.isFinite(+shot.at) ? +shot.at : null
+        ];
       })
     ]);
   }
@@ -198,6 +235,114 @@
       radius: +(obj && obj.def && obj.def.radius) || 30,
       sector: Math.round(Math.atan2(report.z - p.z, report.x - p.x) / (Math.PI / 4))
     };
+  }
+  /* Command and the MG are NOT normal fireteam movers. Once two advanced
+     riflemen have actually discharged, reposition ONE rear support element
+     through the same Meso lease and exact real-cover route, then restore it
+     to the support pool on physical check-in. No forward fire = no relocation. */
+  function supportRelocation(ctx, st, ready, goal, audit) {
+    var A = root.SquadAI,
+      E = root.BattleEngagement,
+      C = root.BattleCoverPositions,
+      R = root.BattleTacticalContactRoute,
+      leader = A.leaderOf(ctx.squad);
+    var relocation = (audit.relocation = { evaluated: [], selectedId: null });
+    if (!goal || !R || !R.pick) {
+      relocation.reason = 'no-mission-or-route-owner';
+      return null;
+    }
+    var options = ready.filter(function (s) {
+      return s === leader || A.isMachineGun(s);
+    });
+    if (!options.length) relocation.reason = 'no-ready-leader-or-machinegun';
+    options.sort(function (a, b) {
+      return (A.isMachineGun(a) ? 0 : 1) - (A.isMachineGun(b) ? 0 : 1);
+    });
+    for (var i = 0; i < options.length; i++) {
+      var mover = options[i],
+        here = mover.root.position,
+        remaining = Math.hypot(here.x - goal.x, here.z - goal.z),
+        entry = { id: String(mover.id), role: mover === leader ? 'leader' : 'machinegun' },
+        front = ready.filter(function (s) {
+          return (
+            s !== leader &&
+            !A.isMachineGun(s) &&
+            Math.hypot(s.root.position.x - goal.x, s.root.position.z - goal.z) <= remaining - 24 &&
+            Math.hypot(s.root.position.x - here.x, s.root.position.z - here.z) >= 20 &&
+            E.supportDischarged(s, ctx.sim, ctx.sim.time - 3)
+          );
+        });
+      relocation.evaluated.push(entry);
+      entry.forwardFiringRifles = front.length;
+      if (front.length < 2) {
+        entry.reason = 'fewer-than-two-forward-firing-rifles';
+        continue;
+      }
+      var anchor = {
+        x: (front[0].root.position.x + front[1].root.position.x) / 2,
+        z: (front[0].root.position.z + front[1].root.position.z) / 2
+      };
+      if (Math.hypot(anchor.x - here.x, anchor.z - here.z) < 35) {
+        entry.reason = 'forward-anchor-not-far-enough';
+        continue;
+      }
+      var reports = C.boundThreats(mover, ctx.sim);
+      if (!reports.length) {
+        entry.reason = 'no-personal-contact';
+        continue;
+      }
+      var retained = st.routes.get(String(mover.id)),
+        route = R.pick(
+          mover,
+          ctx.sim,
+          reports,
+          anchor,
+          [],
+          retained && retained.mission === ctx.squad._macroMission ? retained : null
+        );
+      if (
+        !route.point ||
+        !C.candidates(mover, ctx.sim, reports[0], R.tuning.maxHop).some(function (p) {
+          return Math.hypot(p.x - route.point.x, p.z - route.point.z) < 0.01;
+        })
+      ) {
+        entry.reason = !route.point ? 'no-safe-connected-cover-route' : 'execution-cover-candidate-missing';
+        continue;
+      }
+      entry.reason = 'selected';
+      relocation.selectedId = String(mover.id);
+      audit.teams.push({
+        team: 'alpha',
+        moverId: String(mover.id),
+        eligibleMovers: 1,
+        eligibleSupporters: front.length,
+        candidates: route.stats.total,
+        directionalCandidates: route.stats.progressing,
+        admittedRoutes: route.stats.safe,
+        graphNodes: route.stats.graphNodes || 0,
+        routeLength: route.stats.planLength || 0,
+        terminal: route.stats.terminal || 'none',
+        reused: !!route.reused,
+        moverFailures: [],
+        routeRejections: route.stats.rejected,
+        result: 'support-element-relocation'
+      });
+      audit.result = 'forward-rifles-cover-single-support-relocation';
+      return {
+        team: 'alpha',
+        index: 0,
+        moverIds: [String(mover.id)],
+        plan: [{ man: mover, point: route.point }],
+        routes: [{ moverId: String(mover.id), waypoints: route.waypoints || [], reused: !!route.reused }],
+        direction: 'forward',
+        defending: false,
+        defenseSector: null,
+        supportRelocation: true
+      };
+    }
+    if (!relocation.selectedId && !relocation.reason)
+      relocation.reason = 'no-support-role-with-safe-covered-route';
+    return null;
   }
   function choose(ctx, st, rs, excluded) {
     var Q = root.BattleSquadStability,
@@ -247,6 +392,12 @@
       audit.result = 'no-mover-and-supporter';
       return null;
     }
+    /* Only the assault approach may shift its support echelon. Ordinary
+       defense and retreat keep their separate owner-defined posture. */
+    if (!back && !defense && ctx.squad._macroMission.action === 'assault') {
+      var shift = supportRelocation(ctx, st, ready, goal, audit);
+      if (shift) return shift;
+    }
     var choices = [];
     ready.forEach(function (s) {
       var retained = st.routes.get(String(s.id));
@@ -270,9 +421,31 @@
       /* The Meso covered-window owner accepts alpha/bravo/charlie, not the
          command element. Never choose a route it cannot lease. */
       if (teams.indexOf(team) < 0) return;
+      /* The owner validates the mover's own received sector, not merely the
+         Squad Leader's reports. Do not plan an order he cannot adopt. */
+      var personalReports = C.boundThreats(s, ctx.sim);
+      if (!personalReports.length) {
+        audit.teams.push({
+          team: team,
+          moverId: String(s.id),
+          eligibleMovers: 1,
+          eligibleSupporters: ready.length - 1,
+          candidates: 0,
+          directionalCandidates: 0,
+          admittedRoutes: 0,
+          graphNodes: 0,
+          routeLength: 0,
+          terminal: 'none',
+          reused: false,
+          moverFailures: [],
+          routeRejections: {},
+          result: 'no-personal-reported-contact'
+        });
+        return;
+      }
       var result = defense
-          ? R.pickDefense(s, ctx.sim, rs, goal, defense.radius, team, pending ? retained : null)
-          : R.pick(s, ctx.sim, rs, goal, [], pending ? retained : null),
+          ? R.pickDefense(s, ctx.sim, personalReports, goal, defense.radius, team, pending ? retained : null)
+          : R.pick(s, ctx.sim, personalReports, goal, [], pending ? retained : null),
         record = {
           team: team,
           moverId: String(s.id),
@@ -291,6 +464,16 @@
         };
       audit.teams.push(record);
       if (!result.point) return;
+      /* The long-horizon planner must hand over a slot Engagement currently
+         recognizes for this individual. Exact range and physical checks stay. */
+      if (
+        !C.candidates(s, ctx.sim, personalReports[0], R.tuning.maxHop).some(function (p) {
+          return Math.hypot(p.x - result.point.x, p.z - result.point.z) < 0.01;
+        })
+      ) {
+        record.result = 'execution-owner-cover-candidate-absent';
+        return;
+      }
       var obs = root.BattleEngagement.fireControlObservation(s, ctx.sim),
         effectiveHere = !!(obs && obs.inRange && obs.visualLine && obs.ballisticLine);
       /* Preserve effective shooters where possible; move men without a useful
@@ -376,13 +559,13 @@
         var id = String(p.man.id);
         return !st.arrived.has(id) && !st.interrupted.has(id);
       });
-    if (!h || !h.armed || !h.moverIds || active.length >= MAX_PARALLEL_MOVERS) return;
+    if (!h || !h.armed || !h.moverIds || st.supportRelocation || active.length >= MAX_PARALLEL_MOVERS) return;
     var excluded = new Set(
       active
         .map(function (p) {
           return String(p.man.id);
         })
-        .concat(Array.from(st.interrupted))
+        .concat(Array.from(st.interrupted), Array.from(st.rejectedReplacementIds))
     );
     var choice = choose(ctx, st, rs, excluded);
     if (!choice) return;
@@ -403,11 +586,14 @@
       if (!result.ok) {
         Q.controllerBound.resolveMover(ctx.squad, ctx.sim, p.man);
         st.failed++;
+        st.personalOrdersRejected++;
+        st.rejectedReplacementIds.add(id);
         note(ctx, st, 'interrupted', 'replacement-order-refused:' + id + ':' + result.reason);
         st.phase = 'moving';
         continue;
       }
       st.actions.set(id, result.actionId);
+      st.personalOrdersAccepted++;
       st.arrived.delete(id);
       var previousIndex = st.plan.findIndex(function (old) {
         return String(old.man.id) === id;
@@ -533,7 +719,7 @@
         } else replenish(ctx, st, rs);
         return;
       }
-      if (st.supporters.length < 1) {
+      if (st.supporters.length < (st.supportRelocation ? 2 : 1)) {
         st.reason = 'await-independent-support-discharge';
         return;
       }
@@ -556,11 +742,17 @@
         root.BattleTacticalContactSkills.release(ctx, p.man);
         var result = ctx.request('combat.bound', String(p.man.id), { point: p.point });
         if (!result.ok) {
-          end(ctx, st, 'bound-refused:' + result.reason, false);
-          st.blocked = b;
-          return;
+          st.personalOrdersRejected++;
+          interruptMan(ctx, st, p, 'bound-refused:' + result.reason);
+          continue;
         }
         st.actions.set(String(p.man.id), result.actionId);
+        st.personalOrdersAccepted++;
+      }
+      if (!st.actions.size) {
+        end(ctx, st, 'all-personal-orders-refused', false);
+        st.blocked = b;
+        return;
       }
       st.confirmedSupporters = st.supporters.slice();
       note(ctx, st, 'moving', 'real-independent-support-discharge');
@@ -590,6 +782,7 @@
       team: selected.team,
       coverTeam: null
     };
+    if (selected.supportRelocation) coverRequest.supportRelocation = true;
     if (selected.moverIds.length === 1) coverRequest.moverId = selected.moverIds[0];
     else coverRequest.moverIds = selected.moverIds;
     var result = ctx.request('maneuver.cover', null, coverRequest);
@@ -615,7 +808,10 @@
     });
     st.arrived.clear();
     st.interrupted.clear();
+    st.rejectedReplacementIds.clear();
     st.plan = selected.plan;
+    st.supportRelocation = !!selected.supportRelocation;
+    if (st.supportRelocation) st.supportRelocationsStarted++;
     st.defending = !!selected.defending;
     st.defenseSector = selected.defenseSector;
     st.defenseCenter = defense ? defense.center : null;
@@ -628,6 +824,7 @@
     st.supporters = [];
     st.confirmedSupporters = [];
     st.window = result.actionId;
+    st.windowsStarted++;
     note(ctx, st, 'support', 'await-independent-support-discharge');
   }
   function engagement(ctx) {
@@ -670,10 +867,21 @@
             direction: st.direction,
             team: st.team,
             completed: st.completed,
-            failed: st.failed,
+            failed: st.failed, // legacy planned failures; not aborted physical hops
+            windowsStarted: st.windowsStarted,
+            windowsCompleted: st.windowsCompleted,
+            windowsPartiallyCompleted: st.windowsPartiallyCompleted,
+            windowsAborted: st.windowsAborted,
+            personalOrdersAccepted: st.personalOrdersAccepted,
+            personalOrdersRejected: st.personalOrdersRejected,
+            personalOrdersInterrupted: st.personalOrdersInterrupted,
+            plannedNeverSubmitted: st.plannedNeverSubmitted,
             checkins: st.checkins,
             movingCount:
               st.window && st.phase === 'moving' ? st.plan.length - st.arrived.size - st.interrupted.size : 0,
+            supportRelocation: !!st.supportRelocation,
+            supportRelocationsStarted: st.supportRelocationsStarted,
+            supportRelocationsCheckedIn: st.supportRelocationsCheckedIn,
             pendingCover: !!st.window,
             arrivedIds: Array.from(st.arrived),
             interruptedIds: Array.from(st.interrupted),

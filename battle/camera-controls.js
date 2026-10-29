@@ -2190,9 +2190,11 @@
     if (followRequested) return createPersistentFollow(options, target, q);
     var initialPad = activeGamepad();
     var initial =
-      desktopPointer() || initialPad
+      (!options.preferOrbit && desktopPointer()) || initialPad
         ? createDesktopFly(scene, canvas, target, engine, battleSim)
-        : createTouchOrbit(scene, canvas, target);
+        : options.orbitFactory
+          ? options.orbitFactory(options)
+          : createTouchOrbit(scene, canvas, target);
     var state = { camera: initial.camera, desktop: initial.desktop, hint: initial.hint };
     var wakeObserver = null,
       wakeListener = null,

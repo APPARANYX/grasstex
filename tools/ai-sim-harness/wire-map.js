@@ -41,6 +41,7 @@ const EXCLUDED = new Set([
   'ai-trainer.js',
   'camera-controls.js',
   'acoustics.js',
+  'full-audio-stress.js', // Synthetic laboratory records, never live battle actors.
   'battle-control.js',
   'battle-telemetry.js',
   'modules/09-voice-runtime.js',
@@ -69,6 +70,15 @@ const EXCLUDED = new Set([
 /* The fields an excluded file is known to write on a classified receiver. wire-map-check.js fails
    when an excluded file writes anything else, so an exclusion cannot hide a new sim write. */
 const EXCLUDED_WRITES = {
+  'full-audio-stress.js': [
+    'soldier._labGrenadePending',
+    'soldier.weapon',
+    'soldier.reloading',
+    'soldier.reloadUntil',
+    'soldier.clearingStoppage',
+    'soldier.stoppageUntil',
+    'soldier.prone'
+  ],
   /* UI possession owns this one lifetime flag; AI layers only read it. */
   'camera-controls.js': ['soldier.isPlayer'],
   'modules/11-voice-variation.js': ['soldier._voicePitchProfile'],

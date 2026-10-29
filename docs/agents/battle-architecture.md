@@ -819,8 +819,8 @@ burst: an automatic held fires at `cyclic` until released, and the Thompson M1A1
 `selector` (`BattleWeapons.fireMode`, see player-mode-feedback.md). `rof` is the aimed rate of a semi-auto or bolt action; an
 automatic has `cyclic` (rounds/s), `burst` [min, max], `burstPause` and `burstClimb`. One trigger pull
 fires the whole burst on one AI tick (0.15 s, slower than an MG42 cycles); each round goes through
-`roundGate`, `shotModel(…, round, delay)` and `afterShot`, and `onFire(soldier, delay)` / the shot's
-`delay` let presentation play it at the cyclic rate (`BattleSim.presentAfter`). What a hit does is the
+`roundGate`, `shotModel(…, round, delay)` and `afterShot(soldier, battle, muzzleDelay)`, and `onFire(soldier, delay)` / the shot's
+`delay` let presentation play it at the cyclic rate (`BattleSim.presentAfter`). Ammunition reserves the reload immediately when empty, but sets `reloadStart` to 500 ms after the final scheduled muzzle discharge and `reloadUntil` to that start plus the full reload duration. No round is available during either the delay or the reload. Animation receives the same delay and full duration; handling stages follow `reloadStart`/`reloadUntil`. What a hit does is the
 `woundModel` (`modules/14-wound-model.js`, `BattleWounds`): the ray's hit zone (head, chest, abdomen,
 arm, leg; `BattleBallistics.hitZone`), a drop chance per zone scaled by the cartridge's `power`,
 bleeding that eases with time, leg wounds slowing (`woundSpeed`, applied in `11-soldier-individuality`)

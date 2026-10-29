@@ -450,7 +450,11 @@ const out = process.env.POSE_OUT || 'closeups/render-pose-ci';
       delta: heapAfter.usedSize - heapBefore.usedSize
     };
     assert.deepEqual(errors, []);
-    await page.screenshot({ path: path.join(out, 'pose-parity.png') });
+    /* The test stopped the Babylon render loop above. A final Playwright page
+       screenshot can wait forever for a compositor frame after the repeated
+       pose/GC workload, despite all pixel-parity assertions passing. The
+       pixel-readback pairs were already rendered, compared and written as
+       20 before/after PNGs; keep those as authoritative screenshot evidence. */
     fs.writeFileSync(path.join(out, 'summary.json'), JSON.stringify(result, null, 2));
     console.log('PASS actual FBX pose/IK baseline parity', result);
   } finally {

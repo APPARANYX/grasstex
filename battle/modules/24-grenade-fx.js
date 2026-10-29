@@ -55,6 +55,7 @@
       libs: {},
       held: new Map(),
       live: new Map(),
+      trails: new Map(),
       bursts: [],
       error: null,
       ready: false
@@ -112,7 +113,36 @@
       mesh.isPickable = false;
     });
     holder.rotationQuaternion = new B.Quaternion();
+    tintGrenade(holder, name);
     return holder;
+  }
+  /* Keep authored roughness, metal and normal detail, but use a darker green
+     painted body on both held and thrown grenades. Wood/steel retain their own
+     material colors rather than inheriting the green body tint. */
+  function tintGrenade(holder, name) {
+    var materials = [];
+    holder.getChildMeshes().forEach(function (mesh, index) {
+      var original = mesh.material;
+      if (!original || typeof original.clone !== 'function') return;
+      var material = original.clone(name + '-dark-' + index);
+      if (!material) return;
+      var painted = /painted|olive|cast iron/i.test(original.name || '');
+      ['albedoColor', 'diffuseColor'].forEach(function (key) {
+        var color = material[key];
+        if (!color) return;
+        if (painted && color.set) color.set(0.055, 0.1, 0.045);
+        else if (color.scaleInPlace) color.scaleInPlace(0.45);
+      });
+      if (material.emissiveColor && material.emissiveColor.set)
+        material.emissiveColor.set(0.004, 0.008, 0.003);
+      mesh.material = material;
+      materials.push(material);
+    });
+    holder.onDisposeObservable.add(function () {
+      materials.forEach(function (material) {
+        material.dispose();
+      });
+    });
   }
   var handScale = new B.Vector3(),
     handPosition = new B.Vector3(),
@@ -134,7 +164,52 @@
     node.scaling.setAll(1);
     return true;
   }
+  // A short, fading slipstream follows the existing authoritative flight arc.
+  // One eight-vertex line per airborne grenade; no particles or physics writes.
+  function removeTrail(st, id) {
+    var trail = st.trails.get(id);
+    if (!trail) return;
+    trail.mesh.dispose();
+    st.trails.delete(id);
+  }
+  function updateTrail(st, g) {
+    var age = Math.max(0, st.battle.time - g.releasedAt),
+      impactAt = g.impactAt == null ? g.flight : g.impactAt;
+    if (age >= impactAt) return removeTrail(st, g.id);
+    var api = core(),
+      head = api.position(g, st.battle.time),
+      trail = st.trails.get(g.id),
+      points = trail ? trail.points : [],
+      colors = [];
+    for (var i = 0; i < 8; i++) {
+      var fraction = i / 7,
+        p = api.position(g, Math.max(g.releasedAt, st.battle.time - (1 - fraction) * 0.1)),
+        dx = p.x - head.x,
+        dy = p.y - head.y,
+        dz = p.z - head.z,
+        distance = Math.hypot(dx, dy, dz),
+        scale = distance > 1.6 ? 1.6 / distance : 1;
+      if (!points[i]) points[i] = new B.Vector3();
+      points[i].set(head.x + dx * scale, head.y + dy * scale + 0.04, head.z + dz * scale);
+      if (!trail) colors.push(new B.Color4(0.72, 0.78, 0.82, fraction * 0.3));
+    }
+    var mesh = B.MeshBuilder.CreateLines(
+      'grenadeAirTrail-' + g.id,
+      trail
+        ? { points: points, instance: trail.mesh }
+        : { points: points, colors: colors, useVertexAlpha: true, updatable: true },
+      st.battle.scene
+    );
+    if (!trail) {
+      mesh.isPickable = false;
+      mesh.checkCollisions = false;
+      st.trails.set(g.id, { mesh: mesh, points: points });
+    }
+  }
   function clear(st) {
+    Array.from(st.trails.keys()).forEach(function (id) {
+      removeTrail(st, id);
+    });
     st.held.forEach(function (node) {
       node.dispose();
     });
@@ -348,10 +423,17 @@ void main(void) {
         st.live.set(g.id, node);
       }
       var p = api.position(g, battle.time),
-        age = Math.max(0, battle.time - g.releasedAt);
+        age = Math.max(0, battle.time - g.releasedAt),
+        impactAt = g.impactAt == null ? g.flight : g.impactAt,
+        roll = g.impact ? Math.hypot(p.x - g.impact.x, p.z - g.impact.z) / 0.12 : 0;
       node.position.set(p.x, p.y + 0.04, p.z);
+      updateTrail(st, g);
+      /* Authoritative grenade points now include ground-contact bounce/roll. The
+         pitch advances by ground distance after contact instead of spinning on
+         an unrelated timer. Deliberate scale exaggeration is visual-only. */
+      node.scaling.setAll(age < impactAt ? 1.5 : 1.15);
       B.Quaternion.FromEulerAnglesToRef(
-        age < g.flight ? age * 8 : Math.PI / 2,
+        age < impactAt ? age * 8 : impactAt * 8 + roll,
         g.id * 1.7,
         0.3,
         node.rotationQuaternion
@@ -360,6 +442,7 @@ void main(void) {
     });
     st.live.forEach(function (node, id) {
       if (!live.has(id)) {
+        removeTrail(st, id);
         node.dispose();
         st.live.delete(id);
       }
@@ -375,6 +458,7 @@ void main(void) {
     var previous = battle.onGrenadeBurst;
     battle.onGrenadeBurst = function (g) {
       if (previous) previous.apply(this, arguments);
+      removeTrail(st, g.id);
       showBurst(st, g);
     };
   }
@@ -397,6 +481,7 @@ void main(void) {
             error: st.error,
             held: st.held.size,
             live: st.live.size,
+            airborneTrails: st.trails.size,
             bursts: st.bursts.length,
             fogVolumes: st.bursts.filter(function (burst) {
               return !!burst.fog;

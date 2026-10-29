@@ -1,0 +1,132 @@
+name: Experimental mobile Mini Map full audio 683
+on:
+  pull_request:
+    types: [synchronize]
+    paths:
+      - scripts/probes/probe_mobile_mini_meeting_audio.cjs
+      - scripts/probes/probe_target_audio_continuity.cjs
+      - scripts/probes/probe_audio_pressure.cjs
+      - battle/battle_sim.html
+      - battle/skills-lab.js
+      - battle/acoustics.js
+      - battle/modules/00-audio-backend.js
+      - .github/workflows/mobile-mini-audio-683.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-mini-audio-683
+  cancel-in-progress: true
+
+jobs:
+  mobile-mini:
+    if: github.event.pull_request.number == 683
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Chromium browser runner
+        run: |
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Stage actual pull request head
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          curl -fSL --retry 2 --max-time 120 \
+            'https://test.ivandpopov.com/grasstex/preview.php?ref=683' \
+            -o /tmp/staged-preview-mobile.html
+          curl -fSL --retry 2 --max-time 45 \
+            "https://test.ivandpopov.com/grasstex/preview/ref-${HEAD_SHA:0:12}/battle_sim.php" \
+            -o /tmp/staged-mini-mobile.html
+          echo "Staged exact head ref-${HEAD_SHA:0:12}"
+      # The immutable host preview uses an older trusted PHP loader which does
+      # not implement skillsLab. Serve the exact checkout for this prerequisite,
+      # as Native Tactical Skills Lab QA does; keep real audio on the hosted map.
+      - name: Serve exact-source Skills Lab preflight
+        run: |
+          php -l battle_sim_local.php
+          mkdir -p /tmp/mobile-skills-site
+          ln -s "$GITHUB_WORKSPACE" /tmp/mobile-skills-site/grasstex
+          PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8765 -t /tmp/mobile-skills-site > /tmp/mobile-skills-php.log 2>&1 &
+          for i in $(seq 1 35); do
+            if curl -fsS 'http://127.0.0.1:8765/grasstex/battle_sim_local.php?seed=mobile-skills-health' >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          tail -100 /tmp/mobile-skills-php.log
+          exit 1
+      - name: Exact-source Skills Lab preflight before native battle audio
+        id: preflight
+        env:
+          SKILLS_LAB_URL: http://127.0.0.1:8765/grasstex/battle_sim_local.php
+        run: node scripts/probes/probe_skills_lab.cjs
+      - name: Required Howler Mini Map audio
+        id: howler
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          MOBILE_MINI_SECONDS: '20'
+          MOBILE_MINI_WARMUP_SECONDS: '150'
+          MOBILE_MINI_PROFILE: 'desktop-192'
+          MOBILE_MINI_BACKEND: howler
+          MOBILE_MINI_OUT: reports/mobile-mini-audio/howler
+        run: |
+          export MOBILE_MINI_URL="https://test.ivandpopov.com/grasstex/preview/ref-${HEAD_SHA:0:12}/battle_sim.php"
+          node scripts/probes/probe_mobile_mini_meeting_audio.cjs
+      - name: Required mini-target audio continuity and speed matrix
+        id: target
+        if: ${{ !cancelled() && steps.preflight.outcome == 'success' }}
+        env:
+          TARGET_AUDIO_URL: https://test.ivandpopov.com/grasstex/preview/pr-683/battle_sim.php
+          TARGET_AUDIO_SECONDS: '100'
+          TARGET_AUDIO_OUT: reports/mobile-mini-audio/mini-target
+        run: node scripts/probes/probe_target_audio_continuity.cjs
+      - name: Required controlled audio concurrency
+        id: pressure
+        if: ${{ !cancelled() && steps.preflight.outcome == 'success' }}
+        env:
+          TARGET_AUDIO_URL: https://test.ivandpopov.com/grasstex/preview/pr-683/battle_sim.php
+          TARGET_AUDIO_OUT: reports/mobile-mini-audio/pressure
+        run: node scripts/probes/probe_audio_pressure.cjs
+      - name: Informational Babylon comparison
+        id: babylon
+        if: ${{ !cancelled() && steps.preflight.outcome == 'success' }}
+        continue-on-error: true
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          MOBILE_MINI_SECONDS: '20'
+          MOBILE_MINI_WARMUP_SECONDS: '150'
+          MOBILE_MINI_PROFILE: 'desktop-192'
+          MOBILE_MINI_BACKEND: babylon
+          MOBILE_MINI_OUT: reports/mobile-mini-audio/babylon
+        run: |
+          export MOBILE_MINI_URL="https://test.ivandpopov.com/grasstex/preview/ref-${HEAD_SHA:0:12}/battle_sim.php"
+          node scripts/probes/probe_mobile_mini_meeting_audio.cjs
+      - name: Upload results including device viewport screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-mini-audio-full-limits
+          path: reports/mobile-mini-audio/
+          if-no-files-found: warn
+      - name: Report backend outcomes
+        if: always()
+        env:
+          HOWLER_OUTCOME: ${{ steps.howler.outcome }}
+          PRESSURE_OUTCOME: ${{ steps.pressure.outcome }}
+          TARGET_OUTCOME: ${{ steps.target.outcome }}
+          BABYLON_OUTCOME: ${{ steps.babylon.outcome }}
+        run: |
+          echo "Required controlled concurrency: $PRESSURE_OUTCOME" >> "$GITHUB_STEP_SUMMARY"
+          echo "Required mini-target continuity: $TARGET_OUTCOME" >> "$GITHUB_STEP_SUMMARY"
+          echo "Required Howler: $HOWLER_OUTCOME" >> "$GITHUB_STEP_SUMMARY"
+          echo "Informational Babylon: $BABYLON_OUTCOME" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$BABYLON_OUTCOME" = failure ]; then
+            echo "::warning::Babylon comparison failed; its raw report remains in the artifact. Howler is the required audio backend for this preview."
+          fi

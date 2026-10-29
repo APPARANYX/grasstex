@@ -511,3 +511,15 @@ assert.equal(wall.surface, 'cement');
 assert.equal(wall.stoppedBy, 'environment');
 assert.ok(wall.normal.x < 0);
 console.log('PASS ballistic body, ground, wall, vegetation and metal impact metadata; range misses');
+
+fx.clear(sim);
+r.PhaseCCombatLab = { isTrainingTarget: actor => actor === victim };
+sim.onShot(null, victim, true, 10, bodyShot([pass(victim, 'chest', 5, true)]));
+fx.tick(sim);
+assert.equal(sim._impactFx.body.length, 0, 'training dummy gets no wound decals');
+assert.equal(sim._impactFx.bursts.length, 0, 'training dummy gets no blood particles');
+assert.equal(sim._impactFx.decals.length, 0, 'training dummy leaves no blood on ground');
+sim.onShot(null, behind, true, 10, bodyShot([pass(behind, 'chest', 7, false)]));
+fx.tick(sim);
+assert.ok(sim._impactFx.bursts.length > 0, 'ordinary actor blood effects remain enabled');
+console.log('PASS training targets suppress blood, wounds and pools without muting ordinary actor effects');

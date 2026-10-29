@@ -12,7 +12,7 @@ const SOURCE = fs.readFileSync(
   'utf8'
 );
 
-function world(mode, withGraph) {
+function world(mode, withGraph, flags) {
   let clock = 1000;
   const timers = [];
   let obstruct = false;
@@ -40,7 +40,16 @@ function world(mode, withGraph) {
         context,
         gain: {
           value: 0,
+          ramps: 0,
           setTargetAtTime(v) {
+            this.value = v;
+          },
+          cancelScheduledValues() {},
+          setValueAtTime(v) {
+            this.value = v;
+          },
+          linearRampToValueAtTime(v) {
+            this.ramps++;
             this.value = v;
           }
         },
@@ -86,7 +95,7 @@ function world(mode, withGraph) {
   };
   const ctx = {
     BABYLON: { Engine: { audioEngine: { masterGain: context.destination } } },
-    location: { search: '?acoustics=' + mode },
+    location: { search: '?acoustics=' + mode + (flags || '') },
     console,
     performance: { now: () => clock },
     setTimeout(fn) {
@@ -178,10 +187,127 @@ function world(mode, withGraph) {
 }
 {
   const w = world('standard', true);
-  for (let i = 0; i < 45; i++) {
+  for (let i = 0; i < 110; i++) {
     const s = { getSoundGain: w.sound.getSoundGain, _soundPanner: w.sound._soundPanner, setVolume() {} };
     w.api.prepare(s, { x: i + 15, y: 1.6, z: 0 }, 'gun', 0.2, w.scene);
   }
-  assert.equal(w.api.active, 24, 'standard caps acoustic sources, extras play dry');
+  assert.equal(w.api.active, 96, 'expanded standard cap admits 96 acoustic sources');
 }
+// prettier-ignore
+{
+  const w = world('standard', true, '&acousticPriority=1&acousticSlots=24');
+  assert.equal(w.api.priorityEnabled, true, 'priority admission is an explicit experiment');
+  const sounds = [];
+  for (let i = 0; i < 24; i++) {
+    const far = {
+      getSoundGain: w.sound.getSoundGain,
+      _soundPanner: w.sound._soundPanner,
+      setVolume(v) { this.volume = v; }
+    };
+    sounds.push(far);
+    w.api.prepare(far, { x: 700 + i, y: 1.6, z: 0 }, 'gunDistant', 0.08, w.scene);
+  }
+  assert.equal(w.api.active, 24);
+  const replaced = {
+    getSoundGain: w.sound.getSoundGain,
+    _soundPanner: w.sound._soundPanner,
+    setVolume(v) { this.volume = v; }
+  };
+  assert.equal(w.api.prepare(replaced, { x: 15, y: 1.6, z: 0 }, 'gun', 0.2, w.scene), true,
+    'close gunfire replaces the least important distant acoustic record');
+  assert.equal(w.api.active, 24, 'priority selection never increases filter work budget');
+  assert.equal(w.api.stats.replacedCapacity, 1);
+  assert.equal(w.api.stats.skippedCapacity, 0);
+  assert.equal(w.api.stats.wetSendRamps, 1, 'priority eviction ramps the wet send rather than disconnecting audio nodes');
+  assert.ok(sounds.some(s => s._battleAcousticFilter.frequency.value === 20000),
+    'evicted source stays audible with neutral dry acoustic filter');
+  assert.equal(w.api.prepare(
+    { getSoundGain: w.sound.getSoundGain, _soundPanner: w.sound._soundPanner, setVolume() {} },
+    { x: 900, y: 1.6, z: 0 }, 'gunDistant', 0.001, w.scene
+  ), false, 'low-value distant sounds do not evict more important tracked shots');
+  assert.equal(w.api.stats.skippedCapacity, 1);
+  assert.equal(w.api.stats.replacedCapacity, 1);
+}
+// prettier-ignore
+{
+  const w = world('standard', true, '&acousticSlots=24');
+  assert.equal(w.api.priorityEnabled, false, 'shipping default retains FIFO acoustics');
+  for (let i = 0; i < 24; i++) {
+    const far = { getSoundGain: w.sound.getSoundGain, _soundPanner: w.sound._soundPanner, setVolume() {} };
+    w.api.prepare(far, { x: 700, y: 1.6, z: 0 }, 'gunDistant', 0.08, w.scene);
+  }
+  assert.equal(w.api.prepare(w.sound, { x: 15, y: 1.6, z: 0 }, 'gun', 0.2, w.scene), false);
+  assert.equal(w.api.stats.replacedCapacity, 0);
+  assert.equal(w.api.stats.skippedCapacity, 1);
+}
+// A/B minimum-residence guard: no audio steal or filter rebuild under churn.
+// prettier-ignore
+{
+  const w = world('standard', true, '&acousticPriority=1&acousticHoldMs=250&acousticSlots=24');
+  assert.equal(w.api.acousticHoldMs, 250, 'hold guard is controlled by query option');
+  for (let i = 0; i < 24; i++) {
+    w.api.prepare(
+      { getSoundGain: w.sound.getSoundGain, _soundPanner: w.sound._soundPanner, setVolume() {} },
+      { x: 700 + i, y: 1.6, z: 0 }, 'gunDistant', 0.08, w.scene
+    );
+  }
+  assert.equal(w.api.prepare(w.sound, { x: 15, y: 1.6, z: 0 }, 'gun', 0.2, w.scene), false,
+    'early near shot plays dry rather than displacing recently admitted acoustic sources');
+  assert.equal(w.api.stats.replacedCapacity, 0);
+  assert.equal(w.api.stats.deniedHold, 1);
+  w.tick();
+  assert.equal(w.api.prepare(w.sound, { x: 15, y: 1.6, z: 0 }, 'gun', 0.2, w.scene), true,
+    'eligible older record can now be displaced');
+  assert.equal(w.api.stats.replacedCapacity, 1);
+  assert.equal(w.api.active, 24);
+}
+// Research-only source processing budgets: exercise the actual acoustic tracker
+// at 24, 48, 96 and 192 records with a 96-slot shipping baseline.
+// prettier-ignore
+for (const slots of [24, 48, 96, 192]) {
+  const w = world('standard', true, '&acousticPriority=1&acousticSlots=' + slots);
+  assert.equal(w.api.defaultMaxActive, 96);
+  assert.equal(w.api.maxActive, slots);
+  assert.equal(w.api.tickIntervalMs, 200);
+  const near = { x: 30, y: 1.6, z: 0 };
+  for (let i = 0; i < slots; i++) {
+    const sound = { getSoundGain: w.sound.getSoundGain,
+      _soundPanner: w.sound._soundPanner, setVolume() {} };
+    assert.equal(w.api.prepare(sound, { x: near.x + i / 50, y: near.y, z: near.z },
+      'gun', 0.12, w.scene), true);
+  }
+  assert.equal(w.api.active, slots);
+  const extra = { getSoundGain: w.sound.getSoundGain, _soundPanner: w.sound._soundPanner, setVolume() {} };
+  assert.equal(w.api.prepare(extra, { x: 900, y: 1.6, z: 0 },
+    'gunDistant', 0.001, w.scene), false, 'low-priority overflow cannot evict high-value records');
+  assert.equal(w.api.stats.skippedCapacity, 1);
+  w.tick();
+  assert.equal(w.api.stats.acousticTicks, 1);
+  assert.ok(w.api.stats.sampled >= slots * 2, 'all tracked sounds receive periodic sampling');
+}
+// Speech loses brightness over its audible range without changing the existing gain curve.
+for (const kind of ['voice', 'gun']) {
+  const w = world('standard', true);
+  const cutoffs = [];
+  for (const d of [5, 40, 80]) {
+    w.api.prepare(w.sound, { x: d, y: 1.6, z: 0 }, kind, 0.24, w.scene);
+    cutoffs.push(w.sound._battleAcousticFilter.frequency.value);
+    assert.equal(w.sound.volume, 0.24, 'distance filtering leaves gain to the spatial mixer');
+  }
+  assert.ok(cutoffs[0] > cutoffs[1] && cutoffs[1] > cutoffs[2]);
+  if (kind === 'voice') {
+    assert.equal(cutoffs[0], 14000);
+    assert.ok(cutoffs[1] > 8500 && cutoffs[1] < 9500, '40m speech has audible high-frequency loss');
+    assert.ok(cutoffs[2] > 2700 && cutoffs[2] < 2900, '80m speech is distant and muffled');
+    w.block(true);
+    w.tick();
+    assert.ok(w.sound._battleAcousticFilter.frequency.value < cutoffs[2], 'cover further muffles speech');
+    assert.ok(w.sound.volume < 0.24);
+  } else {
+    assert.ok(cutoffs[2] > 15000, 'gunfire retains its longer-range acoustic curve');
+  }
+}
+assert.equal(world('high', true).api.maxActive, 192);
+assert.equal(world('standard', true, '&acousticSlots=50000').api.maxActive, 192);
+assert.equal(world('standard', true, '&acousticSlots=1').api.maxActive, 1);
 console.log('listener-acoustics-check: PASS');

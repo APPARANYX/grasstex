@@ -18,18 +18,23 @@
   }
   var ON = parseOn(typeof location !== 'undefined' ? location.search : '');
   var TUNING = Object.freeze({
-    RANGE: 30,
+    RANGE: 35, // Longer reach preserves the 26m fragmentation-clearance gate.
     CONF_MIN: 0.5,
     CONTACT_FRESH: 6,
     DECISION_EVERY: 1.5,
-    WINDUP: 0.9,
+    WINDUP: 1.6, // Authored 1.87–2.0s FBX release peaks now play at ~1.17–1.25×.
     COOLDOWN: 18,
     SCATTER: 3.5,
     FLIGHT_MIN: 0.7,
     FLIGHT_PER_M: 1 / 18,
     FLIGHT_MAX: 2.4,
     FUSE: 3.6, // seconds after landing
-    FRIEND_CLEAR: 26, // 22m fragments + 3.5m scatter + 0.5m margin; see friendClear
+    FRIEND_CLEAR: 26, // Preserve original 22m fragments + 3.5m scatter + 0.5m margin; release checks exact rolled end.
+    ROLL_MAX_TRAVEL: 1.4,
+    ROLL_SUBSTEP: 0.04,
+    ROLL_MAX_SECONDS: 1.28,
+    ROLL_RESTITUTION: 0.23,
+    ROLL_GROUND_DRAG: 0.84,
     SUPPRESS_RADIUS: 16,
     PIN_MIN: 1.6,
     PIN_MAX: 4.2,
@@ -224,6 +229,94 @@
     }
     return { from: from, to: to, flight: duration, points: points, blocked: blocked };
   }
+  /* Real landing motion belongs to the native grenade owner, not the renderer.
+     The incoming arc contacts the terrain/cover at path.to. Resolve a short damped
+     bounce/roll with fixed 40ms substeps and the shared environment collision owner.
+     All points are computed at RELEASE, immutable thereafter and independent of FPS.
+     No combat/random stream is consumed. A blocked roof/wall impact bounces in place
+     rather than crossing a wall or driving a small grenade off an unsupported roof. */
+  function settleAfterImpact(path, battle) {
+    var impact = path.to,
+      impactAt = path.flight,
+      points = path.points.slice(),
+      dt = TUNING.ROLL_SUBSTEP,
+      vx = 0,
+      vz = 0,
+      vy = 0.9,
+      p = { x: impact.x, y: impact.y, z: impact.z },
+      elapsed = 0,
+      floor = path.blocked ? impact.y : battle.heightAt(p.x, p.z) + TUNING.REST_Y;
+    if (!path.blocked) {
+      for (var n = points.length - 2; n >= 0; n--) {
+        var old = points[n],
+          d = dist(old, impact);
+        if (d < 0.1) continue;
+        var speed = Math.min(2.2, (d / Math.max(0.04, impactAt - old.at)) * 0.14);
+        vx = ((impact.x - old.x) / d) * speed;
+        vz = ((impact.z - old.z) / d) * speed;
+        break;
+      }
+    }
+    while (elapsed + dt <= TUNING.ROLL_MAX_SECONDS + 0.00001) {
+      elapsed = +(elapsed + dt).toFixed(6);
+      vy -= 9.81 * dt;
+      var nx = p.x + vx * dt,
+        nz = p.z + vz * dt,
+        travel = dist(impact, { x: nx, z: nz });
+      if (travel > TUNING.ROLL_MAX_TRAVEL) {
+        var ratio = TUNING.ROLL_MAX_TRAVEL / travel;
+        nx = impact.x + (nx - impact.x) * ratio;
+        nz = impact.z + (nz - impact.z) * ratio;
+        vx = vz = 0;
+      }
+      floor = path.blocked ? impact.y : battle.heightAt(nx, nz) + TUNING.REST_Y;
+      var ny = p.y + vy * dt,
+        landed = ny <= floor;
+      if (landed) {
+        ny = floor;
+        vy = vy < -0.36 ? -vy * TUNING.ROLL_RESTITUTION : 0;
+      }
+      var next = { x: nx, y: ny, z: nz };
+      if (lineBlocked(battle, p, next)) {
+        // Inelastic collision against a real physical face. Retain the last
+        // clear point rather than allowing the roll to tunnel through cover.
+        var lo = 0,
+          hi = 1;
+        for (var k = 0; k < 9; k++) {
+          var mid = (lo + hi) * 0.5,
+            q = {
+              x: p.x + (next.x - p.x) * mid,
+              y: p.y + (next.y - p.y) * mid,
+              z: p.z + (next.z - p.z) * mid
+            };
+          if (lineBlocked(battle, p, q)) hi = mid;
+          else lo = mid;
+        }
+        next = {
+          x: p.x + (next.x - p.x) * Math.max(0, lo - 0.001),
+          y: p.y + (next.y - p.y) * Math.max(0, lo - 0.001),
+          z: p.z + (next.z - p.z) * Math.max(0, lo - 0.001)
+        };
+        vx = vz = 0;
+        vy = Math.max(0, vy);
+      }
+      vx *= landed ? TUNING.ROLL_GROUND_DRAG : 0.985;
+      vz *= landed ? TUNING.ROLL_GROUND_DRAG : 0.985;
+      p = next;
+      points.push({ x: p.x, y: p.y, z: p.z, at: impactAt + elapsed });
+      if (landed && vy === 0 && Math.hypot(vx, vz) < 0.09) break;
+    }
+    return {
+      from: path.from,
+      impact: { x: impact.x, y: impact.y, z: impact.z },
+      impactAt: impactAt,
+      to: { x: p.x, y: p.y, z: p.z },
+      points: points,
+      flight: impactAt + elapsed,
+      blocked: path.blocked,
+      rollDistance: dist(impact, p)
+    };
+  }
   function available(s, battle) {
     if (!ON || !s || !battle || s.dead || !s.root || battle.paused || battle.winner) return false;
     if (count(s) <= 0 || cooldownLeft(s, battle) > 0 || s.reloading || s.crawling || !s.weapon) return false;
@@ -341,30 +434,37 @@
      Unlike the legacy opportunistic choice, a clear rifle line does not veto
      the requested grenade. Personal intel, ROE and all physical/safety gates
      still belong to this owner; callers cannot supply an unseen aim point. */
-  function assaultOpportunity(s, battle) {
+  /* Read-only, first-rejection diagnostics. No extra grenade authorization,
+     no knowledge of hidden enemies and no new decision clock. */
+  function assaultAssessment(s, battle) {
     var E = root.BattleEngagement,
       TC = root.BattleTacticalController,
       sq = s && s.squad;
-    if (
-      !sq ||
-      !TC ||
-      !TC.controls(battle, sq) ||
-      s.isPlayer ||
-      s.incapacitated ||
-      s.moving ||
-      (s.eng && s.eng.urgentBound) ||
-      (root.BattleTacticalPositions && root.BattleTacticalPositions.current(s)) ||
-      sq.state === 'retreat' ||
-      sq.commandPhase === 'retreat' ||
-      s.suppressedUntil > battle.time ||
-      !available(s, battle) ||
-      (E && (E.reacting(s) || !E.fireAuthorized(s, battle)))
-    )
-      return null;
+    function no(reason) {
+      return { ok: false, reason: reason };
+    }
+    if (!sq || !battle || !TC || !TC.controls(battle, sq)) return no('no-controller');
+    if (s.isPlayer || s.dead || s.incapacitated) return no('actor-ineligible');
+    if (s.moving || (s.eng && s.eng.urgentBound)) return no('already-moving');
+    if (root.BattleTacticalPositions && root.BattleTacticalPositions.current(s))
+      return no('claimed-firing-station');
+    if (sq.state === 'retreat' || sq.commandPhase === 'retreat') return no('squad-retreat');
+    if (s.suppressedUntil > battle.time) return no('suppressed');
+    if (!ON || count(s) <= 0) return no('no-grenades');
+    if (cooldownLeft(s, battle) > 0) return no('grenade-cooldown');
+    if (!available(s, battle)) return no('thrower-unavailable');
+    if (E && E.reacting(s)) return no('stress-reaction');
+    if (E && !E.fireAuthorized(s, battle)) return no('personal-fire-gate');
     var aim = aimFor(s, battle);
-    if (!aim || !friendClear(s, battle, aim)) return null;
+    if (!aim) return no('no-fresh-in-range-personal-contact');
+    if (!friendClear(s, battle, aim)) return no('friendly-fragment-risk');
     var path = preview(s, battle, aim);
-    return path && path.legal ? aim : null;
+    if (!path || !path.legal) return no('ballistic-throw-blocked');
+    return { ok: true, reason: 'eligible', aim: aim };
+  }
+  function assaultOpportunity(s, battle) {
+    var result = assaultAssessment(s, battle);
+    return result.ok ? result.aim : null;
   }
   function assaultThrow(s, battle) {
     var aim = assaultOpportunity(s, battle);
@@ -379,6 +479,7 @@
   }
   function freezeFlight(g) {
     Object.freeze(g.from);
+    Object.freeze(g.impact);
     Object.freeze(g.to);
     g.points.forEach(Object.freeze);
     Object.freeze(g.points);
@@ -395,7 +496,7 @@
       angle = st.rng() * Math.PI * 2,
       to = { x: plan.aim.x + radius * Math.cos(angle), z: plan.aim.z + radius * Math.sin(angle) };
     to.y = battle.heightAt(to.x, to.z) + TUNING.REST_Y;
-    var path = flightFor(hand(s, battle, plan.stance), to, battle);
+    var path = settleAfterImpact(flightFor(hand(s, battle, plan.stance), to, battle), battle);
     /* A new friendly may enter during windup; cover or scatter may also move
        the actual burst near a teammate. AI must decline unsafe release rather
        than spending a grenade and hoping the originally intended aim was safe.
@@ -419,6 +520,9 @@
       byFaction: s.faction,
       byRef: s,
       from: path.from,
+      impact: path.impact,
+      impactAt: path.impactAt,
+      rollDistance: path.rollDistance,
       to: path.to,
       points: path.points,
       releasedAt: plan.releaseAt,
@@ -439,6 +543,8 @@
       faction: s.faction,
       releasedAt: g.releasedAt,
       detonateAt: g.detonateAt,
+      impact: g.impact,
+      rollDistance: g.rollDistance,
       to: g.to,
       carried: count(s)
     });
@@ -447,6 +553,10 @@
   function position(g, time) {
     var t = Math.max(0, time - g.releasedAt),
       points = g.points;
+    // Exactly honor immutable keyframes; interpolation roundoff must not move
+    // a settled grenade (or its collision origin) by floating-point residue.
+    if (t >= g.flight - 1e-9) return { x: g.to.x, y: g.to.y, z: g.to.z };
+    if (g.impact && Math.abs(t - g.impactAt) < 1e-9) return { x: g.impact.x, y: g.impact.y, z: g.impact.z };
     for (var i = 1; i < points.length; i++) {
       var a = points[i - 1],
         b = points[i];
@@ -596,6 +706,7 @@
     playerThrow: playerThrow,
     consider: consider,
     assaultOpportunity: assaultOpportunity,
+    assaultAssessment: assaultAssessment,
     assaultThrow: assaultThrow,
     reviewDue: reviewDue,
     preview: preview,

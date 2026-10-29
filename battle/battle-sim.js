@@ -239,9 +239,17 @@
       Math.max(files.length, cyclic > 0 ? Math.ceil(cyclic * FIRE_CLIP_S) + 2 : POOL_SIZE)
     );
   }
-  function buildWeaponAudio(scene, audioBase) {
+  function buildWeaponAudio(scene, audioBase, policy) {
+    var SoundClass = root.BattleAudioBackend ? root.BattleAudioBackend.Sound : BABYLON.Sound;
+    // Optional, bounded diagnostic override. Unset keeps the shipping 4-voice far floor.
+    // prettier-ignore
+    var farFloor =
+      policy && policy.farVoices != null
+        ? Math.max(4, Math.min(64, Math.floor(+policy.farVoices) || 4))
+        : 32;
     var pools = {},
       cursors = {},
+      poolStats = {},
       stats = { playRequests: 0, droppedBusy: 0, droppedNotReady: 0, droppedLocked: 0, errors: 0 },
       cam = function () {
         return scene.activeCamera && (scene.activeCamera.globalPosition || scene.activeCamera.position);
@@ -270,11 +278,20 @@
         takes = Math.min(count, files.length);
       pools[key] = voices;
       cursors[key] = 0;
+      poolStats[key] = {
+        capacity: count,
+        attempts: 0,
+        started: 0,
+        droppedBusy: 0,
+        droppedNotReady: 0,
+        droppedLocked: 0,
+        errors: 0
+      };
       for (var i = 0; i < takes; i++)
         (function (i) {
           var extra = [];
           for (var k = i + takes; k < count; k += takes) extra.push(k);
-          var snd = new BABYLON.Sound(
+          var snd = new SoundClass(
             key + 'Sfx' + i,
             clipUrl(audioBase + files[i]),
             scene,
@@ -283,7 +300,7 @@
                   var buf = snd.getAudioBuffer && snd.getAudioBuffer();
                   if (buf)
                     extra.forEach(function (k) {
-                      voices[k] = new BABYLON.Sound(key + 'Sfx' + k, buf, scene, null, opts);
+                      voices[k] = new SoundClass(key + 'Sfx' + k, buf, scene, null, opts);
                     });
                 }
               : null,
@@ -308,7 +325,7 @@
           if (!fire || pools['m:' + model]) return;
           pool('m:' + model, fire, voicesFor(fire, +w.cyclic || 0), false);
           var far = modelClips(model, 'fireDistant');
-          if (far) pool('m:' + model + ':far', far, Math.max(far.length, 4), true);
+          if (far) pool('m:' + model + ':far', far, Math.max(far.length, farFloor), true);
         });
       });
     }
@@ -322,10 +339,24 @@
     function playOne(k, position, gain, rate) {
       var voices = pools[k];
       if (!voices) return;
-      var ae = BABYLON.Engine && BABYLON.Engine.audioEngine;
+      var counters = poolStats[k];
+      counters.attempts++;
+      var ae = root.BattleAudioBackend
+        ? root.BattleAudioBackend.engine()
+        : BABYLON.Engine && BABYLON.Engine.audioEngine;
       /* Sound.play queues a delayed start while locked; such a request is not
          reflected by isPlaying yet and could accumulate behind the pool cap. */
-      if (ae && !ae.unlocked) return void stats.droppedLocked++;
+      // Chromium/Babylon 9 can report a running WebAudio context while the
+      // legacy unlocked flag lags after a gesture. The actual context wins in
+      // both directions, including a suspension with a stale unlocked=true.
+      var ctx = ae && ae.audioContext;
+      if (
+        (scene && scene.audioEnabled === false) ||
+        (ctx ? ctx.state !== 'running' : ae && ae.unlocked === false)
+      ) {
+        counters.droppedLocked++;
+        return void stats.droppedLocked++;
+      }
       var voice = null,
         ready = false;
       /* Babylon 9 permits multiple instances of the same Sound. A round-robin
@@ -341,7 +372,11 @@
         cursors[k] = (index + 1) % voices.length;
         break;
       }
-      if (!voice) return void stats[ready ? 'droppedBusy' : 'droppedNotReady']++;
+      if (!voice) {
+        var reason = ready ? 'droppedBusy' : 'droppedNotReady';
+        counters[reason]++;
+        return void stats[reason]++;
+      }
       try {
         voice.setPosition(position);
         var mix = root.BattleAudioMix;
@@ -351,14 +386,49 @@
           if (voice.setVolume) voice.setVolume(gain);
         }
         if (voice.setPlaybackRate) voice.setPlaybackRate(rate || 1);
-        voice.play();
+        if (voice.play() === false) return;
         stats.playRequests++;
+        counters.started++;
       } catch (_) {
         stats.errors++;
+        counters.errors++;
       }
     }
     return {
       keyFor: keyFor,
+      // Snapshot by exact near/far model key; not read during normal battle ticks.
+      // prettier-ignore
+      detail: function () {
+        var byPool = {};
+        Object.keys(poolStats).forEach(function (key) {
+          var active = 0,
+            minClipSeconds = Infinity,
+            maxClipSeconds = 0,
+            measuredClips = 0;
+          pools[key].forEach(function (sound) {
+            if (!sound) return;
+            if (sound.isPlaying === true) active++;
+            // Read decoded buffer metadata, not an assumed 2-3 second tail.
+            // This is report-only; never used for admission or playback.
+            var buffer = null;
+            // Babylon's getter can throw before its async sound instance exists
+            // (including a missing/blocked asset). Diagnostics must still work.
+            try { buffer = sound.getAudioBuffer && sound.getAudioBuffer(); } catch (_) {}
+            if (buffer && isFinite(buffer.duration) && buffer.duration > 0) {
+              measuredClips++;
+              minClipSeconds = Math.min(minClipSeconds, buffer.duration);
+              maxClipSeconds = Math.max(maxClipSeconds, buffer.duration);
+            }
+          });
+          byPool[key] = Object.assign({
+            active: active,
+            decodedClipCount: measuredClips,
+            minClipSeconds: measuredClips ? +minClipSeconds.toFixed(3) : null,
+            maxClipSeconds: measuredClips ? +maxClipSeconds.toFixed(3) : null
+          }, poolStats[key]);
+        });
+        return byPool;
+      },
       summary: function () {
         var active = 0,
           capacity = 0;
@@ -961,7 +1031,7 @@
   BattleSim.prototype._wireFx = function (audioBase) {
     var self = this,
       audio = buildWeaponAudio(this.scene, audioBase || 'audio/');
-    this._weaponAudio = { summary: audio.summary };
+    this._weaponAudio = { summary: audio.summary, detail: audio.detail };
     if (root.BattleListenerAcoustics) root.BattleListenerAcoustics.bind(this);
     var fire = function (soldier) {
       var pos = muzzleWorld(soldier);
@@ -1020,6 +1090,8 @@
     buildSky: buildSky,
     applyScenarioTerrain: applyScenarioTerrain,
     start: start,
+    /* Standalone audio lab uses the exact shipping pool implementation without spawning combat. */
+    buildWeaponAudio: buildWeaponAudio,
     moveTransportPassenger: moveTransportPassenger,
     AI_TICK: AI_TICK
   };

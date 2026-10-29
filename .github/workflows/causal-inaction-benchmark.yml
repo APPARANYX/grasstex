@@ -3,7 +3,7 @@ name: ⭐ Causal Inaction Benchmark
 # Full shipping battles; each instrumented seed is replayed without the probe.
 on:
   pull_request:
-    # Full acceptance runs only when a draft is marked ready to review.
+    # Heavy checks run when a draft is promoted for review, not on every push.
     types: [ready_for_review]
     paths:
       - '.github/workflows/causal-inaction-benchmark.yml'
@@ -69,6 +69,7 @@ on:
         required: false
         default: ''
 
+# A subsequent ready-for-review replaces any incomplete same-PR run.
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: true

@@ -20,17 +20,17 @@ assert.match(
 assert.match(section, /getAudioBuffer/, 'decoded take is reused');
 assert.match(
   section,
-  /new BABYLON\.Sound\(key\s*\+\s*'Sfx'\s*\+\s*k,\s*buf,\s*scene,\s*null,\s*opts\)/,
+  /new SoundClass\(key\s*\+\s*'Sfx'\s*\+\s*k,\s*buf,\s*scene,\s*null,\s*opts\)/,
   'extra voices reuse decoded buffer'
 );
 assert.match(section, /voices\[k\]\s*=/, 'extra voices keep stable playback slots');
-assert.match(section, /if\s*\(!voice\)\s*return/, 'not-yet-ready voices do not crash playback');
+assert.match(section, /if\s*\(!voice\)\s*(?:return|\{)/, 'not-yet-ready voices are guarded');
 
 /* Babylon 9's Sound.play() can create another underlying instance while
    isPlaying is true. Instrument that behavior rather than treating a Sound
    object as an implicit one-voice cap. Pool reuse must also leave the prior
    report's spatial position and gain untouched until it actually ends. */
-function poolFixture() {
+function poolFixture(policy) {
   const sounds = [];
   const engine = { unlocked: true };
   class Sound {
@@ -83,7 +83,7 @@ function poolFixture() {
     source.slice(source.indexOf('var POOL_SIZE ='), source.indexOf('function makeFaction')),
     ctx
   );
-  const audio = ctx.buildWeaponAudio({ activeCamera: { position: { x: 0, y: 2, z: 0 } } }, 'audio/');
+  const audio = ctx.buildWeaponAudio({ activeCamera: { position: { x: 0, y: 2, z: 0 } } }, 'audio/', policy);
   return {
     audio,
     engine,
@@ -104,10 +104,23 @@ function poolFixture() {
   };
 }
 
+{
+  const w = poolFixture();
+  w.sounds.forEach(sound => {
+    sound.getAudioBuffer = () => {
+      throw new TypeError('instance not initialized');
+    };
+  });
+  const pools = w.audio.detail();
+  assert.equal(pools['m:m1-garand'].decodedClipCount, 0, 'unavailable buffers stay unmeasured');
+  assert.equal(pools['m:m1-garand'].minClipSeconds, null);
+  assert.equal(w.plays(), 0, 'diagnostic snapshot never triggers playback');
+}
+
 for (const [distance, capacity] of [
   [40, 6],
-  [200, 4],
-  [100, 10]
+  [200, 30],
+  [100, 36]
 ]) {
   const w = poolFixture();
   w.load();
@@ -123,6 +136,13 @@ for (const [distance, capacity] of [
     'prior shots retain position, gain and rate'
   );
   if (distance === 40) {
+    const nearPool = w.audio.detail()['m:m1-garand'];
+    assert.equal(nearPool.capacity, 6, 'near-pool telemetry preserves the existing capacity');
+    assert.equal(nearPool.maxClipSeconds, 2, 'per-model clip duration reflects actual decoded buffer');
+    assert.equal(nearPool.minClipSeconds, 2, 'per-model sample variation is measured, not assumed');
+    assert.equal(nearPool.attempts, 30, 'every near-pool request is accounted for');
+    assert.equal(nearPool.started, 6, 'real successful near starts are tracked per model');
+    assert.equal(nearPool.droppedBusy, 24, 'saturated near-pool drops are reported per model');
     const available = w.sounds.find(s => s.name === 'm:m1-garandSfx2');
     available.isPlaying = false; // real completion, later than the old 0.9s estimate
     w.shoot(distance, 1);
@@ -149,5 +169,41 @@ for (const [distance, capacity] of [
   w.engine.unlocked = true;
   w.shoot(40, 1);
   assert.equal(w.plays(), 1, 'normal fire resumes after the audio gesture unlock');
+}
+// prettier-ignore
+{
+  const w = poolFixture({ farVoices: 64 });
+  w.load();
+  w.shoot(200, 90);
+  const far = w.audio.detail()['m:m1-garand:far'];
+  assert.equal(far.capacity, 64, '64 distant voices are available only when explicitly requested');
+  assert.equal(far.started, 64, 'each distant voice may play once, without overlapping Sound instances');
+  assert.equal(far.droppedBusy, 26, 'overflow beyond 64 is bounded and accounted for');
+  assert.equal(w.audio.summary().active, 64);
+  assert.ok(w.sounds.every(s => s.plays <= 1 && s.busyWrites === 0));
+}
+// prettier-ignore
+{
+  const w = poolFixture({ farVoices: 1024 });
+  assert.equal(w.audio.detail()['m:m1-garand:far'].capacity, 64,
+    'even an untrusted override cannot exceed the 64-slot cap');
+}
+// prettier-ignore
+{
+  const w = poolFixture();
+  assert.equal(w.audio.detail()['m:m1-garand:far'].capacity, 32,
+    'normal battle default uses measured 32-voice distant model pool');
+}
+{
+  const w = poolFixture();
+  w.load();
+  w.engine.unlocked = true;
+  w.engine.audioContext = { state: 'suspended' };
+  w.shoot(40, 30);
+  assert.equal(w.plays(), 0, 'suspended context wins over stale unlocked=true');
+  w.engine.audioContext.state = 'running';
+  w.engine.unlocked = false;
+  w.shoot(40, 1);
+  assert.equal(w.plays(), 1, 'running context wins over stale unlocked=false');
 }
 console.log('weapon-shot-buffer-check: format, sharing and bounded dense playback passed');
