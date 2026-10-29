@@ -7,6 +7,8 @@
   'use strict';
   if (root.BattleAudioBackend) return;
   var enabled = /(?:^|[?&])audioBackend=howler(?:&|$)/.test((root.location && root.location.search) || '');
+  var flatSpatial =
+    enabled && /(?:^|[?&])audioSpatial=flat(?:&|$)/.test((root.location && root.location.search) || '');
   var scenes = new WeakMap(),
     clips = new Map(),
     active = new Set(),
@@ -90,7 +92,11 @@
     var sounds = new Set();
     scenes.set(scene, sounds);
     var tick = function () {
-      updateListener(scene);
+      if (!flatSpatial) updateListener(scene);
+      else
+        active.forEach(function (sound) {
+          if (sound._scene === scene) sound._applyFlatGain();
+        });
       sounds.forEach(function (sound) {
         if (!sound._playing || !sound._mesh) return;
         var mesh = sound._mesh;
@@ -134,8 +140,12 @@
       autoplay: false,
       volume: 0,
       pool: 8,
-      pos: [0, 0, 0],
-      pannerAttr: { panningModel: 'equalpower', distanceModel: 'linear', rolloffFactor: 0 },
+      pos: flatSpatial ? undefined : [0, 0, 0],
+      // Howler 2.2.4 reads these defaults at the top level (not pannerAttr).
+      // Sound creation/reset must never initialize an unintended HRTF panner.
+      panningModel: 'equalpower',
+      distanceModel: 'linear',
+      rolloffFactor: 0,
       // Register before play(): Howler captures listeners when it emits, then
       // delivers callbacks asynchronously. Late per-play listeners miss starts.
       onplay: function (id) {
@@ -216,13 +226,44 @@
   Sound.prototype.getAudioBuffer = function () {
     return this._entry.token;
   };
+  // Diagnostic-only mono route: preserve Web Audio distance attenuation while
+  // excluding PannerNodes. Default 3D routing and gain remain unchanged.
+  Sound.prototype._applyFlatGain = function () {
+    if (!this._playing || this._id == null) return;
+    var o = this._options,
+      cam = this._scene && this._scene.activeCamera;
+    var listener = cam && (cam.globalPosition || cam.position),
+      gain = 1;
+    if (listener && o.spatialSound !== false) {
+      var p = this._position,
+        dx = p.x - listener.x,
+        dy = p.y - listener.y,
+        dz = p.z - listener.z;
+      var ref = o.refDistance || 1,
+        max = Math.max(ref, o.maxDistance || 100);
+      var distance = Math.max(ref, Math.min(max, Math.sqrt(dx * dx + dy * dy + dz * dz)));
+      var rolloff = o.rolloffFactor == null ? 1 : o.rolloffFactor;
+      var model = o.distanceModel || 'linear';
+      gain =
+        model === 'inverse'
+          ? ref / (ref + rolloff * (distance - ref))
+          : model === 'exponential'
+            ? Math.pow(distance / ref, -rolloff)
+            : max === ref
+              ? 1
+              : 1 - (rolloff * (distance - ref)) / (max - ref);
+    }
+    this._entry.howl.volume(this._gain * Math.max(0, Math.min(1, gain)), this._id);
+  };
   Sound.prototype.setPosition = function (p) {
     this._position = point(p);
-    if (this._playing && this._id != null) this._entry.howl.pos(p.x, p.y, -p.z, this._id);
+    if (flatSpatial) this._applyFlatGain();
+    else if (this._playing && this._id != null) this._entry.howl.pos(p.x, p.y, -p.z, this._id);
   };
   Sound.prototype.setVolume = function (gain) {
     this._gain = Math.max(0, Math.min(1, +gain || 0));
-    if (this._playing && this._id != null) this._entry.howl.volume(this._gain, this._id);
+    if (flatSpatial) this._applyFlatGain();
+    else if (this._playing && this._id != null) this._entry.howl.volume(this._gain, this._id);
   };
   Sound.prototype.setPlaybackRate = function (rate) {
     this._rate = +rate || 1;
@@ -379,20 +420,22 @@
       var id = this._id,
         p = this._position;
       this._entry.owners.set(id, this);
-      howl.pannerAttr(
-        {
-          panningModel: 'equalpower',
-          distanceModel: o.distanceModel || 'linear',
-          maxDistance: o.maxDistance || 100,
-          refDistance: o.refDistance || 1,
-          rolloffFactor: o.rolloffFactor == null ? 1 : o.rolloffFactor
-        },
-        id
-      );
-      howl.pos(p.x, p.y, -p.z, id);
+      if (!flatSpatial)
+        howl.pannerAttr(
+          {
+            panningModel: 'equalpower',
+            distanceModel: o.distanceModel || 'linear',
+            maxDistance: o.maxDistance || 100,
+            refDistance: o.refDistance || 1,
+            rolloffFactor: o.rolloffFactor == null ? 1 : o.rolloffFactor
+          },
+          id
+        );
+      if (!flatSpatial) howl.pos(p.x, p.y, -p.z, id);
       howl.rate(this._rate, id);
       this._attachAcoustics();
-      howl.volume(this._gain, id);
+      if (flatSpatial) this._applyFlatGain();
+      else howl.volume(this._gain, id);
       return true;
     } catch (error) {
       fail('playErrors', this._entry.url, error);
@@ -435,6 +478,7 @@
         {
           name: enabled ? 'howler' : 'babylon',
           version: enabled ? '2.2.4' : null,
+          spatialMode: flatSpatial ? 'flat' : '3d',
           dry: enabled && !(root.BattleListenerAcoustics && root.BattleListenerAcoustics.quality !== 'off'),
           acousticChains: acousticChains.length,
           acousticActive: acousticChains.filter(function (chain) {

@@ -148,9 +148,20 @@ fs.mkdirSync(out, { recursive: true });
             history.some(x => x.deltaWeaponStarts > 0 && x.output.rms > 0.00005),
             'must produce audio'
           );
+          const live = audio.continuity.filter(x => !x.paused);
+          const achievedSpeed =
+            live.length > 1
+              ? (live.at(-1).simTime - live[0].simTime) / ((live.at(-1).realMs - live[0].realMs) / 1000)
+              : 0;
+          report.probe.achievedSimSecondsPerWallSecond = achievedSpeed;
+          report.probe.nominalSpeedAchieved =
+            mode === 'transitions' ? null : achievedSpeed >= Number(mode) * 0.8;
+          fs.writeFileSync(`${out}/${name}.json`, JSON.stringify(report, null, 2));
           console.log(
             JSON.stringify({
               name,
+              achievedSpeed,
+              nominalSpeedAchieved: report.probe.nominalSpeedAchieved,
               fullscreen,
               samples: audio.continuity.length,
               peakActive: audio.backend.peakActive,

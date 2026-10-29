@@ -7,7 +7,7 @@ const vm = require('node:vm');
 const path = require('node:path');
 const rootPath = path.resolve(__dirname, '../..');
 const source = fs.readFileSync(path.join(rootPath, 'battle/modules/00-audio-backend.js'), 'utf8');
-function fixture(enabled) {
+function fixture(enabled, spatial) {
   const howls = [],
     events = [],
     writes = [];
@@ -127,7 +127,7 @@ function fixture(enabled) {
   }
   const root = {
     console: { error() {} },
-    location: { search: enabled ? '?audioBackend=howler' : '' },
+    location: { search: enabled ? '?audioBackend=howler' + (spatial ? '&audioSpatial=' + spatial : '') : '' },
     BABYLON: { Sound: BabylonSound, Engine: { audioEngine: { name: 'babylon-engine' } } },
     Howl,
     Howler: { ctx, masterGain: {}, usingWebAudio: true, volume() {}, pos() {}, orientation() {} }
@@ -178,6 +178,13 @@ function fixture(enabled) {
   assert.equal(r.howls.length, 1, 'same clip shares one loader/decoded cache');
   assert.deepEqual(Array.from(r.howls[0].options.src), ['/shot.ogg', '/shot.mp3']);
   assert.deepEqual(Array.from(r.howls[0].options.format), ['opus', 'mp3']);
+  assert.equal(
+    r.howls[0].options.panningModel,
+    'equalpower',
+    'Howler constructor uses top-level spatial defaults'
+  );
+  assert.equal(r.howls[0].options.distanceModel, 'linear');
+  assert.equal(r.howls[0].options.rolloffFactor, 0);
   assert.equal(a.play(), false, 'unready playback is dropped');
   r.howls[0].options.onload();
   const c = new B.Sound('shared-buffer-slot', a.getAudioBuffer(), r.scene);
@@ -358,3 +365,29 @@ function fixture(enabled) {
   console.error(error);
   process.exitCode = 1;
 });
+
+{
+  const r = fixture(true, 'flat'),
+    B = r.backend;
+  const sound = new B.Sound('flat-check', 'flat.mp3', r.scene, null, {
+    spatialSound: true,
+    maxDistance: 100,
+    refDistance: 1,
+    rolloffFactor: 1
+  });
+  r.howls[0].options.onload();
+  sound.setPosition({ x: 40, y: 1, z: 0 });
+  sound.setVolume(0.4);
+  sound.play();
+  r.flush();
+  assert.equal(B.summary().spatialMode, 'flat');
+  assert.equal(r.howls[0].options.pos, undefined, 'flat Howl must not initialize a PannerNode');
+  assert.ok(!r.writes.some(x => x[0] === 'panner' || x[0] === 'pos'), 'flat path never invokes spatial APIs');
+  assert.ok(
+    r.writes.some(x => x[0] === 'volume' && Math.abs(x[1] - 0.4 * (1 - 39 / 99)) < 1e-8),
+    'linear distance attenuation retained'
+  );
+  sound.stop();
+  assert.equal(B.summary().active, 0);
+  console.log('PASS opt-in flat spatial path: no panner API, matched distance gain, independent lifecycle');
+}

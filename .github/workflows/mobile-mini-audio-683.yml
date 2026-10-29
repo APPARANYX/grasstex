@@ -5,6 +5,7 @@ on:
     paths:
       - scripts/probes/probe_mobile_mini_meeting_audio.cjs
       - scripts/probes/probe_target_audio_continuity.cjs
+      - scripts/probes/probe_audio_pressure.cjs
       - battle/battle_sim.html
       - battle/skills-lab.js
       - battle/acoustics.js
@@ -86,6 +87,13 @@ jobs:
           TARGET_AUDIO_SECONDS: '75'
           TARGET_AUDIO_OUT: reports/mobile-mini-audio/mini-target
         run: node scripts/probes/probe_target_audio_continuity.cjs
+      - name: Required controlled audio concurrency
+        id: pressure
+        if: ${{ !cancelled() && steps.preflight.outcome == 'success' }}
+        env:
+          TARGET_AUDIO_URL: https://test.ivandpopov.com/grasstex/preview/pr-683/battle_sim.php
+          TARGET_AUDIO_OUT: reports/mobile-mini-audio/pressure
+        run: node scripts/probes/probe_audio_pressure.cjs
       - name: Informational Babylon comparison
         id: babylon
         if: ${{ !cancelled() && steps.preflight.outcome == 'success' }}
@@ -111,9 +119,11 @@ jobs:
         if: always()
         env:
           HOWLER_OUTCOME: ${{ steps.howler.outcome }}
+          PRESSURE_OUTCOME: ${{ steps.pressure.outcome }}
           TARGET_OUTCOME: ${{ steps.target.outcome }}
           BABYLON_OUTCOME: ${{ steps.babylon.outcome }}
         run: |
+          echo "Required controlled concurrency: $PRESSURE_OUTCOME" >> "$GITHUB_STEP_SUMMARY"
           echo "Required mini-target continuity: $TARGET_OUTCOME" >> "$GITHUB_STEP_SUMMARY"
           echo "Required Howler: $HOWLER_OUTCOME" >> "$GITHUB_STEP_SUMMARY"
           echo "Informational Babylon: $BABYLON_OUTCOME" >> "$GITHUB_STEP_SUMMARY"
