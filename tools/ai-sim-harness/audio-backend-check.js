@@ -7,7 +7,7 @@ const vm = require('node:vm');
 const path = require('node:path');
 const rootPath = path.resolve(__dirname, '../..');
 const source = fs.readFileSync(path.join(rootPath, 'battle/modules/00-audio-backend.js'), 'utf8');
-function fixture(enabled, spatial) {
+function fixture(enabled, spatial, extraSearch) {
   const howls = [],
     events = [],
     writes = [];
@@ -127,7 +127,11 @@ function fixture(enabled, spatial) {
   }
   const root = {
     console: { error() {} },
-    location: { search: enabled ? '?audioBackend=howler' + (spatial ? '&audioSpatial=' + spatial : '') : '' },
+    location: {
+      search: enabled
+        ? '?audioBackend=howler' + (spatial ? '&audioSpatial=' + spatial : '') + (extraSearch || '')
+        : ''
+    },
     BABYLON: { Sound: BabylonSound, Engine: { audioEngine: { name: 'babylon-engine' } } },
     Howl,
     Howler: { ctx, masterGain: {}, usingWebAudio: true, volume() {}, pos() {}, orientation() {} }
@@ -391,3 +395,80 @@ function fixture(enabled, spatial) {
   assert.equal(B.summary().active, 0);
   console.log('PASS opt-in flat spatial path: no panner API, matched distance gain, independent lifecycle');
 }
+
+// Per-frame AudioParam automation keeps Chrome PannerNodes on per-sample
+// processing; direct spatial writes must not schedule any timeline events.
+for (const mode of ['direct', 'automation']) {
+  const r = fixture(true, null, mode === 'automation' ? '&audioSpatialWrite=automation' : ''),
+    calls = { automation: 0, writes: 0, howlerPos: 0, howlerOrientation: 0 };
+  const param = () => {
+    let v = 0;
+    return {
+      get value() {
+        return v;
+      },
+      set value(x) {
+        calls.writes++;
+        v = x;
+      },
+      setValueAtTime() {
+        calls.automation++;
+      },
+      setTargetAtTime() {
+        calls.automation++;
+      }
+    };
+  };
+  const axes = [
+    'positionX',
+    'positionY',
+    'positionZ',
+    'forwardX',
+    'forwardY',
+    'forwardZ',
+    'upX',
+    'upY',
+    'upZ'
+  ];
+  r.ctx.listener = Object.fromEntries(axes.map(k => [k, param()]));
+  r.root.Howler.pos = () => calls.howlerPos++;
+  r.root.Howler.orientation = () => calls.howlerOrientation++;
+  const Bm = r.backend;
+  const panner = { positionX: param(), positionY: param(), positionZ: param() };
+  const cam = r.scene.activeCamera;
+  cam.getForwardRay = () => ({ direction: { x: 0, y: 0, z: 1 } });
+  const sound = new Bm.Sound('spatial-write', '/w.mp3', r.scene);
+  const howl = r.howls.at(-1);
+  howl._soundById = () => ({ _node: { connect() {}, disconnect() {} }, _panner: panner });
+  howl.options.onload();
+  const mesh = { position: { x: 4, y: 1, z: 6 } };
+  sound.attachToMesh(mesh);
+  sound.play();
+  for (let frame = 0; frame < 30; frame++) {
+    if (frame < 20) {
+      cam.position.x = frame;
+      mesh.position.x = 4 + frame;
+    }
+    r.render();
+  }
+  if (mode === 'direct') {
+    assert.equal(calls.howlerPos + calls.howlerOrientation, 0, 'listener bypasses Howler automation');
+    assert.equal(calls.automation, 0, 'no AudioParam timeline events from spatial updates');
+    assert.equal(r.writes.filter(x => x[0] === 'pos').length, 0, 'live voices bypass Howl.pos automation');
+    assert.equal(r.ctx.listener.positionX.value, 19);
+    assert.equal(panner.positionX.value, 23, 'voice still follows its mesh');
+    assert.equal(panner.positionZ.value, -6, 'Z conversion preserved');
+    const before = calls.writes;
+    r.render();
+    assert.equal(calls.writes, before, 'unchanged listener and voice positions are not rewritten');
+    assert.equal(Bm.summary().spatialWrite, 'direct');
+  } else {
+    assert.ok(calls.howlerPos >= 30 && calls.howlerOrientation >= 30, 'flag restores Howler listener path');
+    assert.ok(r.writes.filter(x => x[0] === 'pos').length >= 20, 'flag restores Howl.pos per update');
+    assert.equal(Bm.summary().spatialWrite, 'automation');
+  }
+  sound.stop();
+}
+console.log(
+  'PASS spatial updates write AudioParams directly; audioSpatialWrite=automation restores Howler path'
+);

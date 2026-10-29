@@ -9,6 +9,15 @@
   var enabled = /(?:^|[?&])audioBackend=howler(?:&|$)/.test((root.location && root.location.search) || '');
   var flatSpatial =
     enabled && /(?:^|[?&])audioSpatial=flat(?:&|$)/.test((root.location && root.location.search) || '');
+  // Howler's pos()/orientation() write PannerNode and listener AudioParams with
+  // setTargetAtTime/setValueAtTime every call. Per-frame calls keep Chrome's
+  // panners on per-sample processing (~13x cost per 3D voice), slowing the audio
+  // clock under load. Direct writes skip unchanged values and never use the
+  // timeline. ?audioSpatialWrite=automation restores Howler's per-frame path.
+  var spatialAutomation =
+    enabled &&
+    /(?:^|[?&])audioSpatialWrite=automation(?:&|$)/.test((root.location && root.location.search) || '');
+  var listenerState = null;
   var scenes = new WeakMap(),
     clips = new Map(),
     active = new Set(),
@@ -77,15 +86,44 @@
   function point(p) {
     return { x: +p.x || 0, y: +p.y || 0, z: +p.z || 0 };
   }
+  // Set only values that moved past eps; returns the stored row.
+  function writeParams(params, values, last, eps) {
+    var moved = !last;
+    for (var i = 0; !moved && i < values.length; i++) moved = Math.abs(values[i] - last[i]) > eps;
+    if (!moved) return last;
+    params.forEach(function (param, i) {
+      param.value = values[i];
+    });
+    return values;
+  }
   // Babylon uses a left-handed world; Web Audio uses right-handed coordinates.
   function updateListener(scene) {
     var cam = scene && scene.activeCamera;
     if (!cam || !root.Howler) return;
     var p = cam.globalPosition || cam.position;
-    if (p) root.Howler.pos(p.x, p.y, -p.z);
     var forward = cam.getForwardRay && cam.getForwardRay().direction;
     var up = cam.upVector || { x: 0, y: 1, z: 0 };
-    if (forward) root.Howler.orientation(forward.x, forward.y, -forward.z, up.x, up.y, -up.z);
+    var listener = root.Howler.ctx && root.Howler.ctx.listener;
+    if (spatialAutomation || !listener || !listener.positionX) {
+      if (p) root.Howler.pos(p.x, p.y, -p.z);
+      if (forward) root.Howler.orientation(forward.x, forward.y, -forward.z, up.x, up.y, -up.z);
+      return;
+    }
+    if (!listenerState || listenerState.listener !== listener) listenerState = { listener: listener };
+    if (p)
+      listenerState.pos = writeParams(
+        [listener.positionX, listener.positionY, listener.positionZ],
+        [p.x, p.y, -p.z],
+        listenerState.pos,
+        0.01
+      );
+    if (forward)
+      listenerState.dir = writeParams(
+        [listener.forwardX, listener.forwardY, listener.forwardZ, listener.upX, listener.upY, listener.upZ],
+        [forward.x, forward.y, -forward.z, up.x, up.y, -up.z],
+        listenerState.dir,
+        0.001
+      );
   }
   function bindScene(scene) {
     if (!enabled || !scene || scenes.has(scene)) return;
@@ -258,7 +296,25 @@
   Sound.prototype.setPosition = function (p) {
     this._position = point(p);
     if (flatSpatial) this._applyFlatGain();
-    else if (this._playing && this._id != null) this._entry.howl.pos(p.x, p.y, -p.z, this._id);
+    else if (this._playing && this._id != null) this._writePosition();
+  };
+  // The per-ID PannerNode exists after play()'s pannerAttr(); fall back to
+  // Howler's pos() only when it is absent or automation was requested.
+  Sound.prototype._writePosition = function () {
+    var p = this._position,
+      howl = this._entry.howl,
+      instance = !spatialAutomation && howl._soundById && howl._soundById(this._id),
+      panner = instance && instance._panner;
+    if (!panner || !panner.positionX) return howl.pos(p.x, p.y, -p.z, this._id);
+    if (this._pannerWritten && this._pannerWritten.node !== panner) this._pannerWritten = null;
+    var row = writeParams(
+      [panner.positionX, panner.positionY, panner.positionZ],
+      [p.x, p.y, -p.z],
+      this._pannerWritten && this._pannerWritten.values,
+      0.01
+    );
+    this._pannerWritten = { node: panner, values: row };
+    instance._pos = row.slice();
   };
   Sound.prototype.setVolume = function (gain) {
     this._gain = Math.max(0, Math.min(1, +gain || 0));
@@ -431,7 +487,10 @@
           },
           id
         );
-      if (!flatSpatial) howl.pos(p.x, p.y, -p.z, id);
+      if (!flatSpatial) {
+        this._pannerWritten = null;
+        this._writePosition();
+      }
       howl.rate(this._rate, id);
       this._attachAcoustics();
       if (flatSpatial) this._applyFlatGain();
@@ -479,6 +538,7 @@
           name: enabled ? 'howler' : 'babylon',
           version: enabled ? '2.2.4' : null,
           spatialMode: flatSpatial ? 'flat' : '3d',
+          spatialWrite: flatSpatial ? 'none' : spatialAutomation ? 'automation' : 'direct',
           dry: enabled && !(root.BattleListenerAcoustics && root.BattleListenerAcoustics.quality !== 'off'),
           acousticChains: acousticChains.length,
           acousticActive: acousticChains.filter(function (chain) {
