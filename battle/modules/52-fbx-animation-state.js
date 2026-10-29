@@ -508,6 +508,17 @@
         }
         setClip(fx.lower, clip, rate, 0.25, false, true);
 
+        /* During an actual upright AI sprint, the authored Sprint clip must
+         * own BOTH halves of the pose. Target memory stays with Engagement;
+         * it is not permission to shoulder the rifle at a full run. Aiming
+         * and shot follow-through fade out, while hits/flinches and other
+         * genuine reactions may still interrupt the upper body. */
+        var sprintPose =
+          !soldier.isPlayer &&
+          stance === 'stand' &&
+          !pistol &&
+          soldier._locomotionGait === 'sprint' &&
+          fx.family === 'sprint';
         var over = null,
           orate = 1,
           restart = false,
@@ -603,6 +614,7 @@
               : 'aim';
           restart = false;
         } else restart = false;
+        if (sprintPose && (over === 'aim' || over === 'fire' || over === 'fireAuto')) over = null;
         if (over) {
           setClip(fx.upper, clips[over], orate, 0.16, restart, false);
           fx.overlayTarget = 1;
@@ -622,8 +634,9 @@
         if (!t && playerAt) t = { x: playerAt.x, y: playerAt.y - 1.2, z: playerAt.z };
         if (!t && visualAt) t = visualAt;
         fx.aimWanted =
-          !soldier.reloading && fx.hitHold <= 0 && fx.flinchHold <= 0 && (!!t || fx.fireHold > 0);
-        fx.aimAt = t || null;
+          !sprintPose && !soldier.reloading && fx.hitHold <= 0 && fx.flinchHold <= 0 &&
+          (!!t || fx.fireHold > 0);
+        fx.aimAt = sprintPose ? null : t || null;
         advance(fx, dt);
         return true;
       }
