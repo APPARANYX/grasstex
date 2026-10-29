@@ -205,6 +205,60 @@ function step(s, speed = 0, count = 1) {
   step(s, 6, 30);
   assert.equal(f.family, 'sprint', 'AI still selects its family from measured motion');
 }
+/* Real imported rifle Run/Sprint clips differ by only 0.05 m/s. A live bound
+ * must break the retained Run family once physically fast, rather than
+ * displaying Rifle Run at 1.5x throughout an authoritative sprint. */
+{
+  const s = man(),
+    f = s._fbx;
+  s.isPlayer = false;
+  f.lib = { clips: { ...realClips, sprint0: { ...realClips.sprint0, speed: 4.15 } } };
+  s._locomotionGait = 'run';
+  step(s, 4.2, 20);
+  f.family = 'run'; // the common pre-bound animation, intentionally sticky
+  s._locomotionGait = 'sprint';
+  step(s, 6.2, 12);
+  assert.ok(f.speed > 5.2, 'physical sprint is well above the authored clip cadence');
+  assert.equal(f.family, 'sprint', 'AI sprint uses Sprint clip despite similar Run natural speed');
+  assert.equal(mixer.topEntry(f.lower).clip.key, 'sprint0');
+  step(s, 0.8, 24);
+  assert.notEqual(f.family, 'sprint', 'near-station slowdown does not play slow-motion Sprint');
+  s.crouching = true;
+  s._locomotionGait = 'crouchRun';
+  step(s, 3, 12);
+  assert.ok(
+    ['crouch', 'crouchRun'].includes(f.family),
+    'AI sprint correction does not select upright FBX during crouch movement'
+  );
+}
+/* A target may remain tracked throughout a covered dash, but the authored
+ * Sprint FBX must own the upper body until the man slows; otherwise he sprints
+ * with the lower body and visibly fires/aims with the upper body. */
+{
+  const s = man(),
+    f = s._fbx;
+  s.isPlayer = false;
+  s.target = { root: { position: { x: 0, y: 0, z: 20 } } };
+  s._locomotionGait = 'run';
+  step(s, 3, 20);
+  assert.equal(f.overlayTarget, 1, 'normal running with a target retains existing aim behavior');
+  s._locomotionGait = 'sprint';
+  step(s, 6.2, 25);
+  assert.equal(f.family, 'sprint', 'physical covered dash reaches the authored sprint');
+  assert.equal(mixer.topEntry(f.lower).clip.key, 'sprint0');
+  assert.equal(f.overlayTarget, 0, 'aim overlay does not overwrite sprint arms');
+  assert.equal(f.aimWanted, false, 'spine aiming stops during an actual sprint');
+  assert.equal(f.aimAt, null, 'stale target direction cannot twist sprint torso');
+  assert.ok(f.overlay < 0.001 && f.aim < 0.001, 'old aiming pose fully fades out');
+  f.fireHold = 0.6; // late follow-through from a shot fired before the sprint
+  step(s, 6.2, 6);
+  assert.equal(f.overlayTarget, 0, 'previous shot follow-through cannot animate firing while sprinting');
+  s._locomotionGait = 'run';
+  step(s, 3, 22);
+  assert.equal(f.overlayTarget, 1, 'normal target aiming resumes as the soldier slows');
+  assert.equal(f.aimWanted, true);
+  assert.ok(f.overlay > 0.9, 'upper-body aim blends back in after the sprint');
+}
 {
   const s = man(),
     f = s._fbx;
