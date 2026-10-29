@@ -156,8 +156,13 @@ fs.mkdirSync(out, { recursive: true });
             judged = b.inRangeStarts + b.outOfRangeStarts + b.mutedStarts;
           assert.equal(judged, b.started, 'every start is in range, out of range or muted');
           const inRangeShare = b.inRangeStarts / Math.max(1, b.started);
+          // Nothing in the lab mutes a start; muted starts are how a gain bug would hide.
           assert.ok(
-            inRangeShare >= (acoustics === 'off' ? 0.12 : 0.45),
+            b.mutedStarts <= b.started * 0.005,
+            `${b.mutedStarts} of ${b.started} starts were muted at start`
+          );
+          assert.ok(
+            inRangeShare >= (acoustics === 'off' ? 0.15 : 0.45),
             `only ${(inRangeShare * 100).toFixed(0)}% of starts in range of the listener`
           );
           const isBusy = row => !row.paused && row.deltaWeaponStarts >= 2 && row.deltaInRangeStarts >= 2;

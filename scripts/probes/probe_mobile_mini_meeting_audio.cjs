@@ -379,6 +379,7 @@ function summary(result) {
           [rows[i], rows[i + 1]].some(x => x && x.audioWindow.maxRms > 0.0005)
         ).length;
         run.audibleStartShare = heard / startRows.length;
+        // Calibration 10-29, both arms, 6 runs: 0.60 to 1.00; the bar is ~80% of the lowest.
         if (run.audibleStartShare < 0.5)
           throw new Error(
             `SILENT AUDIO: only ${heard} of ${startRows.length} seconds with gunshot starts had measurable output`
