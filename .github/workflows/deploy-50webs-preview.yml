@@ -1,12 +1,13 @@
 name: ⭐ Deploy Battle Sim Branch Preview
 
-# Publishes one stable preview directory per PR or explicitly chosen branch:
-#   https://test.ivandpopov.com/grasstex/preview/<pr-N-or-branch-slug>/battle_sim.php
+# Publishes an in-progress branch or pull-request preview to its stable URL:
+#   https://test.ivandpopov.com/grasstex/preview/<branch-slug-or-pr-N>/battle_sim.php
+# Reusable PR callers must provide stable preview_slug=pr-<number>; ref remains exact commit SHA.
 # Production (/grasstex/battle_sim.php, build tags, deploy hash state) is never touched. A preview reads
 # production assets, policy and scenario memory, and makes no telemetry, policy or learning writes.
 
 on:
-  # Manual only: the production branch never deploys itself into a preview.
+  # Manually dispatchable or reusable by CI; production is never modified.
   workflow_call:
     inputs:
       ref:
@@ -41,7 +42,7 @@ permissions:
   contents: read
 
 concurrency:
-  # Serializes uploads by the remote path, not the immutable source SHA.
+  # The slug, not SHA, serializes writes to the same remote preview folder.
   group: deploy-50webs-preview-${{ inputs.preview_slug || inputs.ref || github.ref_name }}
   cancel-in-progress: false
 
@@ -75,14 +76,16 @@ jobs:
         run: |
           set -euo pipefail
           sha="$(git rev-parse HEAD)"
+          # No automatic SHA-named directories: caller identifies the PR while
+          # the checked-out commit is still immutable and SHA-verified.
           if [[ -z "$PREVIEW_SLUG" && "$PREVIEW_REF" =~ ^[0-9a-fA-F]{40}$ ]]; then
-            echo "::error::Commit-pinned preview must specify a reusable preview_slug (pr-671)."
+            echo "::error::Commit-pinned uploads must also supply preview_slug (e.g. pr-671)."
             exit 1
           fi
           preview_name="${PREVIEW_SLUG:-$PREVIEW_REF}"
           slug="$(printf '%s' "$preview_name" | tr '[:upper:]' '[:lower:]' | sed -E 's#^(work|preview)/##; s#[^a-z0-9]+#-#g; s#^-+|-+$##g' | cut -c1-48)"
           [[ "$slug" =~ ^[a-z0-9][a-z0-9-]{0,47}$ ]] || { echo "::error::Invalid preview slug"; exit 1; }
-          echo "Stable preview: $slug at immutable commit $sha"
+          echo "Stable preview identity: $slug; deployed commit: $sha"
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
           echo "slug=$slug" >> "$GITHUB_OUTPUT"
           echo "ref=$PREVIEW_REF" >> "$GITHUB_OUTPUT"
@@ -156,7 +159,7 @@ jobs:
           # Runtime remains branch-specific. Assets contains only changed
           # FBX/GLB/BIN/image overrides; unchanged files fall back to production
           # via the preview's own .htaccess (uploaded explicitly below).
-          # This replaces the same PR directory on subsequent draft pushes.
+          # A stable PR directory is overwritten in place on every push.
           # --delete applies only to this preview directory; sidecar JSON and
           # lab calibrations are never deleted. preview.json is uploaded last.
           contract_upload=''

@@ -2,7 +2,7 @@ name: ⭐ Strategic 5km browser QA
 
 on:
   pull_request:
-    # Full acceptance runs only when a draft is marked ready to review.
+    # Heavy checks run when a draft is promoted for review, not on every push.
     types: [ready_for_review]
     paths:
       - 'battle/scenario-generator.js'

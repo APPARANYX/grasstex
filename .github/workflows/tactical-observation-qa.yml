@@ -1,7 +1,7 @@
 name: ⭐ Tactical Observation Browser QA
 on:
   pull_request:
-    # Full acceptance runs only when a draft is marked ready to review.
+    # Heavy checks run when a draft is promoted for review, not on every push.
     types: [ready_for_review]
     paths:
       - battle/engagement.js
@@ -33,6 +33,7 @@ on:
       - battle/modules/15h-squad-leader-fireteams.js
       - .github/workflows/tactical-observation-qa.yml
   workflow_dispatch:
+# A subsequent ready-for-review replaces any incomplete same-PR run.
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: true
