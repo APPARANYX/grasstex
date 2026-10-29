@@ -23,7 +23,7 @@ jobs:
   mobile-mini:
     if: github.event.pull_request.number == 683
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
         with:
@@ -84,7 +84,7 @@ jobs:
         if: ${{ !cancelled() && steps.preflight.outcome == 'success' }}
         env:
           TARGET_AUDIO_URL: https://test.ivandpopov.com/grasstex/preview/pr-683/battle_sim.php
-          TARGET_AUDIO_SECONDS: '75'
+          TARGET_AUDIO_SECONDS: '100'
           TARGET_AUDIO_OUT: reports/mobile-mini-audio/mini-target
         run: node scripts/probes/probe_target_audio_continuity.cjs
       - name: Required controlled audio concurrency

@@ -89,6 +89,7 @@ function summary(result) {
     shots: result.ending?.shots || 0,
     extendedSeconds: result.extendedSeconds || 0,
     audibleStartShare: result.audibleStartShare ?? null,
+    inRangeStartSeconds: result.inRangeStartSeconds ?? null,
     meterMaxRms: Math.max(0, ...(result.meterRows || []).map(x => x.audioWindow?.maxRms || 0)),
     simTime: result.ending?.time || 0,
     listenerActive: result.ending?.acousticActive || 0,
@@ -287,15 +288,24 @@ function summary(result) {
         });
         await page.waitForTimeout(seconds * 1000);
         // On a slow runner (~2 fps) a fixed window can hold one or two shots, too few
-        // to judge output. Extend, up to 120 s, until the window holds MIN_STARTS starts.
-        const MIN_STARTS = 5;
+        // to judge output. Extend, up to 180 s, until the window holds MIN_STARTS pool
+        // starts and MIN_IN_RANGE seconds with an in-range gunshot start.
+        const MIN_STARTS = 5,
+          MIN_IN_RANGE = 5;
         run.extendedSeconds = 0;
-        while (run.extendedSeconds < 120) {
-          const starts = await page.evaluate(() => {
-            const d = window.__mobileMiniStats.data;
-            return d.length ? d[d.length - 1].poolStarts - d[0].poolStarts : 0;
+        while (run.extendedSeconds < 180) {
+          const counts = await page.evaluate(() => {
+            const d = window.__mobileMiniStats.data,
+              from = window.__mobileMiniStats.startedMs,
+              diag = window.__battleAudioDiagnostics__ && window.__battleAudioDiagnostics__();
+            return {
+              starts: d.length ? d[d.length - 1].poolStarts - d[0].poolStarts : 0,
+              inRange: ((diag && diag.outputHistory) || []).filter(
+                x => x.realMs >= from && !x.paused && x.deltaWeaponStarts > 0 && x.deltaInRangeStarts > 0
+              ).length
+            };
           });
-          if (starts >= MIN_STARTS) break;
+          if (counts.starts >= MIN_STARTS && counts.inRange >= MIN_IN_RANGE) break;
           await page.waitForTimeout(1000);
           run.extendedSeconds++;
         }
@@ -309,6 +319,7 @@ function summary(result) {
             .map(x => ({
               realMs: x.realMs,
               deltaWeaponStarts: x.deltaWeaponStarts,
+              deltaInRangeStarts: x.deltaInRangeStarts,
               audioWindow: x.audioWindow
             }));
         });
@@ -374,15 +385,27 @@ function summary(result) {
           throw new Error(
             `INSUFFICIENT SAMPLE: too few reads or starts to judge (${windowStarts} starts, ${thin.length} of ${rows.length} seconds under 500 ms measured)`
           );
-        const startRows = rows.map((x, i) => i).filter(i => rows[i].deltaWeaponStarts > 0);
+        // Judge seconds whose starts include one inside its own distance range; a start
+        // past linear maxDistance is silent by design (see the mini-target probe).
+        const startRows = rows
+          .map((x, i) => i)
+          .filter(i => rows[i].deltaWeaponStarts > 0 && rows[i].deltaInRangeStarts > 0);
+        if (startRows.length < 5)
+          throw new Error(
+            `INSUFFICIENT SAMPLE: too few reads or starts to judge (${startRows.length} seconds with in-range gunshot starts)`
+          );
+        run.inRangeStartSeconds = startRows.length;
+        // Same signal floor as the mini-target probe; distant in-range shots read ~2e-4.
+        const SIGNAL = 0.00005;
         const heard = startRows.filter(i =>
-          [rows[i], rows[i + 1]].some(x => x && x.audioWindow.maxRms > 0.0005)
+          [rows[i], rows[i + 1]].some(x => x && x.audioWindow.maxRms >= SIGNAL)
         ).length;
         run.audibleStartShare = heard / startRows.length;
-        // Calibration 10-29, both arms, 6 runs: 0.60 to 1.00; the bar is ~80% of the lowest.
-        if (run.audibleStartShare < 0.5)
+        // Calibration 10-29 (in-range seconds, 5e-5): 1.00 in 4 of 4 runs on both arms; the
+        // older 0.0005 floor read 0.60-1.00 because distant in-range shots sit near 2e-4.
+        if (run.audibleStartShare < 0.8)
           throw new Error(
-            `SILENT AUDIO: only ${heard} of ${startRows.length} seconds with gunshot starts had measurable output`
+            `SILENT AUDIO: only ${heard} of ${startRows.length} seconds with in-range gunshot starts had measurable output`
           );
         if (missingAudio.length)
           throw new Error('AUDIO ASSET FAILURE: ' + missingAudio.slice(0, 3).join('; '));
