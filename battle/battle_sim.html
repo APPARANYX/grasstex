@@ -301,7 +301,7 @@ window.BattleLoading=(function(){
       ['visibilitychange','fullscreenchange'].forEach(function(name){document.addEventListener(name,function(){audioEvent(name);});});
       ['focus','blur'].forEach(function(name){window.addEventListener(name,function(){audioEvent(name);});});
       ctx.addEventListener('statechange',function(){audioEvent('context:'+ctx.state);});
-      var lastStarts=0,lastDetailMs=-Infinity;
+      var lastStarts=0,lastDetailMs=-Infinity,windowMax=0,windowSum=0,windowN=0;
       liveAudioMeterTimer=setInterval(function(){
         var real=performance.now(),clock=ctx.currentTime,now=liveOutput(),stamp=null;
         try{stamp=ctx.getOutputTimestamp?ctx.getOutputTimestamp():null;}catch(_){}
@@ -328,12 +328,16 @@ window.BattleLoading=(function(){
 
         audioContinuity.push(sample);if(audioContinuity.length>1200)audioContinuity.shift();
         lastAudioSample=sample;
+        // A 2048-sample read covers ~43 ms; the 1 s record keeps every read since
+        // the last one so a short shot between reads is not counted as silence.
+        if(now){windowMax=Math.max(windowMax,now.rms);windowSum+=now.rms;windowN++;}
         var state=[battle.timeScale,battle.paused,ctx.state].join(':');
         if(state!==lastAudioState){audioEvent('playback-state');lastAudioState=state;}
         if(real-lastDetailMs<1000)return;
         lastDetailMs=real;
         var w=battle._weaponAudio&&battle._weaponAudio.summary(),starts=w&&w.playRequests||0;
         var record=Object.assign({},sample,{
+          outputWindow:{maxRms:windowMax,meanRms:windowN?+(windowSum/windowN).toFixed(6):0,samples:windowN},
           active:w&&w.active||0,weaponStarts:starts,deltaWeaponStarts:starts-lastStarts,
           weapon:w,weaponPools:battle._weaponAudio&&battle._weaponAudio.detail(),
           backend:window.BattleAudioBackend&&BattleAudioBackend.summary(),
@@ -341,7 +345,7 @@ window.BattleLoading=(function(){
           scheduler:window.BattleAudioScheduler&&BattleAudioScheduler.stats,
           voice:window.BattleVoiceScheduler&&BattleVoiceScheduler.summary?BattleVoiceScheduler.summary():null,
           grenade:battle._grenadeAudio,combat:battle._combatAudio,foley:battle._weaponFoley});
-        lastStarts=starts;
+        lastStarts=starts;windowMax=0;windowSum=0;windowN=0;
         liveAudioHistory.push(audioCopy(record));if(liveAudioHistory.length>240)liveAudioHistory.shift();
       },100);
     }catch(err){console.error('[AUDIO] passive output analyser failed',err);}

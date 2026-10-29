@@ -97,6 +97,21 @@ diag = root.__battleAudioDiagnostics__();
 assert.equal(diag.continuity.length, 1200, 'high resolution ring is bounded');
 assert.equal(diag.silenceMarkers[0].preceding.length, 13, 'marker survives ring rotation');
 assert.equal(diag.environment.meterPosition, 'master-before-device');
+// A shot between the once-a-second record reads must not count as silence,
+// while a whole silent second still reads zero.
+signal = 0;
+for (let i = 0; i < 20; i++) advance();
+let rows = root.__battleAudioDiagnostics__().outputHistory;
+assert.equal(rows.at(-1).outputWindow.maxRms, 0, 'a silent second has no window signal');
+assert.ok(rows.at(-1).outputWindow.samples >= 9, 'window keeps every 100 ms read');
+const before = rows.length;
+for (let i = 0; i < 30 && root.__battleAudioDiagnostics__().outputHistory.length === before; i++) {
+  signal = i === 3 ? 0.02 : 0;
+  advance();
+}
+rows = root.__battleAudioDiagnostics__().outputHistory;
+assert.equal(rows.at(-1).output.rms, 0, 'last read alone misses the short shot');
+assert.ok(rows.at(-1).outputWindow.maxRms > 0.01, 'window keeps the short shot');
 console.log(
   'PASS audio continuity: clock stall, signal loss, marker retention, immutable history, bounded storage'
 );

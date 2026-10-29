@@ -137,15 +137,17 @@ fs.mkdirSync(out, { recursive: true });
             } else slowSince = null;
           }
           assert.ok(maxSlowMs < 2000, `audio clock below 80% real-time for ${maxSlowMs}ms`);
+          // Loudest ~43 ms read in the record's second; older reports kept only the last read.
+          const rowRms = row => (row.outputWindow ? row.outputWindow.maxRms : row.output.rms);
           let silent = 0,
             silentMax = 0;
           for (const row of history) {
-            silent = !row.paused && row.deltaWeaponStarts >= 2 && row.output.rms < 0.00005 ? silent + 1 : 0;
+            silent = !row.paused && row.deltaWeaponStarts >= 2 && rowRms(row) < 0.00005 ? silent + 1 : 0;
             silentMax = Math.max(silentMax, silent);
           }
           assert.ok(silentMax < 3, 'sustained internal silence while gunshots start');
           assert.ok(
-            history.some(x => x.deltaWeaponStarts > 0 && x.output.rms > 0.00005),
+            history.some(x => x.deltaWeaponStarts > 0 && rowRms(x) > 0.00005),
             'must produce audio'
           );
           const live = audio.continuity.filter(x => !x.paused);

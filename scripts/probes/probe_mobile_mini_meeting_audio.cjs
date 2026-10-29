@@ -87,6 +87,7 @@ function summary(result) {
     fpsMin: fps.length ? +fps[0].toFixed(2) : null,
     framesBelow20: fps.filter(x => x < 20).length,
     shots: result.ending?.shots || 0,
+    extendedSeconds: result.extendedSeconds || 0,
     simTime: result.ending?.time || 0,
     listenerActive: result.ending?.acousticActive || 0,
     listenerCap: caps.maxActive || null,
@@ -258,15 +259,26 @@ function summary(result) {
             analyser,
             probeGain,
             data: [],
+            // One 2048-sample read covers ~43 ms. Read every 50 ms and keep the
+            // loudest per second, so a shot between once-a-second reads still counts.
+            peakRms: null,
+            reads: 0,
+            reader: setInterval(() => {
+              if (!analyser) return;
+              const raw = new Float32Array(analyser.fftSize);
+              analyser.getFloatTimeDomainData(raw);
+              let sum = 0;
+              for (const v of raw) sum += v * v;
+              const m = window.__mobileMiniStats;
+              m.peakRms = Math.max(m.peakRms || 0, Math.sqrt(sum / raw.length));
+              m.reads++;
+            }, 50),
             timer: setInterval(() => {
-              let audioRms = null;
-              if (analyser) {
-                const raw = new Float32Array(analyser.fftSize);
-                analyser.getFloatTimeDomainData(raw);
-                let sum = 0;
-                for (const v of raw) sum += v * v;
-                audioRms = Math.sqrt(sum / raw.length);
-              }
+              const m = window.__mobileMiniStats,
+                audioRms = m.peakRms,
+                audioReads = m.reads;
+              m.peakRms = analyser ? 0 : null;
+              m.reads = 0;
               const b = window.__battle__,
                 eng = b.scene.getEngine();
               window.__mobileMiniStats.data.push({
@@ -276,14 +288,29 @@ function summary(result) {
                 heapBytes: performance.memory?.usedJSHeapSize || 0,
                 acousticActive: window.BattleListenerAcoustics?.active || 0,
                 poolStarts: b._weaponAudio?.summary?.()?.playRequests || 0,
-                audioRms
+                audioRms,
+                audioReads
               });
             }, 1000)
           };
         });
         await page.waitForTimeout(seconds * 1000);
+        // On a slow runner (~2 fps) a fixed window can hold one or two shots, too few
+        // to judge output. Extend, up to 60 s, until the window holds MIN_STARTS starts.
+        const MIN_STARTS = 5;
+        run.extendedSeconds = 0;
+        while (run.extendedSeconds < 60) {
+          const starts = await page.evaluate(() => {
+            const d = window.__mobileMiniStats.data;
+            return d.length ? d[d.length - 1].poolStarts - d[0].poolStarts : 0;
+          });
+          if (starts >= MIN_STARTS) break;
+          await page.waitForTimeout(1000);
+          run.extendedSeconds++;
+        }
         run.frames = await page.evaluate(() => {
           clearInterval(window.__mobileMiniStats.timer);
+          clearInterval(window.__mobileMiniStats.reader);
           const m = window.__mobileMiniStats;
           if (m.analyser) m.analyser.disconnect();
           if (m.probeGain) m.probeGain.disconnect();
