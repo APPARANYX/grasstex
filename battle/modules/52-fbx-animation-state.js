@@ -485,7 +485,22 @@
                   : gait === 'run' || gait === 'sprint' || gait === 'walk'
                     ? gait
                     : null;
-          var family = playerFamily || familyOf(fx, clips, speed, families);
+          /* AI sprint is a real locomotion decision, not a visual guess. Retargeted
+           * rifle Run and Sprint clips have almost identical natural speeds
+           * (roughly 4.25/4.30 m/s). Speed matching plus family stickiness left
+           * most 5.5-6.7 m/s bounds displaying the ordinary Run animation.
+           * Select Sprint once actual movement has accelerated enough to play
+           * the authored clip at a sensible rate. Keep acceleration, slowdown,
+           * crouch/pistol families, and the existing possessed-player behavior. */
+          var aiSprintFamily =
+              !soldier.isPlayer &&
+              stance === 'stand' &&
+              !pistol &&
+              soldier._locomotionGait === 'sprint' &&
+              speed >= (clips.sprint0.speed || 4.5) * 0.85
+                ? 'sprint'
+                : null,
+            family = playerFamily || aiSprintFamily || familyOf(fx, clips, speed, families);
           fx.family = family;
           fx.sector = sectorOf(fx, angle);
           clip = clips[family + fx.sector];
