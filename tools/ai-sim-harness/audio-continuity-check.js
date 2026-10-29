@@ -8,6 +8,7 @@ const source = html.slice(
   html.indexOf('  var liveAudioHistory='),
   html.indexOf('  async function startBattle()')
 );
+const meterNodes = [];
 let tick,
   real = 0,
   signal = 0.02;
@@ -26,6 +27,7 @@ const ctx = {
       data.fill(signal);
     }
   }),
+  audioWorklet: { addModule: () => Promise.resolve() },
   getOutputTimestamp() {
     return { contextTime: this.currentTime, performanceTime: real };
   }
@@ -46,6 +48,15 @@ const root = {
   URLSearchParams,
   Float32Array,
   BUILD: 'test',
+  Blob: class {},
+  URL: { createObjectURL: () => 'blob:meter' },
+  AudioWorkletNode: class {
+    constructor() {
+      this.port = {};
+      meterNodes.push(this);
+    }
+    connect() {}
+  },
   navigator: { userAgent: 'fixture' },
   scene: { audioEnabled: true },
   battle,
@@ -70,7 +81,7 @@ function advance(clock = true) {
 }
 for (let i = 0; i < 12; i++) advance();
 let diag = root.__battleAudioDiagnostics__();
-assert.equal(diag.diagnosticVersion, 3);
+assert.equal(diag.diagnosticVersion, 4);
 assert.equal(diag.continuity.length, 12);
 assert.ok(diag.continuity.every(x => !x.clockStalled));
 assert.ok(diag.output.rms > 0);
@@ -97,21 +108,38 @@ diag = root.__battleAudioDiagnostics__();
 assert.equal(diag.continuity.length, 1200, 'high resolution ring is bounded');
 assert.equal(diag.silenceMarkers[0].preceding.length, 13, 'marker survives ring rotation');
 assert.equal(diag.environment.meterPosition, 'master-before-device');
-// A shot between the once-a-second record reads must not count as silence,
-// while a whole silent second still reads zero.
-signal = 0;
-for (let i = 0; i < 20; i++) advance();
-let rows = root.__battleAudioDiagnostics__().outputHistory;
-assert.equal(rows.at(-1).outputWindow.maxRms, 0, 'a silent second has no window signal');
-assert.ok(rows.at(-1).outputWindow.samples >= 9, 'window keeps every 100 ms read');
-const before = rows.length;
-for (let i = 0; i < 30 && root.__battleAudioDiagnostics__().outputHistory.length === before; i++) {
-  signal = i === 3 ? 0.02 : 0;
-  advance();
-}
-rows = root.__battleAudioDiagnostics__().outputHistory;
-assert.equal(rows.at(-1).output.rms, 0, 'last read alone misses the short shot');
-assert.ok(rows.at(-1).outputWindow.maxRms > 0.01, 'window keeps the short shot');
 console.log(
   'PASS audio continuity: clock stall, signal loss, marker retention, immutable history, bounded storage'
 );
+
+// The audio-thread meter covers every rendered chunk: a short shot between
+// once-a-second analyser reads is kept, and a silent second still reads zero.
+Promise.resolve()
+  .then(() => {
+    assert.equal(meterNodes.length, 1, 'meter worklet installed once');
+    const port = meterNodes[0].port,
+      chunk = rms => port.onmessage({ data: { frames: 4736, rms, peakBlockRms: rms } });
+    const nextRow = feed => {
+      const n = root.__battleAudioDiagnostics__().outputHistory.length;
+      for (let i = 0; i < 30 && root.__battleAudioDiagnostics__().outputHistory.length === n; i++) {
+        feed(i);
+        advance();
+      }
+      return root.__battleAudioDiagnostics__().outputHistory.at(-1);
+    };
+    signal = 0;
+    nextRow(() => chunk(0));
+    let row = nextRow(() => chunk(0));
+    assert.equal(row.audioWindow.source, 'worklet');
+    assert.equal(row.audioWindow.maxRms, 0, 'a silent second has no signal');
+    assert.ok(row.audioWindow.audioMs > 900, 'every rendered chunk is measured');
+    row = nextRow(i => chunk(i === 3 ? 0.02 : 0));
+    assert.equal(row.output.rms, 0, 'the analyser read alone misses the short shot');
+    assert.equal(row.audioWindow.maxRms, 0.02, 'the meter keeps the short shot');
+    assert.equal(row.audioWindow.chunkRms.filter(x => x > 0.01).length, 1, 'coverage counts one loud chunk');
+    console.log('PASS audio-thread meter: full chunk coverage, short shot kept, silent second reads zero');
+  })
+  .catch(error => {
+    console.error(error);
+    process.exitCode = 1;
+  });

@@ -266,7 +266,7 @@ window.BattleLoading=(function(){
   // Audio-only synthetic lab uses the same analyser route, but has no renderer or AI.
   var liveAudioHistory=[],liveAudioMeter=null,liveAudioMeterTimer=null;
   var audioContinuity=[],audioEvents=[],audioMarkers=[],lastAudioSample=null,lastAudioState='';
-  var liveAudioData=null;
+  var liveAudioData=null,liveMeterNode=null,meterChunks=[];
   function audioCopy(value){return value==null?null:JSON.parse(JSON.stringify(value));}
   function liveOutput(){
     if(!liveAudioMeter)return null;
@@ -298,10 +298,27 @@ window.BattleLoading=(function(){
       liveAudioData=new Float32Array(liveAudioMeter.fftSize);
       var tap=ctx.createGain();tap.gain.value=0;
       master.connect(liveAudioMeter);liveAudioMeter.connect(tap);tap.connect(ctx.destination);
+      // Audio-thread meter: every ~100 ms of rendered audio is measured, whatever the
+      // main thread is doing. The 2048-sample analyser read above covers only ~43 ms
+      // per timer tick, and timer ticks starve at low frame rates.
+      if(ctx.audioWorklet&&window.AudioWorkletNode&&window.Blob&&window.URL){
+        var meterCode="registerProcessor('grasstex-meter',class extends AudioWorkletProcessor{"+
+          "constructor(){super();this.b=0;this.q=0;this.f=0;this.m=0;}"+
+          "process(inputs){var ch=inputs[0]||[],n=ch.length&&ch[0].length||128,q=0;"+
+          "for(var c=0;c<ch.length;c++)for(var k=0;k<ch[c].length;k++)q+=ch[c][k]*ch[c][k];"+
+          "q/=Math.max(1,ch.length);this.q+=q;this.f+=n;var r=Math.sqrt(q/n);if(r>this.m)this.m=r;"+
+          "if(++this.b>=37){this.port.postMessage({frames:this.f,rms:Math.sqrt(this.q/this.f),peakBlockRms:this.m});"+
+          "this.b=0;this.q=0;this.f=0;this.m=0;}return true;}})";
+        ctx.audioWorklet.addModule(URL.createObjectURL(new Blob([meterCode],{type:'application/javascript'}))).then(function(){
+          liveMeterNode=new AudioWorkletNode(ctx,'grasstex-meter');
+          liveMeterNode.port.onmessage=function(e){meterChunks.push(e.data);if(meterChunks.length>600)meterChunks.shift();};
+          master.connect(liveMeterNode);liveMeterNode.connect(tap);
+        }).catch(function(e){audioEvent('meter-worklet-failed');});
+      }
       ['visibilitychange','fullscreenchange'].forEach(function(name){document.addEventListener(name,function(){audioEvent(name);});});
       ['focus','blur'].forEach(function(name){window.addEventListener(name,function(){audioEvent(name);});});
       ctx.addEventListener('statechange',function(){audioEvent('context:'+ctx.state);});
-      var lastStarts=0,lastDetailMs=-Infinity,windowMax=0,windowSum=0,windowN=0;
+      var lastStarts=0,lastDetailMs=-Infinity;
       liveAudioMeterTimer=setInterval(function(){
         var real=performance.now(),clock=ctx.currentTime,now=liveOutput(),stamp=null;
         try{stamp=ctx.getOutputTimestamp?ctx.getOutputTimestamp():null;}catch(_){}
@@ -328,16 +345,17 @@ window.BattleLoading=(function(){
 
         audioContinuity.push(sample);if(audioContinuity.length>1200)audioContinuity.shift();
         lastAudioSample=sample;
-        // A 2048-sample read covers ~43 ms; the 1 s record keeps every read since
-        // the last one so a short shot between reads is not counted as silence.
-        if(now){windowMax=Math.max(windowMax,now.rms);windowSum+=now.rms;windowN++;}
         var state=[battle.timeScale,battle.paused,ctx.state].join(':');
         if(state!==lastAudioState){audioEvent('playback-state');lastAudioState=state;}
         if(real-lastDetailMs<1000)return;
         lastDetailMs=real;
         var w=battle._weaponAudio&&battle._weaponAudio.summary(),starts=w&&w.playRequests||0;
+        var chunks=meterChunks.splice(0),frames=0,maxRms=0;
+        chunks.forEach(function(c){frames+=c.frames;maxRms=Math.max(maxRms,c.rms);});
         var record=Object.assign({},sample,{
-          outputWindow:{maxRms:windowMax,meanRms:windowN?+(windowSum/windowN).toFixed(6):0,samples:windowN},
+          audioWindow:{source:liveMeterNode?'worklet':'none',chunks:chunks.length,
+            audioMs:+(frames/ctx.sampleRate*1000).toFixed(1),maxRms:+maxRms.toFixed(6),
+            chunkRms:chunks.map(function(c){return +c.rms.toFixed(6);})},
           active:w&&w.active||0,weaponStarts:starts,deltaWeaponStarts:starts-lastStarts,
           weapon:w,weaponPools:battle._weaponAudio&&battle._weaponAudio.detail(),
           backend:window.BattleAudioBackend&&BattleAudioBackend.summary(),
@@ -345,7 +363,7 @@ window.BattleLoading=(function(){
           scheduler:window.BattleAudioScheduler&&BattleAudioScheduler.stats,
           voice:window.BattleVoiceScheduler&&BattleVoiceScheduler.summary?BattleVoiceScheduler.summary():null,
           grenade:battle._grenadeAudio,combat:battle._combatAudio,foley:battle._weaponFoley});
-        lastStarts=starts;windowMax=0;windowSum=0;windowN=0;
+        lastStarts=starts;
         liveAudioHistory.push(audioCopy(record));if(liveAudioHistory.length>240)liveAudioHistory.shift();
       },100);
     }catch(err){console.error('[AUDIO] passive output analyser failed',err);}
@@ -367,7 +385,7 @@ window.BattleLoading=(function(){
       audioFormat:window.BattleAudioFormat&&BattleAudioFormat.state,
       output:liveOutput(),outputHistory:audioCopy(liveAudioHistory),
       continuity:audioCopy(audioContinuity),events:audioCopy(audioEvents),silenceMarkers:audioCopy(audioMarkers),
-      diagnosticVersion:3,
+      diagnosticVersion:4,
       environment:{userAgent:navigator.userAgent,build:window.BATTLE_BUILD_DEPLOYED||BUILD,
         ref:window.BATTLE_REF||null,sampleRate:ae&&ae.audioContext&&ae.audioContext.sampleRate,
         baseLatency:ae&&ae.audioContext&&ae.audioContext.baseLatency,

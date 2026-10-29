@@ -120,7 +120,7 @@ fs.mkdirSync(out, { recursive: true });
           fs.writeFileSync(`${out}/${name}.json`, JSON.stringify(report, null, 2));
           const audio = report.audio,
             history = audio.outputHistory;
-          assert.equal(audio.diagnosticVersion, 3);
+          assert.equal(audio.diagnosticVersion, 4);
           assert.equal(audio.backend.name, 'howler');
           assert.equal(errors.length, 0, 'browser runtime errors');
           assert.equal(missingAudio.length, 0, 'missing audio files');
@@ -137,18 +137,46 @@ fs.mkdirSync(out, { recursive: true });
             } else slowSince = null;
           }
           assert.ok(maxSlowMs < 2000, `audio clock below 80% real-time for ${maxSlowMs}ms`);
-          // Loudest ~43 ms read in the record's second; older reports kept only the last read.
-          const rowRms = row => (row.outputWindow ? row.outputWindow.maxRms : row.output.rms);
+          // Each 1 s row carries every ~100 ms chunk of rendered audio measured on the
+          // audio thread since the previous row (audioWindow). A second counts as audible
+          // if any chunk reaches SIGNAL; a single shot fills only part of a second, so
+          // there is no per-second coverage bar, but the share of busy seconds is gated.
+          const SIGNAL = 0.00005,
+            AUDIBLE_SHARE = 0.85;
+          const busy = history.filter(row => !row.paused && row.deltaWeaponStarts >= 2);
+          const thin = busy.filter(
+            row => !row.audioWindow || row.audioWindow.source !== 'worklet' || row.audioWindow.audioMs < 500
+          );
+          assert.ok(
+            busy.length >= 20 && thin.length <= busy.length * 0.1,
+            `too few reads or starts to judge: ${busy.length} seconds with 2+ starts, ${thin.length} with under 500 ms measured`
+          );
+          const audible = row => row.audioWindow && row.audioWindow.maxRms >= SIGNAL;
           let silent = 0,
             silentMax = 0;
           for (const row of history) {
-            silent = !row.paused && row.deltaWeaponStarts >= 2 && rowRms(row) < 0.00005 ? silent + 1 : 0;
+            silent = !row.paused && row.deltaWeaponStarts >= 2 && !audible(row) ? silent + 1 : 0;
             silentMax = Math.max(silentMax, silent);
           }
+          const audibleShare = busy.filter(audible).length / busy.length;
+          const coverage =
+            busy.reduce(
+              (n, row) =>
+                n +
+                row.audioWindow.chunkRms.filter(x => x >= SIGNAL).length /
+                  Math.max(1, row.audioWindow.chunks),
+              0
+            ) / busy.length;
+          report.probe.silence = {
+            busySeconds: busy.length,
+            audibleShare,
+            meanChunkCoverage: coverage,
+            maxSilentRun: silentMax
+          };
           assert.ok(silentMax < 3, 'sustained internal silence while gunshots start');
           assert.ok(
-            history.some(x => x.deltaWeaponStarts > 0 && rowRms(x) > 0.00005),
-            'must produce audio'
+            audibleShare >= AUDIBLE_SHARE,
+            `only ${(audibleShare * 100).toFixed(0)}% of seconds with 2+ starts carried signal`
           );
           const live = audio.continuity.filter(x => !x.paused);
           const achievedSpeed =
@@ -168,6 +196,7 @@ fs.mkdirSync(out, { recursive: true });
               samples: audio.continuity.length,
               peakActive: audio.backend.peakActive,
               busyDrops: audio.weapon.droppedBusy,
+              silence: report.probe.silence,
               scheduler: audio.scheduler
             })
           );

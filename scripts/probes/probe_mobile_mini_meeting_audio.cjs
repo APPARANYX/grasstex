@@ -88,6 +88,8 @@ function summary(result) {
     framesBelow20: fps.filter(x => x < 20).length,
     shots: result.ending?.shots || 0,
     extendedSeconds: result.extendedSeconds || 0,
+    audibleStartShare: result.audibleStartShare ?? null,
+    meterMaxRms: Math.max(0, ...(result.meterRows || []).map(x => x.audioWindow?.maxRms || 0)),
     simTime: result.ending?.time || 0,
     listenerActive: result.ending?.acousticActive || 0,
     listenerCap: caps.maxActive || null,
@@ -256,29 +258,19 @@ function summary(result) {
             probeGain.connect(ctx.destination);
           }
           window.__mobileMiniStats = {
+            startedMs: performance.now(),
             analyser,
             probeGain,
             data: [],
-            // One 2048-sample read covers ~43 ms. Read every 50 ms and keep the
-            // loudest per second, so a shot between once-a-second reads still counts.
-            peakRms: null,
-            reads: 0,
-            reader: setInterval(() => {
-              if (!analyser) return;
-              const raw = new Float32Array(analyser.fftSize);
-              analyser.getFloatTimeDomainData(raw);
-              let sum = 0;
-              for (const v of raw) sum += v * v;
-              const m = window.__mobileMiniStats;
-              m.peakRms = Math.max(m.peakRms || 0, Math.sqrt(sum / raw.length));
-              m.reads++;
-            }, 50),
             timer: setInterval(() => {
-              const m = window.__mobileMiniStats,
-                audioRms = m.peakRms,
-                audioReads = m.reads;
-              m.peakRms = analyser ? 0 : null;
-              m.reads = 0;
+              let audioRms = null;
+              if (analyser) {
+                const raw = new Float32Array(analyser.fftSize);
+                analyser.getFloatTimeDomainData(raw);
+                let sum = 0;
+                for (const v of raw) sum += v * v;
+                audioRms = Math.sqrt(sum / raw.length);
+              }
               const b = window.__battle__,
                 eng = b.scene.getEngine();
               window.__mobileMiniStats.data.push({
@@ -288,18 +280,17 @@ function summary(result) {
                 heapBytes: performance.memory?.usedJSHeapSize || 0,
                 acousticActive: window.BattleListenerAcoustics?.active || 0,
                 poolStarts: b._weaponAudio?.summary?.()?.playRequests || 0,
-                audioRms,
-                audioReads
+                audioRms
               });
             }, 1000)
           };
         });
         await page.waitForTimeout(seconds * 1000);
         // On a slow runner (~2 fps) a fixed window can hold one or two shots, too few
-        // to judge output. Extend, up to 60 s, until the window holds MIN_STARTS starts.
+        // to judge output. Extend, up to 120 s, until the window holds MIN_STARTS starts.
         const MIN_STARTS = 5;
         run.extendedSeconds = 0;
-        while (run.extendedSeconds < 60) {
+        while (run.extendedSeconds < 120) {
           const starts = await page.evaluate(() => {
             const d = window.__mobileMiniStats.data;
             return d.length ? d[d.length - 1].poolStarts - d[0].poolStarts : 0;
@@ -308,9 +299,21 @@ function summary(result) {
           await page.waitForTimeout(1000);
           run.extendedSeconds++;
         }
+        // The page's audioDiag meter measures every ~100 ms of rendered audio on the
+        // audio thread; the once-a-second analyser read above covers ~43 ms of it.
+        run.meterRows = await page.evaluate(() => {
+          const from = window.__mobileMiniStats.startedMs,
+            diag = window.__battleAudioDiagnostics__ && window.__battleAudioDiagnostics__();
+          return ((diag && diag.outputHistory) || [])
+            .filter(x => x.realMs >= from && !x.paused)
+            .map(x => ({
+              realMs: x.realMs,
+              deltaWeaponStarts: x.deltaWeaponStarts,
+              audioWindow: x.audioWindow
+            }));
+        });
         run.frames = await page.evaluate(() => {
           clearInterval(window.__mobileMiniStats.timer);
-          clearInterval(window.__mobileMiniStats.reader);
           const m = window.__mobileMiniStats;
           if (m.analyser) m.analyser.disconnect();
           if (m.probeGain) m.probeGain.disconnect();
@@ -358,8 +361,26 @@ function summary(result) {
         if (run.frames.some(x => x.visibility !== 'visible')) throw new Error('tab went hidden');
         if (!run.ending?.audio || !run.ending.audio.playRequests || !run.ending.scheduler?.startedPrimary)
           throw new Error('INVALID AUDIO STRESS: no real gunshot starts despite live battle');
-        if (!run.frames.some(x => x.poolStarts > 0 && x.audioRms > 0.0005))
-          throw new Error('SILENT AUDIO: no measurable output while gunshot pool active');
+        // Judge only seconds in which the gunshot pool started a sound; a start late
+        // in a second may first be heard in the next one.
+        const rows = run.meterRows,
+          windowStarts = rows.reduce((n, x) => n + Math.max(0, x.deltaWeaponStarts || 0), 0),
+          thin = rows.filter(
+            x => !x.audioWindow || x.audioWindow.source !== 'worklet' || x.audioWindow.audioMs < 500
+          );
+        if (windowStarts < 5 || !rows.length || thin.length > rows.length * 0.1)
+          throw new Error(
+            `INSUFFICIENT SAMPLE: too few reads or starts to judge (${windowStarts} starts, ${thin.length} of ${rows.length} seconds under 500 ms measured)`
+          );
+        const startRows = rows.map((x, i) => i).filter(i => rows[i].deltaWeaponStarts > 0);
+        const heard = startRows.filter(i =>
+          [rows[i], rows[i + 1]].some(x => x && x.audioWindow.maxRms > 0.0005)
+        ).length;
+        run.audibleStartShare = heard / startRows.length;
+        if (run.audibleStartShare < 0.5)
+          throw new Error(
+            `SILENT AUDIO: only ${heard} of ${startRows.length} seconds with gunshot starts had measurable output`
+          );
         if (missingAudio.length)
           throw new Error('AUDIO ASSET FAILURE: ' + missingAudio.slice(0, 3).join('; '));
         if (backend === 'howler' && (run.ending.backend?.name !== 'howler' || !run.ending.backend?.started))
