@@ -634,7 +634,10 @@
         if (!t && playerAt) t = { x: playerAt.x, y: playerAt.y - 1.2, z: playerAt.z };
         if (!t && visualAt) t = visualAt;
         fx.aimWanted =
-          !sprintPose && !soldier.reloading && fx.hitHold <= 0 && fx.flinchHold <= 0 &&
+          !sprintPose &&
+          !soldier.reloading &&
+          fx.hitHold <= 0 &&
+          fx.flinchHold <= 0 &&
           (!!t || fx.fireHold > 0);
         fx.aimAt = sprintPose ? null : t || null;
         advance(fx, dt);
