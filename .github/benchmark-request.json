@@ -1,0 +1,1 @@
+{"benchmark":"standard","ref":"work/pin/pr683-f845a2d6","seed":"pr683-gate-20261029","seeds":60,"battle_type":"ge-defend","sim_seconds":600,"query_off":"strategicInterception=0","query_on":"strategicInterception=0","origin_agent":"claude-code","purpose":"#683 bundle vs main b913a74, rule A standard (cand)"}
