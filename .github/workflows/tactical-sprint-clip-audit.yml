@@ -7,6 +7,8 @@ on:
     paths:
       - scripts/probes/probe_skills_sprint_clip.cjs
       - .github/workflows/tactical-sprint-clip-audit.yml
+      - battle/modules/52-fbx-animation-state.js
+      - tools/ai-sim-harness/fbx-animation-state-check.js
   workflow_dispatch:
 
 permissions:
@@ -28,6 +30,7 @@ jobs:
       - name: Check probe and install Chromium
         run: |
           node --check scripts/probes/probe_skills_sprint_clip.cjs
+          node tools/ai-sim-harness/fbx-animation-state-check.js
           php -l battle_sim_local.php
           npm install --no-save --no-package-lock playwright@1.58.2
           npx playwright install --with-deps chromium
