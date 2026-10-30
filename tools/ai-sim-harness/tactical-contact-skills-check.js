@@ -322,6 +322,35 @@ test('a native FIRE action survives personal target changes without replacing it
   assert.notEqual(pinned.actionId, original.actionId);
   clean(w);
 });
+test('a clear current firing line does not repeatedly query unused alternate stances', () => {
+  const w = world(55);
+  squad(w);
+  w.b.time = 26;
+  see(w);
+  squad(w);
+  const man = w.q.members.find(s => s.role === 'rifleman');
+  w.E.commitStance(man, w.b, 'prone', 100, 'fixture-current-firing-line');
+  for (let i = 0; i < 12; i++) {
+    w.b.time += 0.15;
+    w.E.updateSoldier(man, w.b);
+  }
+  assert.equal(man.eng.state, 'engage', 'native recognition finishes before the steady-line measurement');
+  const actual = w.E.firingLineClear;
+  let alternateQueries = 0;
+  w.E.firingLineClear = function (...args) {
+    alternateQueries++;
+    return actual(...args);
+  };
+  for (let i = 0; i < 12; i++) {
+    w.b.time += 0.15;
+    w.E.updateSoldier(man, w.b);
+  }
+  assert.equal(w.S.summary(w.q).roles.find(r => r.actorId === String(man.id)).drill, 'fire');
+  assert.equal(man.eng.state, 'engage');
+  assert.equal(alternateQueries, 0, 'a valid current line needs no crouch/stand fallback rays');
+  w.E.firingLineClear = actual;
+  clean(w);
+});
 test('covered personal contact may use standing ballistic line rather than getting stuck in MARCH', () => {
   const w = world(55);
   const man = w.q.members.find(s => s.role === 'rifleman');

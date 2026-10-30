@@ -1569,6 +1569,7 @@
          position are required before Engagement considers standing. */
       canPeek =
         controlled &&
+        !fighting &&
         !suppressed &&
         combatThreat(s.target) &&
         dist(p.x, p.z, posOf(s.target).x, posOf(s.target).z) <= SA().engageRange(s) &&
