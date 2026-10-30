@@ -210,6 +210,11 @@ native execution, while subsequent ordinary choices return to the controller. Al
 release only their own owner handles on cancellation; mission, roster, retreat, possession and
 restart preserve the controller lifecycle contract. No automatic station selection or directional
 covered bounds are introduced.
+Contact-action identity follows the requested drill and, for suppression only, its assigned point.
+Personal target changes stay with the native executor's target, recognition and firing gates; they
+do not replace an otherwise unchanged action. A suppression candidate cannot cancel a FIRE action
+that never requested that point. Actual drill changes and changed suppression points still release
+the old owner resources before replacement.
 `BattleTacticalMarchProvider.summary(sim)` lists per squad the leg, each man's action and owner
 stage, and why any man was stopped. Without the flag the module registers nothing.
 

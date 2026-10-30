@@ -277,6 +277,40 @@ test('OPEN publication stays stable through changing reports so personal adoptio
   assert.equal(w.E.fireAuthorized(s, w.b), true);
   clean(w);
 });
+test('a native FIRE action survives personal target changes without replacing its resources', () => {
+  const w = world();
+  squad(w);
+  w.b.time = 26;
+  see(w);
+  squad(w);
+  micro(w);
+  const man = w.q.members.find(s => s.role === 'rifleman');
+  const original = w.S.summary(w.q).roles.find(r => r.actorId === String(man.id));
+  assert.equal(original.drill, 'fire');
+  let shots = 0;
+  w.b.onFire = s => {
+    if (s === man) shots++;
+  };
+  for (let i = 0; i < 24; i++) {
+    w.b.time += 0.15;
+    see(w, w.ge.members[i % w.ge.members.length]);
+    squad(w);
+    micro(w);
+    man.fireCooldown = Math.max(0, (man.fireCooldown || 0) - 0.15);
+    const role = w.S.summary(w.q).roles.find(r => r.actorId === String(man.id));
+    assert.equal(role.drill, 'fire');
+    assert.equal(role.actionId, original.actionId, 'the owner reads the current personal target');
+  }
+  assert.ok(shots > 0, 'stable actions still discharge through native firing gates');
+  man.suppressedUntil = w.b.time + 2;
+  w.b.time += 0.15;
+  squad(w);
+  micro(w);
+  const pinned = w.S.summary(w.q).roles.find(r => r.actorId === String(man.id));
+  assert.equal(pinned.drill, 'pinned', 'actual role changes still interrupt immediately');
+  assert.notEqual(pinned.actionId, original.actionId);
+  clean(w);
+});
 test('covered personal contact may use standing ballistic line rather than getting stuck in MARCH', () => {
   const w = world(55);
   const man = w.q.members.find(s => s.role === 'rifleman');
@@ -321,10 +355,17 @@ test('covered personal contact may use standing ballistic line rather than getti
     true,
     'the personal target has a legitimate standing ballistic line before stance change'
   );
+  const originalAction = w.S.summary(w.q).roles.find(r => r.actorId === String(man.id)).actionId;
   for (let i = 0; i < 12; i++) {
     w.b.time += 0.15;
+    w.TC.dispatch(w.b, w.q, 'fireAndMovement', { underFire: 0 });
     w.TC.dispatch(w.b, w.q, 'engagement', man);
     w.E.updateSoldier(man, w.b);
+    assert.equal(
+      w.S.summary(w.q).roles.find(r => r.actorId === String(man.id)).actionId,
+      originalAction,
+      'an unrequested suppression candidate must not replace a FIRE action'
+    );
   }
   assert.equal(man.prone, false, 'only the existing Engagement stance owner raises him');
   assert.equal(man.tacticalCrouch, false, 'he rises high enough for the actual firing line');
@@ -409,6 +450,27 @@ test('a fresh squadmate SEEN sector authorizes real area suppression from covere
   );
   assert.ok(realShots > 0, 'reported-sector suppressor physically discharges rounds from cover');
   assert.equal(shooter.target, null, 'area fire never forges a direct target');
+  const originalAction = role.actionId;
+  w.target.root.position.x += 5;
+  w.b.time += 0.15;
+  shooter._beliefs = null;
+  see(w);
+  shooter.target = null;
+  shooter._beliefs = { byKey: {} };
+  squad(w);
+  w.TC.dispatch(w.b, w.q, 'engagement', shooter);
+  const updated = w.S.summary(w.q).roles.find(r => r.actorId === String(shooter.id));
+  assert.equal(updated.drill, 'suppress');
+  assert.notDeepEqual(
+    updated.reportedPoint,
+    role.reportedPoint,
+    'new observation changes the assigned sector'
+  );
+  assert.notEqual(
+    updated.actionId,
+    originalAction,
+    'changed native suppression parameters replace the action'
+  );
   A.canSuppress = actual;
   A.areaFire = actualAreaFire;
   clean(w);

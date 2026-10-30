@@ -82,6 +82,13 @@
     } else out.flag = 'observe';
     return out;
   }
+  /* Default-on, independent port of #644: cap stress paid by one uninterrupted
+     suppression spell. ?pinNerve=0 restores the uncapped legacy rule for A/B tests.
+     Pin duration, shooting, stance, movement and suppression ownership are unchanged. */
+  var PIN_NERVE = !(
+    typeof location !== 'undefined' &&
+    /[?&]pinNerve=(?:0|off|false)(?:&|#|$)/i.test(location.search || '')
+  );
   var MODE = parse(typeof location !== 'undefined' ? location.search : '');
 
   /* ---- who reads stress, declared ------------------------------------------------------------
@@ -499,6 +506,7 @@
       nerve: nerveOf(s),
       wounds: 0,
       pinnedUntil: 0,
+      pinSpell: 0,
       incoming: 0,
       incomingRounds: 0,
       lastIncomingAt: -99,
@@ -731,8 +739,18 @@
       m.wounds += woundsTaken;
     }
     var suppressed = m.pinnedUntil > now;
+    if (!suppressed) m.pinSpell = 0;
     if (suppressed) {
-      g = (SUPPRESSED_RATE * dt) / m.nerve;
+      var paid = dt;
+      if (PIN_NERVE) {
+        /* 1.25 * normal suppressive hold (1.625 s at the current 1.3-s base).
+           Continued fire still pins, but does not repeatedly bill the same
+           uninterrupted spell to the morale system. Other stressors still count. */
+        var cap = 1.25 * ((root.SquadAI && root.SquadAI.SUPPRESSION_TIME) || 1.3);
+        paid = Math.max(0, Math.min(dt, cap - m.pinSpell));
+        m.pinSpell += dt;
+      }
+      g = (SUPPRESSED_RATE * paid) / m.nerve;
       m.gained.suppression += g;
       recordGain(m, now, 'suppression', g);
       gain += g;
