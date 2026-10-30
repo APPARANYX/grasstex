@@ -38,7 +38,7 @@ const near = (a, b, tol, what) =>
 function world(opts) {
   opts = opts || {};
   H.resetIds();
-  const r = H.bootstrap();
+  const r = opts.search ? H.bootstrap({ search: opts.search }) : H.bootstrap();
   r.BattleModules.unitsFor = b => (b._roster.us || []).concat(b._roster.ge || []);
   if (opts.mode) r.BattleSoldierMind.configure(opts.mode);
   const b = H.makeBattle(r, { seed: SEED, obstacles: opts.obstacles || [] });
@@ -133,6 +133,53 @@ test('nerve is a hash of the man, never the RNG: the same man has the same nerve
   assert.ok(new Set(all.map(v => v.toFixed(4))).size > 3, 'and men differ');
   const sgt = a.us.members.find(s => s.role === 'sergeant');
   assert.ok(a.M.of(sgt).nerve > 1.15 * 0.88 - 1e-9, 'the leader carries his +15% into the band');
+});
+
+test('pinNerve caps only the incremental stress from an uninterrupted pin; default is unchanged', () => {
+  function spell(search) {
+    const ctx = world({ search }),
+      s = man(ctx.us, 'rifleman');
+    run(ctx, s, 0.15);
+    ctx.S.pin(s, ctx.b, 6.3);
+    const pinUntil = s.suppressedUntil;
+    run(ctx, s, 6);
+    return {
+      contribution: ctx.M.of(s).gained.suppression * ctx.M.of(s).nerve,
+      pinUntil,
+      now: ctx.b.time,
+      m: ctx.M.of(s)
+    };
+  }
+  const baseline = spell('?stressAct=0'),
+    disabled = spell('?stressAct=0&pinNerve=0'),
+    capped = spell('?stressAct=0&pinNerve=1'),
+    cap = 1.25 * 1.3;
+  near(baseline.contribution, 0.05 * 6, 1e-6, 'uncapped rate');
+  near(disabled.contribution, baseline.contribution, 1e-9, 'explicit off is the legacy default');
+  near(capped.contribution, 0.05 * cap, 1e-6, 'capped suppression increment');
+  assert.equal(capped.pinUntil, baseline.pinUntil, 'the pin duration is unchanged');
+  assert.ok(capped.pinUntil > capped.now, 'the capped soldier remains physically pinned');
+  assert.ok(capped.contribution < baseline.contribution, 'only psychological cost is reduced');
+});
+
+test('pinNerve starts a fresh stress budget only after suppression actually ends', () => {
+  const ctx = world({ search: '?stressAct=0&pinNerve=1' }),
+    s = man(ctx.us, 'rifleman');
+  run(ctx, s, 0.15);
+  ctx.S.pin(s, ctx.b, 2.5);
+  run(ctx, s, 2.1);
+  ctx.S.pin(s, ctx.b, 5);
+  run(ctx, s, 4.8);
+  const m = ctx.M.of(s),
+    first = m.gained.suppression;
+  near(first * m.nerve, 0.05 * 1.25 * 1.3, 1e-6, 'repinning without a quiet gap stays one spell');
+  assert.ok(m.pinSpell > 6, 'continuous pin time is tracked without resetting');
+
+  run(ctx, s, 0.3);
+  assert.equal(m.pinSpell, 0, 'a genuinely ended pin resets the current spell');
+  ctx.S.pin(s, ctx.b, 1.2);
+  run(ctx, s, 1.05);
+  near((m.gained.suppression - first) * m.nerve, 0.05 * 1.05, 1e-6, 'new pin pays new stress');
 });
 
 test('a spell of suppression adds stress at its rate, and it decays back with no help', () => {
