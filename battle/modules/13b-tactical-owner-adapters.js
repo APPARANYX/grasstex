@@ -91,6 +91,24 @@
   }
 
   var CAPS = {
+    'maneuver.cover': {
+      request: function (req, sim) {
+        var sq = squadOf(sim, req),
+          Q = root.BattleSquadStability,
+          task = Q && Q.controllerBound && Q.controllerBound.begin(sq, sim, req.params);
+        return !!task && keep(req, sim, { squad: sq, task: task });
+      },
+      stage: function (h) {
+        var live = root.BattleSquadStability.controllerBound.current(h.squad, h.sim) === h.task;
+        mark(h, live ? 'executing' : 'cancelled', live ? 'covering-window' : 'bound-window-ended');
+      },
+      cancel: function (h) {
+        return root.BattleSquadStability.controllerBound.end(h.squad, h.sim, h.task);
+      },
+      release: function (h) {
+        return root.BattleSquadStability.controllerBound.end(h.squad, h.sim, h.task);
+      }
+    },
     'fire.control': {
       request: function (req, sim) {
         var Q = root.BattleSquadStability,
@@ -121,7 +139,14 @@
             s &&
             E &&
             E.controllerCombat &&
-            E.controllerCombat.start(s, sim, req.capability === 'combat.march' ? 'march' : req.params.drill);
+            (req.capability === 'combat.bound'
+              ? E.controllerCombat.bound(s, sim, req.params.point, req.actionId)
+              : E.controllerCombat.start(
+                  s,
+                  sim,
+                  req.capability === 'combat.march' ? 'march' : req.params.drill,
+                  req.params.point
+                ));
         return !!task && keep(req, sim, { man: s, task: task });
       },
       stage: function (h) {
@@ -323,6 +348,7 @@
   };
 
   CAPS['combat.march'] = CAPS['combat.contact'];
+  CAPS['combat.bound'] = CAPS['combat.contact'];
   function request(req, sim) {
     var c = CAPS[req.capability];
     if (!c || handles.has(req)) return false;

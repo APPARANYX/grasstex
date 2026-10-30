@@ -7,6 +7,7 @@ on:
       - battle/engagement.js
       - battle/modules/13c-tactical-march-provider.js
       - battle/modules/13d-tactical-contact-skills.js
+      - battle/modules/13e-tactical-covered-maneuver.js
       - scripts/probes/probe_tactical_contact.cjs
       - battle/modules/19-engagement-cover-positions.js
       - battle/modules/19b-engagement-fire-stance.js
@@ -106,7 +107,6 @@ jobs:
     uses: ./.github/workflows/deploy-50webs-preview.yml
     with:
       ref: ${{ github.event.pull_request.head.sha || github.sha }}
-      # A commit-pinned upload names its stable slot: the PR's, else the branch's.
       preview_slug: ${{ github.event.pull_request.number && format('pr-{0}', github.event.pull_request.number) || github.ref_name }}
     secrets: inherit
 

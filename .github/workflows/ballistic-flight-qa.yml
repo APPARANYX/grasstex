@@ -1,0 +1,62 @@
+name: Ballistic Flight and Combat Tempo 679
+on:
+  pull_request:
+    paths:
+      - 'battle/modules/14-z-ballistic-raycast.js'
+      - 'battle/modules/14-zz-projectile-flight.js'
+      - 'battle/modules/11-soldier-individuality.js'
+      - 'battle/modules/14-wound-model.js'
+      - 'battle/battle-sim.js'
+      - 'scripts/probes/probe_flight_meeting.cjs'
+      - 'tools/ai-sim-harness/projectile-flight-check.js'
+      - '.github/workflows/ballistic-flight-qa.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  physical-ballistics:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Static and pure ballistics QA
+        run: |
+          node --check battle/modules/14-z-ballistic-raycast.js
+          node --check battle/modules/14-zz-projectile-flight.js
+          node --check battle/modules/11-soldier-individuality.js
+          node --check scripts/probes/probe_flight_meeting.cjs
+          node --check tools/ai-sim-harness/projectile-flight-check.js
+          node tools/ai-sim-harness/projectile-flight-check.js
+          npx --yes prettier@3.3.3 --check battle/modules/14-z-ballistic-raycast.js battle/modules/14-zz-projectile-flight.js battle/modules/11-soldier-individuality.js battle/battle-sim.js scripts/probes/probe_flight_meeting.cjs tools/ai-sim-harness/projectile-flight-check.js
+      - name: Install native browser
+        run: |
+          php -l battle_sim_local.php
+          npm install --no-save --no-package-lock playwright@1.58.2
+          npx playwright install --with-deps chromium
+      - name: Start native PHP sandbox
+        run: |
+          mkdir -p /tmp/flight-mini-site
+          ln -s "$GITHUB_WORKSPACE" /tmp/flight-mini-site/grasstex
+          PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8765 -t /tmp/flight-mini-site > /tmp/flight-mini-php.log 2>&1 &
+          for i in $(seq 1 35); do
+            if curl -fsS 'http://127.0.0.1:8765/grasstex/battle_sim_local.php?seed=flight-health' >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          tail -100 /tmp/flight-mini-php.log
+          exit 1
+      - name: Run 300m/150m paired hitscan and flight live US/GE mini meetings
+        env:
+          FLIGHT_MEETING_SECONDS: '210'
+          FLIGHT_MEETING_SEEDS: 'mini-meeting-676-001,mini-meeting-676-002'
+        run: node scripts/probes/probe_flight_meeting.cjs
+      - if: failure()
+        run: tail -100 /tmp/flight-mini-php.log || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ballistic-flight-679-evidence
+          path: reports/mini-flight-tempo/
+          if-no-files-found: warn
+          retention-days: 14

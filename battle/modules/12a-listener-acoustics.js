@@ -13,14 +13,46 @@
     typeof location !== 'undefined' ? location.search || '' : ''
   );
   var quality = match ? match[1] : 'standard';
+  // A/B admission only. The existing 24/36 filter slots and mix remain unchanged.
+  // prettier-ignore
+  var priorityEnabled = typeof location !== 'undefined' &&
+    /(?:^|[?&])acousticPriority=1(?:&|$)/.test(location.search || '');
+  // Optional anti-churn experiment. The current Run D (no param) remains identical.
+  var holdMatch = /(?:^|[?&])acousticHoldMs=(\d+)(?:&|$)/.exec(
+    typeof location !== 'undefined' ? location.search || '' : ''
+  );
+  var acousticHoldMs = holdMatch ? Math.max(0, Math.min(500, +holdMatch[1] || 0)) : 0;
   var sim = null,
     entries = [],
     running = false,
     wet = null,
     serial = 0;
   var TICK_MS = quality === 'high' ? 125 : 200;
-  var MAX_ACTIVE = quality === 'high' ? 36 : 24;
-  var stats = { prepared: 0, occluded: 0, filtered: 0, degraded: 0, sampled: 0 };
+  // 50v50 native-browser stress established headroom at 96/192 records.
+  // Mobile starts at the same full budget; reduce only after mobile Mini Map evidence.
+  var defaultActive = quality === 'high' ? 192 : 96;
+  var slotsMatch = /(?:^|[?&])acousticSlots=(\d+)(?:&|$)/.exec(
+    typeof location !== 'undefined' ? location.search || '' : ''
+  );
+  // Explicit A/B override only, never the production default. A large WebAudio
+  // voice pool does not require a correspondingly large per-source raycast budget.
+  var MAX_ACTIVE = slotsMatch ? Math.max(1, Math.min(192, +slotsMatch[1] || defaultActive)) : defaultActive;
+  var stats = {
+    prepared: 0,
+    occluded: 0,
+    filtered: 0,
+    degraded: 0,
+    sampled: 0,
+    skippedCapacity: 0,
+    replacedCapacity: 0,
+    deniedHold: 0,
+    wetSendRamps: 0,
+    acousticTicks: 0,
+    acousticTickTotalMs: 0,
+    acousticTickMaxMs: 0,
+    trackedPlayingOnTick: 0,
+    trackedIdleOnTick: 0
+  };
   function now() {
     return typeof performance !== 'undefined' ? performance.now() : Date.now();
   }
@@ -106,7 +138,9 @@
       convolver.buffer = impulse;
       output.gain.value = 0.23;
       convolver.connect(output);
-      var ae = BABYLON.Engine && BABYLON.Engine.audioEngine;
+      var ae = root.BattleAudioBackend
+        ? root.BattleAudioBackend.engine()
+        : BABYLON.Engine && BABYLON.Engine.audioEngine;
       output.connect(trackNode || (ae && ae.masterGain) || ctx.destination);
       wet = { ctx: ctx, input: convolver };
     } catch (_) {
@@ -199,15 +233,37 @@
     if (!p || !L) return;
     var d = distance(p, L),
       obstructionAmount = obstruction(p, L, d);
-    var distant = cap((d - 12) / 340, 0, 1);
     var isVoice = e.kind === 'voice',
       isTail = e.kind === 'tail';
+    // Speech is audible over a much shorter range than gunfire. Let its
+    // high frequencies fall away within that range, independently of gain.
+    var distant = isVoice ? cap((d - 8) / 72, 0, 1) : cap((d - 12) / 340, 0, 1);
     var hz = (isVoice ? 14000 : 19000) * (1 - 0.8 * distant);
     hz *= 1 - (isVoice ? 0.77 : 0.68) * obstructionAmount;
     hz = cap(hz, isVoice ? 550 : 900, 20000);
     var gain = e.gain * (1 - (isVoice ? 0.62 : 0.47) * obstructionAmount);
     stats.sampled++;
     if (obstructionAmount > 0) stats.occluded++;
+    if (e.sound.setAcousticProfile) {
+      var ae = root.BattleAudioBackend.engine(),
+        bus = makeWet(ae.audioContext, ae.masterGain),
+        indoor = nearBuilding(p) || nearBuilding(L),
+        amount = indoor
+          ? quality === 'high'
+            ? 0.28
+            : 0.12
+          : isTail
+            ? 0.045
+            : quality === 'high'
+              ? 0.065
+              : 0.025;
+      var hadChain = !!e.sound._acoustics;
+      e.sound.setVolume(gain);
+      if (e.sound.setAcousticProfile(hz, amount, bus && bus.input, MAX_ACTIVE)) {
+        if (!hadChain) stats.filtered++;
+      } else stats.degraded++;
+      return;
+    }
     filterFor(e);
     try {
       if (e.sound.setVolume) e.sound.setVolume(gain);
@@ -233,7 +289,9 @@
       remain = [];
     for (var i = 0; i < entries.length; i++) {
       var e = entries[i];
+      if (e.sound && e.sound.setAcousticProfile && e.sound.isPlaying === false) continue;
       if (e.until <= t) {
+        if (e.sound && e.sound.neutralizeAcoustics) e.sound.neutralizeAcoustics();
         if (e.send) {
           try {
             e.send.gain.value = 0;
@@ -241,11 +299,17 @@
         }
         continue;
       }
+      if (e.sound && e.sound.isPlaying === true) stats.trackedPlayingOnTick++;
+      else stats.trackedIdleOnTick++;
       // 5Hz standard / 8Hz high; no per-frame traversal or per-projectile raycast.
       sample(e);
       remain.push(e);
     }
     entries = remain;
+    stats.acousticTicks++;
+    var elapsed = Math.max(0, now() - t);
+    stats.acousticTickTotalMs += elapsed;
+    stats.acousticTickMaxMs = Math.max(stats.acousticTickMaxMs, elapsed);
     if (entries.length) wake();
   }
   function wake() {
@@ -253,6 +317,43 @@
     running = true;
     setTimeout(tick, TICK_MS);
   }
+  // prettier-ignore
+  function importance(source, kind, gain, scene) {
+    var p = point(typeof source === 'function' ? source() : source),
+      L = listener(scene);
+    if (!p || !L) return 0;
+    // Voice clarity first, near weapons second, distant/echo sources later.
+    // The existing attenuated gain is already distance-aware; use a modest
+    // extra distance factor so sources at similar gain have stable ordering.
+    var weight = kind === 'voice' ? 5 : kind === 'gun' ? 3 : kind === 'gunDistant' ? 1 : 0.6;
+    return (weight * Math.max(0, finite(gain, 0))) / (1 + distance(p, L) / 140);
+  }
+  // prettier-ignore
+  function neutralize(e, rampWet) {
+    if (!e || !e.sound) return;
+    if (e.sound.neutralizeAcoustics) { e.sound.neutralizeAcoustics(); return; }
+    var f = e.sound._battleAcousticFilter || e.filter,
+      send = e.sound._battleAcousticSend || e.send;
+    try {
+      // Do not detach the active source or retarget an occupied Babylon Sound.
+      if (f) f.frequency.setTargetAtTime(20000, f.context.currentTime, 0.025);
+      if (send) {
+        var param = send.gain;
+        if (rampWet && param && typeof param.linearRampToValueAtTime === 'function') {
+          var t = send.context && send.context.currentTime;
+          if (typeof t === 'number' && isFinite(t)) {
+            if (typeof param.cancelScheduledValues === 'function') param.cancelScheduledValues(t);
+            if (typeof param.setValueAtTime === 'function') param.setValueAtTime(param.value, t);
+            param.linearRampToValueAtTime(0, t + 0.008);
+            stats.wetSendRamps++;
+          } else param.value = 0;
+        } else if (param) param.value = 0;
+      }
+    } catch (_) {
+      try { if (send) send.gain.value = 0; } catch (_) {}
+    }
+  }
+  // prettier-ignore
   function prepare(sound, source, kind, baseGain, scene) {
     if (quality === 'off' || !sound || !scene) return false;
     var e = null;
@@ -263,18 +364,41 @@
       }
     if (!e) {
       if (entries.length >= MAX_ACTIVE) {
-        // An already-filtered pooled Sound may be replayed after its slot expired.
-        // Restore its dry frequency and mute its wet send rather than leaving stale occlusion.
-        if (sound._battleAcousticFilter) {
-          try {
-            var f = sound._battleAcousticFilter;
-            f.frequency.setTargetAtTime(20000, f.context.currentTime, 0.025);
-            if (sound._battleAcousticSend) sound._battleAcousticSend.gain.value = 0;
-          } catch (_) {}
+        if (priorityEnabled) {
+          // Only replace the lowest-ranked *active acoustic record*, not its
+          // actual playing Sound. The evicted sound continues safely in dry mode.
+          var newRank = importance(source, kind, baseGain, scene),
+            lowest = Infinity,
+            victim = -1;
+          var held = 0, tNow = now();
+          for (var j = 0; j < entries.length; j++) {
+            var old = entries[j],
+              rank = importance(old.source, old.kind, old.gain, old.scene);
+            if (acousticHoldMs && tNow - (old.admittedAt || 0) < acousticHoldMs) {
+              held++;
+              continue;
+            }
+            if (rank < lowest) {
+              lowest = rank;
+              victim = j;
+            }
+          }
+          // Preserve the existing 20% hysteresis, adding a minimum residence
+          // only for acousticHoldMs A/B. The hold does not suppress playback.
+          if (victim >= 0 && newRank > lowest * 1.2) {
+            neutralize(entries[victim], true);
+            entries.splice(victim, 1);
+            stats.replacedCapacity++;
+          } else if (held) stats.deniedHold++;
         }
-        return false;
+        if (entries.length >= MAX_ACTIVE) {
+          stats.skippedCapacity++;
+          // Replayed pooled sounds must not retain stale filters or wet sends.
+          neutralize({ sound: sound });
+          return false;
+        }
       }
-      e = { sound: sound };
+      e = { sound: sound, admittedAt: now() };
       entries.push(e);
     }
     e.source = source;
@@ -295,6 +419,7 @@
     // An already queued presentation must not carry a previous battle's acoustic source.
     for (var i = 0; i < entries.length; i++) {
       var e = entries[i];
+      if (e.sound && e.sound.neutralizeAcoustics) e.sound.neutralizeAcoustics();
       if (e.send) {
         try {
           e.send.gain.value = 0;
@@ -317,6 +442,11 @@
   }
   root.BattleListenerAcoustics = {
     quality: quality,
+    maxActive: MAX_ACTIVE,
+    defaultMaxActive: defaultActive,
+    tickIntervalMs: TICK_MS,
+    priorityEnabled: priorityEnabled,
+    acousticHoldMs: acousticHoldMs,
     bind: bind,
     prepare: prepare,
     reset: reset,

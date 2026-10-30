@@ -22,8 +22,9 @@ function test(name, fn) {
   n++;
   console.log('PASS ' + name);
 }
-function load(search) {
+function load(search, engine) {
   const r = { BATTLE_AUDIO_MANIFEST: MANIFEST };
+  if (engine) r.BABYLON = { Engine: { audioEngine: engine } };
   if (search != null) r.location = { search };
   new Function('window', 'globalThis', 'location', CORE)(r, r, r.location);
   new Function('window', 'globalThis', 'location', SRC)(r, r, r.location);
@@ -78,7 +79,7 @@ test('a tail waits for TAIL_QUIET cyclic intervals of quiet, never less than 0.1
 });
 
 /* A battle of one or two men, a camera, a clock and fake voices that count what plays. */
-function rig(men, camAt) {
+function rig(men, camAt, opts = {}) {
   let t = 0,
     steps = [],
     timers = [],
@@ -123,7 +124,7 @@ function rig(men, camAt) {
       inModule = false;
     }
   };
-  F.install(sim, {
+  (opts.engine ? load(undefined, opts.engine) : F).install(sim, {
     voices,
     now: () => t,
     later: (ms, fn) => timers.push({ at: t + ms, fn }),
@@ -132,6 +133,7 @@ function rig(men, camAt) {
   });
   return {
     sim,
+    voices,
     men: proxied,
     played,
     moduleWrites,
@@ -193,6 +195,20 @@ test("a reload near the camera plays the model's stages in order, a far one play
   far.advance(3000);
   assert.deepEqual(far.played, []);
 });
+test('reload handling waits for the authoritative future start and keeps the full stage spacing', () => {
+  const r = rig([man(1, 'kar98k', 'rifle')], { x: 0, y: 1.6, z: 0 });
+  r.advance(16);
+  r.men[0].reloading = true;
+  r.men[0].reloadStart = 0.8;
+  r.men[0].reloadUntil = 3.3;
+  r.advance(800);
+  assert.deepEqual(r.played, [], 'no reload handling during the last-shot settling interval');
+  r.advance(400);
+  assert.deepEqual(r.played, ['reloadBoltOpen']);
+  r.advance(2500);
+  assert.deepEqual(r.played, ['reloadBoltOpen', 'reloadStripperClip', 'reloadBoltClose']);
+});
+
 test('a man killed mid-reload plays no further stages', () => {
   const r = rig([man(3, 'kar98k', 'rifle')], { x: 0, y: 1.6, z: 0 });
   r.advance(16);
@@ -276,5 +292,24 @@ test('unplayed handling extras and shots are not preloaded by the foley module',
     assert.equal(F.UNPLAYED[action], true, action);
   for (const action of ['fireTail', 'reloadMagIn', 'stoppageClick', 'bipodDeploy', 'clipPing', 'boltCycle'])
     assert.ok(!F.UNPLAYED[action], action);
+});
+test('foley checks context and clip readiness when its propagation timer arrives', () => {
+  const engine = { unlocked: true, audioContext: { state: 'running' } };
+  const r = rig([man(1, 'kar98k', 'rifle')], { x: 0, y: 1.6, z: 0 }, { engine });
+  r.fire(r.men[0]);
+  engine.audioContext.state = 'suspended';
+  r.advance(1000);
+  assert.equal(r.played.length, 0);
+  assert.ok(r.sim._weaponFoley.droppedUnavailable > 0);
+  engine.audioContext.state = 'running';
+  for (const pool of Object.values(r.voices)) for (const v of pool) v.sound.isReady = () => false;
+  r.fire(r.men[0]);
+  r.advance(1000);
+  assert.equal(r.played.length, 0);
+  assert.ok(r.sim._weaponFoley.droppedBusyOrNotReady > 0);
+  for (const pool of Object.values(r.voices)) for (const v of pool) v.sound.isReady = () => true;
+  r.fire(r.men[0]);
+  r.advance(1000);
+  assert.deepEqual(r.played, ['boltCycle']);
 });
 console.log(`weapon-foley-audio-check: ${n} checks passed`);

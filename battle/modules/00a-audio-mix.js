@@ -18,8 +18,16 @@
     foley: 'effects',
     combat: 'effects'
   };
-  var legacy =
-    typeof location !== 'undefined' && /(?:^|[?&])audioMix=legacy(?:&|$)/.test(location.search || '');
+  var search = typeof location !== 'undefined' ? location.search || '' : '';
+  var legacy = /(?:^|[?&])audioMix=legacy(?:&|$)/.test(search);
+  /* Main keeps its established soundtrack. Dense new-controller fire can
+     sum many otherwise safe one-shots into a clipped bus. Keep an exact
+     ?audioMix=main comparison; ?audioMix=legacy bypasses routing entirely. */
+  var independent = !!(root.BattleAudioBackend && root.BattleAudioBackend.independent);
+  var tacticalSafety =
+    !independent &&
+    (/(?:^|[?&])tacticalController=new(?:&|$)/.test(search) || /(?:^|[?&])fullMix=1(?:&|$)/.test(search)) &&
+    !/(?:^|[?&])audioMix=(?:legacy|main)(?:&|$)/.test(search);
   var defaults = { master: 100, weapons: 100, voices: 100, effects: 100 };
   var settings = {};
   var sceneLimiter = typeof WeakMap !== 'undefined' ? new WeakMap() : null;
@@ -71,13 +79,14 @@
     if (!Number.isFinite(base) || base <= 0) return 0;
     if (legacy) return base;
     var category = CATEGORIES[kind] || 'effects';
-    return Math.min(1, (((base * (MIX[kind] || 1) * settings.master) / 100) * settings[category]) / 100);
+    var single = (((base * (MIX[kind] || 1) * settings.master) / 100) * settings[category]) / 100;
+    return Math.min(1, tacticalSafety ? single * 0.78 : single);
   }
   /* The SoundTrack bus already has a direct connection to masterGain in
      Babylon 9. Disconnect only that connection and reinsert one compressor
      into the same route; leave each spatial Sound's graph intact. */
   function install(scene) {
-    if (!scene || !sceneLimiter || legacy) return false;
+    if (!scene || !sceneLimiter || legacy || independent) return false;
     if (sceneLimiter.has(scene)) return true;
     try {
       var ae = root.BABYLON && root.BABYLON.Engine && root.BABYLON.Engine.audioEngine,
@@ -93,11 +102,11 @@
       )
         return false;
       var compressor = ctx.createDynamicsCompressor();
-      compressor.threshold.value = -16;
-      compressor.knee.value = 12;
-      compressor.ratio.value = 2.5;
-      compressor.attack.value = 0.006;
-      compressor.release.value = 0.18;
+      compressor.threshold.value = tacticalSafety ? -22 : -16;
+      compressor.knee.value = tacticalSafety ? 6 : 12;
+      compressor.ratio.value = tacticalSafety ? 9 : 2.5;
+      compressor.attack.value = tacticalSafety ? 0.003 : 0.006;
+      compressor.release.value = tacticalSafety ? 0.12 : 0.18;
       compressor.connect(master);
       try {
         track.disconnect(master);
@@ -120,7 +129,8 @@
     }
   }
   function ensureLimiter(scene) {
-    if (!scene || !sceneLimiter || legacy || sceneLimiter.has(scene) || pending.has(scene)) return;
+    if (!scene || !sceneLimiter || legacy || independent || sceneLimiter.has(scene) || pending.has(scene))
+      return;
     if (install(scene)) return;
     if (typeof setTimeout !== 'function') return;
     var attempts = 0;
@@ -148,6 +158,7 @@
     ensureLimiter: ensureLimiter,
     stats: stats,
     legacy: !!legacy,
+    tacticalSafety: !!tacticalSafety,
     presets: MIX
   };
 })(typeof window !== 'undefined' ? window : globalThis);

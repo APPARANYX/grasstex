@@ -21,7 +21,11 @@
     SHARED_HOLD = 1.8,
     SHARED_RESET_QUIET = 4.5,
     SHARED_REACT_COOLDOWN = 4.5,
-    URGENT_TTL = 0.55;
+    URGENT_TTL = 0.55,
+    // On by default (Ivan 10-30); ?firstContactResponse=0 restores the old response.
+    FIRST_CONTACT_RESPONSE = !/[?&]firstContactResponse=0(?:&|#|$)/.test(
+      (root.location && root.location.search) || ''
+    );
   function point(p) {
     return p && isFinite(+p.x) && isFinite(+p.z) ? { x: +p.x, z: +p.z } : null;
   }
@@ -70,6 +74,8 @@
         lateralCoverRejects: 0,
         urgentCoverStarts: 0,
         urgentCoverArrivals: 0,
+        suppressedCoverStarts: 0,
+        unsuppressedIncomingCoverStarts: 0,
         sharedContactReactions: 0,
         sharedContactRepeatBlocks: 0,
         sharedContactCooldownBlocks: 0,
@@ -119,6 +125,14 @@
     if (s && s.target && (!own || own.combatThreat)) return s.target;
     var c = contact(s, b),
       seen = D && c && c.unit ? D(c.unit) : null;
+    /* In the historical-response arm, a reported contact is a recorded
+       sector, never the current position of another actor's enemy unit.
+       Personal visual acquisition may still use the live visible target. */
+    if (FIRST_CONTACT_RESPONSE) {
+      if (c && (!c.unit || !seen || seen.combatThreat) && isFinite(+c.x) && isFinite(+c.z))
+        return { root: { position: { x: +c.x, y: 0, z: +c.z } } };
+      return null;
+    }
     if (c && c.unit && (!seen || seen.combatThreat)) return c.unit;
     /* A location-only contact is still an unknown threat sector. A known visible non-threat is not. */
     if (c && !c.unit && isFinite(+c.x) && isFinite(+c.z))
@@ -136,6 +150,10 @@
     var d = Math.abs(a - b) % 8;
     return Math.min(d, 8 - d);
   }
+  function reportCover(s, b, stage, why) {
+    var O = root.BattleFirstContactObserver;
+    if (FIRST_CONTACT_RESPONSE && O && O.coverDecision) O.coverDecision(s, b, stage, why);
+  }
   function safeToMove(s, b) {
     return !!(
       s &&
@@ -147,11 +165,46 @@
       !(root.BattleTacticalPositions && root.BattleTacticalPositions.current(s))
     );
   }
+  function firstIncoming(s, b) {
+    return !!(
+      FIRST_CONTACT_RESPONSE &&
+      root.BattleEngagement &&
+      root.BattleEngagement.underFireNow &&
+      root.BattleEngagement.underFireNow(s, b)
+    );
+  }
   function startUrgent(s, b, e, beforeCommit) {
-    if (!safeToMove(s, b) || (+s.suppressedUntil || 0) <= b.time || !exposed(s, b)) return false;
+    var suppressed = (+s.suppressedUntil || 0) > b.time,
+      received = firstIncoming(s, b);
+    /* Merely SEEING an opposing silhouette is not an emergency cover order.
+       Incoming fire can require a protective move even when the suppression
+       countdown never triggered; the usual controller policy stays intact. */
+    if (!suppressed && !received) return false;
+    if (!safeToMove(s, b)) {
+      var reason =
+        !s || s.dead
+          ? 'actor-unavailable'
+          : s.reloading || s.clearingStoppage
+            ? 'weapon-cycle'
+            : s.squad && s.squad.state === 'retreat'
+              ? 'retreat'
+              : 'station-or-other-owner';
+      reportCover(s, b, 'blocked', reason);
+      return false;
+    }
+    if (!exposed(s, b)) {
+      reportCover(s, b, 'held', 'already-protected');
+      return false;
+    }
     var threat = threatFor(s, b);
-    if (!threat || !root.BattleEngagement.findCover) return false;
-    if (e._urgentCoverSearchAt && b.time < e._urgentCoverSearchAt) return false;
+    if (!threat || !root.BattleEngagement.findCover) {
+      reportCover(s, b, 'blocked', 'no-credible-location-or-cover-owner');
+      return false;
+    }
+    if (e._urgentCoverSearchAt && b.time < e._urgentCoverSearchAt) {
+      reportCover(s, b, 'held', 'native-cover-search-cooldown');
+      return false;
+    }
     /* How soon he looks again for cover is his agility (module 10; 0.9 s for an average man). */
     var stats = root.BattleSoldierStats;
     e._urgentCoverSearchAt = b.time + 0.9 * (stats ? stats.scale(s, 'coverSearch') : 1);
@@ -161,7 +214,11 @@
       evade: true, // suppressed: any cover that saves him
       minEnemyDistance: 10
     });
-    if (!cover) return false;
+    if (!cover) {
+      reportCover(s, b, 'blocked', 'cover-owner-returned-no-destination');
+      return false;
+    }
+    reportCover(s, b, 'selected', 'native-physical-cover');
     /* A replacement controller's competing actions for this man are cancelled before the move is published. */
     if (beforeCommit) beforeCommit();
     e.cover = cover;
@@ -173,23 +230,38 @@
     );
     e._urgentCover = true;
     e.urgentBound = true;
+    if (FIRST_CONTACT_RESPONSE) {
+      e._urgentCoverStartedAt = b.time;
+      e._urgentCoverCause = suppressed ? 'suppressed' : 'incoming-fire';
+    }
     root.BattleEngagement.markUrgent(s, b, URGENT_TTL);
     root.BattleEngagement.commitStance(s, b, 'crouch', e.until - b.time);
     s.setUp = false;
-    request(s, cover, b, 'cover-bound', 0.8, 'suppressed cover move');
+    var proposal = request(s, cover, b, 'cover-bound', 0.8, 'suppressed cover move');
+    reportCover(
+      s,
+      b,
+      proposal && proposal.kind === 'cover-bound' ? 'published' : 'blocked',
+      proposal && proposal.kind === 'cover-bound' ? 'engagement-cover-bound' : 'resolver-rejected'
+    );
     bump(b, 'urgentCoverStarts');
+    if (FIRST_CONTACT_RESPONSE)
+      bump(b, suppressed ? 'suppressedCoverStarts' : 'unsuppressedIncomingCoverStarts');
     return true;
   }
   function maintainUrgent(s, b, e) {
     if (!e._urgentCover || !e.cover) return false;
     var d = dist(pos(s), e.cover);
     if (d <= COVER_ARRIVED) {
+      if (FIRST_CONTACT_RESPONSE) e._urgentCoverArrivedAt = b.time;
       e._urgentCover = false;
       root.BattleEngagement.clearUrgent(s);
+      reportCover(s, b, 'arrived', 'owner-confirmed-physical-cover');
       bump(b, 'urgentCoverArrivals');
       return false;
     }
     if (!safeToMove(s, b) || e.state !== 'bound') {
+      reportCover(s, b, 'cancelled', !safeToMove(s, b) ? 'owner-safety' : 'engagement-state-changed');
       e._urgentCover = false;
       root.BattleEngagement.clearUrgent(s);
       return false;
@@ -274,8 +346,10 @@
        actions explicitly. The ordinary shared-contact halt is policy and stays with legacy. */
     if (
       !maintainUrgent(s, b, e) &&
-      (+s.suppressedUntil || 0) > b.time &&
-      ['pinned', 'engage', 'orient'].indexOf(String(e.state || '')) >= 0
+      ((+s.suppressedUntil || 0) > b.time || firstIncoming(s, b)) &&
+      (FIRST_CONTACT_RESPONSE
+        ? ['pinned', 'engage', 'orient', 'alert', 'advance'].indexOf(String(e.state || '')) >= 0
+        : ['pinned', 'engage', 'orient'].indexOf(String(e.state || '')) >= 0)
     )
       startUrgent(
         s,
@@ -306,6 +380,11 @@
       if (a[i].eng) {
         a[i].eng._urgentCover = false;
         a[i].eng._urgentCoverSearchAt = 0;
+        if (FIRST_CONTACT_RESPONSE) {
+          a[i].eng._urgentCoverStartedAt = null;
+          a[i].eng._urgentCoverArrivedAt = null;
+          a[i].eng._urgentCoverCause = null;
+        }
         a[i].eng._sharedContactAware = false;
         a[i].eng._sharedContactSector = null;
         a[i].eng._sharedContactQuietAt = null;
@@ -325,7 +404,8 @@
   });
   root.BattleAssaultForwardGuard = { version: '1.4-personal-hysteresis', allowCover: allowCover };
   root.BattleCombatUrgency = {
-    version: '1.4-personal-hysteresis',
+    version: '1.5-first-contact-preview',
+    firstContactResponseOn: FIRST_CONTACT_RESPONSE,
     summary: function (sim) {
       return sim && sim._combatUrgencySummary ? JSON.parse(JSON.stringify(sim._combatUrgencySummary)) : null;
     }

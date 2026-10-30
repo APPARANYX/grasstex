@@ -76,6 +76,24 @@
     };
   }
   var CAPABILITIES = frozen({
+    'maneuver.cover': definition(
+      'squad',
+      'Meso',
+      'controllerBound.begin (bounded native covering window)',
+      ['team'],
+      ['executing'],
+      ['Meso'],
+      ['direction', 'team', 'coverTeam', 'moverId', 'moverIds', 'supportRelocation']
+    ),
+    'combat.bound': definition(
+      'actor',
+      'BattleEngagement',
+      'controllerCombat.bound (adopted covered displacement)',
+      ['locomotion', 'posture', 'weapon'],
+      ['published', 'adopted', 'executing', 'arrived'],
+      ['Meso', 'BattleCommandReception', 'BattleEngagement', 'BattleEngagement'],
+      ['point']
+    ),
     'combat.march': definition(
       'actor',
       'BattleEngagement',
@@ -101,7 +119,7 @@
       ['locomotion', 'posture', 'weapon'],
       ['executing'],
       ['BattleEngagement'],
-      ['drill']
+      ['drill', 'point']
     ),
     'movement.move': definition(
       'actor',
@@ -189,18 +207,42 @@
     if (
       !record(p, def.parameters) ||
       !def.parameters.every(function (k) {
-        return Object.hasOwn(p, k);
+        return ((k === 'moverId' || k === 'moverIds' || k === 'supportRelocation') &&
+          request.capability === 'maneuver.cover') ||
+          (k === 'point' && request.capability === 'combat.contact')
+          ? true
+          : Object.hasOwn(p, k);
       })
     )
       return fail('invalid-parameters');
     if (
+      (Object.hasOwn(p, 'direction') && ['forward', 'back'].indexOf(p.direction) < 0) ||
+      (Object.hasOwn(p, 'team') && ['alpha', 'bravo', 'charlie'].indexOf(p.team) < 0) ||
+      (Object.hasOwn(p, 'coverTeam') &&
+        p.coverTeam !== null &&
+        (['alpha', 'bravo', 'charlie'].indexOf(p.coverTeam) < 0 || p.coverTeam === p.team)) ||
+      (Object.hasOwn(p, 'supportRelocation') &&
+        (p.supportRelocation !== true || !Object.hasOwn(p, 'moverId') || Object.hasOwn(p, 'moverIds'))) ||
+      (Object.hasOwn(p, 'moverId') && !text(p.moverId)) ||
+      (Object.hasOwn(p, 'moverIds') &&
+        (!Array.isArray(p.moverIds) ||
+          p.moverIds.length < 2 ||
+          p.moverIds.length > 3 ||
+          p.moverIds.some(function (id) {
+            return !text(id);
+          }) ||
+          new Set(p.moverIds).size !== p.moverIds.length ||
+          Object.hasOwn(p, 'moverId'))) ||
       (Object.hasOwn(p, 'point') && !point(p.point)) ||
       (Object.hasOwn(p, 'threat') && !point(p.threat)) ||
       (Object.hasOwn(p, 'stationId') && !text(p.stationId)) ||
       (Object.hasOwn(p, 'stance') && ['crouch', 'prone', 'crawl'].indexOf(p.stance) < 0) ||
       (Object.hasOwn(p, 'version') && p.version !== request.missionVersion) ||
       (Object.hasOwn(p, 'drill') &&
-        ['prepare', 'fire', 'suppress', 'watch', 'pinned'].indexOf(p.drill) < 0) ||
+        ['prepare', 'fire', 'suppress', 'watch', 'pinned', 'grenade'].indexOf(p.drill) < 0) ||
+      (request.capability === 'combat.contact' &&
+        ((p.drill === 'suppress' && !point(p.point)) ||
+          (p.drill !== 'suppress' && Object.hasOwn(p, 'point')))) ||
       (request.capability === 'fire.control' &&
         (['hold', 'precision', 'open'].indexOf(p.state) < 0 ||
           !(p.targetId === null || text(p.targetId)) ||
@@ -214,7 +256,9 @@
     });
     out.params = {};
     def.parameters.forEach(function (k) {
-      out.params[k] = p[k] && typeof p[k] === 'object' ? { x: p[k].x, z: p[k].z } : p[k];
+      if (!Object.hasOwn(p, k)) return;
+      out.params[k] =
+        k === 'moverIds' ? p[k].slice() : p[k] && typeof p[k] === 'object' ? { x: p[k].x, z: p[k].z } : p[k];
     });
     return frozen({ ok: true, reason: 'valid-shape', request: out });
   }

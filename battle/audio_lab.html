@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Grasstex Audio History Lab — synthetic weapons and full battlefield mix</title>
+<style>
+:root{color-scheme:dark;font:14px/1.5 system-ui,-apple-system,sans-serif;background:#10151c;color:#e1e9f2}
+*{box-sizing:border-box}body{max-width:980px;margin:40px auto;padding:0 24px}
+h1{font-size:24px;margin:0 0 6px}h2{font-size:15px;margin:0 0 12px}
+p{color:#a5b2c3;margin:8px 0 22px}
+section{background:#1b2531;border:1px solid #354354;padding:18px;margin:14px 0;border-radius:10px}
+#status{font-weight:700;color:#a9d6ec}#progress{margin-top:12px;font-variant-numeric:tabular-nums}
+#meter{color:#acbcd0;font:12px/1.5 ui-monospace,monospace;margin-top:8px}
+#report{height:330px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;font:11px/1.4 ui-monospace,monospace;color:#9abbcf;margin:0}
+small{color:#9aacbe}a{color:#95c9f1}#scene{position:absolute;width:32px;height:32px;opacity:0;pointer-events:none}
+</style></head><body>
+<h1>Grasstex · Audio History Lab</h1>
+<p>Five US and five German 10-man squads (50v50 by default, 10v10 with <code>?squads=1</code>). Synthetic fire/reload timing through the shipping gunshot pools, propagation scheduler, mixer and listener acoustics. Use <code>?fullMix=1</code> to load the real voice, grenade, foley, ballistic impact, flyby and pain sound owners simultaneously, plus representative ambience, footstep, vehicle and aircraft sounds. Use <code>?tacticalController=new</code> for the battle compressor preset. <code>?fullMix=0</code> retains the old weapon-only baseline. No combat AI or damage is simulated; native Skills Lab audio needs separate verification.</p>
+<section aria-live="polite"><h2>Unattended session</h2><div id="status">Starting</div><div id="progress">Loading engine</div><div id="meter">Audio telemetry pending</div></section>
+<section><h2>Full diagnostic history</h2><small>Available after completion as <code>window.__audioLab.final</code>. A runner can capture <code>AUDIO_LAB_REPORT:</code> from the browser console. No user interaction required.</small><pre id="report">Recording starts automatically after audio preparation.</pre></section>
+<canvas id="scene" width="32" height="32" aria-hidden="true"></canvas>
+<script src="https://cdn.jsdelivr.net/npm/babylonjs@9.27.1/babylon.js"></script>
+<script src="core-runtime.js"></script>
+<script src="weapons.js"></script>
+<script src="obstacle-field.js"></script>
+<script src="acoustics.js"></script>
+<script src="modules/00-audio-backend.js"></script>
+<script src="modules/00-audio-format.js"></script>
+<script src="modules/00a-audio-mix.js"></script>
+<script src="modules/12a-listener-acoustics.js"></script>
+<script src="battle-sim.js"></script>
+<!-- Fake event sources only: playback uses genuine battle audio owner modules. -->
+<script>
+window.BattleVoiceEligibility = { allows: function (s) { return !!s && !s.dead; } };
+window.BattleGrenades = {
+  parseOn: function () { return true; },
+  on: function () { return true; },
+  pendingOf: function (s) { return s && s._labGrenadePending; }
+};
+</script>
+<script src="modules/11-voice-variation.js"></script>
+<script src="modules/15-weapon-foley-audio.js"></script>
+<script src="modules/15-combat-audio.js"></script>
+<script src="modules/24a-grenade-audio.js"></script>
+<script src="full-audio-stress.js"></script>
+<script src="audio-lab.js"></script>
+</body></html>

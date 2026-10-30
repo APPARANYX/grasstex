@@ -373,36 +373,42 @@
       })
     );
   }
-  function select(s, sim, threat) {
+  /* Owner-provided, read-only canonical station shortlist for external controllers.
+     Geometry, reservation and existing structure-duty masks remain in module 20. No
+     claim, ingress, tactical action, cooldown or statistics change from a query. */
+  function candidates(s, sim, threat, recordStats) {
+    if (!s || !s.root || !s.root.position || !threat || !canAssign(s)) return [];
     var c = context(sim);
     if (structureEntryDuty(s, sim)) {
-      c.stats.structureEntryStationClaimsDeferred++;
-      return null;
+      if (recordStats) c.stats.structureEntryStationClaimsDeferred++;
+      return [];
     }
     var here = s.root.position,
-      range = root.SquadAI.isMachineGun(s) ? 78 : 62;
-    var candidates = N.firingStations.filter(function (st) {
-      if (distance(here, st) > range) return false;
-      var dx = threat.x - st.windowX,
-        dz = threat.z - st.windowZ,
-        len = Math.hypot(dx, dz) || 1;
-      if ((dx * st.normalX + dz * st.normalZ) / len < 0.32) return false;
-      if (st.port && !N.inSector(st, threat)) return false;
-      /* Passing over a window someone else holds is ordinary selection, not a collision: counting it
-         as one made the collision figure swing 23 to 3,838 with how many men searched near taken
-         windows, while bodies at stations never stacked. */
-      if (c.reservations.has(st.id)) {
-        c.stats.reservedStationsSkipped++;
-        return false;
-      }
-      return !N.lineOfSightBlocked(st, threat, 1.08, 1.45);
-    });
-    // Cheap shortlist first; only a bounded number of committed ingress searches per commander tick.
-    candidates.sort(function (a, b) {
+      range = root.SquadAI.isMachineGun(s) ? 78 : 62,
+      available = N.firingStations.filter(function (st) {
+        if (distance(here, st) > range) return false;
+        var dx = threat.x - st.windowX,
+          dz = threat.z - st.windowZ,
+          len = Math.hypot(dx, dz) || 1;
+        if ((dx * st.normalX + dz * st.normalZ) / len < 0.32) return false;
+        if (st.port && !N.inSector(st, threat)) return false;
+        if (c.reservations.has(st.id)) {
+          if (recordStats) c.stats.reservedStationsSkipped++;
+          return false;
+        }
+        return !N.lineOfSightBlocked(st, threat, 1.08, 1.45);
+      });
+    available.sort(function (a, b) {
       return distance(here, a) - distance(here, b);
     });
-    for (var i = 0; i < Math.min(2, candidates.length); i++) {
-      var t = claim(s, sim, candidates[i], threat);
+    return available;
+  }
+  function select(s, sim, threat) {
+    /* Legacy selection deliberately uses the same owner query as the new skill.
+       Its statistics and two-candidate bounded ingress policy are preserved. */
+    var available = candidates(s, sim, threat, true);
+    for (var i = 0; i < Math.min(2, available.length); i++) {
+      var t = claim(s, sim, available[i], threat);
       if (t) return t;
     }
     return null;
@@ -507,6 +513,8 @@
     adjustPose: adjustPose,
     noteAperture: noteAperture,
     eligible: eligible,
+    canAssign: canAssign,
+    candidates: candidates,
     claim: claim,
     release: release,
     update: update,

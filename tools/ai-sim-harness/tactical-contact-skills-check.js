@@ -102,10 +102,67 @@ function live(w, cap) {
 }
 function clean(w) {
   const s = w.TC.summary(w.b);
-  assert.equal(s.stats.faults, 0);
+  assert.equal(s.stats.faults, 0, JSON.stringify(s.stats.faultExamples || []));
   assert.equal(s.pending, 0);
 }
 
+test('a selected grenade finisher commits and releases through native owners without a rifle-line veto', () => {
+  const w = world(24);
+  /* Authentic waist-height physical cover shields the close assault's own
+     firing team from the 22m grenade fragment field, while the throw arc clears. */
+  w.b.obstacles = [{ shape: 'obb', x: 0, z: 12, hx: 40, hz: 0.35, y: 0, height: 2.5, type: 'wall' }];
+  const systems = {};
+  w.r.BattleModules.registerSystem = (id, s) => (systems[id] = s);
+  loadModule(w.r, 'battle/modules/14-z-ballistic-raycast.js', { location: w.r.location });
+  delete w.r.BattleGrenades;
+  loadModule(w.r, 'battle/modules/23-grenades.js', { location: w.r.location });
+  const G = w.r.BattleGrenades;
+  squad(w);
+  w.b.time = 26;
+  see(w);
+  squad(w);
+  micro(w);
+  const pending = w.q.members.filter(s => G.pendingOf(s, w.b));
+  assert.equal(pending.length, 1, 'one grenade commitment per squad');
+  const s = pending[0],
+    plan = G.pendingOf(s, w.b),
+    carried = G.count(s);
+  assert.equal(plan.source, 'covered-assault');
+  assert.equal(w.E.stateOf(s).state, 'throw');
+  assert.ok(Math.hypot(s.root.position.x - plan.aim.x, s.root.position.z - plan.aim.z) <= G.TUNING.RANGE);
+  w.b.time = plan.releaseAt + 0.01;
+  systems.grenades.onSimulationStep(w.b, { dt: G.TUNING.WINDUP });
+  assert.equal(G.summary(w.b).throws, 1, 'actual native clock emitted the grenade');
+  assert.equal(G.count(s), carried - 1);
+  assert.equal(G.projectiles(w.b).length, 1);
+  squad(w);
+  micro(w);
+  assert.equal(
+    w.q.members.filter(man => G.pendingOf(man, w.b)).length,
+    0,
+    'the live projectile prevents a simultaneous second squad grenade'
+  );
+  clean(w);
+});
+test('grenade owner explains unavailable personal opportunities without creating an order', () => {
+  const w = world(24);
+  const systems = {};
+  w.r.BattleModules.registerSystem = (id, s) => (systems[id] = s);
+  loadModule(w.r, 'battle/modules/14-z-ballistic-raycast.js', { location: w.r.location });
+  delete w.r.BattleGrenades;
+  loadModule(w.r, 'battle/modules/23-grenades.js', { location: w.r.location });
+  squad(w);
+  const G = w.r.BattleGrenades,
+    s = w.q.members[4],
+    before = w.TC.summary(w.b).actions;
+  s.moving = true;
+  assert.equal(G.assaultAssessment(s, w.b).reason, 'already-moving');
+  s.moving = false;
+  s.grenades = 0;
+  assert.equal(G.assaultAssessment(s, w.b).reason, 'no-grenades');
+  assert.equal(w.TC.summary(w.b).actions, before, 'read-only assessment may not publish orders');
+  clean(w);
+});
 test('controller publishes HOLD through Meso and the native per-man preparation keeps fire closed', () => {
   const w = world();
   squad(w);
@@ -218,6 +275,142 @@ test('OPEN publication stays stable through changing reports so personal adoptio
   assert.equal(latest.envelopeId, first.envelopeId);
   w.b.time = Math.max(w.b.time, latest.adoptedAt + 0.001);
   assert.equal(w.E.fireAuthorized(s, w.b), true);
+  clean(w);
+});
+test('covered personal contact may use standing ballistic line rather than getting stuck in MARCH', () => {
+  const w = world(55);
+  const man = w.q.members.find(s => s.role === 'rifleman');
+  w.b.time = 18;
+  see(w);
+  squad(w);
+  // Simulate authentic stance-dependent geometry: low eye/muzzle is hidden
+  // behind cover, but higher stance can physically see and discharge.
+  const sight = w.r.SquadAI.hasLineOfSight;
+  const previousBallistics = w.r.BattleBallistics;
+  const ball = previousBallistics && previousBallistics.fireLineBlocked;
+  w.r.SquadAI.hasLineOfSight = (shooter, target, height, obstacles) =>
+    shooter === man || (shooter && shooter.weapon === man.weapon)
+      ? !(shooter.prone || shooter.crouching || shooter.tacticalCrouch)
+      : sight(shooter, target, height, obstacles);
+  w.r.BattleBallistics = {
+    ...(previousBallistics || {}),
+    fireLineBlocked: (shooter, target, battle) =>
+      shooter && shooter.weapon === man.weapon
+        ? !!(shooter.prone || shooter.crouching || shooter.tacticalCrouch)
+        : ball
+          ? ball(shooter, target, battle)
+          : false
+  };
+  man.prone = true;
+  man.tacticalCrouch = false;
+  w.E.commitStance(man, w.b, 'prone', 0, 'fixture-covered');
+  // Wait for the existing native fire-control preparation deadline; the
+  // cover-peek test does not bypass leader authorization or force OPEN.
+  w.b.time = 26;
+  see(w);
+  squad(w);
+  assert.equal(w.q.fireControl.state, 'open');
+  w.TC.dispatch(w.b, w.q, 'engagement', man);
+  assert.equal(
+    w.S.summary(w.q).roles.find(r => r.actorId === String(man.id))?.drill,
+    'fire',
+    'available standing sight and muzzle line is a fire drill, not perpetual march'
+  );
+  assert.equal(
+    w.E.firingLineClear(man, man.target, man.root.position, 'stand', w.b),
+    true,
+    'the personal target has a legitimate standing ballistic line before stance change'
+  );
+  for (let i = 0; i < 12; i++) {
+    w.b.time += 0.15;
+    w.TC.dispatch(w.b, w.q, 'engagement', man);
+    w.E.updateSoldier(man, w.b);
+  }
+  assert.equal(man.prone, false, 'only the existing Engagement stance owner raises him');
+  assert.equal(man.tacticalCrouch, false, 'he rises high enough for the actual firing line');
+  w.r.SquadAI.hasLineOfSight = sight;
+  w.r.BattleBallistics = previousBallistics;
+  clean(w);
+});
+test('a fresh squadmate SEEN sector authorizes real area suppression from covered stance', () => {
+  const w = world(80);
+  squad(w); // establish the existing preparation clock before the later OPEN decision
+  w.b.time = 16.1;
+  see(w);
+  const shooter = w.q.members.find(s => s.role === 'rifleman');
+  shooter.target = null;
+  shooter._beliefs = { byKey: {} }; // no personal target or firsthand belief
+  const A = w.r.SquadAI,
+    actual = A.canSuppress,
+    attempts = [];
+  // Physical cover masks prone and crouch, but the real upright muzzle
+  // line remains clear; Engagement must own the eventual stance change.
+  A.canSuppress = (s, point, battle, readOnly) =>
+    String(s.id) === String(shooter.id) &&
+    !s.prone &&
+    !s.crouching &&
+    !s.tacticalCrouch &&
+    actual(s, point, battle, readOnly);
+  squad(w);
+  assert.equal(w.q.fireControl.state, 'open');
+  assert.equal(shooter.target, null, 'shared report cannot create a personal target');
+  /* Contact.update picks eligible suppressors at squad policy time;
+     Engagement receives their actor-level actions at the separate per-man
+     dispatch point. Never mistake the pending selection for an accepted role. */
+  w.TC.dispatch(w.b, w.q, 'engagement', shooter);
+  const role = w.S.summary(w.q).roles.find(x => x.actorId === String(shooter.id));
+  assert.equal(
+    role?.drill,
+    'suppress',
+    'eyewitness sector supports an area-fire assignment: ' +
+      JSON.stringify({
+        summary: w.S.summary(w.q),
+        sightings: A.squadContactsMap(w.q, w.b),
+        shooter: {
+          id: shooter.id,
+          target: shooter.target && shooter.target.id,
+          suppressedUntil: shooter.suppressedUntil,
+          reacting: w.E.reacting(shooter),
+          weapon: !!shooter.weapon,
+          stand: w.E.suppressionStance(shooter, w.b, { x: 0, z: 77.5 }),
+          candidateDryRun: A.canSuppress(
+            Object.create(shooter, {
+              prone: { value: false },
+              crouching: { value: false },
+              tacticalCrouch: { value: false }
+            }),
+            { x: 0, z: 77.5 },
+            w.b,
+            true
+          ),
+          witness: w.q.members.map(m => ({ id: m.id, dead: !!m.dead, player: !!m.isPlayer }))
+        }
+      })
+  );
+  assert.ok(role.reportedPoint && Number.isFinite(role.reportedPoint.z));
+  let realShots = 0;
+  w.b.onFire = man => {
+    if (man === shooter) realShots++;
+  };
+  const actualAreaFire = A.areaFire;
+  A.areaFire = (man, point, battle) => {
+    if (man === shooter) attempts.push({ x: point.x, z: point.z });
+    return actualAreaFire(man, point, battle);
+  };
+  for (let i = 0; i < 12; i++) {
+    w.b.time += 0.15;
+    w.E.updateSoldier(shooter, w.b);
+    shooter.fireCooldown = 0;
+  }
+  assert.equal(w.E.stateOf(shooter).stance, 'stand', 'only native Engagement raises the hidden rifleman');
+  assert.ok(
+    attempts.length > 0,
+    'the native area-fire primitive, not tryFire on an unseen target, is called'
+  );
+  assert.ok(realShots > 0, 'reported-sector suppressor physically discharges rounds from cover');
+  assert.equal(shooter.target, null, 'area fire never forges a direct target');
+  A.canSuppress = actual;
+  A.areaFire = actualAreaFire;
   clean(w);
 });
 test('contact execution fires real rounds after recognition and honors ammo/range gates', () => {

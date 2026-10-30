@@ -100,7 +100,22 @@
       fire = s && s.squad && s.squad.fireControl;
     // A movement-plan change cannot turn an active HOLD/PRECISION firing line
     // into upright transit. Keep Engagement's native preparation posture.
-    if (fire && (fire.state === 'hold' || fire.state === 'precision')) plan = null;
+    /* An actually adopted native cover-bound already passed Meso, personal
+       command adoption and independent support-fire gates. The squad's HOLD
+       preparation applies to stationary shooters, not this committed mover.
+       All other locomotion and speculative bound plans still fail closed. */
+    var nativeMover = !!(
+      plan &&
+      plan.reason === 'native-covered-bound' &&
+      pending &&
+      pending.reason === 'controller:covered-bound' &&
+      s.eng &&
+      s.eng.state === 'bound' &&
+      s._movementResolver &&
+      s._movementResolver.goal &&
+      s._movementResolver.goal.kind === 'cover-bound'
+    );
+    if (fire && (fire.state === 'hold' || fire.state === 'precision') && !nativeMover) plan = null;
     if (s.eng) s.eng.transitStance = null;
     if (plan) commitStance(s, battle, plan.stance, 0.45, 'body-autonomy:' + plan.reason);
     else if (pending) commitStance(s, battle, pending.stance, pending.seconds, pending.reason);
@@ -464,14 +479,17 @@
       return false;
     return fireStanceImpl().suppress(s, battle, point);
   }
-  function firingLineClear(target, pt, stance, battle) {
-    return fireStanceImpl().firingLineClear(target, pt, stance, battle);
+  function firingLineClear(s, target, pt, stance, battle) {
+    return fireStanceImpl().firingLineClear(s, target, pt, stance, battle);
   }
   function crestPrepPoint(s, target, battle) {
     return fireStanceImpl().crestPrepPoint(s, target, battle);
   }
   function fireControlObservation(s, battle) {
     return fireStanceImpl().fireControlObservation(s, battle);
+  }
+  function suppressionStance(s, battle, point) {
+    return fireStanceImpl().suppressionStance(s, battle, point);
   }
   function fireControlReady(s, battle) {
     return fireStanceImpl().fireControlReady(s, battle);
@@ -764,7 +782,13 @@
      normal drill resets here would change the fight. Keep their clocks and incidental fields
      exactly as before; the transition record adds provenance without changing moveReason. */
   var REQUESTS = {
-    'urgent-cover': { from: ['pinned', 'engage', 'orient'], next: 'bound', reason: 'suppressed cover move' },
+    'urgent-cover': {
+      from: !/[?&]firstContactResponse=0(?:&|#|$)/.test((root.location && root.location.search) || '')
+        ? ['pinned', 'engage', 'orient', 'alert', 'advance']
+        : ['pinned', 'engage', 'orient'],
+      next: 'bound',
+      reason: 'suppressed cover move'
+    },
     'shared-contact': { from: ['advance'], next: 'alert', reason: 'new shared threat' },
     'station-release': { from: ['station'], next: 'advance', reason: 'firing station released' }
   };
@@ -1082,7 +1106,11 @@
        and a man coming off a retreat re-decides instead of resuming a stale firefight state. */
     if (e.fledPhase) return fledTick(s, battle);
     if (entranced(s) && reaction(s, battle)) return; // the trance outranks his squad's retreat, as a flee does
-    if (s.squad && s.squad.state === 'retreat') {
+    if (
+      s.squad &&
+      (s.squad.state === 'retreat' || s.squad.commandPhase === 'retreat') &&
+      !controllerBoundRole(s, battle)
+    ) {
       if (reactionState(s) === 'freeze') finishFreeze(s, battle, 'squad-retreat');
       e.withdrawPoint = null;
       transition(s, battle, 'withdraw', 0, 'squad withdrawing');
@@ -1526,8 +1554,19 @@
     /* A man who sees a head he cannot hit (fireLineLive) is observing, not fighting: he proposes no hold,
        so the Squad Leader's published order (the anchor's advance, a clearing move) takes him up to a
        position with a line instead of pinning him behind the crest for the rest of the battle. */
-    var fighting = fireLineLive(s, e, battle);
-    if (fighting) holdPosition(s, battle);
+    var fighting = fireLineLive(s, e, battle),
+      /* Behind low/medium cover the existing shot may be blocked only by
+         the soldier's low stance. No enemy transform is invented: a live
+         personal target and a true LOS + ballistic ray from the actual
+         position are required before Engagement considers standing. */
+      canPeek =
+        controlled &&
+        !suppressed &&
+        combatThreat(s.target) &&
+        dist(p.x, p.z, posOf(s.target).x, posOf(s.target).z) <= SA().engageRange(s) &&
+        (firingLineClear(s, s.target, p, 'crouch', battle) ||
+          firingLineClear(s, s.target, p, 'stand', battle));
+    if (fighting || canPeek) holdPosition(s, battle);
     /* A blocked firing ray deliberately releases Micro's hold so the man
        can advance to a workable place. Do not repeatedly re-impose crouch
        while his autonomous transit owns both stance and gait. */
@@ -1544,9 +1583,9 @@
       commitStance(
         s,
         battle,
-        fighting ? seeingStance(s, battle, fightingStance(s, battle, d, here)) : 'crouch',
+        fighting || canPeek ? seeingStance(s, battle, fightingStance(s, battle, d, here)) : 'crouch',
         undefined,
-        fighting ? undefined : 'engage:observing'
+        fighting || canPeek ? undefined : 'engage:observing'
       );
     if (SA().isMachineGun(s)) {
       if (!e.setUpSince) e.setUpSince = battle.time;
@@ -1931,6 +1970,40 @@
       !(G && G.blockReason && G.blockReason(s, battle))
     );
   }
+  /* Actual recent independent rounds are the receipt for covering fire.
+     Do NOT require supportReady() on the *same* tick: after a lawful shot,
+     normal weapon cycling sets fireReadyAt in the future, so a firing
+     supporter otherwise becomes paradoxically 'not ready'. Read only. */
+  function supportDischarged(s, battle, since) {
+    var A = root.BattleAmmunition,
+      shot = A && A.shotEvidence && A.shotEvidence(s, battle),
+      e = s && s.eng;
+    return !!(
+      s &&
+      battle &&
+      e &&
+      shot &&
+      Number.isFinite(shot.at) &&
+      shot.at >= since &&
+      shot.at <= battle.time &&
+      battle.time - shot.at <= 3 &&
+      !s.dead &&
+      !s.isPlayer &&
+      !s.incapacitated &&
+      s.hp > 0 &&
+      s.weapon &&
+      !s.outOfAmmo &&
+      !s.reloading &&
+      !s.clearingStoppage &&
+      !s.moving &&
+      !s.crawling &&
+      !(s.suppressedUntil > battle.time) &&
+      !reacting(s) &&
+      !fledPhase(s) &&
+      fireAuthorized(s, battle) &&
+      (e.state === 'engage' || e.state === 'station' || e.suppressOrder)
+    );
+  }
   /* Squad contact report. Micro state flows up: who can see the enemy, who is pinned, who is
      actually putting rounds out (the base of fire). The Squad Leader (16-squad-plan-stability.js) reads
      this report to decide fire and movement; Engagement only executes a bound it is ordered to. */
@@ -2082,18 +2155,86 @@
      Recognition, stance, personal fire permission, ammo and geometry remain the shipping services.
      Handles live outside soldiers; ending one clears only the proposal that task actually made. */
   var controllerCombatTasks = new WeakMap();
-  function controllerCombatStart(s, battle, drill) {
+  function controllerBoundRole(s, battle) {
+    var Q = root.BattleSquadStability;
+    return Q && Q.controllerBound && Q.controllerBound.role(s, battle);
+  }
+  function controllerBoundStart(s, battle, point, actionId) {
+    var Q = root.BattleSquadStability,
+      C = root.BattleCoverPositions;
+    if (
+      controllerBoundRole(s, battle) !== 'move' ||
+      controllerCombatTasks.has(s) ||
+      !Q.controllerBound.arm(s.squad, battle)
+    )
+      return null;
+    var threats = C.boundThreats(s, battle),
+      contactRoute = root.BattleTacticalContactRoute,
+      flexible = !!(
+        contactRoute &&
+        (root.BattleSquadStability.controllerBound.current(s.squad, battle).moverId ||
+          root.BattleSquadStability.controllerBound.current(s.squad, battle).moverIds)
+      ),
+      maxHop = flexible ? contactRoute.tuning.maxHop : C.boundTuning().maxDistance,
+      choices = C.candidates(s, battle, threats[0], maxHop),
+      candidate = choices.find(function (p) {
+        return Math.hypot(p.x - point.x, p.z - point.z) < 0.01;
+      });
+    if (!candidate) return null;
+    var route = flexible
+      ? contactRoute.evaluate(
+          s,
+          battle,
+          candidate,
+          threats,
+          (s.suppressedUntil || 0) > battle.time || underFireNow(s, battle)
+        )
+      : C.boundRoute(s, battle, candidate, threats);
+    if (!route.eligible) return null;
+    var claim = C.reserve(s, battle, candidate.slot, 'controller');
+    if (!claim) return null;
+    var order = Q.controllerMovement.publish(s.squad, battle, s, point, actionId);
+    if (!order) {
+      C.release(s, battle);
+      return null;
+    }
+    var task = {
+      battle: battle,
+      drill: 'bound',
+      since: battle.time,
+      at: battle.time,
+      reason: 'published:await-personal-adoption',
+      point: { x: point.x, z: point.z },
+      claim: claim,
+      order: order
+    };
+    controllerCombatTasks.set(s, task);
+    var e = state(s);
+    e.cover = { x: point.x, z: point.z, slotId: candidate.slotId };
+    return task;
+  }
+  function controllerBoundAdopted(s, battle, task) {
+    var CR = root.BattleCommandReception;
+    return (
+      !(CR && CR.movementEnabled()) ||
+      (s._fireteamPublishKey === task.order.key &&
+        CR.executionCurrent(s, battle, 'movement', 'soldier:' + String(s.id), s._fireteamAdoptedEnvelope))
+    );
+  }
+  function controllerCombatStart(s, battle, drill, reportedPoint) {
     var TC = root.BattleTacticalController;
     if (
-      ['march', 'prepare', 'fire', 'suppress', 'watch', 'pinned'].indexOf(drill) < 0 ||
+      ['march', 'prepare', 'fire', 'suppress', 'watch', 'pinned', 'grenade'].indexOf(drill) < 0 ||
+      (drill === 'suppress' &&
+        (!reportedPoint || !Number.isFinite(reportedPoint.x) || !Number.isFinite(reportedPoint.z))) ||
       !s ||
       s.dead ||
       s.isPlayer ||
       !s.squad ||
       !TC ||
       !TC.controls(battle, s.squad) ||
-      s.squad.state === 'retreat' ||
-      s.squad.commandPhase === 'retreat' ||
+      ((s.squad.state === 'retreat' || s.squad.commandPhase === 'retreat') &&
+        !controllerBoundRole(s, battle)) ||
       reacting(s) ||
       controllerCombatTasks.has(s)
     )
@@ -2101,6 +2242,7 @@
     var task = {
       battle: battle,
       drill: drill,
+      reportedPoint: drill === 'suppress' ? { x: reportedPoint.x, z: reportedPoint.z } : null,
       since: battle.time,
       at: battle.time,
       reason: 'owner-accepted',
@@ -2117,6 +2259,12 @@
     if (task.proposal && s._movementResolver && s._movementResolver.combat === task.proposal && R)
       R.clearCombat(s);
     e.suppressOrder = false;
+    if (task.drill === 'bound') {
+      root.BattleSquadStability.controllerMovement.end(s, task.order);
+      if (root.BattleCoverPositions.current(s, battle) === task.claim)
+        root.BattleCoverPositions.release(s, battle);
+      if (e.cover && e.cover.slotId === task.claim.slot.id) e.cover = null;
+    }
     /* Cancellation can be nested inside module 44's emergency-cover transition. Release the task,
        not the Engagement state that the interrupting owner is in the middle of consuming. */
     return true;
@@ -2128,6 +2276,21 @@
         reason: s.dead ? 'actor-dead' : s.isPlayer ? 'player-owned' : 'owner:ended',
         at: battle.time
       };
+    if (task.drill === 'bound') {
+      if (controllerBoundRole(s, battle) !== 'move')
+        return { stage: 'cancelled', reason: 'bound-window-ended', at: battle.time };
+      return {
+        stage: task.arrived
+          ? 'arrived'
+          : task.executed
+            ? 'executing'
+            : controllerBoundAdopted(s, battle, task)
+              ? 'adopted'
+              : 'published',
+        reason: task.reason,
+        at: task.at
+      };
+    }
     return { stage: task.executed ? 'executing' : 'accepted', reason: task.reason, at: task.at };
   }
   function controllerCombatTick(s, battle) {
@@ -2142,7 +2305,53 @@
     var drill = fireControlPreparing(s, battle) ? 'prepare' : task.drill,
       before = s._movementResolver && s._movementResolver.combat;
     e.suppressOrder = drill === 'suppress';
-    if (drill === 'march') {
+    if (drill === 'bound') {
+      if (controllerBoundRole(s, battle) !== 'move') return;
+      if (!controllerBoundAdopted(s, battle, task)) {
+        holdPosition(s, battle);
+        task.reason = 'published:await-personal-adoption';
+      } else {
+        var reached = Math.hypot(posOf(s).x - task.point.x, posOf(s).z - task.point.z) <= 0.45;
+        if (reached) {
+          holdPosition(s, battle);
+          if (e.state === 'bound') transition(s, battle, 'engage', 0, 'controller:physical-arrival');
+          task.arrived = true;
+          task.reason = 'physical-arrival';
+        } else {
+          if (e.state !== 'bound') transition(s, battle, 'bound', 0, 'controller:covered-bound');
+          /* Only Engagement commits the stance. Certify the native B→C physical
+             route at standing height once, from the mover's OWN reported contacts.
+             A threatened/uncertified route stays a crouch-run, never an unsafe
+             standing sprint. This does not create a movement/speed writer. */
+          if (!task.transitGait) {
+            var reports = root.BattleCoverPositions.boundThreats(s, battle),
+              route = root.BattleTacticalContactRoute,
+              unsafe = (s.suppressedUntil || 0) > battle.time || underFireNow(s, battle);
+            task.transitGait =
+              s.prone && (s.crawling || unsafe)
+                ? 'fastCrawl'
+                : !unsafe &&
+                    reports.length &&
+                    route &&
+                    route.evaluate(s, battle, task.point, reports, false, 'stand').eligible
+                  ? 'sprint'
+                  : 'crouchSprint';
+          }
+          transitStance(
+            s,
+            battle,
+            task.transitGait === 'sprint' ? 'stand' : task.transitGait === 'fastCrawl' ? 'crawl' : 'crouch',
+            1,
+            'controller:covered-bound'
+          );
+          move(s, battle, task.point, 'cover-bound');
+          s.state = 'engage';
+          s.setUp = false;
+          task.reason = 'moving:adopted-covered-bound';
+        }
+        task.executed = true;
+      }
+    } else if (drill === 'march') {
       if (e.state !== 'advance') {
         if (e.state !== 'alert') transition(s, battle, 'alert', 0, 'controller:march');
         transition(s, battle, 'advance', 0, 'controller:march');
@@ -2154,6 +2363,7 @@
       prepareFireControl(s, battle);
       task.reason = 'preparing:personal-fire-order';
     } else if (drill === 'fire') {
+      if (e.state === 'bound' && !e.urgentBound) transition(s, battle, 'alert', 0, 'controller:bound-ended');
       if (s.target) {
         if (e.state !== 'orient' && e.state !== 'engage')
           transition(s, battle, 'orient', reactTime(s, battle), 'controller:recognize');
@@ -2166,6 +2376,16 @@
           task.reason = supportReady(s, battle) ? 'firing-line-ready' : 'blocked:personal-fire-gate';
         }
       } else task.reason = 'blocked:no-personal-target';
+    } else if (drill === 'grenade') {
+      var G = root.BattleGrenades,
+        plan = G && G.assaultThrow(s, battle);
+      if (plan) {
+        if (['orient', 'bound', 'engage', 'pinned', 'alert'].indexOf(e.state) < 0)
+          transition(s, battle, 'alert', 0, 'controller:grenade-ready');
+        transition(s, battle, 'throw', G.TUNING.WINDUP, 'controller:covered-assault-grenade');
+        throwing(s, battle);
+        task.reason = 'grenade-committed:await-native-release';
+      } else task.reason = 'blocked:grenade-owner-gates';
     } else if (drill === 'pinned') {
       if (e.state !== 'pinned') transition(s, battle, 'pinned', 0, 'controller:pinned');
       pinnedExecution(s, battle);
@@ -2174,18 +2394,30 @@
       if (e.state !== 'alert') transition(s, battle, 'alert', 0, 'controller:' + drill);
       s.state = drill === 'suppress' ? 'suppress' : 'alert';
       s.setUp = false;
-      var aim = knownThreat(s, battle);
+      var aim = drill === 'suppress' ? task.reportedPoint : knownThreat(s, battle);
       holdPosition(s, battle);
-      if (!holdStance(s, battle))
+      if (drill === 'suppress' && aim) {
+        var post = root.BattleEngagement.suppressionStance(s, battle, aim);
+        if (post) commitStanceRespectHold(s, battle, post, 0.55, 'controller:reported-sector-suppress');
+        else if (!holdStance(s, battle))
+          commitStance(s, battle, 'crouch', 0.8, 'reported-sector-line-blocked');
+      } else if (!holdStance(s, battle))
         commitStance(s, battle, seeingStance(s, battle, 'crouch', aim && { root: { position: aim } }), 2);
       s._faceHint = aim;
-      /* canSuppress and suppress recheck the man's own belief, range and physical line. */
-      if (drill === 'suppress' && aim) suppress(s, battle, aim);
-      task.reason = aim ? drill : 'blocked:no-personal-intel';
+      /* Native fire-control, ammo, muzzle, shock and ballistic gates still
+         decide whether a real area round may leave this cover post. */
+      var emitted = drill === 'suppress' && aim ? suppress(s, battle, aim) : false;
+      task.reason = !aim
+        ? 'blocked:no-fresh-reported-sector'
+        : drill === 'suppress'
+          ? emitted
+            ? 'reported-sector-suppression'
+            : 'reported-sector:shot-not-authorized'
+          : drill;
     }
     var after = s._movementResolver && s._movementResolver.combat;
     if (after && after !== before) task.proposal = after;
-    task.executed = true;
+    if (task.drill !== 'bound') task.executed = true;
     task.at = battle.time;
   }
 
@@ -2228,7 +2460,9 @@
     orderBound: orderBound,
     clearBoundOrders: clearBoundOrders,
     coveredBoundTelemetry: function (battle) {
-      if (!coverImpl().coveredBoundsOn()) return null;
+      var maneuver = root.BattleTacticalCoveredManeuver,
+        controller = maneuver && maneuver.telemetry(battle);
+      if (!coverImpl().coveredBoundsOn()) return controller ? { controller: controller } : null;
       var out = { attempts: 0, accepted: 0, rejected: 0, candidates: 0, samples: 0 },
         rosters = battle._roster || {};
       ['us', 'ge'].forEach(function (f) {
@@ -2240,6 +2474,7 @@
             });
         });
       });
+      if (controller) out.controller = controller;
       return out;
     },
     reacting: reacting,
@@ -2262,6 +2497,7 @@
     fireAllowed: fireAllowed,
     fireAuthorized: fireAuthorized,
     supportReady: supportReady,
+    supportDischarged: supportDischarged,
     effectiveFireOn: function () {
       return EFFECTIVE_FIRE;
     },
@@ -2270,10 +2506,12 @@
     fireControlPreparing: fireControlPreparing,
     controllerCombat: {
       start: controllerCombatStart,
+      bound: controllerBoundStart,
       end: controllerCombatEnd,
       stage: controllerCombatStage
     },
     fireControlObservation: fireControlObservation,
+    suppressionStance: suppressionStance,
     firingLineClear: firingLineClear,
     crestPrepPoint: crestPrepPoint,
     commitStance: commitStance,

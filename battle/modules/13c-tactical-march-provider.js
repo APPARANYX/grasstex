@@ -80,6 +80,7 @@
     }
     st.idle = null;
     st.retry = true; // refusals are asked again once per mission tick, not every squad tick
+    st.check = true; // so are the men's stages and the slots: Squad Command runs every step, the march does not
     var last = legs.length - 1,
       here = centroid(men(sq)),
       r = legRadius(sim, sq);
@@ -107,24 +108,48 @@
       Q = root.BattleSquadStability;
     /* The resolver treats either as retreat; so does the provider. */
     if (sq.state === 'retreat' || sq.commandPhase === 'retreat') return standDown(ctx, st, 'retreat');
+    /* Recon and regroup are the Squad Leader's own skills, reused as they are: while one holds the
+       squad the march stands down and that skill's fireteam orders move the men. */
+    var retained = Q && Q.retainedSkill && Q.retainedSkill(sq);
+    if (retained) {
+      st.idle = 'yield:' + retained;
+      return standDown(ctx, st, 'yield:' + retained);
+    }
     if (!st.target || !Q || !Q.formationSlots) return;
-    var slots = Q.formationSlots(sq, st.target, st.forward);
+    if (!st.check) {
+      /* Between mission ticks only the yields run, so a skill that takes a man over is never late. */
+      st.men.forEach(function (cur, id) {
+        var why = yields(sq, cur.man, ctx.sim);
+        if (!why) return;
+        ctx.finish(cur.actionId, why);
+        st.men.delete(id);
+        if (st.stopped) st.stopped.delete(id);
+      });
+      return;
+    }
+    st.check = false;
+    /* Men walk to slots around the Squad Leader's paced anchor (it strides toward the leg as the squad
+       arrives), not the far end of the leg: the pacing skill is reused, not replaced. */
+    var anchor = point(sq.orderAnchor) || st.target;
+    if (!st.slotAnchor || dist(st.slotAnchor, anchor) > 1) st.slotAnchor = anchor;
+    var atGoal = dist(st.slotAnchor, st.target) <= 3,
+      slots = Q.formationSlots(sq, st.slotAnchor, st.forward);
     for (var i = 0; i < slots.length; i++) {
       var s = slots[i].man;
       if (s.dead || s.isPlayer) continue;
       var id = String(s.id),
         slot = slots[i].point,
         cur = st.men.get(id),
-        stage = cur && ctx.stage(cur.actionId);
-      var contact = root.BattleTacticalContactSkills;
-      if (contact && contact.wants(s, ctx.sim)) {
-        if (cur) ctx.finish(cur.actionId, 'contact-skill');
+        why = yields(sq, s, ctx.sim);
+      if (why) {
+        if (cur) ctx.finish(cur.actionId, why);
         st.men.delete(id);
         st.stopped.delete(id);
         continue;
       }
+      var stage = cur && ctx.stage(cur.actionId);
       if (cur && !stage) cur = null; // the controller ended it (mission, roster, interrupt)
-      if (cur && cur.target !== st.target) {
+      if (cur && cur.target !== st.slotAnchor) {
         ctx.finish(cur.actionId, 'superseded');
         cur = null;
       }
@@ -133,15 +158,15 @@
           ctx.finish(cur.actionId, 'cancelled');
           st.men.delete(id);
           st.stopped.set(id, stage.reason);
-        } else if (cur.kind === 'move' && st.final && stage.stage === 'arrived') {
+        } else if (cur.kind === 'move' && st.final && atGoal && stage.stage === 'arrived') {
           ctx.finish(cur.actionId, 'completed');
-          ask(ctx, st, id, 'movement.hold', cur.point);
+          ask(ctx, st, s, 'movement.hold', cur.point);
         }
         continue;
       }
       st.men.delete(id);
-      var why = st.stopped.get(id);
-      if (!why || (st.retry && why.indexOf('refused:') === 0)) ask(ctx, st, id, 'movement.move', slot);
+      var stopped = st.stopped.get(id);
+      if (!stopped || (st.retry && stopped.indexOf('refused:') === 0)) ask(ctx, st, s, 'movement.move', slot);
     }
     st.retry = false;
   }
@@ -152,15 +177,29 @@
     st.men.clear();
     if (st.stopped) st.stopped.clear();
   }
-  function ask(ctx, st, id, capability, at) {
-    var res = ctx.request(capability, id, { point: at });
+  /* Who else has the man: a claimed native station owns locomotion; contact by another man is not a
+     personal permission to march into a distant route leg; a covered-bound role or soldier combat
+     decision belongs to its own skill. The first reason that applies releases only this man's order. */
+  function yields(sq, s, sim) {
+    var P = root.BattleTacticalPositions,
+      C = root.BattleTacticalContactSkills,
+      M = root.BattleTacticalCoveredManeuver;
+    if (P && P.current(s)) return 'station-claimed';
+    if (sq.inContact && !s.target) return 'unconfirmed-personal-contact';
+    if ((M && M.wants(s, sim)) || (C && C.wants(s, sim))) return 'contact-skill';
+    return null;
+  }
+  function ask(ctx, st, man, capability, at) {
+    var id = String(man.id),
+      res = ctx.request(capability, id, { point: at });
     if (res && res.ok) {
       st.stopped.delete(id);
       st.men.set(id, {
+        man: man,
         actionId: res.actionId,
         kind: capability === 'movement.hold' ? 'hold' : 'move',
         point: at,
-        target: st.target
+        target: st.slotAnchor
       });
     } else {
       st.men.delete(id);
@@ -216,6 +255,8 @@
           stopped: {}
         };
         if (root.BattleTacticalContactSkills) row.contact = root.BattleTacticalContactSkills.summary(a[i]);
+        if (root.BattleTacticalCoveredManeuver)
+          row.maneuver = root.BattleTacticalCoveredManeuver.summary(a[i]);
         st.men.forEach(function (cur) {
           var l = byId[cur.actionId],
             key = cur.kind + ':' + (l ? l.stage : 'gone');
@@ -230,7 +271,30 @@
     return out;
   }
 
-  root.BattleTacticalMarchProvider = { on: ON, id: ID, summary: summary };
+  root.BattleTacticalMarchProvider = {
+    on: ON,
+    id: ID,
+    summary: summary,
+    target: function (sq) {
+      return stateOf(sq).target;
+    },
+    /* The leg the march is on, for the Squad Leader's retained recon decision. */
+    leg: function (sq) {
+      var st = squads.get(sq);
+      return st && st.target ? { point: st.target, final: !!st.final } : null;
+    },
+    release: function (ctx) {
+      standDown(ctx, stateOf(ctx.squad), 'covered-maneuver');
+    },
+    releaseMan: function (ctx, man) {
+      var st = stateOf(ctx.squad),
+        id = String(man.id),
+        cur = st.men.get(id);
+      if (cur) ctx.finish(cur.actionId, 'station-selection');
+      st.men.delete(id);
+      if (st.stopped) st.stopped.delete(id);
+    }
+  };
   if (!ON) return;
   var TC = root.BattleTacticalController,
     OA = root.BattleTacticalOwnerAdapters;
@@ -242,12 +306,16 @@
       commanderTick: noop,
       fireAndMovement: function (ctx) {
         root.BattleTacticalContactSkills.update(ctx);
+        if (root.BattleTacticalCoveredManeuver) root.BattleTacticalCoveredManeuver.update(ctx);
       },
       executeMission: executeMission,
       engagement: function (ctx) {
+        if (root.BattleTacticalCoveredManeuver && root.BattleTacticalCoveredManeuver.engagement(ctx)) return;
         root.BattleTacticalContactSkills.engagement(ctx);
       },
-      stationSelection: noop
+      stationSelection: function (ctx) {
+        if (root.BattleTacticalStationSkill) root.BattleTacticalStationSkill.update(ctx);
+      }
     },
     adapters: OA.adapters,
     lifecycle: OA.lifecycle

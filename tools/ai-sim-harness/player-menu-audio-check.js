@@ -39,4 +39,96 @@ assert.match(
   /if \(menuOpen\) \{[\s\S]*?stepPlayerMenuPad\(pad\)/,
   'menu intercepts pad before firing / sprint'
 );
+
+// Skills Lab Play/Step has its own control path: it must unlock audio before
+// resuming/advancing, independently of the ordinary battle Start button.
+const html = fs.readFileSync(path.join(__dirname, '../../battle/battle_sim.html'), 'utf8');
+const skills = fs.readFileSync(path.join(__dirname, '../../battle/skills-lab.js'), 'utf8');
+const sim = fs.readFileSync(path.join(__dirname, '../../battle/battle-sim.js'), 'utf8');
+assert.match(html, /window\.__battleUnlockAudio__=unlockAudio/, 'shared browser audio activation exported');
+assert.match(
+  html,
+  /await Promise\.all\(\[resuming,unlocking\]\)/,
+  'native resume and engine unlock complete before running'
+);
+assert.match(html, /window\.__battleAudioDiagnostics__=/, 'live audio diagnostics exposed');
+assert.match(
+  skills,
+  /play\.onclick = async function \(\)[\s\S]*?await root\.__battleUnlockAudio__\(\)[\s\S]*?setRunning/,
+  'Skills Lab Play unlocks audio before resuming'
+);
+assert.match(
+  skills,
+  /#skillStep'[\s\S]*?await root\.__battleUnlockAudio__\(\)[\s\S]*?advance\(1\)/,
+  'Skills Lab Step unlocks audio before simulating'
+);
+assert.match(
+  sim,
+  /ctx \? ctx\.state !== 'running' : ae && ae\.unlocked === false/,
+  'running WebAudio context does not discard shots on stale unlocked flag'
+);
+
 console.log('player-menu-audio-check: PASS');
+
+// Execute the real startup function: void unlock(), native resume, and missing context.
+const unlockSource = html.slice(
+  html.indexOf('  async function unlockAudio(){'),
+  html.indexOf('  window.__battleUnlockAudio__')
+);
+async function checkUnlock() {
+  const calls = [];
+  let resolveResume;
+  const ctx = {
+    state: 'suspended',
+    resume() {
+      calls.push('resume');
+      return new Promise(resolve => {
+        resolveResume = resolve;
+      });
+    }
+  };
+  const ae = {
+    audioContext: ctx,
+    unlocked: false,
+    unlock() {
+      calls.push('unlock');
+      if (ctx.state === 'running') this.unlocked = true;
+    }
+  };
+  const getUnlock = engine =>
+    new Function(
+      'BABYLON',
+      'window',
+      'console',
+      'enableLiveAudioMeter',
+      unlockSource + '; return unlockAudio;'
+    )({ Engine: { audioEngine: engine } }, {}, { log() {}, warn() {}, error() {} }, () => {});
+  const promise = getUnlock(ae)();
+  assert.deepEqual(calls, ['resume', 'unlock'], 'both calls happen synchronously inside the gesture');
+  ctx.state = 'running';
+  resolveResume();
+  assert.equal(await promise, true);
+  assert.equal(ae.unlocked, true, 'Babylon flag synchronized after native resume');
+  assert.equal(await getUnlock({ unlock() {} })(), false, 'missing context is not successful audio startup');
+  assert.equal(
+    await getUnlock({ audioContext: { state: 'suspended', resume: async () => {} }, unlock() {} })(),
+    false
+  );
+  assert.equal(
+    await getUnlock({
+      audioContext: {
+        state: 'closed',
+        resume: async () => {
+          throw Error('closed');
+        }
+      },
+      unlock() {}
+    })(),
+    false
+  );
+  console.log('audio startup lifecycle: PASS');
+}
+checkUnlock().catch(error => {
+  console.error(error);
+  process.exitCode = 1;
+});

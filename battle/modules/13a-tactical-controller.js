@@ -45,7 +45,8 @@
           restartDropped: 0,
           interruptsUnconfirmed: 0,
           releaseRefused: 0,
-          faults: 0
+          faults: 0,
+          faultExamples: []
         }
       };
       battles.set(sim, b);
@@ -169,7 +170,14 @@
     try {
       return fn(a, b) === true;
     } catch (e) {
-      battleState(sim).stats.faults++;
+      var st = battleState(sim).stats;
+      st.faults++;
+      if (st.faultExamples.length < 5)
+        st.faultExamples.push({
+          at: +(sim && sim.time) || 0,
+          message: String((e && e.message) || e).slice(0, 240),
+          stack: String((e && e.stack) || '').slice(0, 900)
+        });
       return false;
     }
   }

@@ -178,6 +178,15 @@
       var extra = isFinite(+stats.rangeDispersion) ? Math.max(0, +stats.rangeDispersion) : 0.9;
       sigma *= 1 + clamp(f, 0, 1) * extra;
     }
+    /* Independent calibration arm: wider combat grouping while all motion,
+       ballistic energy, wounds and target-tracking rules remain unchanged.
+       On by default with projectile flight (Ivan 10-30); ?combatAccuracy=0 keeps the old sigma. */
+    if (
+      root.BattleProjectileFlight &&
+      root.BattleProjectileFlight.enabled &&
+      !/[?&]combatAccuracy=0(?:&|$)/.test((root.location && root.location.search) || '')
+    )
+      sigma *= 1.65;
     return sigma;
   }
   function groupDiameter90(shooter, stats, d, battle) {
@@ -186,6 +195,23 @@
   function shotDirection(shooter, target, stats, battle, round) {
     var origin = muzzleOrigin(shooter, target, battle),
       aim = exposedAim(shooter, target, battle) || targetCenter(target, battle);
+    /* A shooter needs time to track a changing position. A fire burst does
+       not know the target's *current* center again for every round. Existing
+       hitscan remains byte-for-byte behaviorally equivalent with the A/B flag off. */
+    if (root.BattleProjectileFlight && root.BattleProjectileFlight.enabled) {
+      var track = shooter._ballisticAimTrack,
+        time = +battle.time || 0,
+        elapsed = track ? Math.max(0, time - track.at) : 0;
+      if (track && track.target === target && elapsed <= 3) {
+        var follow = 1 - Math.exp(-elapsed / 0.55);
+        aim = {
+          x: track.aim.x + (aim.x - track.aim.x) * follow,
+          y: track.aim.y + (aim.y - track.aim.y) * follow,
+          z: track.aim.z + (aim.z - track.aim.z) * follow
+        };
+      }
+      shooter._ballisticAimTrack = { target: target, at: time, aim: aim };
+    }
     var base = norm({ x: aim.x - origin.x, y: aim.y - origin.y, z: aim.z - origin.z }),
       flat = Math.hypot(base.x, base.z) || 1;
     var right = { x: base.z / flat, y: 0, z: -base.x / flat };
@@ -318,10 +344,11 @@
     block.travel = hi;
     return block;
   }
-  function groundStop(o, d, maxT, battle) {
+  function groundStop(o, d, maxT, battle, segmentSteps) {
+    var steps = segmentSteps || GROUND_STEPS;
     var prev = EPS;
-    for (var i = 1; i <= GROUND_STEPS; i++) {
-      var t = (maxT * i) / GROUND_STEPS,
+    for (var i = 1; i <= steps; i++) {
+      var t = (maxT * i) / steps,
         p = pointAt(o, d, t),
         gy = battle.heightAt(p.x, p.z) + EPS;
       if (p.y <= gy) {
@@ -477,6 +504,51 @@
             ? 'geometry-error'
             : null;
   }
+
+  /* Flight-mode collision is still owned by this module, not by a second ray engine.
+     The swept segment uses the current (post-movement) body ellipsoids and exactly
+     the same obstacle/nav/terrain gates as hitscan. On short segments a 2m ground
+     sample is sufficient; the old 48-step full-range test remains unchanged. */
+  function flightCollision(shooter, from, to, battle, skip) {
+    var span = pointDistance(from, to);
+    if (!(span > 0.00001)) return null;
+    var dir = {
+        x: (to.x - from.x) / span,
+        y: (to.y - from.y) / span,
+        z: (to.z - from.z) / span
+      },
+      ob = obstacleStop(from, dir, span, battle),
+      ground = groundStop(from, dir, span, battle, Math.max(2, Math.ceil(span / 2))),
+      environment = ground < ob.travel ? { travel: ground, ground: true } : ob,
+      body = firstEnemyHit(shooter, from, dir, Math.min(environment.travel, span), battle, skip);
+    if (body) {
+      var entry = pointAt(from, dir, body.t);
+      return {
+        kind: 'soldier',
+        victim: body.soldier,
+        zone: hitZone(body.shape, entry, dir, stance(body.soldier)),
+        impact: entry,
+        exit: pointAt(from, dir, body.out),
+        direction: dir,
+        distance: body.t
+      };
+    }
+    if (environment.travel < span - EPS) {
+      var point = pointAt(from, dir, environment.travel),
+        surface = impactSurface(environment, point, dir, battle);
+      return {
+        kind: 'environment',
+        impact: point,
+        distance: environment.travel,
+        surface: surface.surface,
+        normal: surface.normal,
+        blocker: blockerOf(environment),
+        direction: dir
+      };
+    }
+    return null;
+  }
+
   /* One round from the muzzle: through each body it passes (passes[], at most MAX_BODIES) to where
      it stops, in a body, the environment, or at the end of its range. */
   function resolveRay(shooter, target, battle, round, delay) {
@@ -486,6 +558,16 @@
       tp = target.root.position,
       d2 = S.dist2 ? S.dist2(sp.x, sp.z, tp.x, tp.z) : Math.hypot(sp.x - tp.x, sp.z - tp.z);
     if (d2 > stats.range) return null;
+    if (root.BattleProjectileFlight && root.BattleProjectileFlight.enabled)
+      return root.BattleProjectileFlight.launch(
+        shooter,
+        target,
+        battle,
+        round,
+        delay,
+        shotDirection(shooter, target, stats, battle, round || 0),
+        false
+      );
     var shot = shotDirection(shooter, target, stats, battle, round || 0),
       power = isFinite(+stats.power) ? +stats.power : 1,
       pen = penetration(stats),
@@ -701,6 +783,8 @@
     var stats = shooter.weapon.stats,
       shot = playerShotDirection(shooter, aimPoint, stats, battle, round || 0);
     if (!shot) return null;
+    if (root.BattleProjectileFlight && root.BattleProjectileFlight.enabled)
+      return root.BattleProjectileFlight.launch(shooter, null, battle, round, delay, shot, true);
     var power = isFinite(+stats.power) ? +stats.power : 1,
       pen = penetration(stats),
       o = shot.origin,
@@ -910,6 +994,7 @@
     fireLineBlocked: fireLineBlocked,
     exposedAim: exposedAim,
     pointLineBlocked: pointLineBlocked,
+    flightCollision: flightCollision,
     queryErrors: function () {
       return {
         obstacleField: queryFaults.obstacleField,

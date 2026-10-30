@@ -31,6 +31,8 @@
      Read the current Micro reaction; never change a soldier or draw combat RNG. */
   root.BattleVoiceEligibility = {
     allows: function (s, event) {
+      var lab = root.PhaseCCombatLab;
+      if (lab && lab.isTrainingTarget && lab.isTrainingTarget(s)) return false;
       if (!s || s.dead || !s.root || (typeof s.root.isDisposed === 'function' && s.root.isDisposed()))
         return false;
       var e = s.eng || {},

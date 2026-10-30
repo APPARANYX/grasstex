@@ -132,6 +132,92 @@ test('grenades are on by default and only an absent or complete grenades=1 value
   assert.equal(setup({ search: '' }).G.on(), true, 'an empty query string is the default battle');
 });
 
+test('explicit covered-assault opportunity preserves personal intel, range, friendly safety and native throw gates', () => {
+  const ctx = setup();
+  const { r, b, s, G } = ctx;
+  r.BattleTacticalController = { controls: () => true };
+  const enemy = victim(ctx, 28, 0);
+  s.target = enemy;
+  r.SquadAI.rememberSeen(s, enemy, b, true, 'grenade-assault-fixture');
+  assert.ok(G.assaultOpportunity(s, b), 'a visible close target is legal even with a usable rifle line');
+  const before = ctx.ownDraws.count;
+  G.assaultOpportunity(s, b);
+  assert.equal(ctx.ownDraws.count, before, 'planning draws no scatter RNG');
+  s.moving = true;
+  assert.equal(G.assaultOpportunity(s, b), null, 'finish the active movement before selecting a grenade');
+  s.moving = false;
+  r.BattleEngagement.stateOf(s).urgentBound = true;
+  assert.equal(G.assaultOpportunity(s, b), null, 'urgent survival displacement retains precedence');
+  s.eng.urgentBound = false;
+  r.BattleTacticalPositions = { current: () => ({ id: 'owned-station' }) };
+  assert.equal(G.assaultOpportunity(s, b), null, 'station holders cannot starve a free grenadier selection');
+  delete r.BattleTacticalPositions;
+  s.reloading = true;
+  assert.equal(G.assaultOpportunity(s, b), null);
+  s.reloading = false;
+  s.suppressedUntil = b.time + 1;
+  assert.equal(G.assaultThrow(s, b), null);
+  s.suppressedUntil = 0;
+  const friend = man(ctx, 'us', 23, 0);
+  assert.equal(G.assaultThrow(s, b), null, 'friendly clearance is never bypassed');
+  friend.root.position.x = -20;
+  b.time += G.TUNING.CONTACT_FRESH + 1;
+  s.target = null;
+  assert.equal(G.assaultOpportunity(s, b), null, 'stale contact cannot authorize the finisher');
+  r.BattleTacticalController.controls = () => false;
+  assert.equal(G.assaultThrow(s, b), null, 'legacy controller cannot invoke the explicit finisher');
+});
+test('35m throwing reach adds eligible contacts but preserves 26m friendly clearance', () => {
+  const ctx = setup();
+  const { G, b, s, r } = ctx;
+  r.BattleTacticalController = { controls: () => true };
+  assert.equal(G.TUNING.RANGE, 35);
+  assert.equal(G.TUNING.WINDUP, 1.6, 'throw cadence must give FBX clips natural time to wind up');
+  assert.equal(G.TUNING.FRIEND_CLEAR, 26, 'original planning safety retained');
+  assert.equal(G.TUNING.ROLL_MAX_TRAVEL, 1.4);
+  const enemy = victim(ctx, 34, 0);
+  s.target = enemy;
+  r.SquadAI.rememberSeen(s, enemy, b, true, 'extended-range-safe-throw');
+  assert.ok(G.assaultOpportunity(s, b), 'a fresh personal contact at 34m is in range');
+  const friend = man(ctx, 'us', 34, 0);
+  assert.equal(G.assaultOpportunity(s, b), null, 'friendly in fragment field still vetoes a throw');
+  friend.root.position.x = -35;
+  assert.ok(G.assaultOpportunity(s, b), 'clear landing permits the extended throw');
+});
+test('AI rejects an exposed ally 16m from the aim although the old 13m gate would pass', () => {
+  const ctx = setup();
+  const { G, b, s, r } = ctx;
+  r.BattleTacticalController = { controls: () => true };
+  const enemy = victim(ctx, 28, 0);
+  s.target = enemy;
+  r.SquadAI.rememberSeen(s, enemy, b, true, 'grenade-unsafe-fragment-field');
+  assert.ok(G.assaultOpportunity(s, b), 'clean 28m throw has space to clear its own thrower');
+  const friend = man(ctx, 'us', 44, 0); // 16m from the planned landing, exposed
+  assert.equal(G.assaultOpportunity(s, b), null, '22m fragment reach plus 3.5m scatter must be respected');
+  friend.root.position.x = 58;
+  assert.ok(G.assaultOpportunity(s, b), 'ally outside full hazard permits the same throw');
+});
+
+test('AI release aborts if a friendly moves into the burst zone during windup', () => {
+  const ctx = setup();
+  const { G, b, s, r } = ctx;
+  r.BattleTacticalController = { controls: () => true };
+  const enemy = victim(ctx, 28, 0);
+  s.target = enemy;
+  r.SquadAI.rememberSeen(s, enemy, b, true, 'grenade-release-safety');
+  const carried = G.count(s);
+  const plan = G.assaultThrow(s, b);
+  assert.ok(plan, 'grenade committed with safe initial formation');
+  const friend = man(ctx, 'us', 28, 0); // intervening movement invalidates release
+  at(ctx, plan.releaseAt);
+  assert.equal(G.projectiles(b).length, 0, 'unsafe live landing never becomes a projectile');
+  assert.equal(G.count(s), carried, 'cancelled grenade does not consume inventory');
+  assert.equal(G.summary(b).unsafeAborts, 1, 'diagnostics record the safety abort');
+  assert.equal(G.summary(b).throws, 0);
+  assert.equal(G.pendingOf(s, b), null, 'a cancelled plan frees its native reservation');
+  friend.root.position.x = 60;
+});
+
 test('OFF has no registered grenade clock, field writes or RNG draws, including read APIs', () => {
   const ctx = setup({ search: '?grenades=0&log=0' });
   const { r, b, s, G } = ctx;
@@ -278,7 +364,7 @@ test('AI decision rejects stale, distant, friendly-danger, empty, reload, crawl 
   }
 });
 
-test('Engagement orients, commits the throw action, blocks rifle fire, and leaves it after release', () => {
+test('Engagement orients, reserves and blocks rifle fire, then aborts if cover vanishes at release', () => {
   const ctx = setup();
   const { G, r, s, b } = ctx;
   const E = r.BattleEngagement;
@@ -304,7 +390,8 @@ test('Engagement orients, commits the throw action, blocks rifle fire, and leave
   at(ctx, plan.releaseAt);
   E.updateSoldier(s, b);
   assert.notEqual(e.state, 'throw', 'the next Engagement tick resumes combat after clock release');
-  assert.equal(G.summary(b).throws, 1);
+  assert.equal(G.summary(b).throws, 0, 'exposed thrower must not release into his own fragment field');
+  assert.equal(G.summary(b).unsafeAborts, 1, 'release checks the lost cover before spending a grenade');
 });
 
 test('Engagement can throw at a remembered enemy after cover removes its live target', () => {
@@ -381,6 +468,43 @@ test('a bound without cover cannot bypass HOLD FIRE, and OPEN FIRE permits the s
   E.updateSoldier(s, b);
   assert.equal(e.state, 'throw');
   assert.ok(G.pendingOf(s, b), 'opening fire authorizes that same bound-recovery decision');
+});
+
+test('grenade bounce and roll follow native physics before detonation at the resting position', () => {
+  const ctx = setup({ seed: 'grenade-impact-physics' });
+  const { G, b } = ctx;
+  const g = throwOnce(ctx, { x: 30, z: 0 });
+  assert.ok(Object.isFrozen(g) && Object.isFrozen(g.points) && Object.isFrozen(g.impact));
+  assert.ok(g.impactAt < g.flight, 'simulation gives post-contact motion its own scheduled time');
+  assert.ok(g.rollDistance > 0.05 && g.rollDistance <= G.TUNING.ROLL_MAX_TRAVEL + 1e-8);
+  assert.ok(
+    g.points.some(p => p.at > g.impactAt && p.y > g.impact.y + 0.015),
+    'restitution creates a visible, physics-integrated first bounce'
+  );
+  assert.ok(
+    Math.hypot(g.to.x - g.impact.x, g.to.z - g.impact.z) > 0.05,
+    'friction reduces an actual sliding velocity, not just mesh rotation'
+  );
+  assert.deepEqual(G.position(g, g.releasedAt + g.impactAt), g.impact);
+  assert.deepEqual(G.position(g, g.releasedAt + g.flight), g.to);
+  assert.deepEqual(G.position(g, g.detonateAt - 0.01), g.to);
+  assert.equal(g.detonateAt, g.releasedAt + g.flight + G.TUNING.FUSE);
+  assert.deepEqual(G.projectiles(b)[0].to, g.to, 'final collision result belongs to simulation');
+  at(ctx, g.detonateAt);
+  assert.equal(G.summary(b).bursts, 1);
+});
+
+test('grenade landing motion replays identically without frame/render or combat RNG dependence', () => {
+  const a = setup({ seed: 'grenade-roll-determinism' });
+  const ga = throwOnce(a, { x: 30, z: 0 });
+  const b = setup({ seed: 'grenade-roll-determinism' });
+  for (let i = 0; i < 20; i++) b.b.random();
+  const gb = throwOnce(b, { x: 30, z: 0 });
+  assert.deepEqual(gb.points, ga.points);
+  assert.deepEqual(gb.to, ga.to);
+  assert.deepEqual(gb.impact, ga.impact);
+  assert.equal(gb.detonateAt, ga.detonateAt);
+  assert.ok(ga.points.length > 24, 'native physics produced actual substep trajectory points');
 });
 
 test('preview is deterministic and read-only, and an intervening wall stops the released arc', () => {
@@ -668,6 +792,31 @@ test('enemy grenade casualties earn kill credit while friendly and self casualti
     assert.equal(G.summary(b).casualties, 1);
     assert.equal(G.summary(b).friendlyCasualties, relation === 'enemy' ? 0 : 1);
   }
+});
+
+test('a legal AI release can still wound a friendly who enters before detonation', () => {
+  const ctx = setup();
+  const { G, b, s, r } = ctx;
+  r.BattleTacticalController = { controls: () => true };
+  const enemy = victim(ctx, 28, 0);
+  s.target = enemy;
+  r.SquadAI.rememberSeen(s, enemy, b, true, 'grenade-late-friendly');
+  const plan = G.assaultThrow(s, b);
+  assert.ok(plan, 'formation is safe when the AI commits');
+  at(ctx, plan.releaseAt);
+  const [g] = G.projectiles(b);
+  assert.ok(g, 'safe AI release remains live');
+  const friend = victim(ctx, g.to.x + 0.5, g.to.z, 'us');
+  friend.hp = 1;
+  at(ctx, g.detonateAt);
+  assert.ok(friend.dead, 'late entry retains physical friendly-fire damage');
+  assert.equal(friend.casualty.by, s.id);
+  assert.equal(friend.casualty.source, 'grenade');
+  assert.equal(G.summary(b).friendlyWounded, 1);
+  assert.equal(G.summary(b).friendlyCasualties, 1);
+  assert.ok(G.summary(b).wounded >= G.summary(b).friendlyWounded);
+  assert.ok(G.summary(b).casualties >= G.summary(b).friendlyCasualties);
+  assert.equal(G.summary(b).unsafeAborts, 0, 'later friendly entry does not retroactively cancel the throw');
 });
 
 test('a friendly grenade wound that later bleeds out preserves source and counts without kill credit', () => {

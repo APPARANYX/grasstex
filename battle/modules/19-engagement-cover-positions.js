@@ -297,14 +297,20 @@
         s.incapacitated ||
         battle.winner ||
         !p ||
-        q.state === 'retreat' ||
-        q.commandPhase === 'retreat' ||
+        ((q.state === 'retreat' || q.commandPhase === 'retreat') &&
+          !(
+            e.kind === 'controller' &&
+            root.BattleSquadStability &&
+            root.BattleSquadStability.controllerBound &&
+            root.BattleSquadStability.controllerBound.role(s, battle)
+          )) ||
         q.commandPhase === 'regroup' ||
         (root.BattleTacticalPositions && root.BattleTacticalPositions.current(s))
       )
         return false;
       if (e.createdAt === battle.time) return true; // selection is committed by its caller in this tick
       var near = dist(p.x, p.z, e.slot.x, e.slot.z) <= COVER_SPACING;
+      if (e.kind === 'controller' && root.BattleSquadStability.controllerBound.role(s, battle)) return true;
       if (e.kind === 'route')
         return !!(s._tacticalRoute && s._tacticalRoute.coverSlotId === e.slot.id) || near;
       return !!(
@@ -581,7 +587,10 @@
       var c = coverRegistry(battle),
         p = posOf(s),
         t = threat.root ? posOf(threat) : threat;
-      var obs = F.nearby(battle.obstacles, p.x, p.z, maxRange),
+      /* A legal standoff slot may be closer than its sheltering footprint.
+         Pad discovery only; exact slot distance, shielding, route and
+         reservation checks remain intact. */
+      var obs = F.nearby(battle.obstacles, p.x, p.z, maxRange + slotPad()),
         out = [],
         seen = new Set(),
         P = root.BattleNavigationPhysicality;
@@ -773,6 +782,11 @@
       releaseCover: releaseCover,
       reserveCover: reserveCover,
       coverCandidates: coverCandidates,
+      /* Same native obstacle/cover-slot eligibility at tactical graph radius.
+         No new cover geometry and no independent claim or destination writer. */
+      routeCandidates: function (s, battle, threat, radius) {
+        return coverCandidates(s, battle, threat, Math.min(450, Math.max(26, radius || 180)));
+      },
       coverSnapshot: coverSnapshot,
       findCover: findCover,
       boundThreats: boundThreats,

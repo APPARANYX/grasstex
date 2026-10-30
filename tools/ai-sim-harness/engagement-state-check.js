@@ -62,7 +62,12 @@ assert.strictEqual(e.cover, null);
 assert.strictEqual(e.setUpSince, 0);
 assert.strictEqual(e.moveReason, 'old');
 assert.throws(() => E.requestState(s, b, 'unknown'), /request/);
+// First-contact response is on by default (?firstContactResponse=0 restores the narrower list),
+// so urgent-cover may start from advance; a state outside both lists still refuses it.
+const priorState = e.state;
+e.state = 'withdraw';
 assert.throws(() => E.requestState(s, b, 'urgent-cover', 2), /transition/);
+e.state = priorState;
 // A normal same-state entry renews until but preserves since and transition side effects.
 e.state = 'withdraw';
 e.since = 1;

@@ -61,6 +61,39 @@ The page loads the contract beside the Commander. The only provider is the march
 (13c), registered only under `?tacticalController=new`, so a default battle never activates the
 controller; the controller keeps its state in WeakMaps and adds no squad or soldier field.
 
+
+Slice 4 (`13e-tactical-covered-maneuver.js`) chooses forward/back cover points and native
+actors under the same opt-in provider. `maneuver.cover` asks Meso's `controllerBound` to
+lease the existing `bound` kind for up to three independent personal movers. These flexible
+windows end on physical arrival/check-in or genuine interruption, never on a timer.
+`combat.bound` reserves a canonical cover slot,
+publishes through Meso/Command Reception, then executes only after personal adoption.
+Engagement reports actual arrival within 0.45 m; publication/readiness cannot finish it.
+The first move requires actual qualified Ammunition discharge evidence; further enrollments
+retain two capable supporters and fresh native fire evidence. A recent shooter may become a
+mover while other actual shooters remain. Retained C/D hops survive B arrivals inside a
+defended perimeter; only the last checked-in post stabilizes that defender. Cover routes
+are revalidated against detached perceived threats; no exposed/objective-rush fallback.
+
+Close assault finishes with an explicit `combat.contact` `grenade` drill, selected by the
+contact skill for one eligible non-moving rifleman per squad. The grenade owner's read-only
+`assaultOpportunity` checks personally known fresh contact, 30 m range, inventory/cooldown,
+fire permission, a clear physical throw arc and native friendly clearance. Engagement calls
+`assaultThrow` to revalidate and commit; the native grenade clock alone releases and detonates.
+A usable rifle line does not veto this explicitly requested finisher. Legacy opportunistic
+grenade policy is unchanged. A live squad grenade prevents another finisher until it bursts.
+The Skills Lab assault objective is at the target line, with actual final physical shelters;
+capturing a midpoint must not turn the unfinished assault into a defensive deployment.
+
+A retreat window is an explicit Meso-owned exception to ordinary all-member withdrawal,
+queried by Engagement, cover reservations and the resolver. It preserves retreat state and
+never changes the retreat anchor or fire permission. Fewer than four living, extraction,
+failed support, pinning/reaction, player takeover, scene/navigation/leader/roster/mission
+change revoke the affected authority; ordinary retreat remains available.
+The module's read-only summary/history and benchmark `coveredBounds.controller` distinguish
+started, arrived and aborted episodes by direction. This is an opt-in implementation;
+controlled harness success does not establish natural battle tactical-quality acceptance.
+
 Effect requests and receipts correlate the full tuple `battleId`, `generation`, `faction`, `squadId`,
 `actorId` (when applicable), `missionVersion`, `rosterRevision`, `controllerEpoch`, `mode`
 and `actionId`. Reconstitution, member detachment, mission supersession, controller
@@ -786,8 +819,8 @@ burst: an automatic held fires at `cyclic` until released, and the Thompson M1A1
 `selector` (`BattleWeapons.fireMode`, see player-mode-feedback.md). `rof` is the aimed rate of a semi-auto or bolt action; an
 automatic has `cyclic` (rounds/s), `burst` [min, max], `burstPause` and `burstClimb`. One trigger pull
 fires the whole burst on one AI tick (0.15 s, slower than an MG42 cycles); each round goes through
-`roundGate`, `shotModel(…, round, delay)` and `afterShot`, and `onFire(soldier, delay)` / the shot's
-`delay` let presentation play it at the cyclic rate (`BattleSim.presentAfter`). What a hit does is the
+`roundGate`, `shotModel(…, round, delay)` and `afterShot(soldier, battle, muzzleDelay)`, and `onFire(soldier, delay)` / the shot's
+`delay` let presentation play it at the cyclic rate (`BattleSim.presentAfter`). Ammunition reserves the reload immediately when empty, but sets `reloadStart` to 500 ms after the final scheduled muzzle discharge and `reloadUntil` to that start plus the full reload duration. No round is available during either the delay or the reload. Animation receives the same delay and full duration; handling stages follow `reloadStart`/`reloadUntil`. What a hit does is the
 `woundModel` (`modules/14-wound-model.js`, `BattleWounds`): the ray's hit zone (head, chest, abdomen,
 arm, leg; `BattleBallistics.hitZone`), a drop chance per zone scaled by the cartridge's `power`,
 bleeding that eases with time, leg wounds slowing (`woundSpeed`, applied in `11-soldier-individuality`)

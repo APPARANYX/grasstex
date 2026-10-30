@@ -14,6 +14,7 @@
   'use strict';
   if (!root.BattleModules || !root.SquadAI || root.BattleAmmunition) return;
 
+  var dischargeEvidence = new WeakMap();
   var LOADOUT = {
     rifle: {
       total: 80,
@@ -120,11 +121,11 @@
       if (battle && battle.onCallout) battle.onCallout(s, type);
     } catch (_) {}
   }
-  function animateReload(s, seconds) {
+  function animateReload(s, seconds, delay) {
     try {
       var M = root.BattleSoldierModel;
       if (M && M.triggerAnimation && M.TAGS && M.TAGS.reload)
-        M.triggerAnimation(s, M.TAGS.reload, { duration: seconds });
+        M.triggerAnimation(s, M.TAGS.reload, { duration: seconds, delay: delay || 0 });
     } catch (_) {}
   }
   function markFireReady(s, battle, delay) {
@@ -134,6 +135,7 @@
   }
 
   function initialize(s, sim) {
+    dischargeEvidence.delete(s);
     if (!s || !s.weapon) return;
     var c = cfg(s),
       mag = Math.max(1, +s.weapon.magSize || (+s.weapon.stats && +s.weapon.stats.magazine) || 8),
@@ -155,6 +157,7 @@
     }
     s.reloading = false;
     s.reloadUntil = 0;
+    s.reloadStart = 0;
     s.clearingStoppage = false;
     s.stoppageUntil = 0;
     s.outOfAmmo = false;
@@ -179,6 +182,7 @@
     w.reserveAmmo = Math.max(0, (+w.reserveAmmo || 0) - load);
     s.reloading = false;
     s.reloadUntil = 0;
+    s.reloadStart = 0;
     s.outOfAmmo = w.ammo <= 0 && w.reserveAmmo <= 0;
     if (load > 0) bump(battle, s, 'roundsLoaded', load);
     markFireReady(s, battle, 0.18);
@@ -188,16 +192,23 @@
     if (!s || !s.weapon || s.reloading || s.clearingStoppage) return false;
     var w = s.weapon;
     if ((+w.ammo || 0) > 0 || (+w.reserveAmmo || 0) <= 0) return false;
-    var seconds = Math.max(0.8, +w.stats.reloadTime || 2.5);
+    var seconds = Math.max(0.8, +w.stats.reloadTime || 2.5),
+      now = +battle.time || 0,
+      shot = dischargeEvidence.get(s),
+      delay =
+        shot && shot.battle === battle && shot.weapon === w ? Math.max(0, shot.muzzleAt + 0.5 - now) : 0;
+    // Empty immediately blocks the next round; the full reload begins after
+    // the final scheduled muzzle discharge and half a second of settling.
     s.reloading = true;
-    s.reloadUntil = (+battle.time || 0) + seconds;
+    s.reloadStart = now + delay;
+    s.reloadUntil = s.reloadStart + seconds;
     if (root.BattleEngagement) root.BattleEngagement.interruptGun(s);
     var a =
       s._ammoState ||
       (s._ammoState = { reloads: 0, stoppages: 0, shots: 0, lowCalled: false, dryCounted: false });
     a.reloads++;
     bump(battle, s, 'reloads');
-    animateReload(s, seconds);
+    animateReload(s, seconds, delay);
     /* Reload chatter is deterministic and sparse so voice does not consume combat RNG. */
     if (deterministicCall(s, a.reloads, 4)) say(s, battle, 'reload');
     return true;
@@ -241,7 +252,7 @@
     }
     return true;
   }
-  function afterShot(s, battle) {
+  function afterShot(s, battle, delay) {
     var w = s.weapon,
       c = cfg(s),
       a =
@@ -250,6 +261,13 @@
     w.ammo = Math.max(0, (+w.ammo || 0) - 1);
     w.heat = Math.min(1, (+w.heat || 0) + c.heatPerShot);
     a.shots++;
+    dischargeEvidence.set(s, {
+      at: battle.time,
+      muzzleAt: (+battle.time || 0) + Math.max(0, +delay || 0),
+      battle: battle,
+      weapon: w,
+      shots: a.shots
+    });
     bump(battle, s, 'shots');
     maybeLow(s, battle);
     if (w.ammo <= 0) {
@@ -292,6 +310,7 @@
     }
   }
   function reset(sim) {
+    dischargeEvidence = new WeakMap();
     sim._ammunitionStats = fresh();
     var a = units(sim);
     for (var i = 0; i < a.length; i++) initialize(a[i], sim);
@@ -352,6 +371,7 @@
   function weaponChanged(s) {
     s.reloading = false;
     s.reloadUntil = 0;
+    s.reloadStart = 0;
     s.clearingStoppage = false;
     s.stoppageUntil = 0;
     s.outOfAmmo = carried(s) <= 0;
@@ -377,6 +397,12 @@
         !s.weapon.jammed &&
         (+s.weapon.ammo || 0) > 0
       );
+    },
+    shotEvidence: function (s, sim) {
+      var a = s && dischargeEvidence.get(s);
+      return a && a.battle === sim && a.weapon === s.weapon && Number.isFinite(a.at)
+        ? { at: a.at, shots: a.shots }
+        : null;
     },
     summary: function (sim) {
       return sim ? snapshot(sim) : null;

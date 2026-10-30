@@ -80,8 +80,10 @@
       /* Contact reporting and fled-member detachment above are retained; recon, fire control, COA and
          bound selection below belong to whichever controller owns the squad. */
       var TC = root.BattleTacticalController;
-      if (TC && TC.dispatch(battle, sq, 'fireAndMovement', r)) return;
+      /* Recon is a retained Squad Leader skill under any controller: its lease lifecycle (contact,
+         timeout, arrival) runs here for every squad, and the provider yields while it holds. */
       updateRecon(sq, battle, r);
+      if (TC && TC.dispatch(battle, sq, 'fireAndMovement', r)) return;
       var localTask = localPlan && localPlan.on ? localPlan.update(battle, sq, r) : null;
       if (tacticalPostures && tacticalPostures.on) tacticalPostures.update(battle, sq, r);
       if (localPlan && localPlan.tasksOn && sq.state === 'retreat') {

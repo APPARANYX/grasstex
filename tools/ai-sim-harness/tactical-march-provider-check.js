@@ -85,11 +85,12 @@ test('with the flag it takes every squad at battle start through the guarded swi
   assert.equal(w.TC.controls(w.b, w.q), true);
 });
 
-test('each man is asked to his Meso formation slot around the first leg, through Meso publication', () => {
+test('each man is asked to his Meso formation slot around the squad anchor, through Meso publication', () => {
   const w = world();
   w.systems['tactical-march-provider'].onBattleStart(w.b);
+  const anchor = { x: w.q.orderAnchor.x, z: w.q.orderAnchor.z };
   tick(w);
-  const slots = w.r.BattleSquadStability.formationSlots(w.q, LEGS[0], { x: 0, z: 1 });
+  const slots = w.r.BattleSquadStability.formationSlots(w.q, anchor, { x: 0, z: 1 });
   assert.equal(slots.length, alive(w).length, 'every living man has a slot');
   slots.forEach(({ man, point }) => {
     const r = record(w, man);
@@ -103,13 +104,19 @@ test('each man is asked to his Meso formation slot around the first leg, through
   assert.equal(summary.controlled, true);
   assert.equal(summary.leg, 0);
   assert.equal(summary.stages['move:published'], alive(w).length, 'every man’s stage is the owner’s');
+  w.b.time += 0.2;
+  tick(w); // the Squad Leader's first stride (taken at once, as on any march) moves the anchor
+  assert.ok(w.q.orderAnchor.z > anchor.z, 'the anchor strides toward the leg, not the leg itself');
+  alive(w).forEach(s => place(s, { x: 0, z: -50 })); // not yet there: the anchor waits for the squad
+  w.b.time += 0.2;
+  tick(w); // asked once more at the strided anchor
   const before = alive(w).map(s => record(w, s).envelopeId);
   w.b.time += 0.2;
   tick(w);
   assert.deepEqual(
     alive(w).map(s => record(w, s).envelopeId),
     before,
-    'asked once per leg: no reissue while the men process the order'
+    'asked once per stride: no reissue while the men process the order'
   );
 });
 
@@ -136,6 +143,7 @@ test('the squad moves on to the next leg when its centre reaches the leg', () =>
 test('on the last leg a man who arrives holds there with a native resolver hold', () => {
   const w = world();
   w.q.route = [{ x: 0, z: 30 }];
+  w.q.orderAnchor = { x: 0, z: 30 }; // the squad's anchor has strided to the last leg
   w.systems['tactical-march-provider'].onBattleStart(w.b);
   tick(w);
   const man = alive(w)[3],
@@ -181,6 +189,7 @@ test('a refusal is listed while it lasts and asked again once it clears, with no
 test('a hold the owner ended is listed with its reason and not asked for again on that leg', () => {
   const w = world();
   w.q.route = [{ x: 0, z: 30 }];
+  w.q.orderAnchor = { x: 0, z: 30 }; // the squad's anchor has strided to the last leg
   w.systems['tactical-march-provider'].onBattleStart(w.b);
   tick(w);
   const man = alive(w)[3],
@@ -222,6 +231,33 @@ test('retreat wins: every order is finished at its owner, nothing is published, 
   w.b.time += 0.5;
   tick(w);
   assert.equal(w.TC.summary(w.b).actions, men.length, 'the men are asked again once the retreat ends');
+});
+
+test('live contact stands down march without issuing distant route-leg orders', () => {
+  const w = world();
+  w.systems['tactical-march-provider'].onBattleStart(w.b);
+  tick(w);
+  const man = alive(w)[0],
+    firstEnvelope = record(w, man).envelopeId;
+  assert.equal(w.TC.summary(w.b).actions, alive(w).length);
+  w.q.inContact = true;
+  w.TC.dispatch(w.b, w.q, 'squadCommand');
+  assert.equal(w.TC.summary(w.b).actions, 0, 'contact releases every march action at its owner');
+  assert.equal(w.TC.summary(w.b).pending, 0);
+  assert.equal(w.r.BattleSquadStability.controllerMovement.current(man, null), false);
+  for (let i = 0; i < 8; i++) {
+    w.b.time += 0.15;
+    w.TC.dispatch(w.b, w.q, 'squadCommand');
+  }
+  assert.equal(w.TC.summary(w.b).actions, 0, 'no march/contact-order ping-pong');
+  assert.equal(record(w, man).envelopeId, firstEnvelope, 'no new route publication in contact');
+  w.q.inContact = false;
+  w.b.time += 0.15;
+  w.TC.dispatch(w.b, w.q, 'squadCommand');
+  assert.equal(w.TC.summary(w.b).actions, 0, 'between mission ticks nothing is asked');
+  w.b.time += 0.3;
+  tick(w);
+  assert.equal(w.TC.summary(w.b).actions, alive(w).length, 'march resumes after contact ends');
 });
 
 test('a retreat phase alone also stands the provider down, as it does the resolver', () => {

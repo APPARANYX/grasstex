@@ -5,8 +5,13 @@
 (function (root) {
   'use strict';
 
-  var MAP_W = root.PHASE_C_COMBAT_LAB ? 280 : 2000,
-    MAP_D = root.PHASE_C_COMBAT_LAB ? 240 : 1200;
+  function expandedMiniMeeting() {
+    if (!root.PHASE_C_COMBAT_LAB || root.SKILLS_LAB || !root.location) return false;
+    return /[?&]balancedMeeting=1(?:&|$)/.test(root.location.search || '');
+  }
+  var LARGE_MEETING = expandedMiniMeeting();
+  var MAP_W = LARGE_MEETING ? 480 : root.PHASE_C_COMBAT_LAB ? 280 : 2000,
+    MAP_D = LARGE_MEETING ? 360 : root.PHASE_C_COMBAT_LAB ? 240 : 1200;
   var FEATURE_KEYS = [
     'buildingDensity',
     'objectiveCount',
@@ -685,14 +690,20 @@
         : createStrategic(seed, opts);
     var r = rngFor(seed, 'scenario');
     var lab = !!root.PHASE_C_COMBAT_LAB,
-      spanX = lab ? 205 : rr(r, 430, 720),
-      spanZ = lab ? 166 : rr(r, 300, 500),
+      spanX = LARGE_MEETING ? 406 : lab ? 205 : rr(r, 430, 720),
+      spanZ = LARGE_MEETING ? 268 : lab ? 166 : rr(r, 300, 500),
       cx = lab ? 0 : rr(r, -180, 180),
       cz = lab ? 0 : rr(r, -85, 85);
-    var buildingCount = lab ? 6 : Math.round(rr(r, 12, 28)),
+    var buildingCount = LARGE_MEETING ? 13 : lab ? 6 : Math.round(rr(r, 12, 28)),
       objectiveCount = lab ? 1 : Math.round(rr(r, 3, 6));
-    var lanes = lab ? [-25, 25] : [-700, -350, 0, 350, 700],
-      spawnZ = MAP_D / 2 - (lab ? 30 : 90);
+    var lanes = LARGE_MEETING ? [-38, 38] : lab ? [-25, 25] : [-700, -350, 0, 350, 700],
+      spawnZ = MAP_D / 2 - (lab ? 30 : 90),
+      /* Preview-only paired tempo experiment. Baseline starts at +/-150m; half
+         engagement starts +/-75m while preserving the exact seeded terrain,
+         obstacles, weapons, mission and native movement owners. */
+      tempoHalfStart = LARGE_MEETING && /[?&]meetingStartHalf=1(?:&|$)/.test(root.location.search || ''),
+      balancedMeeting = LARGE_MEETING;
+    if (tempoHalfStart) spawnZ *= 0.5;
     var scenario = {
       version: 20,
       seed: seed,
@@ -702,7 +713,7 @@
       settlement: { cx: round(cx, 1), cz: round(cz, 1), spanX: round(spanX, 1), spanZ: round(spanZ, 1) },
       spawnZones: {
         us: { z: -spawnZ, lanes: lanes.slice() },
-        ge: { z: spawnZ, lanes: lab ? [0] : lanes.slice() }
+        ge: { z: spawnZ, lanes: balancedMeeting ? lanes.slice() : lab ? [0] : lanes.slice() }
       },
       roads: [
         { id: 'road-ns', ax: cx, az: cz - spanZ * 0.58, bx: cx, bz: cz + spanZ * 0.58, width: 10 },
@@ -724,8 +735,26 @@
         bz: cz + spanZ * 0.38,
         width: 7
       });
-    scenario.buildings = generateBuildings(r, cx, cz, spanX, spanZ, buildingCount);
+    /* Skills Lab: unclutter the 280 m range without altering live map generation.
+       Retain the normal terrain-cover system and one genuine objective to drive
+       the same mission, perception and Meso ownership as natural battles. */
+    scenario.buildings = root.SKILLS_LAB ? [] : generateBuildings(r, cx, cz, spanX, spanZ, buildingCount);
+    if (root.SKILLS_LAB) {
+      scenario.roads = [];
+      scenario.terrain.roughness = 0.18;
+      /* Pre-spawn range geometry, not scripted soldier locomotion. */
+      var gap = Number(new URLSearchParams(root.location.search).get('labDistance') || 70);
+      if ([35, 70, 120, 180].indexOf(gap) < 0) gap = 70;
+      scenario.spawnZones.us.z = -gap / 2;
+      scenario.spawnZones.ge.z = gap / 2;
+    }
     scenario.objectives = generateObjectives(r, cx, cz, spanX, spanZ, objectiveCount);
+    if (root.SKILLS_LAB) {
+      /* This drill assaults the target line. A midpoint capture incorrectly
+         switched Macro to DEFEND before the covered approach was complete. */
+      scenario.objectives[0].z = scenario.spawnZones.ge.z;
+      scenario.objectives[0].label = 'Target-line assault';
+    }
     scenario.sectors = scenario.objectives;
     scenario.center = { x: cx, z: cz };
     scenario.radius = Math.max(spanX, spanZ) * 0.62;

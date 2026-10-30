@@ -16,7 +16,9 @@
         fire: null,
         men: new Map(),
         roles: new Set(),
-        rejected: {}
+        points: new Map(),
+        rejected: {},
+        grenadeDiagnostic: null
       };
       states.set(ctx.squad, st);
     }
@@ -42,6 +44,8 @@
     st.fire = null;
     st.men.clear();
     st.roles.clear();
+    st.points.clear();
+    st.grenadier = null;
     st.active = false;
     st.startedAt = null;
     st.discipline = null;
@@ -59,7 +63,8 @@
         !stage ||
         stage.stage === 'cancelled' ||
         a.drill !== drill(s, ctx.sim, st) ||
-        a.target !== (s.target && String(s.target.id))
+        a.target !== (s.target && String(s.target.id)) ||
+        a.pointKey !== (st.points.has(id) ? JSON.stringify(st.points.get(id)) : null)
       ) {
         ctx.finish(a.id, 'contact-role-changed');
         st.men.delete(id);
@@ -89,6 +94,59 @@
     }
     return prior.value;
   }
+  /* Fresh eyewitness sectors are lawful suppression intelligence, never
+     personal targets. Ignore auditory, relayed and incoming-only beliefs. */
+  var SIGHTING_AGE = 8;
+  function seenSectors(sq, sim) {
+    var A = root.SquadAI,
+      /* The reporting eyewitness may be the player-controlled squad leader.
+         The PLAYER does not become an AI suppressor, but their actual SEEN
+         report remains valid shared intelligence for squadmates. */
+      men = (sq.members || []).filter(function (s) {
+        return s && !s.dead;
+      }),
+      reports = A.squadContactsMap && A.squadContactsMap(sq, sim),
+      out = [];
+    (reports || []).forEach(function (rec) {
+      if (
+        !rec ||
+        rec.source !== 'seen' ||
+        !Number.isFinite(rec.x) ||
+        !Number.isFinite(rec.z) ||
+        !Number.isFinite(rec.at) ||
+        rec.at > sim.time ||
+        sim.time - rec.at > SIGHTING_AGE ||
+        !(rec.confidence >= 0.2) ||
+        !men.some(function (man) {
+          return String(man.id) === String(rec.sourceSoldier);
+        })
+      )
+        return;
+      out.push({ x: rec.x, z: rec.z, at: rec.at, sector: rec.sector });
+    });
+    var c = A.squadContact && A.squadContact(sq, sim),
+      at = c && (c.firstHandAt == null ? c.at : c.firstHandAt);
+    if (
+      c &&
+      A.hasFirstHandMemory &&
+      A.hasFirstHandMemory(c, sim) &&
+      !c.heard &&
+      !c.relayedFrom &&
+      Number.isFinite(c.x) &&
+      Number.isFinite(c.z) &&
+      Number.isFinite(at) &&
+      at <= sim.time &&
+      sim.time - at <= SIGHTING_AGE &&
+      men.some(function (man) {
+        return String(man.id) === String(c.seenBy);
+      })
+    )
+      out.push({ x: c.x, z: c.z, at: at, sector: 'primary' });
+    out.sort(function (a, b) {
+      return b.at - a.at;
+    });
+    return out;
+  }
   function update(ctx) {
     var st = state(ctx),
       sq = ctx.squad,
@@ -116,6 +174,8 @@
       st.startedAt = null;
       st.discipline = null;
       st.roles.clear();
+      st.points.clear();
+      st.grenadier = null;
       st.reason = 'contact-clear';
       reconcile(ctx, st);
       return;
@@ -177,6 +237,14 @@
         reason = 'line-ready';
       }
     }
+    /* The covered-maneuver owner cannot obtain authentic supporting fire
+       while the contact owner keeps every rifle under a preparation HOLD.
+       Publish native OPEN fire permission for a valid covering assignment;
+       Engagement still owns actual shooting, target and ballistics. */
+    if (Q.controllerBound && Q.controllerBound.current(sq, sim)) {
+      desired = 'open';
+      reason = 'cover-assignment-needs-live-fire';
+    }
     st.discipline = desired;
     st.reason = reason;
     st.ready = ready;
@@ -198,33 +266,94 @@
       st.rejected.fire = fire.ok ? null : fire.reason;
     }
     var prior = st.roles,
-      candidates =
-        desired === 'open'
-          ? men.filter(function (s) {
-              var own = personal(s, sim);
-              return (
-                !s.target &&
-                own &&
-                !E.reacting(s) &&
-                !(s.suppressedUntil > sim.time) &&
-                A.canSuppress &&
-                A.canSuppress(s, { x: +own.x, z: +own.z }, sim)
-              );
-            })
-          : [];
-    candidates.sort(function (a, b) {
+      sectors = desired === 'open' ? seenSectors(sq, sim) : [],
+      opportunities = [];
+    if (desired === 'open')
+      men.forEach(function (s) {
+        if (
+          E.reacting(s) ||
+          s.suppressedUntil > sim.time ||
+          !s.weapon ||
+          s.reloading ||
+          s.outOfAmmo ||
+          (s.eng && s.eng.urgentBound)
+        )
+          return;
+        var o = observation(s, sim, st);
+        if (s.target && o.ready) return;
+        var best = null,
+          rating = Infinity;
+        sectors.forEach(function (rec) {
+          var posture = E.suppressionStance && E.suppressionStance(s, sim, rec);
+          if (!posture) return;
+          var d = Math.hypot(rec.x - s.root.position.x, rec.z - s.root.position.z);
+          if (d < rating) {
+            best = rec;
+            rating = d;
+          }
+        });
+        if (best) opportunities.push({ man: s, point: { x: best.x, z: best.z }, distance: rating });
+      });
+    opportunities.sort(function (a, b) {
       return (
-        +!A.isMachineGun(a) - +!A.isMachineGun(b) ||
-        +!prior.has(String(a.id)) - +!prior.has(String(b.id)) ||
-        (+a.slotIndex || 0) - (+b.slotIndex || 0) ||
-        String(a.id).localeCompare(String(b.id))
+        +!A.isMachineGun(a.man) - +!A.isMachineGun(b.man) ||
+        +!prior.has(String(a.man.id)) - +!prior.has(String(b.man.id)) ||
+        a.distance - b.distance ||
+        String(a.man.id).localeCompare(String(b.man.id))
       );
     });
+    st.points.clear();
     st.roles = new Set(
-      candidates.slice(0, E.tuning.MAX_SUPPRESSORS).map(function (s) {
-        return String(s.id);
+      opportunities.slice(0, E.tuning.MAX_SUPPRESSORS).map(function (entry) {
+        var id = String(entry.man.id);
+        st.points.set(id, entry.point);
+        return id;
       })
     );
+    /* One native grenade at a time per squad. This is a controller decision;
+       the grenade owner supplies the read-only personal-intel/arc/safety query
+       and revalidates at execution. A mover finishes his physical hop first. */
+    var G = root.BattleGrenades,
+      pendingGrenadier =
+        G &&
+        members(sq).find(function (s) {
+          return G.pendingOf(s, sim);
+        });
+    st.grenadier = pendingGrenadier ? String(pendingGrenadier.id) : null;
+    st.grenadeDiagnostic = {
+      at: +sim.time.toFixed(2),
+      considered: 0,
+      reasons: {},
+      selectedId: st.grenadier
+    };
+    if (
+      G &&
+      G.assaultAssessment &&
+      !st.grenadier &&
+      !retreat(sq) &&
+      !G.projectiles(sim).some(function (g) {
+        return g.byRef && g.byRef.squad === sq;
+      })
+    ) {
+      var grenadier = members(sq).find(function (s) {
+        if (A.isMachineGun(s)) return false;
+        if (Q.controllerBound && Q.controllerBound.role(s, sim) === 'move') {
+          st.grenadeDiagnostic.reasons['assigned-covered-mover'] =
+            (st.grenadeDiagnostic.reasons['assigned-covered-mover'] || 0) + 1;
+          return false;
+        }
+        var decision = G.assaultAssessment(s, sim);
+        st.grenadeDiagnostic.considered++;
+        if (!decision.ok)
+          st.grenadeDiagnostic.reasons[decision.reason] =
+            (st.grenadeDiagnostic.reasons[decision.reason] || 0) + 1;
+        return decision.ok;
+      });
+      if (grenadier) {
+        st.grenadier = String(grenadier.id);
+        st.grenadeDiagnostic.selectedId = st.grenadier;
+      }
+    }
     reconcile(ctx, st);
   }
   /* No shared report becomes a personal target or a permission to shoot. A man without a usable
@@ -235,31 +364,60 @@
       !s ||
       s.dead ||
       s.isPlayer ||
-      retreat(s.squad) ||
+      (root.BattleTacticalPositions && root.BattleTacticalPositions.current(s)) ||
+      (retreat(s.squad) &&
+        !(
+          root.BattleSquadStability.controllerBound && root.BattleSquadStability.controllerBound.role(s, sim)
+        )) ||
       E.reacting(s) ||
       (s.eng && s.eng.state === 'bound' && s.eng.urgentBound)
     )
       return null;
     if (s.suppressedUntil > sim.time) return 'pinned';
     if (E.fireControlPreparing(s, sim)) return 'prepare';
+    if (
+      st &&
+      st.grenadier === String(s.id) &&
+      root.BattleGrenades &&
+      (root.BattleGrenades.pendingOf(s, sim) || root.BattleGrenades.assaultOpportunity(s, sim))
+    )
+      return 'grenade';
     if (s.target) {
       var o = observation(s, sim, st);
-      return o.inRange && o.visualLine && o.ballisticLine ? 'fire' : 'march';
+      /* A crouched/prone man may still have a legitimate firing line above
+         cover. Let Engagement (the sole stance and shot owner) raise him,
+         rather than labelling him MARCH and never giving him that chance. */
+      var here = s.root && s.root.position,
+        peek =
+          o.inRange &&
+          here &&
+          !(s.suppressedUntil > sim.time) &&
+          !s.moving &&
+          E.firingLineClear &&
+          (E.firingLineClear(s, s.target, here, 'crouch', sim) ||
+            E.firingLineClear(s, s.target, here, 'stand', sim));
+      if (o.inRange && ((o.visualLine && o.ballisticLine) || peek)) return 'fire';
     }
-    if (st && st.roles.has(String(s.id)) && personal(s, sim)) return 'suppress';
+    if (st && st.roles.has(String(s.id)) && st.points.has(String(s.id))) return 'suppress';
     return E.underFireNow(s, sim) ? 'watch' : 'march';
   }
-  function engagement(ctx) {
+  function engagement(ctx, override) {
     var st = state(ctx),
       s = ctx.facts,
       id = String(s.id),
-      desired = drill(s, ctx.sim, st),
+      desired = override || drill(s, ctx.sim, st),
       current = st.men.get(id),
       stage = current && ctx.stage(current.id),
-      target = s.target && String(s.target.id);
+      target = s.target && String(s.target.id),
+      point = desired === 'suppress' && st.points.get(id),
+      pointKey = point ? JSON.stringify(point) : null;
     if (
       current &&
-      (!stage || stage.stage === 'cancelled' || current.drill !== desired || current.target !== target)
+      (!stage ||
+        stage.stage === 'cancelled' ||
+        current.drill !== desired ||
+        current.target !== target ||
+        current.pointKey !== pointKey)
     ) {
       ctx.finish(current.id, 'contact-role-changed');
       st.men.delete(id);
@@ -269,12 +427,26 @@
     var result = ctx.request(
       desired === 'march' ? 'combat.march' : 'combat.contact',
       id,
-      desired === 'march' ? {} : { drill: desired }
+      desired === 'march'
+        ? {}
+        : desired === 'suppress'
+          ? { drill: desired, point: point }
+          : { drill: desired }
     );
-    if (result.ok) st.men.set(id, { id: result.actionId, drill: desired, target: target });
+    if (result.ok)
+      st.men.set(id, { id: result.actionId, drill: desired, target: target, pointKey: pointKey });
     st.rejected[id] = result.ok ? null : result.reason;
   }
   root.BattleTacticalContactSkills = {
+    release: function (ctx, man) {
+      var st = state(ctx);
+      st.men.forEach(function (a, id) {
+        if (!man || String(man.id) === id) {
+          ctx.finish(a.id, 'covered-maneuver-role');
+          st.men.delete(id);
+        }
+      });
+    },
     update: update,
     engagement: engagement,
     wants: function (s, sim) {
@@ -293,9 +465,15 @@
         requiredReady: st.requiredReady || 0,
         shooterId: st.shooterId || null,
         roles: Array.from(st.men.entries()).map(function (entry) {
-          return { actorId: entry[0], actionId: entry[1].id, drill: entry[1].drill };
+          return {
+            actorId: entry[0],
+            actionId: entry[1].id,
+            drill: entry[1].drill,
+            reportedPoint: st.points.get(entry[0]) || null
+          };
         }),
-        rejected: Object.assign({}, st.rejected)
+        rejected: Object.assign({}, st.rejected),
+        grenadeDiagnostic: st.grenadeDiagnostic || null
       };
     }
   };
