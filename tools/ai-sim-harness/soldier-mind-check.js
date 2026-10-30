@@ -135,7 +135,7 @@ test('nerve is a hash of the man, never the RNG: the same man has the same nerve
   assert.ok(a.M.of(sgt).nerve > 1.15 * 0.88 - 1e-9, 'the leader carries his +15% into the band');
 });
 
-test('pinNerve caps only the incremental stress from an uninterrupted pin; default is unchanged', () => {
+test('Pin Nerve caps uninterrupted suppression stress by default, with explicit-off legacy control', () => {
   function spell(search) {
     const ctx = world({ search }),
       s = man(ctx.us, 'rifleman');
@@ -154,16 +154,16 @@ test('pinNerve caps only the incremental stress from an uninterrupted pin; defau
     disabled = spell('?stressAct=0&pinNerve=0'),
     capped = spell('?stressAct=0&pinNerve=1'),
     cap = 1.25 * 1.3;
-  near(baseline.contribution, 0.05 * 6, 1e-6, 'uncapped rate');
-  near(disabled.contribution, baseline.contribution, 1e-9, 'explicit off is the legacy default');
-  near(capped.contribution, 0.05 * cap, 1e-6, 'capped suppression increment');
-  assert.equal(capped.pinUntil, baseline.pinUntil, 'the pin duration is unchanged');
-  assert.ok(capped.pinUntil > capped.now, 'the capped soldier remains physically pinned');
-  assert.ok(capped.contribution < baseline.contribution, 'only psychological cost is reduced');
+  near(disabled.contribution, 0.05 * 6, 1e-6, 'opt-out restores uncapped rate');
+  near(baseline.contribution, 0.05 * cap, 1e-6, 'default caps suppression increment');
+  near(capped.contribution, baseline.contribution, 1e-9, 'explicit-on matches default');
+  assert.equal(baseline.pinUntil, disabled.pinUntil, 'the pin duration is unchanged');
+  assert.ok(baseline.pinUntil > baseline.now, 'the capped soldier remains physically pinned');
+  assert.ok(baseline.contribution < disabled.contribution, 'only psychological cost is reduced');
 });
 
 test('pinNerve starts a fresh stress budget only after suppression actually ends', () => {
-  const ctx = world({ search: '?stressAct=0&pinNerve=1' }),
+  const ctx = world({ search: '?stressAct=0' }),
     s = man(ctx.us, 'rifleman');
   run(ctx, s, 0.15);
   ctx.S.pin(s, ctx.b, 2.5);
@@ -182,8 +182,8 @@ test('pinNerve starts a fresh stress budget only after suppression actually ends
   near((m.gained.suppression - first) * m.nerve, 0.05 * 1.05, 1e-6, 'new pin pays new stress');
 });
 
-test('a spell of suppression adds stress at its rate, and it decays back with no help', () => {
-  const ctx = world(),
+test('uncapped legacy control: a spell of suppression adds stress at its rate and decays', () => {
+  const ctx = world({ search: '?pinNerve=0' }),
     s = man(ctx.us, 'rifleman');
   run(ctx, s, 0.15); // his first tick only starts the clock
   ctx.S.pin(s, ctx.b, 3.1); // the pin the wound model and the ballistics module call
