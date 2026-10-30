@@ -277,6 +277,38 @@ test('OPEN publication stays stable through changing reports so personal adoptio
   assert.equal(w.E.fireAuthorized(s, w.b), true);
   clean(w);
 });
+test('OPEN skips preparation scans and targetless observations while retaining lawful area fire', () => {
+  const w = world(80);
+  squad(w);
+  w.b.time = 16.1;
+  see(w);
+  squad(w);
+  assert.equal(w.q.fireControl.state, 'open');
+  w.q.members.forEach(s => {
+    s.target = null;
+  });
+  const original = w.E.fireControlObservation;
+  let observations = 0;
+  w.E.fireControlObservation = (...args) => {
+    observations++;
+    return original(...args);
+  };
+  const readyAt = w.S.summary(w.q).readinessAt;
+  for (let i = 0; i < 12; i++) {
+    w.b.time += 0.15;
+    w.TC.dispatch(w.b, w.q, 'fireAndMovement');
+  }
+  assert.equal(w.q.fireControl.state, 'open');
+  assert.equal(observations, 0, 'no preparation/targetless scans after OPEN');
+  assert.equal(w.S.summary(w.q).readinessAt, readyAt, 'preparation sample is explicitly dated');
+  micro(w);
+  assert.ok(
+    w.S.summary(w.q).roles.some(role => role.drill === 'suppress'),
+    'fresh seen sectors still receive native suppression'
+  );
+  w.E.fireControlObservation = original;
+  clean(w);
+});
 test('covered personal contact may use standing ballistic line rather than getting stuck in MARCH', () => {
   const w = world(55);
   const man = w.q.members.find(s => s.role === 'rifleman');

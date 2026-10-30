@@ -157,6 +157,15 @@
       ['BattleTacticalPositions', 'BattleTacticalPositions'],
       ['stationId', 'threat']
     ),
+    'mission.execute': definition(
+      'squad',
+      'Meso',
+      'controllerMission.publish (mission phase, objective and route leg)',
+      [],
+      ['applied'],
+      ['Meso'],
+      ['leg', 'phase', 'point']
+    ),
     'mission.accept': definition(
       'squad',
       'BattleCommanderAI',
@@ -238,6 +247,20 @@
       (Object.hasOwn(p, 'stationId') && !text(p.stationId)) ||
       (Object.hasOwn(p, 'stance') && ['crouch', 'prone', 'crawl'].indexOf(p.stance) < 0) ||
       (Object.hasOwn(p, 'version') && p.version !== request.missionVersion) ||
+      (request.capability === 'mission.execute' &&
+        (!Number.isInteger(p.leg) ||
+          p.leg < 0 ||
+          [
+            'approach',
+            'reserve',
+            'hold',
+            'support-hold',
+            'assault',
+            'capture',
+            'defend',
+            'flank',
+            'clear-town'
+          ].indexOf(p.phase) < 0)) ||
       (Object.hasOwn(p, 'drill') &&
         ['prepare', 'fire', 'suppress', 'watch', 'pinned', 'grenade'].indexOf(p.drill) < 0) ||
       (request.capability === 'combat.contact' &&

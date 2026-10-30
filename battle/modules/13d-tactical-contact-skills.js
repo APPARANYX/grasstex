@@ -182,39 +182,47 @@
     if (st.startedAt === null) st.startedAt = sim.time;
     var men = members(sq),
       T = Q.tuning.fireControl,
-      ready = 0,
+      ready = st.discipline === 'open' ? st.ready || 0 : 0,
       sum = 0,
       shooter = null,
       best = -Infinity;
-    men.forEach(function (s) {
-      var o = observation(s, sim, st),
-        score =
-          mkm(s) + (s.role === 'sniper' ? 0.2 : s.role === 'scout' ? 0.12 : s.role === 'rifleman' ? 0.03 : 0);
-      if (o.ready) ready++;
-      sum += mkm(s);
-      if (
-        o.ready &&
-        !A.isMachineGun(s) &&
-        mkm(s) >= T.precisionMarksmanship &&
-        (!shooter || score > best || (score === best && String(s.id) < String(shooter.id)))
-      ) {
-        shooter = s;
-        best = score;
-      }
-    });
+    /* OPEN stays open until contact reset. Readiness/precision cannot change that permission. */
+    if (st.discipline !== 'open') {
+      st.readinessAt = sim.time;
+      men.forEach(function (s) {
+        var o = observation(s, sim, st),
+          score =
+            mkm(s) +
+            (s.role === 'sniper' ? 0.2 : s.role === 'scout' ? 0.12 : s.role === 'rifleman' ? 0.03 : 0);
+        if (o.ready) ready++;
+        sum += mkm(s);
+        if (
+          o.ready &&
+          !A.isMachineGun(s) &&
+          mkm(s) >= T.precisionMarksmanship &&
+          (!shooter || score > best || (score === best && String(s.id) < String(shooter.id)))
+        ) {
+          shooter = s;
+          best = score;
+        }
+      });
+    }
     var needed = Math.min(men.length, Math.max(T.minReady, Math.ceil(men.length * T.readyFraction))),
       strength = men.length / Math.max(1, A.establishment(sq)),
       mean = men.length ? sum / men.length : 0,
-      origin = men.reduce(
-        function (p, s) {
-          p.x += s.root.position.x;
-          p.z += s.root.position.z;
-          return p;
-        },
-        { x: 0, z: 0 }
-      ),
+      origin =
+        st.discipline === 'open'
+          ? null
+          : men.reduce(
+              function (p, s) {
+                p.x += s.root.position.x;
+                p.z += s.root.position.z;
+                return p;
+              },
+              { x: 0, z: 0 }
+            ),
       range =
-        threat && men.length
+        threat && origin && men.length
           ? Math.hypot(c.x - origin.x / men.length, c.z - origin.z / men.length)
           : Infinity,
       elapsed = sim.time - st.startedAt,
@@ -277,8 +285,7 @@
           (s.eng && s.eng.urgentBound)
         )
           return;
-        var o = observation(s, sim, st);
-        if (s.target && o.ready) return;
+        if (s.target && observation(s, sim, st).ready) return;
         var best = null,
           rating = Infinity;
         sectors.forEach(function (rec) {
@@ -460,6 +467,7 @@
         startedAt: st.startedAt,
         reason: st.reason,
         ready: st.ready || 0,
+        readinessAt: st.readinessAt == null ? null : st.readinessAt,
         requiredReady: st.requiredReady || 0,
         shooterId: st.shooterId || null,
         roles: Array.from(st.men.entries()).map(function (entry) {

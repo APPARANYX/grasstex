@@ -221,6 +221,37 @@
       if (m.intent === 'defend') return m.requestKey || inside ? 'defend' : 'assault';
       return inside ? 'capture' : 'assault';
     }
+    /* Controller policy supplies a selected phase/point; only this owner publishes mission state.
+       Acceptance and transport adoption still run before controller dispatch in executeMission. */
+    function publishControllerMission(sim, sq, version, p) {
+      var TC = root.BattleTacticalController;
+      if (
+        !sq ||
+        !TC ||
+        !TC.controls(sim, sq) ||
+        missionVersion(sq) !== version ||
+        sq.state === 'retreat' ||
+        L.get(sq, 'regroup') ||
+        leaderlessActive(sq) ||
+        !p ||
+        !Number.isInteger(p.leg) ||
+        p.leg < 0 ||
+        p.leg >= (sq.route || []).length ||
+        !p.point ||
+        !isFinite(p.point.x) ||
+        !isFinite(p.point.z)
+      )
+        return false;
+      setPhase(
+        sim,
+        sq,
+        p.phase,
+        'controller mission ' + ((sq._macroMission && sq._macroMission.intent) || 'route')
+      );
+      sq.routeIndex = p.leg;
+      sq.objective = copy(p.point);
+      return true;
+    }
     /* For a defending squad at its objective, figure out which direction to scout.
      Looks toward the map center (where the enemy spawn is) or toward any known
      enemy contacts. Returns a normalized {x, z} direction vector, or null if
@@ -610,6 +641,7 @@
       missionLegs: missionLegs,
       assaultCommitted: assaultCommitted,
       objectivePhase: objectivePhase,
+      controllerMission: { publish: publishControllerMission, objectivePhase: objectivePhase },
       executeMission: executeMission,
       observeRouteTransition: observeRouteTransition
     };
