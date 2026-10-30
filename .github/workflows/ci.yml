@@ -137,11 +137,6 @@ jobs:
           echo C_FIELD_PRETTIER_DIFF_BEGIN
           git diff -- battle/modules/15o-squad-leader-tactical-postures.js tools/ai-sim-harness/tactical-postures-check.js
           echo C_FIELD_PRETTIER_DIFF_END
-          # Temporary formatting audit; removed before merging this PR.
-          npx --yes prettier@3.3.3 --write battle/squad-ai.js tools/ai-sim-harness/pin-bridge-check.js
-          echo PIN_BRIDGE_FORMAT_BEGIN
-          git diff -- battle/squad-ai.js tools/ai-sim-harness/pin-bridge-check.js
-          echo PIN_BRIDGE_FORMAT_END
 
       # Prettier ratchet: the repo's .prettierrc.json was dead config - most tracked JS never
       # complied. A full one-shot reformat would break every in-flight branch, so instead every
