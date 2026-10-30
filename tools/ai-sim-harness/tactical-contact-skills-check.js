@@ -302,6 +302,17 @@ test('a native FIRE action survives personal target changes without replacing it
     assert.equal(role.actionId, original.actionId, 'the owner reads the current personal target');
   }
   assert.ok(shots > 0, 'stable actions still discharge through native firing gates');
+  w.target.root.position.x = 100;
+  w.target.root.position.z = 0;
+  w.b.time += 0.15;
+  see(w);
+  man.fireCooldown = 0;
+  const beforeTurn = shots;
+  squad(w);
+  micro(w);
+  assert.equal(w.S.summary(w.q).roles.find(r => r.actorId === String(man.id)).actionId, original.actionId);
+  assert.equal(man.eng.state, 'orient', 'a new threat sector still invokes native recognition');
+  assert.equal(shots, beforeTurn, 'stable action identity cannot bypass recognition and facing');
   man.suppressedUntil = w.b.time + 2;
   w.b.time += 0.15;
   squad(w);

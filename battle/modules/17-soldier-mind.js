@@ -86,8 +86,7 @@
      suppression spell. ?pinNerve=0 restores the uncapped legacy rule for A/B tests.
      Pin duration, shooting, stance, movement and suppression ownership are unchanged. */
   var PIN_NERVE = !(
-    typeof location !== 'undefined' &&
-    /[?&]pinNerve=(?:0|off|false)(?:&|#|$)/i.test(location.search || '')
+    typeof location !== 'undefined' && /[?&]pinNerve=(?:0|off|false)(?:&|#|$)/i.test(location.search || '')
   );
   var MODE = parse(typeof location !== 'undefined' ? location.search : '');
 
