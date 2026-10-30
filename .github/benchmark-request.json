@@ -1,0 +1,11 @@
+{
+ "benchmark": "standard",
+ "ref": "work/pin/pacing-7a4c33ee",
+ "seed": "controller-pacing2-20261030",
+ "seeds": 60,
+ "battle_type": "us-defend",
+ "sim_seconds": 600,
+ "query_off": "strategicInterception=0",
+ "query_on": "strategicInterception=0&tacticalController=new",
+ "purpose": "#662 pacing + defence yield flag pair"
+}
