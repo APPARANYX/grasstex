@@ -296,6 +296,20 @@ test('a defensive phase stays with the fireteam owner: no march order beside a p
   assert.equal(w.TC.summary(w.b).actions, alive(w).length, 'the march resumes when the phase ends');
 });
 
+test('a squad holding a defensive phase is marched when it is given a new brief', () => {
+  const w = world();
+  w.systems['tactical-march-provider'].onBattleStart(w.b);
+  w.q.commandPhase = 'defend'; // a garrison: the controller runs no phase transitions of its own
+  w.q.state = 'advance';
+  w.r.BattleSquadStability.executeMission(w.b, w.q, null); // the squad accepts its new brief
+  assert.equal(w.q.commandPhase, 'approach', 'the brief ends the defensive phase through its owner');
+  w.q.route = LEGS.map(p => Object.assign({}, p)); // the test brief carries no waypoints of its own
+  w.b.time += 0.5;
+  tick(w);
+  assert.equal(w.TC.summary(w.b).actions, alive(w).length, 'and the men are given march orders');
+  assert.notEqual(row(w).idle, 'yield:defense');
+});
+
 test('a retreat phase alone also stands the provider down, as it does the resolver', () => {
   const w = world();
   w.systems['tactical-march-provider'].onBattleStart(w.b);

@@ -338,6 +338,13 @@
             throw new Error('Squad Leader cannot accept a brief without its Macro lifecycle owner');
           root.BattleCommanderAI.acceptMission(sim, sq, false);
         }
+        /* A replacement controller does not run phase transitions, so a squad that was holding (garrison,
+           capture, defend) would stay in that phase and its provider would yield to it for good. A new
+           brief ends the hold: the squad marches it, as a legacy squad would leave the phase. */
+        var QS = root.BattleSquadStability,
+          TCN = root.BattleTacticalController;
+        if (m && TCN && TCN.controls(sim, sq) && QS && QS.defensivePhase && QS.defensivePhase(sq))
+          setPhase(sim, sq, 'approach', 'new brief ends the hold');
       }
       /* Macro acceptance above and transport-arrival adoption stay here; route progression, phase,
          recon and hold decisions belong to a replacement controller when one owns the squad. */

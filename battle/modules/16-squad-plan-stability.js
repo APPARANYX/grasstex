@@ -2527,7 +2527,7 @@
     fireAndMovement(sq, battle);
   }
   /* The Squad Leader skills a replacement controller reuses rather than replaces. Each is a lease,
-     so at most one owns the squad's movement at a time; the provider reads the same answer. */
+     so at most one owns the squad's movement at a time. The provider asks this and also yields on any defensive phase (a covered bound is then the sole mover, see 13e). */
   function retainedSkill(sq) {
     return L.get(sq, 'recon')
       ? 'recon'
