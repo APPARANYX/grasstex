@@ -1,0 +1,11 @@
+{
+ "benchmark": "standard",
+ "ref": "work/pin/pacing-f4174a32",
+ "seed": "controller-pacing-20261030",
+ "seeds": 60,
+ "battle_type": "ge-defend",
+ "sim_seconds": 600,
+ "query_off": "strategicInterception=0",
+ "query_on": "strategicInterception=0&tacticalController=new",
+ "purpose": "#662 march pacing flag pair"
+}
