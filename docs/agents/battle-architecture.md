@@ -215,6 +215,10 @@ Personal target changes stay with the native executor's target, recognition and 
 do not replace an otherwise unchanged action. A suppression candidate cannot cancel a FIRE action
 that never requested that point. Actual drill changes and changed suppression points still release
 the old owner resources before replacement.
+Engagement's legacy quiet-alert expiry does not transition a man with an explicit controller combat
+task into march. That task's own cancellation remains authoritative, so a reported-sector suppressor
+can finish native gun setup without alert/advance resets. Retained reactions and survival interrupts
+still run before controller execution; legacy combat handoff is unchanged.
 `BattleTacticalMarchProvider.summary(sim)` lists per squad the leg, each man's action and owner
 stage, and why any man was stopped. Without the flag the module registers nothing.
 

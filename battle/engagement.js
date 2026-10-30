@@ -1074,9 +1074,17 @@
       }
     }
 
-    /* If the continuous-quiet handoff just released an expired alert, do not execute one final
-       alert tick and renew a low-posture hold. The release tick is the hand-back to ordinary advance. */
-    if (ALERT_LATCH && COMBAT_HANDOFF_ON && !e.engaged && e.state === 'alert' && now >= e.until) {
+    /* The continuous-quiet handoff ends the ordinary legacy alert drill. An explicit controller
+       action is ended by its own lifecycle: briefly marching here would reset a reported-sector
+       gunner's setup every tick even while his suppression assignment still holds. */
+    if (
+      ALERT_LATCH &&
+      COMBAT_HANDOFF_ON &&
+      !controllerCombatTasks.has(s) &&
+      !e.engaged &&
+      e.state === 'alert' &&
+      now >= e.until
+    ) {
       e.cover = null;
       e.threatSector = null;
       e.suppressOrder = false;

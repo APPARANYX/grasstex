@@ -486,6 +486,41 @@ test('a fresh squadmate SEEN sector authorizes real area suppression from covere
   A.areaFire = actualAreaFire;
   clean(w);
 });
+test('a reported-sector gunner retains native setup instead of expiring into legacy march each tick', () => {
+  const w = world();
+  squad(w);
+  w.b.time = 26;
+  see(w);
+  const gunner = w.q.members.find(s => w.r.SquadAI.isMachineGun(s));
+  gunner.target = null;
+  gunner._beliefs = null;
+  let shots = 0;
+  w.b.onFire = s => {
+    if (s === gunner) shots++;
+  };
+  squad(w);
+  w.E.updateSoldier(gunner, w.b);
+  const original = w.S.summary(w.q).roles.find(r => r.actorId === String(gunner.id));
+  assert.equal(original.drill, 'suppress');
+  assert.equal(!!gunner.eng.engaged, false, 'no personal target has latched a legacy engagement');
+  const since = gunner.eng.since;
+  for (let i = 0; i < 36; i++) {
+    w.b.time += 0.15;
+    w.TC.dispatch(w.b, w.q, 'fireAndMovement', { underFire: 0 });
+    w.E.updateSoldier(gunner, w.b);
+    gunner.fireCooldown = Math.max(0, (gunner.fireCooldown || 0) - 0.15);
+    assert.equal(gunner.eng.state, 'alert');
+    assert.equal(gunner.eng.since, since, 'legacy alert expiry must not reset the explicit suppression task');
+    assert.equal(
+      w.S.summary(w.q).roles.find(r => r.actorId === String(gunner.id)).actionId,
+      original.actionId
+    );
+  }
+  assert.ok(gunner.setUp, 'the native machine-gun emplacement clock can finish');
+  assert.ok(shots > 0, 'actual machine-gun rounds leave the reported-sector firing post');
+  assert.equal(gunner.target, null, 'suppression never invents a personal target');
+  clean(w);
+});
 test('contact execution fires real rounds after recognition and honors ammo/range gates', () => {
   const w = world();
   let shots = 0;
