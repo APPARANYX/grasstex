@@ -2533,7 +2533,7 @@
       ? 'recon'
       : L.get(sq, 'regroup')
         ? 'regroup'
-        : DEFENSIVE[sq.commandPhase] && sq.state !== 'retreat'
+        : DEFENSIVE[sq.commandPhase] && sq.state !== 'retreat' && !L.get(sq, 'bound')
           ? 'defense'
           : null;
   }
