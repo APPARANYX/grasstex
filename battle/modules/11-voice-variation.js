@@ -16,7 +16,20 @@
 
   var cache = {},
     failed = {},
-    lastSocialGlobal = 0,
+    activeSounds = 0,
+    MAX_VOICES = 4,
+    voiceStats = {
+      played: 0,
+      droppedBusyClip: 0,
+      droppedCapacity: 0,
+      staleRecovered: 0,
+      droppedUnavailable: 0
+    },
+    debugVoice = /[?&]voiceDebug=(?:1|on|true)(?:&|#|$)/i.test((root.location && root.location.search) || '');
+  function voiceLog(s) {
+    if (debugVoice && root.GTLog) root.GTLog(s);
+  }
+  var lastSocialGlobal = 0,
     socialSquadLast = {},
     lastTacticalGlobal = 0,
     tacticalSquadLast = {};
@@ -71,7 +84,7 @@
       }
     }
     soldier._voicePitchProfile = p;
-    root.GTLog('[VOICE] ' + soldier.id + ' profile ' + p.id + ' (' + (+p.semitones || 0) + ' st)');
+    voiceLog('[VOICE] ' + soldier.id + ' profile ' + p.id + ' (' + (+p.semitones || 0) + ' st)');
     return p;
   }
   function variantPath(file, profile) {
@@ -166,6 +179,33 @@
       }
     }
   }
+  /* Missed playback-end events must not permanently fill the speaker pool.
+     Babylon exposes an actual isPlaying flag; honor the physical source instead
+     of treating a previous logical request as audible forever. Never interrupt
+     an actively playing clip just to gain another request. */
+  function recoverStopped() {
+    Object.keys(cache).forEach(function (file) {
+      var entry = cache[file],
+        sound = entry && entry.sound;
+      if (
+        entry &&
+        entry.playing &&
+        sound &&
+        sound.isPlaying === false &&
+        performance.now() - entry.startedAtMs >= 500
+      ) {
+        entry.playing = false;
+        activeSounds = Math.max(0, activeSounds - 1);
+        voiceStats.staleRecovered++;
+        var prior = entry.currentReq;
+        entry.currentReq = null;
+        try {
+          if (sound.detachFromMesh) sound.detachFromMesh();
+        } catch (_) {}
+        finish(prior);
+      }
+    });
+  }
   /* entry.sound is one Sound instance cached per filename and reused by whichever soldier next
      speaks that line. setPosition() alone only snapshots where the speaker stood at the instant
      play() fired: on anything longer than a one-word bark the soldier walks on and leaves the
@@ -174,9 +214,15 @@
      tracking (and, after a restart, reading) a disposed root. */
   function armEnded(entry, req) {
     function done() {
+      if (entry.currentReq !== req) return;
+      entry.currentReq = null;
       try {
         if (entry.sound && typeof entry.sound.detachFromMesh === 'function') entry.sound.detachFromMesh();
       } catch (_) {}
+      if (entry.playing) {
+        entry.playing = false;
+        activeSounds = Math.max(0, activeSounds - 1);
+      }
       finish(req);
     }
     var o = entry && entry.sound && entry.sound.onEndedObservable;
@@ -205,6 +251,19 @@
     } catch (_) {}
   }
   function playAt(entry, req) {
+    var ae = root.BattleAudioBackend
+        ? root.BattleAudioBackend.engine()
+        : root.BABYLON && root.BABYLON.Engine && root.BABYLON.Engine.audioEngine,
+      ctx = ae && ae.audioContext,
+      scene = req.soldier && req.soldier.root && req.soldier.root.getScene && req.soldier.root.getScene();
+    if (
+      (scene && scene.audioEnabled === false) ||
+      (ctx ? ctx.state !== 'running' : ae && ae.unlocked === false)
+    ) {
+      voiceStats.droppedUnavailable++;
+      finish(req);
+      return req.handle;
+    }
     if (
       !root.BattleVoiceEligibility.allows(req.soldier, req.type) ||
       req.soldier.squad !== req.squad ||
@@ -213,6 +272,20 @@
       finish(req);
       return req.handle;
     }
+    recoverStopped();
+    /* Cached Sound is single-voice, but unrelated soldiers can speak at
+       once. Keep a bounded battle-wide voice budget with no hard lockup when
+       an audio-engine completion event is missed. */
+    if (entry.playing || activeSounds >= MAX_VOICES) {
+      if (entry.playing) voiceStats.droppedBusyClip++;
+      else voiceStats.droppedCapacity++;
+      finish(req);
+      return req.handle;
+    }
+    entry.playing = true;
+    entry.currentReq = req;
+    entry.startedAtMs = performance.now();
+    activeSounds++;
     try {
       var soldier = req.soldier,
         mesh = soldier.root,
@@ -240,12 +313,23 @@
           voiceGain,
           mesh.getScene()
         );
-      s.play();
+      if (s.play() === false) {
+        entry.currentReq = null;
+        entry.playing = false;
+        activeSounds = Math.max(0, activeSounds - 1);
+        voiceStats.droppedUnavailable++;
+        finish(req);
+        return req.handle;
+      }
       req.handle.started = true;
-      root.GTLog(
+      voiceStats.played++;
+      voiceLog(
         '[VOICE] play ' + entry.file + ' profile=' + (entry.profileId || 'neutral') + ' lane=' + req.lane
       );
     } catch (e) {
+      entry.currentReq = null;
+      entry.playing = false;
+      activeSounds = Math.max(0, activeSounds - 1);
       console.error('[VOICE] play failed ' + entry.file + ': ' + ((e && e.message) || e));
       finish(req);
     }
@@ -308,29 +392,32 @@
     if (entry) {
       if (entry.ready) return playAt(entry, req);
       entry.pending.push(req);
-      root.GTLog('[VOICE] waiting ' + file);
+      voiceLog('[VOICE] waiting ' + file);
       return handle;
     }
     var base = window.BATTLE_AUDIO_BASE || 'https://test.ivandpopov.com/grasstex/Assets/audio/',
       url = window.BattleAudioFormat ? window.BattleAudioFormat.url(base + file) : base + file;
-    root.GTLog('[VOICE] request ' + url + ' profile=' + (profile.id || 'neutral'));
+    voiceLog('[VOICE] request ' + url + ' profile=' + (profile.id || 'neutral'));
     entry = cache[file] = {
       file: file,
       baseFile: baseFile,
       profileId: profile.id || 'neutral',
       sound: null,
       ready: false,
+      playing: false,
+      currentReq: null,
+      startedAtMs: 0,
       pending: [req]
     };
     try {
       var scene = soldier.root.getScene();
-      entry.sound = new BABYLON.Sound(
+      entry.sound = new (root.BattleAudioBackend ? root.BattleAudioBackend.Sound : BABYLON.Sound)(
         'voice-' + file,
         url,
         scene,
         function () {
           entry.ready = true;
-          root.GTLog('[VOICE] ready ' + file);
+          voiceLog('[VOICE] ready ' + file);
           var pending = entry.pending.splice(0);
           for (var i = 0; i < pending.length; i++) playAt(entry, pending[i]);
         },
@@ -353,6 +440,13 @@
     return handle;
   }
 
-  root.BattleVoiceScheduler = { enqueue: enqueue, profileFor: profileFor, variantPath: variantPath };
+  root.BattleVoiceScheduler = {
+    enqueue: enqueue,
+    profileFor: profileFor,
+    variantPath: variantPath,
+    summary: function () {
+      return Object.assign({ active: activeSounds, cap: MAX_VOICES }, voiceStats);
+    }
+  };
   root.GTLog('[VOICE] v5 pitch profiles + one-contact-per-squad + playback completion active');
 })(typeof window !== 'undefined' ? window : globalThis);

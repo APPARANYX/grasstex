@@ -7,18 +7,23 @@
   /* BattleSim can load before scenario-generator on the hosted page. Resolve
      the same default-on strategic gate directly so world geometry matches the
      generated scenario; explicit ?strategicInterception=0 restores legacy. */
+  function expandedMiniMeeting() {
+    if (!root.PHASE_C_COMBAT_LAB || root.SKILLS_LAB || !root.location) return false;
+    return /[?&]balancedMeeting=1(?:&|$)/.test(root.location.search || '');
+  }
+  var LARGE_MEETING = expandedMiniMeeting();
   var STRATEGIC_FIELD =
     !root.PHASE_C_COMBAT_LAB &&
     root.STRATEGIC_INTERCEPTION_ENABLED !== false &&
     root.BattleStrategicConfig.flag('strategicInterception');
-  var FIELD_W = root.PHASE_C_COMBAT_LAB ? 280 : STRATEGIC_FIELD ? 5000 : 2000,
-    FIELD_D = root.PHASE_C_COMBAT_LAB ? 240 : STRATEGIC_FIELD ? 5000 : 1200,
+  var FIELD_W = LARGE_MEETING ? 480 : root.PHASE_C_COMBAT_LAB ? 280 : STRATEGIC_FIELD ? 5000 : 2000,
+    FIELD_D = LARGE_MEETING ? 360 : root.PHASE_C_COMBAT_LAB ? 240 : STRATEGIC_FIELD ? 5000 : 1200,
     SPAWN_Z = 510,
     LANES = [-700, -350, 0, 350, 700];
   var AI_TICK = 0.15,
     DEFAULT_TIME_LIMIT = STRATEGIC_FIELD ? 1800 : 600,
-    SUB_X = STRATEGIC_FIELD ? 288 : 160,
-    SUB_Z = STRATEGIC_FIELD ? 288 : 96,
+    SUB_X = STRATEGIC_FIELD ? 288 : LARGE_MEETING ? 200 : 160,
+    SUB_Z = STRATEGIC_FIELD ? 288 : LARGE_MEETING ? 144 : 96,
     GRIDX = SUB_X + 1,
     GRIDZ = SUB_Z + 1,
     gridH = null,
@@ -207,8 +212,9 @@
      `fireDistant` takes over from DISTANT_FROM metres. The near voices' linear roll-off reaches
      silence at about 97 m, so the far pool starts before that rather than leaving a silent band.
      SFX_FILES (one file per sim kind) is the fallback for a page that loaded without a manifest or a
-     model with no clips. Each pool has enough voices that a fast gun never cuts off its own last
-     round: ceil(cyclic rounds/s x clip length) + 2, and at least one per take. */
+     model with no clips. Pools share decoded takes across independent playback slots, sized from
+     ceil(cyclic rounds/s x clip length) + 2. Several soldiers can share a model: when every slot is
+     still playing, omit the extra report rather than moving or changing an audible prior shot. */
   var DISTANT_FROM = 90,
     FIRE_CLIP_S = 0.9,
     MAX_VOICES = 16;
@@ -233,9 +239,18 @@
       Math.max(files.length, cyclic > 0 ? Math.ceil(cyclic * FIRE_CLIP_S) + 2 : POOL_SIZE)
     );
   }
-  function buildWeaponAudio(scene, audioBase) {
+  function buildWeaponAudio(scene, audioBase, policy) {
+    var SoundClass = root.BattleAudioBackend ? root.BattleAudioBackend.Sound : BABYLON.Sound;
+    // Optional, bounded diagnostic override. Unset keeps the shipping 4-voice far floor.
+    // prettier-ignore
+    var farFloor =
+      policy && policy.farVoices != null
+        ? Math.max(4, Math.min(64, Math.floor(+policy.farVoices) || 4))
+        : 32;
     var pools = {},
       cursors = {},
+      poolStats = {},
+      stats = { playRequests: 0, droppedBusy: 0, droppedNotReady: 0, droppedLocked: 0, errors: 0 },
       cam = function () {
         return scene.activeCamera && (scene.activeCamera.globalPosition || scene.activeCamera.position);
       };
@@ -263,11 +278,20 @@
         takes = Math.min(count, files.length);
       pools[key] = voices;
       cursors[key] = 0;
+      poolStats[key] = {
+        capacity: count,
+        attempts: 0,
+        started: 0,
+        droppedBusy: 0,
+        droppedNotReady: 0,
+        droppedLocked: 0,
+        errors: 0
+      };
       for (var i = 0; i < takes; i++)
         (function (i) {
           var extra = [];
           for (var k = i + takes; k < count; k += takes) extra.push(k);
-          var snd = new BABYLON.Sound(
+          var snd = new SoundClass(
             key + 'Sfx' + i,
             clipUrl(audioBase + files[i]),
             scene,
@@ -276,7 +300,7 @@
                   var buf = snd.getAudioBuffer && snd.getAudioBuffer();
                   if (buf)
                     extra.forEach(function (k) {
-                      voices[k] = new BABYLON.Sound(key + 'Sfx' + k, buf, scene, null, opts);
+                      voices[k] = new SoundClass(key + 'Sfx' + k, buf, scene, null, opts);
                     });
                 }
               : null,
@@ -301,7 +325,7 @@
           if (!fire || pools['m:' + model]) return;
           pool('m:' + model, fire, voicesFor(fire, +w.cyclic || 0), false);
           var far = modelClips(model, 'fireDistant');
-          if (far) pool('m:' + model + ':far', far, Math.max(far.length, 4), true);
+          if (far) pool('m:' + model + ':far', far, Math.max(far.length, farFloor), true);
         });
       });
     }
@@ -315,9 +339,44 @@
     function playOne(k, position, gain, rate) {
       var voices = pools[k];
       if (!voices) return;
-      var voice = voices[cursors[k]];
-      cursors[k] = (cursors[k] + 1) % voices.length;
-      if (!voice) return;
+      var counters = poolStats[k];
+      counters.attempts++;
+      var ae = root.BattleAudioBackend
+        ? root.BattleAudioBackend.engine()
+        : BABYLON.Engine && BABYLON.Engine.audioEngine;
+      /* Sound.play queues a delayed start while locked; such a request is not
+         reflected by isPlaying yet and could accumulate behind the pool cap. */
+      // Chromium/Babylon 9 can report a running WebAudio context while the
+      // legacy unlocked flag lags after a gesture. The actual context wins in
+      // both directions, including a suspension with a stale unlocked=true.
+      var ctx = ae && ae.audioContext;
+      if (
+        (scene && scene.audioEnabled === false) ||
+        (ctx ? ctx.state !== 'running' : ae && ae.unlocked === false)
+      ) {
+        counters.droppedLocked++;
+        return void stats.droppedLocked++;
+      }
+      var voice = null,
+        ready = false;
+      /* Babylon 9 permits multiple instances of the same Sound. A round-robin
+         object array alone does not cap actual playback, and setPosition /
+         setVolume would also change every older instance on that Sound. */
+      for (var i = 0; i < voices.length; i++) {
+        var index = (cursors[k] + i) % voices.length,
+          candidate = voices[index];
+        if (!candidate || (candidate.isReady && !candidate.isReady())) continue;
+        ready = true;
+        if (candidate.isPlaying === true) continue;
+        voice = candidate;
+        cursors[k] = (index + 1) % voices.length;
+        break;
+      }
+      if (!voice) {
+        var reason = ready ? 'droppedBusy' : 'droppedNotReady';
+        counters[reason]++;
+        return void stats[reason]++;
+      }
       try {
         voice.setPosition(position);
         var mix = root.BattleAudioMix;
@@ -327,11 +386,60 @@
           if (voice.setVolume) voice.setVolume(gain);
         }
         if (voice.setPlaybackRate) voice.setPlaybackRate(rate || 1);
-        voice.play();
-      } catch (_) {}
+        if (voice.play() === false) return;
+        stats.playRequests++;
+        counters.started++;
+      } catch (_) {
+        stats.errors++;
+        counters.errors++;
+      }
     }
     return {
       keyFor: keyFor,
+      // Snapshot by exact near/far model key; not read during normal battle ticks.
+      // prettier-ignore
+      detail: function () {
+        var byPool = {};
+        Object.keys(poolStats).forEach(function (key) {
+          var active = 0,
+            minClipSeconds = Infinity,
+            maxClipSeconds = 0,
+            measuredClips = 0;
+          pools[key].forEach(function (sound) {
+            if (!sound) return;
+            if (sound.isPlaying === true) active++;
+            // Read decoded buffer metadata, not an assumed 2-3 second tail.
+            // This is report-only; never used for admission or playback.
+            var buffer = null;
+            // Babylon's getter can throw before its async sound instance exists
+            // (including a missing/blocked asset). Diagnostics must still work.
+            try { buffer = sound.getAudioBuffer && sound.getAudioBuffer(); } catch (_) {}
+            if (buffer && isFinite(buffer.duration) && buffer.duration > 0) {
+              measuredClips++;
+              minClipSeconds = Math.min(minClipSeconds, buffer.duration);
+              maxClipSeconds = Math.max(maxClipSeconds, buffer.duration);
+            }
+          });
+          byPool[key] = Object.assign({
+            active: active,
+            decodedClipCount: measuredClips,
+            minClipSeconds: measuredClips ? +minClipSeconds.toFixed(3) : null,
+            maxClipSeconds: measuredClips ? +maxClipSeconds.toFixed(3) : null
+          }, poolStats[key]);
+        });
+        return byPool;
+      },
+      summary: function () {
+        var active = 0,
+          capacity = 0;
+        Object.keys(pools).forEach(function (key) {
+          capacity += pools[key].length;
+          pools[key].forEach(function (sound) {
+            if (sound && sound.isPlaying === true) active++;
+          });
+        });
+        return Object.assign({ active: active, capacity: capacity }, stats);
+      },
       play: function (key, position, gain, rate) {
         gain = gain == null ? 0.18 : gain;
         var c = cam(),
@@ -923,6 +1031,7 @@
   BattleSim.prototype._wireFx = function (audioBase) {
     var self = this,
       audio = buildWeaponAudio(this.scene, audioBase || 'audio/');
+    this._weaponAudio = { summary: audio.summary, detail: audio.detail };
     if (root.BattleListenerAcoustics) root.BattleListenerAcoustics.bind(this);
     var fire = function (soldier) {
       var pos = muzzleWorld(soldier);
@@ -946,6 +1055,15 @@
     };
     this.onShot = function (shooter, target, hit, d, shot) {
       if (!hit || (shot && shot.tracerDrawn)) return;
+      /* Delayed impact must render the actual original muzzle-to-impact
+         line, never a new line from the shooter's later position to the
+         target's later position (or a destroyed shooter mesh). */
+      if (shot && shot.mode === 'flight-raycast' && shot.origin && shot.impact)
+        return spawnTracer(
+          self.scene,
+          new BABYLON.Vector3(shot.origin.x, shot.origin.y, shot.origin.z),
+          new BABYLON.Vector3(shot.impact.x, shot.impact.y, shot.impact.z)
+        );
       spawnTracer(self.scene, muzzleWorld(shooter), target.root.position.add(new BABYLON.Vector3(0, 1.2, 0)));
     };
     /* Suppressing fire is aimed at a place, not a man, so the tracer goes to the place. Without
@@ -972,6 +1090,8 @@
     buildSky: buildSky,
     applyScenarioTerrain: applyScenarioTerrain,
     start: start,
+    /* Standalone audio lab uses the exact shipping pool implementation without spawning combat. */
+    buildWeaponAudio: buildWeaponAudio,
     moveTransportPassenger: moveTransportPassenger,
     AI_TICK: AI_TICK
   };

@@ -172,3 +172,41 @@ assert.match(
 console.log(
   'PASS #456 R2 touch owner event-first/poll wake, stale-pad denial, listener/observer release, idempotent stop'
 );
+
+// Skills Lab supplies its inspection orbit while retaining the standard pad owner.
+active = null;
+const labScene = makeScene();
+let labStopped = 0;
+const labCamera = { position: { x: 0, y: 80, z: -100 } };
+state = controller.createAdaptive(
+  {
+    ...makeOptions(labScene),
+    preferOrbit: true,
+    orbitFactory: () => ({
+      camera: labCamera,
+      desktop: false,
+      hint: 'Mini-target orbit',
+      stop: () => {
+        labStopped++;
+      }
+    })
+  },
+  target
+);
+assert.equal(state.camera, labCamera);
+emit('gamepadconnected', { id: 'Xbox Wireless Controller', connected: true });
+assert.equal(state.desktop, true, 'mini-target orbit hands off to the standard Xbox controller');
+assert.equal(labStopped, 1);
+state.stop();
+active = { id: 'Xbox Wireless Controller', connected: true };
+state = controller.createAdaptive(
+  {
+    ...makeOptions(makeScene()),
+    preferOrbit: true,
+    orbitFactory: () => assert.fail('an already connected controller must use the standard pad owner')
+  },
+  target
+);
+assert.equal(state.desktop, true);
+state.stop();
+console.log('PASS mini-target custom orbit preserves connected and event-first Xbox handoff');

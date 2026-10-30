@@ -51,6 +51,8 @@ jobs:
     name: Upload branch preview
     runs-on: ubuntu-latest
     timeout-minutes: 8
+    outputs:
+      slug: ${{ steps.id.outputs.slug }}
     steps:
       - name: Checkout preview ref
         uses: actions/checkout@v4
@@ -160,6 +162,8 @@ jobs:
           # A stable PR directory is overwritten in place on every push.
           # --delete applies only to this preview directory; sidecar JSON and
           # lab calibrations are never deleted. preview.json is uploaded last.
+          contract_upload=''
+          if [[ -f .preview/runtime-contract.php ]]; then contract_upload='put runtime-contract.php'; fi
           lftp -u "$FTP_USER","$FTP_PASSWORD" "$FTP_HOST" <<LFTP
           set cmd:fail-exit yes
           set net:max-retries 2
@@ -170,11 +174,14 @@ jobs:
           mkdir -f -p preview/$SLUG
           cd preview/$SLUG
           lcd .preview
-          mirror -R --delete --verbose=1 --exclude '\.json\$' --exclude '[Ll][Aa][Bb]' --exclude '[Ss][Ii][Dd][Ee][Cc][Aa][Rr]' battle battle
+          # No unanchored Lab regex for battle/*.js: it removed skills-lab.js
+          # on deployed previews, despite local browser QA passing.
+          mirror -R --delete --verbose=1 --exclude '\.json\$' --exclude '[Ss][Ii][Dd][Ee][Cc][Aa][Rr]' battle battle
           mirror -R --verbose=1 labs labs
           mirror -R --delete --verbose=1 --transfer-all --exclude '\.json\$' --exclude '[Ll][Aa][Bb]' --exclude '[Ss][Ii][Dd][Ee][Cc][Aa][Rr]' Assets Assets
           # lftp mirror omits hidden dotfiles; explicit upload is mandatory.
           put Assets/.htaccess -o Assets/.htaccess
+          $contract_upload
           put battle_sim.php
           put ai_flow_live.html
           put asset-overlay.json
@@ -193,6 +200,18 @@ jobs:
           body="$(curl -fsS "$url")"
           grep -q "preview-${SHA:0:7}" <<<"$body"
           grep -q "/grasstex/preview/$SLUG/battle/commander-ai.js" <<<"$body"
+          # Skills Lab code must be served on the public preview, not only staged.
+          if [[ -f battle/skills-lab.js ]]; then
+            lab_js_url="https://test.ivandpopov.com/grasstex/preview/$SLUG/battle/skills-lab.js"
+            curl --fail --silent --show-error --location "$lab_js_url" -o /tmp/skills-lab-preview.js
+            test "$(wc -c </tmp/skills-lab-preview.js)" -gt 15000
+            grep -Fq 'root.BattleSkillsLab = {' /tmp/skills-lab-preview.js
+            lab_html="$(curl --fail --silent --show-error --location "$url?skillsLab=1&seed=skills-preview-verify&labDistance=70&tacticalController=new")"
+            grep -Fq "window.SKILLS_LAB=true" <<<"$lab_html"
+            grep -Fq "/grasstex/preview/$SLUG/battle/skills-lab.js" <<<"$lab_html"
+            grep -Fq "window.BattleSkillsLab.attachBattle(battle,scene,camera)" <<<"$lab_html"
+            echo "Native Skills Lab JS and bootstrap verified: $lab_js_url"
+          fi
           # Check actual HTTP serving of an unchanged soldier FBX, not just
           # inventory metadata; this fails if the rewrite overlay is missing.
           overlay_test_url="https://test.ivandpopov.com/grasstex/preview/$SLUG/Assets/soldiers/ge-paratrooper.fbx"
@@ -252,11 +271,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.inputs.ref || github.ref }}
+          ref: ${{ inputs.ref || github.ref }}
       - name: Resolve preview Combat Lab URL
         shell: bash
         env:
-          PREVIEW_REF: ${{ github.event.inputs.ref || github.ref_name }}
+          PREVIEW_REF: ${{ inputs.ref || github.ref_name }}
         run: |
           set -euo pipefail
           slug="$(printf '%s' "$PREVIEW_REF" | tr '[:upper:]' '[:lower:]' | sed -E 's#^(work|preview)/##; s#[^a-z0-9]+#-#g; s#^-+|-+$##g' | cut -c1-48)"

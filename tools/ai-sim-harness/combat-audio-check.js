@@ -20,8 +20,9 @@ function test(name, fn) {
   n++;
   console.log('PASS ' + name);
 }
-function load(search) {
-  const r = {};
+function load(search, engine, lab) {
+  const r = { PhaseCCombatLab: lab };
+  if (engine) r.BABYLON = { Engine: { audioEngine: engine } };
   if (search != null) r.location = { search };
   new Function('window', 'globalThis', 'location', CORE)(r, r, r.location);
   new Function('window', 'globalThis', 'location', SRC)(r, r, r.location);
@@ -111,7 +112,7 @@ function rig(opts = {}) {
   });
   const shots = [];
   sim.onShot = (...a) => shots.push(a);
-  F.install(sim, {
+  (opts.engine ? load(undefined, opts.engine) : F).install(sim, {
     voices,
     now: () => t,
     camera: () => ({ position: cam }),
@@ -119,6 +120,7 @@ function rig(opts = {}) {
   });
   return {
     sim,
+    voices,
     played,
     later,
     travel,
@@ -333,4 +335,41 @@ test('?combatAudio=0 installs nothing', () => {
   assert.equal(sim.onShot, before);
 });
 
+test('suspended combat audio cannot consume the pool or replay a backlog after resume', () => {
+  const engine = { unlocked: true, audioContext: { state: 'suspended' } };
+  const r = rig({ engine });
+  for (let i = 0; i < 20; i++) r.sim.onShot(rifle, null, false, 400, shot(2));
+  assert.equal(r.played.length, 0);
+  assert.equal(r.sim._combatAudio.droppedUnavailable, 20);
+  engine.audioContext.state = 'running';
+  r.sim.onShot(rifle, null, false, 400, shot(2));
+  assert.equal(r.played.length, 1);
+});
+test('unready combat clips do not consume the group rate limit', () => {
+  const r = rig();
+  for (const v of r.voices['flyby.crack']) v.sound.isReady = () => false;
+  r.sim.onShot(rifle, null, false, 400, shot(2));
+  assert.equal(r.played.length, 0);
+  r.voices['flyby.crack'][0].sound.isReady = () => true;
+  r.sim.onShot(rifle, null, false, 400, shot(2));
+  assert.equal(r.played.length, 1);
+});
 console.log(`combat-audio-check: ${n} passed`);
+
+test('dummy hits make neither flesh impacts nor pain cries; real actors still do', () => {
+  const dummy = { faction: 'ge', root: { position: cam } };
+  const real = { faction: 'us', root: { position: cam } };
+  const api = load(undefined, undefined, { isTrainingTarget: actor => actor === dummy });
+  const hit = victim => ({ victim, entry: cam, wound: { outcome: 'wounded', zone: 'chest' } });
+  assert.deepEqual(api.bodies({ passes: [hit(dummy)] }, dummy, true, cam), []);
+  assert.deepEqual(api.bodies({}, dummy, true, cam), []);
+  assert.deepEqual(
+    api.bodies({ passes: [hit(real)] }, real, true, cam).map(c => c.group),
+    ['flesh', 'pain']
+  );
+  const root = { PhaseCCombatLab: { isTrainingTarget: actor => actor === dummy } };
+  new Function('window', 'globalThis', CORE)(root, root);
+  for (const line of ['takingFire', 'pain', 'engage', 'idleQuip'])
+    assert.equal(root.BattleVoiceEligibility.allows(dummy, line), false);
+  assert.equal(root.BattleVoiceEligibility.allows(real, 'takingFire'), true);
+});

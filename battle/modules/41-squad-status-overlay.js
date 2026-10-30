@@ -102,6 +102,9 @@
   function overlayEntities(sim, faction) {
     var out = [],
       squads = sideSquads(sim, faction);
+    /* Skills Lab GE actors are intentionally inert range targets, not an
+       active German maneuver formation. Suppress misleading GE squad tags. */
+    if (root.SKILLS_LAB && faction === 'ge') return [];
     for (var i = 0; i < squads.length; i++) {
       var sq = squads[i];
       if (!sq) continue;

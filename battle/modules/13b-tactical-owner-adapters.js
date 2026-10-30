@@ -91,6 +91,75 @@
   }
 
   var CAPS = {
+    'maneuver.cover': {
+      request: function (req, sim) {
+        var sq = squadOf(sim, req),
+          Q = root.BattleSquadStability,
+          task = Q && Q.controllerBound && Q.controllerBound.begin(sq, sim, req.params);
+        return !!task && keep(req, sim, { squad: sq, task: task });
+      },
+      stage: function (h) {
+        var live = root.BattleSquadStability.controllerBound.current(h.squad, h.sim) === h.task;
+        mark(h, live ? 'executing' : 'cancelled', live ? 'covering-window' : 'bound-window-ended');
+      },
+      cancel: function (h) {
+        return root.BattleSquadStability.controllerBound.end(h.squad, h.sim, h.task);
+      },
+      release: function (h) {
+        return root.BattleSquadStability.controllerBound.end(h.squad, h.sim, h.task);
+      }
+    },
+    'fire.control': {
+      request: function (req, sim) {
+        var Q = root.BattleSquadStability,
+          sq = squadOf(sim, req),
+          order = Q && Q.controllerFireControl && Q.controllerFireControl.publish(sq, sim, req.params);
+        return !!order && keep(req, sim, { squad: sq, order: order });
+      },
+      stage: function (h) {
+        mark(
+          h,
+          h.squad.fireControl === h.order ? 'published' : 'cancelled',
+          h.squad.fireControl === h.order ? 'published:await-personal-adoption' : 'owner:ended',
+          h.order.since
+        );
+      },
+      cancel: function (h) {
+        return root.BattleSquadStability.controllerFireControl.end(h.squad, h.sim, h.order);
+      },
+      release: function (h) {
+        return root.BattleSquadStability.controllerFireControl.end(h.squad, h.sim, h.order);
+      }
+    },
+    'combat.contact': {
+      request: function (req, sim) {
+        var E = root.BattleEngagement,
+          s = manOf(squadOf(sim, req), req),
+          task =
+            s &&
+            E &&
+            E.controllerCombat &&
+            (req.capability === 'combat.bound'
+              ? E.controllerCombat.bound(s, sim, req.params.point, req.actionId)
+              : E.controllerCombat.start(
+                  s,
+                  sim,
+                  req.capability === 'combat.march' ? 'march' : req.params.drill,
+                  req.params.point
+                ));
+        return !!task && keep(req, sim, { man: s, task: task });
+      },
+      stage: function (h) {
+        var stage = root.BattleEngagement.controllerCombat.stage(h.man, h.sim, h.task);
+        mark(h, stage.stage, stage.reason, stage.at);
+      },
+      cancel: function (h) {
+        return root.BattleEngagement.controllerCombat.end(h.man, h.sim, h.task);
+      },
+      release: function (h) {
+        return root.BattleEngagement.controllerCombat.end(h.man, h.sim, h.task);
+      }
+    },
     /* Meso (module 16) publishes the man's personal order; Command Reception adopts it, Squad Command
        applies it to the resolver and the execution outcome reader says how far it got. */
     'movement.move': {
@@ -278,6 +347,8 @@
     }
   };
 
+  CAPS['combat.march'] = CAPS['combat.contact'];
+  CAPS['combat.bound'] = CAPS['combat.contact'];
   function request(req, sim) {
     var c = CAPS[req.capability];
     if (!c || handles.has(req)) return false;

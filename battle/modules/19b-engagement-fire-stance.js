@@ -190,8 +190,16 @@
       if (!COVER_FIRE || !combatThreat(target) || want === 'stand' || s.suppressedUntil > battle.time)
         return want;
       var here = posOf(s);
-      for (var i = STANCE_ORDER.indexOf(want); i < STANCE_ORDER.length; i++)
-        if (seesFrom(here, STANCE_ORDER[i], target, battle)) return STANCE_ORDER[i];
+      for (var i = STANCE_ORDER.indexOf(want); i < STANCE_ORDER.length; i++) {
+        /* Sight over a wall is insufficient if the muzzle would hit it.
+           For genuine personal targets use the ballistics owner's same
+           physical line test before exposing the soldier to shoot. */
+        var line =
+          target === s.target && s.weapon
+            ? firingLineClear(s, target, here, STANCE_ORDER[i], battle)
+            : seesFrom(here, STANCE_ORDER[i], target, battle);
+        if (line) return STANCE_ORDER[i];
+      }
       return want; // he sees him from no stance: nothing to lose by staying low
     }
 
@@ -367,6 +375,24 @@
 
     /* Rounds into a known position. Facing and settling still gate it, so a man turns onto the
      sector before he fires into it. */
+    /* A dry-run of the real suppression muzzle line at the current physical
+       slot. It alters neither the soldier stance nor the target. */
+    function suppressionStance(s, battle, point) {
+      if (!s || !s.root || !s.weapon || !point || s.suppressedUntil > battle.time) return null;
+      var A = SA();
+      if (!A || !A.canSuppress) return null;
+      for (var i = 0; i < STANCE_ORDER.length; i++) {
+        var pose = STANCE_ORDER[i],
+          proxy = Object.create(s, {
+            root: { value: s.root },
+            prone: { value: pose === 'prone' },
+            crouching: { value: pose === 'crouch' },
+            tacticalCrouch: { value: pose === 'crouch' }
+          });
+        if (A.canSuppress(proxy, point, battle, true)) return pose;
+      }
+      return null;
+    }
     function suppress(s, battle, point) {
       var e = state(s);
       if (!point || s.reloading || movingTooFast(s) || s.crawling) return false;
@@ -819,6 +845,7 @@
       fireAllowed: fireAllowed,
       tryFire: tryFire,
       suppress: suppress,
+      suppressionStance: suppressionStance,
       firingLineClear: firingLineClear,
       crestPrepPoint: crestPrepPoint,
       fireControlObservation: fireControlObservation,

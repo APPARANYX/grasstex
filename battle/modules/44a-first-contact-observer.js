@@ -1,0 +1,487 @@
+/* #680: read-only timing of first-person contact, actual fire and actual cover travel.
+   Reference: docs/reference/WWII_SMALL_UNIT_CONTACT_EVIDENCE.md.
+   No extra authority, target writer, movement writer, or invented historical percentages. */
+(function (root) {
+  'use strict';
+  var ON =
+      !!root.BATTLE_PREVIEW &&
+      /[?&]firstContactProbe=1(?:&|#|$)/.test((root.location && root.location.search) || ''),
+    WINDOW = 12,
+    ARRIVAL_WINDOW = 60,
+    sessions = new WeakMap();
+  if (!root.BattleModules) return;
+  function pt(p) {
+    return p && Number.isFinite(+p.x) && Number.isFinite(+p.z) ? { x: +p.x, z: +p.z } : null;
+  }
+  function dist(a, b) {
+    return a && b ? Math.hypot(a.x - b.x, a.z - b.z) : Infinity;
+  }
+  function session(b) {
+    var s = sessions.get(b);
+    if (!s) sessions.set(b, (s = { time: null, records: new Map(), coverDecisions: new Map(), ticks: 0 }));
+    return s;
+  }
+  function stamp(t) {
+    return +t.toFixed(3);
+  }
+  function mark(r, key, t) {
+    if (r.handoffs[key] == null) r.handoffs[key] = stamp(t);
+  }
+  function blocker(r, t, source, why) {
+    if (!why) return;
+    var key = source + ':' + why;
+    if (key === r._lastBlocker) return;
+    r._lastBlocker = key;
+    if (r.blockers.length < 24) r.blockers.push({ at: stamp(t), source: source, reason: why });
+  }
+  /* The urgent-cover OWNER reports actual guard decisions as they happen.
+     Recording a rejection does not create a tactical command or destination. */
+  function coverDecision(man, b, stage, why) {
+    if (!ON || !man || !b) return;
+    var st = session(b),
+      key = man.faction + ':' + man.id,
+      events = st.coverDecisions.get(key);
+    if (!events) st.coverDecisions.set(key, (events = []));
+    var previous = events[events.length - 1],
+      item = { at: stamp(+b.time || 0), stage: stage, reason: why };
+    if (previous && previous.stage === stage && previous.reason === why) return;
+    if (events.length >= 48) return;
+    events.push(item);
+    var rec = st.records.get(key);
+    if (rec && item.at - rec.at <= ARRIVAL_WINDOW) rec.ownerDecisions.push(item);
+  }
+  function distribution(values) {
+    var a = values.filter(Number.isFinite).sort(function (x, y) {
+      return x - y;
+    });
+    return a.length
+      ? {
+          n: a.length,
+          median: stamp(a[Math.floor((a.length - 1) / 2)]),
+          p90: stamp(a[Math.ceil((a.length - 1) * 0.9)])
+        }
+      : { n: 0, median: null, p90: null };
+  }
+  function cue(s, b) {
+    var E = root.BattleEngagement,
+      A = root.SquadAI,
+      incoming = !!(E && E.underFireNow && E.underFireNow(s, b)),
+      target =
+        s.target && (!A || !A.threatDisposition || A.threatDisposition(s.target).combatThreat)
+          ? s.target
+          : null,
+      report = A && A.soldierContact && A.soldierContact(s, b);
+    if (incoming) return { kind: 'incoming-fire', target: target, report: report };
+    if (target) return { kind: 'visual-threat', target: target, report: report };
+    if (
+      report &&
+      Number.isFinite(+report.at) &&
+      b.time - report.at <= 2.5 &&
+      Number.isFinite(+report.x) &&
+      Number.isFinite(+report.z)
+    )
+      return {
+        kind: report.source === 'heard' ? 'sound-only' : 'reported-sector',
+        target: null,
+        report: report
+      };
+    return null;
+  }
+  function observe(b) {
+    if (!ON) return;
+    var state = session(b),
+      t = +b.time || 0;
+    if (state.time != null && t < state.time - 0.01) {
+      sessions.delete(b);
+      state = session(b);
+    }
+    state.time = t;
+    state.ticks++;
+    var units = root.BattleModules.unitsFor(b) || [],
+      TC = root.BattleTacticalController,
+      actions = (TC && TC.summary && TC.summary(b).live) || [];
+    function ownedBound(man) {
+      var matching = actions.filter(function (a) {
+        return (
+          a.capability === 'combat.bound' &&
+          String(a.actorId) === String(man.id) &&
+          String(a.squad) === String(man.squad.id)
+        );
+      });
+      /* TC.summary().live has no faction. Never ascribe a colliding enemy ID. */
+      var actors = units.filter(function (u) {
+        return u && u.squad && String(u.id) === String(man.id) && String(u.squad.id) === String(man.squad.id);
+      });
+      return actors.length === 1 && matching.length === 1 ? matching[0] : null;
+    }
+    for (var i = 0; i < units.length; i++) {
+      var s = units[i];
+      if (!s || s.isPlayer || !s.root || !s.squad) continue;
+      var k = s.faction + ':' + s.id,
+        r = state.records.get(k),
+        p = pt(s.root.position),
+        e = s.eng || {},
+        goal = s._movementResolver && s._movementResolver.goal,
+        kind = goal && goal.kind;
+      if (!r && !s.dead) {
+        var evidence = cue(s, b);
+        if (evidence) {
+          r = {
+            id: String(s.id),
+            faction: s.faction,
+            role: s.role || null,
+            cue: evidence.kind,
+            at: +t.toFixed(3),
+            contactSource: (evidence.report && evidence.report.source) || null,
+            reportAge:
+              evidence.report && Number.isFinite(+evidence.report.at)
+                ? +(t - evidence.report.at).toFixed(3)
+                : null,
+            reportedDistance:
+              evidence.report && p && pt(evidence.report) ? +dist(p, pt(evidence.report)).toFixed(2) : null,
+            initialState: e.state || null,
+            initialExposure:
+              root.BattleObstacleField && root.BattleObstacleField.coverPotentialAt && p
+                ? root.BattleObstacleField.coverPotentialAt(b.obstacles, p.x, p.z)
+                : null,
+            distance:
+              evidence.target && p
+                ? +dist(p, pt(evidence.target.root && evidence.target.root.position)).toFixed(2)
+                : null,
+            firstLow: null,
+            firstHold: null,
+            firstShot: null,
+            movingAtShot: null,
+            firstMotion: null,
+            firstCoverOrder: null,
+            firstCoverMotion: null,
+            coverArrival: null,
+            coverCause: null,
+            coverArrivalEvidence: null,
+            coverOrigin: null,
+            handoffs: {
+              request: null,
+              accepted: null,
+              adopted: null,
+              selected: null,
+              physicalStart: null,
+              arrived: null
+            },
+            blockers: [],
+            ownerDecisions: (state.coverDecisions.get(k) || []).filter(function (v) {
+              return v.at >= t - 0.2;
+            }),
+            _lastBlocker: null,
+            firstCoverSearch: null,
+            firstOwnerAction: null,
+            coverOwner: null,
+            localAuthorizedAt: null,
+            command: null,
+            commandReplaced: false,
+            window: null,
+            windowEndedAt: null,
+            failureClass: null,
+            firstRouteWithheld: null,
+            initialLow: !!(s.prone || s.tacticalCrouch || s.crouching),
+            initialMoving: !!s.moving,
+            initialOrder: kind || null,
+            cuePosition: p,
+            coverPoint: null
+          };
+          state.records.set(k, r);
+        }
+      }
+      if (!r || t - r.at > ARRIVAL_WINDOW) continue;
+      var early = t - r.at <= WINDOW,
+        bound = ownedBound(s),
+        resolver = s._movementResolver || {},
+        combat = resolver.combat,
+        last = resolver.last,
+        progress = s._movementProgress,
+        result =
+          root.BattleExecutionOutcome && root.BattleExecutionOutcome.man
+            ? root.BattleExecutionOutcome.man(s, b)
+            : null,
+        CR = root.BattleCommandReception,
+        Q = root.BattleSquadStability,
+        lease =
+          Q && Q.controllerBound && Q.controllerBound.current ? Q.controllerBound.current(s.squad, b) : null;
+      if (
+        r.firstCoverSearch == null &&
+        Number.isFinite(+e._urgentCoverSearchAt) &&
+        +e._urgentCoverSearchAt > t
+      )
+        r.firstCoverSearch = stamp(t);
+      if (early && r.firstLow == null && !r.initialLow && (s.prone || s.tacticalCrouch || s.crouching))
+        r.firstLow = +t.toFixed(3);
+      if (
+        early &&
+        r.firstHold == null &&
+        (e.state === 'orient' || kind === 'hold' || kind === 'contact-reaction')
+      )
+        r.firstHold = +t.toFixed(3);
+      var A = root.BattleAmmunition,
+        shot = A && A.shotEvidence && A.shotEvidence(s, b);
+      if (early && r.firstShot == null && shot && Number.isFinite(+shot.at) && +shot.at >= r.at - 0.001) {
+        r.firstShot = +(+shot.at).toFixed(3);
+        r.movingAtShot = !!s.moving;
+      }
+      if (early && r.firstMotion == null && s.moving && dist(r.cuePosition, p) > 0.35)
+        r.firstMotion = +t.toFixed(3);
+      if (
+        early &&
+        r.firstCoverOrder == null &&
+        (bound || e._urgentCover || (kind === 'cover-bound' && e.state === 'bound'))
+      ) {
+        r.firstCoverOrder = stamp(t);
+        r.coverCause = e._urgentCoverCause || (bound ? 'controller-bound' : 'authorized-bound');
+        r.coverPoint = pt(e.cover) || pt(goal && goal.point) || pt(s.destination);
+        r.coverOrigin = p;
+        r.coverOwner = e._urgentCover ? 'engagement' : bound ? 'controller' : 'engagement';
+        if (r.coverOwner === 'controller' && bound) r.firstOwnerAction = bound.actionId;
+        if (r.coverOwner === 'engagement') r.localAuthorizedAt = stamp(t);
+        mark(r, 'request', t);
+      }
+      if (r.firstCoverOrder == null) {
+        if (early && r.cue === 'reported-sector' && !s.target)
+          blocker(r, t, 'policy', 'sector-alone-is-not-personal-cover-authority');
+        /* Exact 13c controller march policy guard: while the squad remains
+           in contact, a man without a personal visual target has his distant
+           route-leg movement withheld. This is not a cover-order rejection. */
+        if (early && TC && TC.controls && TC.controls(b, s.squad) && s.squad.inContact && !s.target) {
+          if (r.firstRouteWithheld == null) r.firstRouteWithheld = stamp(t);
+          blocker(r, t, 'march', 'distant-leg-withheld:no-personal-visual-target');
+        }
+        continue;
+      }
+      if (r.coverOwner === 'controller') {
+        /* Match the exact action and personal publish key. A later action
+           under the same actor must not inherit the original receipt clock. */
+        if (lease && lease.lease && r.window == null) {
+          var deadline = lease.lease.until;
+          r.window = {
+            startedAt: stamp(lease.lease.since),
+            expiresAt: Number.isFinite(deadline) ? stamp(deadline) : null,
+            termination: lease.lease.untilReason || null
+          };
+        }
+        var rec = CR && CR.peek ? CR.peek(s, b, 'movement', 'soldier:' + String(s.id)) : null,
+          key = r.firstOwnerAction == null ? null : 'controller:' + String(r.firstOwnerAction),
+          matched = !!(rec && rec.data && rec.data.publishKey === key);
+        if (matched) {
+          if (!r.command || r.command.envelopeId === rec.envelopeId) {
+            r.command = {
+              envelopeId: rec.envelopeId,
+              publishKey: rec.data.publishKey,
+              senderId: rec.sourceId,
+              channel: rec.channel,
+              relayId: rec.relayId,
+              hops: rec.hops,
+              unreachable: !!rec.unreachable,
+              issuedAt: rec.issuedAt,
+              receivedAt: rec.receivedAt,
+              processedAt: rec.processedAt,
+              adoptedAt: rec.adoptedAt,
+              phase: rec.phase
+            };
+          } else {
+            r.commandReplaced = true;
+            blocker(r, t, 'command', 'original-envelope-replaced');
+          }
+          if (rec.unreachable) r.failureClass = 'unreachable';
+          else if (rec.hops > 1 && rec.phase !== 'adopted') r.failureClass = 'awaiting-relay';
+        }
+        if (r.window && r.window.expiresAt != null && t > r.window.expiresAt && r.handoffs.adopted == null) {
+          r.failureClass = 'window-expired-before-adoption';
+        }
+        if (!bound && r.windowEndedAt == null) r.windowEndedAt = stamp(t);
+        if (bound && r.firstOwnerAction === bound.actionId) {
+          if (bound.stage !== 'cancelled') mark(r, 'accepted', t);
+          if (['adopted', 'executing', 'arrived'].indexOf(bound.stage) >= 0) mark(r, 'adopted', t);
+          if (bound.stage === 'cancelled' || bound.stage === 'published')
+            blocker(r, t, 'controller', bound.stage + ':' + bound.reason);
+          if (bound.stage === 'cancelled' && r.handoffs.adopted == null && !r.failureClass)
+            r.failureClass = 'owner-rejected';
+          if (bound.stage === 'arrived' && r.coverArrival == null) {
+            r.coverArrival = stamp(t);
+            r.coverArrivalEvidence = 'engagement:bound-checkin';
+            mark(r, 'arrived', t);
+          }
+        }
+      } else if (r.coverOwner === 'engagement' && e._urgentCover) {
+        if (combat && combat.kind === 'cover-bound' && combat.owner === 'engagement') {
+          mark(r, 'accepted', t);
+          /* Local survival is already authorized; it never receives a
+             personal Meso envelope and must not inflate adoption metrics. */
+        } else blocker(r, t, 'resolver', 'urgent-proposal-not-current');
+      }
+      var selected =
+        last &&
+        last.kind === 'cover-bound' &&
+        last.owner === 'engagement' &&
+        r.coverPoint &&
+        dist(pt(last.intentPoint), r.coverPoint) <= 1.3;
+      if (selected) mark(r, 'selected', t);
+      else if (r.handoffs.accepted != null && r.handoffs.selected == null) {
+        blocker(r, t, 'resolver', last ? 'outranked:' + last.kind : 'no-selected-goal');
+        if (last && last.kind !== 'cover-bound' && !r.failureClass) r.failureClass = 'resolver-preempted';
+      }
+      if (
+        r.firstCoverMotion == null &&
+        r.handoffs.selected != null &&
+        s.moving &&
+        selected &&
+        dist(r.coverOrigin, p) > 0.35
+      ) {
+        r.firstCoverMotion = stamp(t);
+        mark(r, 'physicalStart', t);
+      }
+      if (progress && progress.stuck) {
+        blocker(r, t, 'navigation', progress.terminal ? 'terminal-no-progress' : 'no-progress');
+        if (!r.failureClass) r.failureClass = 'navigation-failed';
+      }
+      if (result && result.state === 'held') blocker(r, t, 'command', 'held:' + result.by);
+      else if (result && result.state === 'pending') blocker(r, t, 'command', 'pending:' + result.why);
+      if (s._movementStopReason && r.firstCoverMotion == null)
+        blocker(r, t, 'execution', s._movementStopReason);
+      if (
+        r.coverArrival == null &&
+        r.firstCoverMotion != null &&
+        r.coverPoint &&
+        p &&
+        dist(p, r.coverPoint) <= 1.3 &&
+        !s.moving
+      ) {
+        r.coverArrival = stamp(t);
+        r.coverArrivalEvidence = 'physical-proximity';
+        mark(r, 'arrived', t);
+      }
+      if (
+        r.coverArrival == null &&
+        Number.isFinite(+e._urgentCoverArrivedAt) &&
+        e._urgentCoverArrivedAt >= r.firstCoverOrder
+      ) {
+        r.coverArrival = stamp(+e._urgentCoverArrivedAt);
+        r.coverArrivalEvidence = 'engagement:urgent-arrival';
+        mark(r, 'arrived', +e._urgentCoverArrivedAt);
+      }
+      if (r.coverArrival == null && !bound && !e._urgentCover && r.handoffs.accepted != null)
+        blocker(r, t, 'engagement', 'order-ended:' + (e.state || 'unknown'));
+    }
+  }
+  function summary(b) {
+    if (!ON) return { enabled: false };
+    var data = Array.from(session(b).records.values()),
+      types = {},
+      response = {
+        seen: data.length,
+        low: 0,
+        hold: 0,
+        shots: 0,
+        movingShots: 0,
+        physicalMoves: 0,
+        protectiveOrders: 0,
+        protectiveMoves: 0,
+        protectiveArrivals: 0,
+        incomingCoverOrders: 0,
+        acceptedCoverOrders: 0,
+        adoptedCoverOrders: 0,
+        selectedCoverOrders: 0,
+        notSelected: 0,
+        lateArrivals: 0,
+        routeWithheldOnContact: 0,
+        localSurvivalAuthorized: 0,
+        localSurvivalAccepted: 0,
+        mesoCoverOrders: 0,
+        mesoAdoptedCoverOrders: 0
+      };
+    for (var i = 0; i < data.length; i++) {
+      var r = data[i];
+      types[r.cue] = (types[r.cue] || 0) + 1;
+      if (r.firstLow != null) response.low++;
+      if (r.firstHold != null) response.hold++;
+      if (r.firstShot != null) response.shots++;
+      if (r.movingAtShot) response.movingShots++;
+      if (r.firstMotion != null) response.physicalMoves++;
+      if (r.firstCoverOrder != null) response.protectiveOrders++;
+      if (r.coverOwner === 'engagement' && r.localAuthorizedAt != null) response.localSurvivalAuthorized++;
+      if (r.coverOwner === 'engagement' && r.handoffs.accepted != null) response.localSurvivalAccepted++;
+      if (r.coverOwner === 'controller' && r.firstCoverOrder != null) response.mesoCoverOrders++;
+      if (r.coverOwner === 'controller' && r.handoffs.adopted != null) response.mesoAdoptedCoverOrders++;
+      if (r.firstCoverMotion != null) response.protectiveMoves++;
+      if (r.coverArrival != null) response.protectiveArrivals++;
+      if (r.coverCause === 'incoming-fire') response.incomingCoverOrders++;
+      if (r.handoffs.accepted != null) response.acceptedCoverOrders++;
+      if (r.coverOwner === 'controller' && r.handoffs.adopted != null) response.adoptedCoverOrders++;
+      if (r.handoffs.selected != null) response.selectedCoverOrders++;
+      if (r.handoffs.accepted != null && r.handoffs.selected == null) response.notSelected++;
+      if (r.coverArrival != null && r.coverArrival - r.at > WINDOW) response.lateArrivals++;
+      if (r.firstRouteWithheld != null) response.routeWithheldOnContact++;
+    }
+    var blockers = {},
+      ownerCoverDecisions = {},
+      failureClasses = {},
+      timings = {};
+    data.forEach(function (r) {
+      r.blockers.forEach(function (v) {
+        var key = v.source + ':' + v.reason;
+        blockers[key] = (blockers[key] || 0) + 1;
+      });
+      if (r.failureClass) failureClasses[r.failureClass] = (failureClasses[r.failureClass] || 0) + 1;
+      var seen = {};
+      r.ownerDecisions.forEach(function (v) {
+        var key = v.stage + ':' + v.reason;
+        if (seen[key]) return;
+        seen[key] = true;
+        ownerCoverDecisions[key] = (ownerCoverDecisions[key] || 0) + 1;
+      });
+    });
+    [
+      ['cueToRequest', null, 'request'],
+      ['requestToAccepted', 'request', 'accepted'],
+      ['acceptedToAdopted', 'accepted', 'adopted'],
+      ['adoptedToResolver', 'adopted', 'selected'],
+      ['resolverToMotion', 'selected', 'physicalStart'],
+      ['motionToArrival', 'physicalStart', 'arrived'],
+      ['cueToArrival', null, 'arrived']
+    ].forEach(function (row) {
+      timings[row[0]] = distribution(
+        data.map(function (r) {
+          var from = row[1] ? r.handoffs[row[1]] : r.at,
+            to = r.handoffs[row[2]];
+          return from == null || to == null ? NaN : to - from;
+        })
+      );
+    });
+    return {
+      enabled: true,
+      windowSeconds: WINDOW,
+      arrivalWindowSeconds: ARRIVAL_WINDOW,
+      blockerCounts: blockers,
+      ownerCoverDecisions: ownerCoverDecisions,
+      failureClasses: failureClasses,
+      timings: timings,
+      cueTypes: types,
+      response: response,
+      soldiers: data.map(function (r) {
+        var out = Object.assign({}, r);
+        delete out.cuePosition;
+        delete out.coverPoint;
+        delete out.coverOrigin;
+        delete out._lastBlocker;
+        return out;
+      })
+    };
+  }
+  root.BattleFirstContactObserver = { enabled: ON, summary: summary, coverDecision: coverDecision };
+  root.BattleModules.registerSystem('first-contact-observer', {
+    version: '1-read-only',
+    onBattleStart: function (b) {
+      sessions.delete(b);
+    },
+    onBattleRestart: function (b) {
+      sessions.delete(b);
+    },
+    onSimulationStep: observe
+  });
+})(typeof window !== 'undefined' ? window : globalThis);

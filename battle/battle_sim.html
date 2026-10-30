@@ -136,7 +136,8 @@ window.BattleLoading=(function(){
   }catch(_){} }
   console.log('[SCENARIO] live seed='+liveSeed+' id='+scenario.id+' fingerprint='+JSON.stringify(scenario.fingerprint.vector));
 
-  var canvas=document.getElementById('renderCanvas'),engine=new BABYLON.Engine(canvas,true,{stencil:false,preserveDrawingBuffer:true,audioEngine:true});engine.renderEvenInBackground=true;console.log('legacyAudioEngine='+(BABYLON.Engine.audioEngine?'present':'missing')+' · background rendering enabled');
+  if(window.BattleAudioBackend)await BattleAudioBackend.ready;
+  var canvas=document.getElementById('renderCanvas'),engine=new BABYLON.Engine(canvas,true,{stencil:false,preserveDrawingBuffer:true,audioEngine:!(window.BattleAudioBackend&&BattleAudioBackend.independent)});engine.renderEvenInBackground=true;console.log('legacyAudioEngine='+(window.BattleAudioBackend&&BattleAudioBackend.independent?'disabled for Howler':BABYLON.Engine.audioEngine?'present':'missing')+' · background rendering enabled');
   var scene=new BABYLON.Scene(engine);scene.skipPointerMovePicking=true;scene.clearColor=new BABYLON.Color4(.55,.62,.68,1);scene.fogMode=BABYLON.Scene.FOGMODE_LINEAR;scene.fogColor=new BABYLON.Color3(.72,.62,.52);scene.fogStart=scenario.profile==='strategic'?2100:850;scene.fogEnd=scenario.profile==='strategic'?8000:2250;
   var target=new BABYLON.Vector3(scenario.center.x,4,scenario.center.z),camera=new BABYLON.ArcRotateCamera('cam',-Math.PI/2,1.02,720,target,scene);camera.lowerRadiusLimit=90;camera.upperRadiusLimit=scenario.profile==='strategic'?5400:1850;camera.radius=scenario.profile==='strategic'?3200:720;camera.maxZ=scenario.profile==='strategic'?9500:2600;camera.lowerBetaLimit=.28;camera.upperBetaLimit=1.5;camera.wheelPrecision=3;camera.panningSensibility=120;camera.attachControl(canvas,true);
 
@@ -239,7 +240,174 @@ window.BattleLoading=(function(){
     frameInput.addEventListener('change',function(){seekFrame(frameInput.value);});
     window.__battleMotionLab={state:function(){var fx=labSoldier&&labSoldier._fbx,p=labSoldier&&labSoldier.root.position;return{pose:labPose,frame:+frameInput.value,paused:labPaused,rootX:p&&p.x||0,rootZ:p&&p.z||0,twoHand:fx&&fx.twoHand||0,supportErrorCm:fx&&fx.supportErrorCm,clip:source.textContent};}};
   })();
-  var startBtn=document.getElementById('startBtn');async function unlockAudio(){var ae=BABYLON.Engine.audioEngine;if(!ae){console.error('audioEngine missing');return false;}try{ae.unlock();var ctx=ae.audioContext;if(ctx&&ctx.state==='suspended'&&ctx.resume)await ctx.resume();console.log('audioContext='+(ctx&&ctx.state||'unknown'));return !ctx||ctx.state==='running';}catch(e){console.error('audio unlock failed',e&&e.message||e);return false;}}async function startBattle(){await unlockAudio();battle.resume();startBtn.hidden=true;document.removeEventListener('pointerdown',unlockAudio);document.removeEventListener('touchend',unlockAudio);console.log('battle started');}startBtn.addEventListener('click',startBattle);document.addEventListener('pointerdown',unlockAudio,{once:true});document.addEventListener('touchend',unlockAudio,{once:true});
+  var startBtn=document.getElementById('startBtn');
+  async function unlockAudio(){
+    var ae=window.BattleAudioBackend?BattleAudioBackend.engine():BABYLON.Engine.audioEngine;
+    if(!ae){console.error('[AUDIO] Babylon engine missing');return false;}
+    try{
+      // Babylon 9 unlock() returns void. Start native resume inside the gesture,
+      // then verify the real context before allowing either Start or Skills Play.
+      var ctx=ae.audioContext;
+      if(!ctx){console.error('[AUDIO] Audio context missing');return false;}
+      var resuming=ctx.state!=='running'&&ctx.resume?ctx.resume():Promise.resolve();
+      var unlocking=typeof ae.unlock==='function'?ae.unlock():undefined;
+      await Promise.all([resuming,unlocking]);
+      if(ctx.state==='running'&&typeof ae.unlock==='function')ae.unlock();
+      var ready=ctx.state==='running';
+      console.log('[AUDIO] context='+(ctx&&ctx.state||'unknown')+' unlocked='+ae.unlocked+
+        ' mix='+JSON.stringify(window.BattleAudioMix?BattleAudioMix.get():null));
+      if(!ready)console.warn('[AUDIO] Audio context not running; use a click/tap to enable sound.');
+      if(ready)enableLiveAudioMeter();
+      return ready;
+    }catch(e){console.error('[AUDIO] unlock failed',e);return false;}
+  }
+  window.__battleUnlockAudio__=unlockAudio;
+  // Opt-in continuous master-output trace for real battles (?audioDiag=1).
+  // Audio-only synthetic lab uses the same analyser route, but has no renderer or AI.
+  var liveAudioHistory=[],liveAudioMeter=null,liveAudioMeterTimer=null;
+  var audioContinuity=[],audioEvents=[],audioMarkers=[],lastAudioSample=null,lastAudioState='';
+  var liveAudioData=null,liveMeterNode=null,meterChunks=[];
+  function audioCopy(value){return value==null?null:JSON.parse(JSON.stringify(value));}
+  function liveOutput(){
+    if(!liveAudioMeter)return null;
+    var data=liveAudioData,sum=0,peak=0;
+    liveAudioMeter.getFloatTimeDomainData(data);
+    for(var i=0;i<data.length;i++){sum+=data[i]*data[i];peak=Math.max(peak,Math.abs(data[i]));}
+    return {rms:+Math.sqrt(sum/data.length).toFixed(6),peak:+peak.toFixed(5)};
+  }
+  function audioEvent(kind){
+    audioEvents.push({kind:kind,realMs:performance.now(),simTime:battle.time,
+      speed:battle.timeScale,paused:battle.paused,visibility:document.visibilityState,
+      fullscreen:!!document.fullscreenElement,focused:document.hasFocus()});
+    if(audioEvents.length>240)audioEvents.shift();
+  }
+  window.__battleMarkAudioSilence__=function(){
+    if(!liveAudioMeter)return false;
+    audioEvent('user-heard-silence');
+    audioMarkers.push(audioCopy({event:audioEvents[audioEvents.length-1],
+      preceding:audioContinuity.slice(),history:liveAudioHistory.slice()}));
+    if(audioMarkers.length>3)audioMarkers.shift();
+    return true;
+  };
+  function enableLiveAudioMeter(){
+    if(new URLSearchParams(location.search).get('audioDiag')!=='1'||liveAudioMeter)return;
+    var ae=(window.BattleAudioBackend?BattleAudioBackend.engine():BABYLON.Engine.audioEngine),ctx=ae&&ae.audioContext,master=ae&&ae.masterGain;
+    if(!ctx||!master||!ctx.createAnalyser)return;
+    try{
+      liveAudioMeter=ctx.createAnalyser();liveAudioMeter.fftSize=2048;
+      liveAudioData=new Float32Array(liveAudioMeter.fftSize);
+      var tap=ctx.createGain();tap.gain.value=0;
+      master.connect(liveAudioMeter);liveAudioMeter.connect(tap);tap.connect(ctx.destination);
+      // Audio-thread meter: every ~100 ms of rendered audio is measured, whatever the
+      // main thread is doing. The 2048-sample analyser read above covers only ~43 ms
+      // per timer tick, and timer ticks starve at low frame rates.
+      if(ctx.audioWorklet&&window.AudioWorkletNode&&window.Blob&&window.URL){
+        var meterCode="registerProcessor('grasstex-meter',class extends AudioWorkletProcessor{"+
+          "constructor(){super();this.b=0;this.q=0;this.f=0;this.m=0;}"+
+          "process(inputs){var ch=inputs[0]||[],n=ch.length&&ch[0].length||128,q=0;"+
+          "for(var c=0;c<ch.length;c++)for(var k=0;k<ch[c].length;k++)q+=ch[c][k]*ch[c][k];"+
+          "q/=Math.max(1,ch.length);this.q+=q;this.f+=n;var r=Math.sqrt(q/n);if(r>this.m)this.m=r;"+
+          "if(++this.b>=37){this.port.postMessage({frames:this.f,rms:Math.sqrt(this.q/this.f),peakBlockRms:this.m});"+
+          "this.b=0;this.q=0;this.f=0;this.m=0;}return true;}})";
+        ctx.audioWorklet.addModule(URL.createObjectURL(new Blob([meterCode],{type:'application/javascript'}))).then(function(){
+          liveMeterNode=new AudioWorkletNode(ctx,'grasstex-meter');
+          liveMeterNode.port.onmessage=function(e){meterChunks.push(e.data);if(meterChunks.length>600)meterChunks.shift();};
+          master.connect(liveMeterNode);liveMeterNode.connect(tap);
+        }).catch(function(e){audioEvent('meter-worklet-failed');});
+      }
+      ['visibilitychange','fullscreenchange'].forEach(function(name){document.addEventListener(name,function(){audioEvent(name);});});
+      ['focus','blur'].forEach(function(name){window.addEventListener(name,function(){audioEvent(name);});});
+      ctx.addEventListener('statechange',function(){audioEvent('context:'+ctx.state);});
+      var lastStarts=0,lastInRange=0,lastDetailMs=-Infinity;
+      liveAudioMeterTimer=setInterval(function(){
+        var real=performance.now(),clock=ctx.currentTime,now=liveOutput(),stamp=null;
+        try{stamp=ctx.getOutputTimestamp?ctx.getOutputTimestamp():null;}catch(_){}
+        var sample={realMs:real,simTime:battle.time,speed:battle.timeScale,paused:battle.paused,
+          context:ctx.state,contextTime:clock,outputTimestamp:stamp,output:now,
+          wallDeltaMs:lastAudioSample?real-lastAudioSample.realMs:null,
+          contextDeltaMs:lastAudioSample?(clock-lastAudioSample.contextTime)*1000:null};
+        sample.clockStalled=!!(lastAudioSample&&ctx.state==='running'&&lastAudioSample.context==='running'&&sample.wallDeltaMs>=100&&sample.contextDeltaMs<1);
+        // A running context can render slowly without ever freezing for a whole
+        // sample. Compare clock progress over >=1 wall second as well.
+        var reference=null;
+        for(var j=audioContinuity.length-1;j>=0;j--){
+          if(real-audioContinuity[j].realMs>=1000){reference=audioContinuity[j];break;}
+        }
+        sample.clockProgressRatio=null;sample.clockLagMs=null;sample.outputProgressRatio=null;
+        if(reference&&reference.context==='running'&&ctx.state==='running'){
+          var span=real-reference.realMs,progress=(clock-reference.contextTime)*1000;
+          sample.clockProgressRatio=progress/span;sample.clockLagMs=span-progress;
+          var oldStamp=reference.outputTimestamp;
+          if(stamp&&oldStamp&&stamp.contextTime>0&&oldStamp.contextTime>0)
+            sample.outputProgressRatio=(stamp.contextTime-oldStamp.contextTime)*1000/span;
+        }
+        sample.clockSlow=sample.clockProgressRatio!==null&&sample.clockProgressRatio<0.8;
+
+        audioContinuity.push(sample);if(audioContinuity.length>1200)audioContinuity.shift();
+        lastAudioSample=sample;
+        var state=[battle.timeScale,battle.paused,ctx.state].join(':');
+        if(state!==lastAudioState){audioEvent('playback-state');lastAudioState=state;}
+        if(real-lastDetailMs<1000)return;
+        lastDetailMs=real;
+        var w=battle._weaponAudio&&battle._weaponAudio.summary(),starts=w&&w.playRequests||0,
+          be=window.BattleAudioBackend&&BattleAudioBackend.summary(),inRange=be&&be.inRangeStarts||0;
+        var chunks=meterChunks.splice(0),frames=0,maxRms=0;
+        chunks.forEach(function(c){frames+=c.frames;maxRms=Math.max(maxRms,c.rms);});
+        var record=Object.assign({},sample,{
+          audioWindow:{source:liveMeterNode?'worklet':'none',chunks:chunks.length,
+            audioMs:+(frames/ctx.sampleRate*1000).toFixed(1),maxRms:+maxRms.toFixed(6),
+            chunkRms:chunks.map(function(c){return +c.rms.toFixed(6);})},
+          active:w&&w.active||0,weaponStarts:starts,deltaWeaponStarts:starts-lastStarts,deltaInRangeStarts:inRange-lastInRange,
+          weapon:w,weaponPools:battle._weaponAudio&&battle._weaponAudio.detail(),
+          backend:be,
+          queue:window.BattleAudioScheduler&&BattleAudioScheduler.pressure,
+          scheduler:window.BattleAudioScheduler&&BattleAudioScheduler.stats,
+          voice:window.BattleVoiceScheduler&&BattleVoiceScheduler.summary?BattleVoiceScheduler.summary():null,
+          grenade:battle._grenadeAudio,combat:battle._combatAudio,foley:battle._weaponFoley});
+        lastStarts=starts;lastInRange=inRange;
+        liveAudioHistory.push(audioCopy(record));if(liveAudioHistory.length>240)liveAudioHistory.shift();
+      },100);
+    }catch(err){console.error('[AUDIO] passive output analyser failed',err);}
+  }
+  window.__battleAudioDiagnostics__=function(){
+    var ae=(window.BattleAudioBackend?BattleAudioBackend.engine():BABYLON.Engine.audioEngine),wa=battle._weaponAudio;
+    return {context:ae&&ae.audioContext&&ae.audioContext.state,
+      unlocked:ae&&ae.unlocked,masterGain:ae&&ae.masterGain&&ae.masterGain.gain.value,
+      mix:window.BattleAudioMix&&BattleAudioMix.get(),
+      mixRuntime:window.BattleAudioMix&&{tacticalSafety:BattleAudioMix.tacticalSafety,
+        stats:BattleAudioMix.stats},
+      weapon:wa&&wa.summary(),weaponPools:wa&&wa.detail?wa.detail():null,
+      scheduler:window.BattleAudioScheduler&&BattleAudioScheduler.stats,
+      queue:window.BattleAudioScheduler&&BattleAudioScheduler.queued,
+      acoustics:window.BattleListenerAcoustics&&BattleListenerAcoustics.stats,
+      acousticActive:window.BattleListenerAcoustics&&BattleListenerAcoustics.active,
+      voice:window.BattleVoiceScheduler&&BattleVoiceScheduler.summary?BattleVoiceScheduler.summary():null,
+      grenade:battle._grenadeAudio,combat:battle._combatAudio,foley:battle._weaponFoley,
+      audioFormat:window.BattleAudioFormat&&BattleAudioFormat.state,
+      output:liveOutput(),outputHistory:audioCopy(liveAudioHistory),
+      continuity:audioCopy(audioContinuity),events:audioCopy(audioEvents),silenceMarkers:audioCopy(audioMarkers),
+      diagnosticVersion:4,
+      environment:{userAgent:navigator.userAgent,build:window.BATTLE_BUILD_DEPLOYED||BUILD,
+        ref:window.BATTLE_REF||null,sampleRate:ae&&ae.audioContext&&ae.audioContext.sampleRate,
+        baseLatency:ae&&ae.audioContext&&ae.audioContext.baseLatency,
+        outputLatency:ae&&ae.audioContext&&ae.audioContext.outputLatency,
+        meterPosition:'master-before-device',sampleIntervalMs:100},
+      sceneAudioEnabled:scene.audioEnabled,
+      backend:window.BattleAudioBackend&&BattleAudioBackend.summary(),
+      acousticQuality:window.BattleListenerAcoustics&&BattleListenerAcoustics.quality,
+      mixMode:window.BattleAudioMix?(BattleAudioMix.legacy?'legacy':BattleAudioMix.tacticalSafety?'tactical':'main'):null,
+      paused:battle.paused,time:battle.time};
+  };
+  async function startBattle(){
+    if(!await unlockAudio()){console.warn('[AUDIO] Could not start with sound; click Start battle again.');return;}
+    battle.resume();startBtn.hidden=true;
+    document.removeEventListener('pointerdown',unlockAudio);
+    document.removeEventListener('touchend',unlockAudio);
+    console.log('battle started');
+  }
+  startBtn.addEventListener('click',startBattle);
+  document.addEventListener('pointerdown',unlockAudio,{once:true});
+  document.addEventListener('touchend',unlockAudio,{once:true});
 
   var hud=document.getElementById('hud'),hudToggle=document.getElementById('hudToggle'),hudClose=document.getElementById('hudClose');function setHudCollapsed(v){hud.classList.toggle('collapsed',!!v);hudToggle.style.display=v?'block':'none';try{localStorage.setItem('battleAiHudCollapsed',v?'1':'0');}catch(_){}}hudClose.addEventListener('click',function(){setHudCollapsed(true);});hudToggle.addEventListener('click',function(){setHudCollapsed(false);});try{setHudCollapsed(localStorage.getItem('battleAiHudCollapsed')==='1');}catch(_){}
   window.__battle__=battle;window.__scenario__=scenario;console.log('Battle Sim ready; obstacles='+features.obstacles.length+' navWindows='+(BattleNavigation&&BattleNavigation.windowSlots?BattleNavigation.windowSlots.length:0));

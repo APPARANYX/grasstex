@@ -5,6 +5,10 @@ on:
     types: [ready_for_review]
     paths:
       - battle/engagement.js
+      - battle/modules/13c-tactical-march-provider.js
+      - battle/modules/13d-tactical-contact-skills.js
+      - battle/modules/13e-tactical-covered-maneuver.js
+      - scripts/probes/probe_tactical_contact.cjs
       - battle/modules/19-engagement-cover-positions.js
       - battle/modules/19b-engagement-fire-stance.js
       - battle/squad-ai.js
@@ -98,3 +102,32 @@ jobs:
           path: |
             closeups/tactical-observation/covered-bound-*.png
             closeups/tactical-observation/covered-bound-*.json
+
+  contact-preview:
+    uses: ./.github/workflows/deploy-50webs-preview.yml
+    with:
+      ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      preview_slug: ${{ github.event.pull_request.number && format('pr-{0}', github.event.pull_request.number) || github.ref_name }}
+    secrets: inherit
+
+  tactical-contact:
+    needs: contact-preview
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Chromium
+        run: |
+          npm install --no-save playwright@1.58.2
+          npx playwright install --with-deps chromium
+      - name: Flag-on natural census and native contact execution
+        env:
+          TACTICAL_DIRECT_PREVIEW: https://test.ivandpopov.com/grasstex/preview/${{ needs.contact-preview.outputs.preview_slug }}/battle_sim.php
+          TACTICAL_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          TACTICAL_PREVIEW: https://test.ivandpopov.com/grasstex/preview.php?ref=${{ github.head_ref || github.ref_name }}
+        run: node scripts/probes/probe_tactical_contact.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tactical-contact-evidence
+          path: closeups/tactical-contact/

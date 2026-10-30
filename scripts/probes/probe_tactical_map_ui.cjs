@@ -101,8 +101,30 @@ const strategic = process.env.TACTICAL_MAP_MODE === 'strategic';
         'strategic world must load full map and aerial recon without legacy minimap'
       );
     }
+    // The battle object is published before loading finishes. Send the shortcut
+    // from the game surface, not a setup/select control that deliberately ignores M.
+    await page.waitForFunction(
+      () =>
+        !document.getElementById('loading') || document.getElementById('loading').classList.contains('done'),
+      null,
+      { timeout: 240000 }
+    );
+    await page.locator('#renderCanvas').focus();
     await page.keyboard.press('m');
-    await page.waitForFunction(() => BattleTacticalMap.isOpen(), null, { timeout: 10000 });
+    try {
+      await page.waitForFunction(() => BattleTacticalMap.isOpen(), null, { timeout: 10000 });
+    } catch (error) {
+      console.error(
+        'Map shortcut state',
+        await page.evaluate(() => ({
+          focused: document.activeElement?.tagName,
+          focusedId: document.activeElement?.id,
+          open: window.BattleTacticalMap?.isOpen(),
+          errors: document.getElementById('loadError')?.textContent
+        }))
+      );
+      throw error;
+    }
     assert((await page.locator('#battleTacticalMap .gtm-paper').count()) === 1);
     assert((await page.locator('#battleTacticalMap .gtm-coordinate-grid text').count()) >= 10);
     assert((await page.locator('#battleTacticalMap .gtm-buildings rect').count()) > 0);

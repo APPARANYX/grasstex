@@ -45,7 +45,8 @@
           restartDropped: 0,
           interruptsUnconfirmed: 0,
           releaseRefused: 0,
-          faults: 0
+          faults: 0,
+          faultExamples: []
         }
       };
       battles.set(sim, b);
@@ -169,7 +170,14 @@
     try {
       return fn(a, b) === true;
     } catch (e) {
-      battleState(sim).stats.faults++;
+      var st = battleState(sim).stats;
+      st.faults++;
+      if (st.faultExamples.length < 5)
+        st.faultExamples.push({
+          at: +(sim && sim.time) || 0,
+          message: String((e && e.message) || e).slice(0, 240),
+          stack: String((e && e.stack) || '').slice(0, 900)
+        });
       return false;
     }
   }
@@ -447,6 +455,10 @@
         },
         finish: function (actionId, reason) {
           return finish(sim, sq, rec, snapshot, actionId, reason);
+        },
+        /* The owner-reported stage of one of this squad's live actions (the same read as summary().live). */
+        stage: function (actionId) {
+          return liveStage(rec, actionId);
         }
       };
     call(sim, rec.provider.policies[point], ctx);
@@ -492,6 +504,18 @@
     b.squads = new WeakMap();
     return out;
   }
+  function stageOf(action) {
+    try {
+      return action.provider.lifecycle.stage(action.request);
+    } catch (e) {
+      return { stage: 'unknown', reason: 'stage-fault' };
+    }
+  }
+  function liveStage(rec, actionId) {
+    for (var i = 0; i < rec.actions.length; i++)
+      if (rec.actions[i].request.actionId === actionId) return stageOf(rec.actions[i]) || null;
+    return null;
+  }
   /* Every live or cleanup-pending action with the stage its owner reports, so a stall names the action,
      the stage it stopped at and why. A report that throws reads as `unknown: stage-fault`, never hides
      the action; reading the summary changes nothing. */
@@ -500,12 +524,7 @@
     for (var i = 0; i < list.length; i++) {
       var action = list[i],
         req = action.request,
-        st = null;
-      try {
-        st = action.provider.lifecycle.stage(req);
-      } catch (e) {
-        st = { stage: 'unknown', reason: 'stage-fault' };
-      }
+        st = stageOf(action);
       (out.live = out.live || []).push({
         squad: sq.id,
         actionId: req.actionId,

@@ -57,9 +57,42 @@ retried on the next dispatch (no timer) and blocks the next switch. `battle-sim.
 still unconfirmed at that point is an accepted loss, counted in `stats.restartDropped` and
 logged. A controlled squad sets no `_missionHold`, so Loop Watch still judges its progress. Requests are
 validated by the contract below, so a stale tuple or an actor outside the squad is rejected.
-No provider is registered at runtime and the contract is not loaded by the page, so live
-activation stays rejected (`contract-unavailable`) until owner adapters are extracted; the
-controller keeps its state in WeakMaps and adds no squad or soldier field.
+The page loads the contract beside the Commander. The only provider is the march provider
+(13c), registered only under `?tacticalController=new`, so a default battle never activates the
+controller; the controller keeps its state in WeakMaps and adds no squad or soldier field.
+
+
+Slice 4 (`13e-tactical-covered-maneuver.js`) chooses forward/back cover points and native
+actors under the same opt-in provider. `maneuver.cover` asks Meso's `controllerBound` to
+lease the existing `bound` kind for up to three independent personal movers. These flexible
+windows end on physical arrival/check-in or genuine interruption, never on a timer.
+`combat.bound` reserves a canonical cover slot,
+publishes through Meso/Command Reception, then executes only after personal adoption.
+Engagement reports actual arrival within 0.45 m; publication/readiness cannot finish it.
+The first move requires actual qualified Ammunition discharge evidence; further enrollments
+retain two capable supporters and fresh native fire evidence. A recent shooter may become a
+mover while other actual shooters remain. Retained C/D hops survive B arrivals inside a
+defended perimeter; only the last checked-in post stabilizes that defender. Cover routes
+are revalidated against detached perceived threats; no exposed/objective-rush fallback.
+
+Close assault finishes with an explicit `combat.contact` `grenade` drill, selected by the
+contact skill for one eligible non-moving rifleman per squad. The grenade owner's read-only
+`assaultOpportunity` checks personally known fresh contact, 30 m range, inventory/cooldown,
+fire permission, a clear physical throw arc and native friendly clearance. Engagement calls
+`assaultThrow` to revalidate and commit; the native grenade clock alone releases and detonates.
+A usable rifle line does not veto this explicitly requested finisher. Legacy opportunistic
+grenade policy is unchanged. A live squad grenade prevents another finisher until it bursts.
+The Skills Lab assault objective is at the target line, with actual final physical shelters;
+capturing a midpoint must not turn the unfinished assault into a defensive deployment.
+
+A retreat window is an explicit Meso-owned exception to ordinary all-member withdrawal,
+queried by Engagement, cover reservations and the resolver. It preserves retreat state and
+never changes the retreat anchor or fire permission. Fewer than four living, extraction,
+failed support, pinning/reaction, player takeover, scene/navigation/leader/roster/mission
+change revoke the affected authority; ordinary retreat remains available.
+The module's read-only summary/history and benchmark `coveredBounds.controller` distinguish
+started, arrived and aborted episodes by direction. This is an opt-in implementation;
+controlled harness success does not establish natural battle tactical-quality acceptance.
 
 Effect requests and receipts correlate the full tuple `battleId`, `generation`, `faction`, `squadId`,
 `actorId` (when applicable), `missionVersion`, `rosterRevision`, `controllerEpoch`, `mode`
@@ -104,8 +137,9 @@ also needs independent qualified shooters and actual owner-reported discharge/co
 an accepted fire request or support count alone does not prove covering fire.
 
 `battle/tactical-capability-contract.js` and its focused harness define detached,
-executable request/receipt validation only. The module is deliberately absent from the
-runtime loaders and module discovery; the controller uses it when it is present. It supplies no live adapter, controller, lease
+executable request/receipt validation only. The two loaders (`battle_sim.php`,
+`battle_sim_local.php`) and the deploy plan load it as a plain runtime beside the Commander;
+module discovery does not, and it registers no system. It supplies no live adapter, controller, lease
 manager, firing permission or proof that supplied evidence is true. Existing owners must
 produce the evidence in a later runtime integration; no gameplay acceptance is implied.
 
@@ -141,6 +175,43 @@ replaces it (`cancelled: owner:replaced`). Its stage is `resolved` when it wins 
 `holding` within the resolver's `arrival` distance, or `accepted: outranked:<kind>` while a post
 or other authority wins. Cancel withdraws only that proposal. The resolver keeps no time for
 selection or arrival, so those stages carry the first read that saw them.
+
+`battle/modules/13c-tactical-march-provider.js` (`BattleTacticalMarchProvider`) is slice 2 of the
+replacement: the first provider, on only under `?tacticalController=new` (one flag for both sides).
+It takes every squad at battle start and on each commander tick through `requestMode`, and runs foundational march/contact skills. `executeMission` advances its own leg index along the retained `sq.route` once the
+squad's centre is within the doctrine's `routeArrivalRadius`; `squadCommand` asks each man once
+per leg for `movement.move` to his slot in Meso's formation layout (`BattleSquadStability.
+formationSlots`, the pure form of 15g's team offsets and in-team slots) around the leg point,
+finishes the old leg's orders when the leg changes, and on the last leg turns an `arrived` move
+into a `movement.hold` at the slot. It reads each action's stage through the dispatch context's
+`stage(actionId)`, the same owner read as `summary().live`. An order the owner ended is not asked
+for again on that leg, and the man is listed as stopped with the owner's reason; a refusal changed
+nothing, so it is asked again after the next mission tick and listed as stopped while it lasts. Retreat (squad state or command phase) wins:
+on a retreat the provider finishes every order and hold at its owner and asks again once the retreat
+ends. The preview launcher forwards the flag; with the flag but no contract on the page, the
+provider warns and legacy keeps every squad. Mission acceptance, transport, casualties, succession, retreat, rally
+recovery, physiology and reactions stay with their owners.
+
+Slice 3 adds the independent `13d-tactical-contact-skills.js` module. It selects HOLD, PRECISION,
+OPEN and personal suppressor roles without calling legacy `updateFireControl`, `assignSuppressors`
+or `decide`. Target changes preserve the current preparation episode clock; HOLD and PRECISION
+end at the existing `maxHold` deadline. A missing firing line releases locomotion to the route
+provider. This is foundational firing, not coordinated covered-bound acceptance.
+
+`fire.control` asks `controllerFireControl.publish` in Meso to use 15a's existing publisher;
+`published` explicitly does not imply personal adoption. Engagement still uses each man's adopted
+order and retains immediate return fire. `combat.contact` holds locomotion/posture/weapon resources
+and executes native recognition, preparation, firing, suppression or pinning through Engagement.
+`combat.march` holds only posture/weapon resources and reuses native transit posture while Meso
+owns locomotion. Native recognition, march posture and pinning executors are shared with legacy;
+controlled firing never invokes legacy cover/assault selection. The contact module releases a
+changed role before the route provider can acquire its locomotion. Survival bounds keep their
+native execution, while subsequent ordinary choices return to the controller. All three capabilities
+release only their own owner handles on cancellation; mission, roster, retreat, possession and
+restart preserve the controller lifecycle contract. No automatic station selection or directional
+covered bounds are introduced.
+`BattleTacticalMarchProvider.summary(sim)` lists per squad the leg, each man's action and owner
+stage, and why any man was stopped. Without the flag the module registers nothing.
 
 Before activation, prove exclusive dispatch in both Meso paths and ordinary Micro/station
 policy, retained safety/adoption/transport, and cancellation on mission, membership,
@@ -748,8 +819,8 @@ burst: an automatic held fires at `cyclic` until released, and the Thompson M1A1
 `selector` (`BattleWeapons.fireMode`, see player-mode-feedback.md). `rof` is the aimed rate of a semi-auto or bolt action; an
 automatic has `cyclic` (rounds/s), `burst` [min, max], `burstPause` and `burstClimb`. One trigger pull
 fires the whole burst on one AI tick (0.15 s, slower than an MG42 cycles); each round goes through
-`roundGate`, `shotModel(…, round, delay)` and `afterShot`, and `onFire(soldier, delay)` / the shot's
-`delay` let presentation play it at the cyclic rate (`BattleSim.presentAfter`). What a hit does is the
+`roundGate`, `shotModel(…, round, delay)` and `afterShot(soldier, battle, muzzleDelay)`, and `onFire(soldier, delay)` / the shot's
+`delay` let presentation play it at the cyclic rate (`BattleSim.presentAfter`). Ammunition reserves the reload immediately when empty, but sets `reloadStart` to 500 ms after the final scheduled muzzle discharge and `reloadUntil` to that start plus the full reload duration. No round is available during either the delay or the reload. Animation receives the same delay and full duration; handling stages follow `reloadStart`/`reloadUntil`. What a hit does is the
 `woundModel` (`modules/14-wound-model.js`, `BattleWounds`): the ray's hit zone (head, chest, abdomen,
 arm, leg; `BattleBallistics.hitZone`), a drop chance per zone scaled by the cartridge's `power`,
 bleeding that eases with time, leg wounds slowing (`woundSpeed`, applied in `11-soldier-individuality`)

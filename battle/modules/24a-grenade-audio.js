@@ -84,7 +84,7 @@
       pools[kind] = files(kind).map(function (f, i) {
         return {
           endsAt: 0,
-          sound: new BABYLON.Sound(
+          sound: new (root.BattleAudioBackend ? root.BattleAudioBackend.Sound : BABYLON.Sound)(
             'grenade-' + kind + i,
             root.BattleAudioFormat ? root.BattleAudioFormat.url(base + f) : base + f,
             scene,
@@ -119,7 +119,7 @@
       pools = opts.voices || {},
       arming = typeof WeakMap !== 'undefined' ? new WeakMap() : null,
       count = 0,
-      stats = (sim._grenadeAudio = { played: {}, dropped: 0 });
+      stats = (sim._grenadeAudio = { played: {}, dropped: 0, droppedUnavailable: 0, errors: 0 });
     if (!arming) return sim;
     /* Voices are built once the audio format is settled (modules/00-audio-format.js). */
     if (!opts.voices && typeof BABYLON !== 'undefined' && scene) {
@@ -140,14 +140,27 @@
     function sound(c) {
       var pool = pools[c.kind];
       if (!pool || !pool.length) return;
+      var ae = root.BattleAudioBackend
+          ? root.BattleAudioBackend.engine()
+          : root.BABYLON && root.BABYLON.Engine && root.BABYLON.Engine.audioEngine,
+        ctx = ae && ae.audioContext;
+      if (
+        (scene && scene.audioEnabled === false) ||
+        (ctx ? ctx.state !== 'running' : ae && ae.unlocked === false)
+      ) {
+        stats.dropped++;
+        stats.droppedUnavailable++;
+        return;
+      }
       var t = now(),
         free = pool.filter(function (v) {
-          return v.endsAt <= t;
+          return (
+            v.endsAt <= t && v.sound && v.sound.isPlaying !== true && (!v.sound.isReady || v.sound.isReady())
+          );
         });
       if (!free.length) return void stats.dropped++;
       var v = free[((count++ + hash01(seedOf(c.point, count)) * free.length) | 0) % free.length];
       v.endsAt = t + KINDS[c.kind].len * 1000;
-      stats.played[c.kind] = (stats.played[c.kind] || 0) + 1;
       try {
         var snd = v.sound,
           p = c.point,
@@ -163,8 +176,11 @@
         if (!acoustics || !acoustics.prepare(snd, p, role, gain, scene))
           if (snd.setVolume) snd.setVolume(gain);
         if (snd.setPlaybackRate) snd.setPlaybackRate(1);
-        snd.play();
-      } catch (_) {}
+        if (snd.play() === false) return;
+        stats.played[c.kind] = (stats.played[c.kind] || 0) + 1;
+      } catch (_) {
+        stats.errors++;
+      }
     }
     function emit(kind, point) {
       var c = cue(kind, point, listener());

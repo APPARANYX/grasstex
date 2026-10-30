@@ -44,7 +44,7 @@
 
       debt += elapsed * scale;
       var steps = 0;
-      while (debt + EPS >= STEP && steps < MAX_STEPS_PER_FRAME && !sim.winner) {
+      while (debt + EPS >= STEP && steps < MAX_STEPS_PER_FRAME && !sim.winner && !sim.paused) {
         debt -= STEP;
         sim.step(STEP);
         steps++;
