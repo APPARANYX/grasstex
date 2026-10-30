@@ -54,12 +54,14 @@ function duel(opts) {
      layer changes what this harness is measuring (for example, HOLD FIRE correctly blocks the bound-authorisation
      fixture, or a killed leader correctly freezes fresh bounds during succession). The old stance visibility
      (stanceVis=0) is held too: the lower prone/crouch signature delays acquisition and changes the stance chosen
-     at range, which is a perception/doctrine question with its own check, not this harness's contract. */
+     at range, which is a perception/doctrine question with its own check, not this harness's contract.
+     PinBridge is independently checked in pin-bridge-check.js; use its explicit legacy control here
+     so a newly longer suppression hold does not change which state/stance snapshot is sampled. */
   const root = H.bootstrap(
     Object.assign(
       {
         search:
-          '?morale=0&coa=0&stressAct=0&fireControl=0&stanceVis=0&slStress=0&soldierBeliefs=0&incomingFireReveal=0&leaderlessIntent=0'
+          '?morale=0&coa=0&stressAct=0&fireControl=0&stanceVis=0&slStress=0&soldierBeliefs=0&incomingFireReveal=0&leaderlessIntent=0&pinBridge=0'
       },
       opts
     )

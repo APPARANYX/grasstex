@@ -21,9 +21,9 @@ function test(name, fn) {
   console.log('PASS ' + name);
 }
 
-function world() {
+function world(search) {
   H.resetIds();
-  const r = H.bootstrap();
+  const r = H.bootstrap({ search: search || '' });
   const b = H.makeBattle(r);
   const us = H.addSquad(r, b, { id: 'us-0', faction: 'us', x: 0, z: 0, objective: { x: 0, z: 100 } });
   const ge = H.addSquad(r, b, { id: 'ge-0', faction: 'ge', x: 0, z: 200, objective: { x: 0, z: 0 } });
@@ -50,8 +50,8 @@ test('pin holds a free man for the seconds it is given, extends a hold, and neve
   );
 });
 
-test('area fire pins the enemies inside its spread for the suppressive hold and no one else', () => {
-  const { b, S, us, ge } = world();
+test('legacy pinBridge=0 area fire pins inside the spread for its original hold and no one else', () => {
+  const { b, S, us, ge } = world('?pinBridge=0');
   const gunner = us.members.find(s => s.role === 'gunner');
   gunner.root.position.x = 0;
   gunner.root.position.z = 0;

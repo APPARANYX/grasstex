@@ -277,6 +277,80 @@ test('OPEN publication stays stable through changing reports so personal adoptio
   assert.equal(w.E.fireAuthorized(s, w.b), true);
   clean(w);
 });
+test('a native FIRE action survives personal target changes without replacing its resources', () => {
+  const w = world();
+  squad(w);
+  w.b.time = 26;
+  see(w);
+  squad(w);
+  micro(w);
+  const man = w.q.members.find(s => s.role === 'rifleman');
+  const original = w.S.summary(w.q).roles.find(r => r.actorId === String(man.id));
+  assert.equal(original.drill, 'fire');
+  let shots = 0;
+  w.b.onFire = s => {
+    if (s === man) shots++;
+  };
+  for (let i = 0; i < 24; i++) {
+    w.b.time += 0.15;
+    see(w, w.ge.members[i % w.ge.members.length]);
+    squad(w);
+    micro(w);
+    man.fireCooldown = Math.max(0, (man.fireCooldown || 0) - 0.15);
+    const role = w.S.summary(w.q).roles.find(r => r.actorId === String(man.id));
+    assert.equal(role.drill, 'fire');
+    assert.equal(role.actionId, original.actionId, 'the owner reads the current personal target');
+  }
+  assert.ok(shots > 0, 'stable actions still discharge through native firing gates');
+  w.target.root.position.x = 100;
+  w.target.root.position.z = 0;
+  w.b.time += 0.15;
+  see(w);
+  man.fireCooldown = 0;
+  const beforeTurn = shots;
+  squad(w);
+  micro(w);
+  assert.equal(w.S.summary(w.q).roles.find(r => r.actorId === String(man.id)).actionId, original.actionId);
+  assert.equal(man.eng.state, 'orient', 'a new threat sector still invokes native recognition');
+  assert.equal(shots, beforeTurn, 'stable action identity cannot bypass recognition and facing');
+  man.suppressedUntil = w.b.time + 2;
+  w.b.time += 0.15;
+  squad(w);
+  micro(w);
+  const pinned = w.S.summary(w.q).roles.find(r => r.actorId === String(man.id));
+  assert.equal(pinned.drill, 'pinned', 'actual role changes still interrupt immediately');
+  assert.notEqual(pinned.actionId, original.actionId);
+  clean(w);
+});
+test('a clear current firing line does not repeatedly query unused alternate stances', () => {
+  const w = world(55);
+  squad(w);
+  w.b.time = 26;
+  see(w);
+  squad(w);
+  const man = w.q.members.find(s => s.role === 'rifleman');
+  w.E.commitStance(man, w.b, 'prone', 100, 'fixture-current-firing-line');
+  for (let i = 0; i < 12; i++) {
+    w.b.time += 0.15;
+    w.E.updateSoldier(man, w.b);
+  }
+  assert.equal(man.eng.state, 'engage', 'native recognition finishes before the steady-line measurement');
+  const actual = w.E.firingLineClear;
+  let alternateQueries = 0;
+  w.E.firingLineClear = function (...args) {
+    alternateQueries++;
+    return actual(...args);
+  };
+  for (let i = 0; i < 12; i++) {
+    w.b.time += 0.15;
+    w.E.updateSoldier(man, w.b);
+  }
+  assert.equal(w.S.summary(w.q).roles.find(r => r.actorId === String(man.id)).drill, 'fire');
+  assert.equal(man.eng.state, 'engage');
+  assert.equal(alternateQueries, 0, 'a valid current line needs no crouch/stand fallback rays');
+  w.E.firingLineClear = actual;
+  clean(w);
+});
 test('covered personal contact may use standing ballistic line rather than getting stuck in MARCH', () => {
   const w = world(55);
   const man = w.q.members.find(s => s.role === 'rifleman');
@@ -321,10 +395,17 @@ test('covered personal contact may use standing ballistic line rather than getti
     true,
     'the personal target has a legitimate standing ballistic line before stance change'
   );
+  const originalAction = w.S.summary(w.q).roles.find(r => r.actorId === String(man.id)).actionId;
   for (let i = 0; i < 12; i++) {
     w.b.time += 0.15;
+    w.TC.dispatch(w.b, w.q, 'fireAndMovement', { underFire: 0 });
     w.TC.dispatch(w.b, w.q, 'engagement', man);
     w.E.updateSoldier(man, w.b);
+    assert.equal(
+      w.S.summary(w.q).roles.find(r => r.actorId === String(man.id)).actionId,
+      originalAction,
+      'an unrequested suppression candidate must not replace a FIRE action'
+    );
   }
   assert.equal(man.prone, false, 'only the existing Engagement stance owner raises him');
   assert.equal(man.tacticalCrouch, false, 'he rises high enough for the actual firing line');
@@ -409,8 +490,64 @@ test('a fresh squadmate SEEN sector authorizes real area suppression from covere
   );
   assert.ok(realShots > 0, 'reported-sector suppressor physically discharges rounds from cover');
   assert.equal(shooter.target, null, 'area fire never forges a direct target');
+  const originalAction = role.actionId;
+  w.target.root.position.x += 5;
+  w.b.time += 0.15;
+  shooter._beliefs = null;
+  see(w);
+  shooter.target = null;
+  shooter._beliefs = { byKey: {} };
+  squad(w);
+  w.TC.dispatch(w.b, w.q, 'engagement', shooter);
+  const updated = w.S.summary(w.q).roles.find(r => r.actorId === String(shooter.id));
+  assert.equal(updated.drill, 'suppress');
+  assert.notDeepEqual(
+    updated.reportedPoint,
+    role.reportedPoint,
+    'new observation changes the assigned sector'
+  );
+  assert.notEqual(
+    updated.actionId,
+    originalAction,
+    'changed native suppression parameters replace the action'
+  );
   A.canSuppress = actual;
   A.areaFire = actualAreaFire;
+  clean(w);
+});
+test('a reported-sector gunner retains native setup instead of expiring into legacy march each tick', () => {
+  const w = world();
+  squad(w);
+  w.b.time = 26;
+  see(w);
+  const gunner = w.q.members.find(s => w.r.SquadAI.isMachineGun(s));
+  gunner.target = null;
+  gunner._beliefs = null;
+  let shots = 0;
+  w.b.onFire = s => {
+    if (s === gunner) shots++;
+  };
+  squad(w);
+  w.E.updateSoldier(gunner, w.b);
+  const original = w.S.summary(w.q).roles.find(r => r.actorId === String(gunner.id));
+  assert.equal(original.drill, 'suppress');
+  assert.equal(!!gunner.eng.engaged, false, 'no personal target has latched a legacy engagement');
+  const since = gunner.eng.since;
+  for (let i = 0; i < 36; i++) {
+    w.b.time += 0.15;
+    w.TC.dispatch(w.b, w.q, 'fireAndMovement', { underFire: 0 });
+    w.E.updateSoldier(gunner, w.b);
+    gunner.fireCooldown = Math.max(0, (gunner.fireCooldown || 0) - 0.15);
+    assert.equal(gunner.eng.state, 'alert');
+    assert.equal(gunner.eng.since, since, 'legacy alert expiry must not reset the explicit suppression task');
+    assert.equal(
+      w.S.summary(w.q).roles.find(r => r.actorId === String(gunner.id)).actionId,
+      original.actionId
+    );
+  }
+  assert.ok(gunner.setUp, 'the native machine-gun emplacement clock can finish');
+  assert.ok(shots > 0, 'actual machine-gun rounds leave the reported-sector firing post');
+  assert.equal(gunner.target, null, 'suppression never invents a personal target');
   clean(w);
 });
 test('contact execution fires real rounds after recognition and honors ammo/range gates', () => {

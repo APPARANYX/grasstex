@@ -50,6 +50,14 @@
     st.startedAt = null;
     st.discipline = null;
   }
+  /* Match only inputs actually sent to the native action. FIRE reads the man's current personal
+     target at execution; a suppression candidate is not an input to FIRE, MARCH or PINNED. */
+  function roleChanged(action, desired, point) {
+    return (
+      action.drill !== desired ||
+      action.pointKey !== (desired === 'suppress' && point ? JSON.stringify(point) : null)
+    );
+  }
   /* Release changed roles before Squad Command asks for route movement on the same tick. */
   function reconcile(ctx, st) {
     var men = members(ctx.squad);
@@ -62,9 +70,7 @@
         !s ||
         !stage ||
         stage.stage === 'cancelled' ||
-        a.drill !== drill(s, ctx.sim, st) ||
-        a.target !== (s.target && String(s.target.id)) ||
-        a.pointKey !== (st.points.has(id) ? JSON.stringify(st.points.get(id)) : null)
+        roleChanged(a, drill(s, ctx.sim, st), st.points.get(id))
       ) {
         ctx.finish(a.id, 'contact-role-changed');
         st.men.delete(id);
@@ -384,6 +390,7 @@
       return 'grenade';
     if (s.target) {
       var o = observation(s, sim, st);
+      if (o.inRange && o.visualLine && o.ballisticLine) return 'fire';
       /* A crouched/prone man may still have a legitimate firing line above
          cover. Let Engagement (the sole stance and shot owner) raise him,
          rather than labelling him MARCH and never giving him that chance. */
@@ -396,7 +403,7 @@
           E.firingLineClear &&
           (E.firingLineClear(s, s.target, here, 'crouch', sim) ||
             E.firingLineClear(s, s.target, here, 'stand', sim));
-      if (o.inRange && ((o.visualLine && o.ballisticLine) || peek)) return 'fire';
+      if (peek) return 'fire';
     }
     if (st && st.roles.has(String(s.id)) && st.points.has(String(s.id))) return 'suppress';
     return E.underFireNow(s, sim) ? 'watch' : 'march';
@@ -408,17 +415,9 @@
       desired = override || drill(s, ctx.sim, st),
       current = st.men.get(id),
       stage = current && ctx.stage(current.id),
-      target = s.target && String(s.target.id),
       point = desired === 'suppress' && st.points.get(id),
       pointKey = point ? JSON.stringify(point) : null;
-    if (
-      current &&
-      (!stage ||
-        stage.stage === 'cancelled' ||
-        current.drill !== desired ||
-        current.target !== target ||
-        current.pointKey !== pointKey)
-    ) {
+    if (current && (!stage || stage.stage === 'cancelled' || roleChanged(current, desired, point))) {
       ctx.finish(current.id, 'contact-role-changed');
       st.men.delete(id);
       current = null;
@@ -433,8 +432,7 @@
           ? { drill: desired, point: point }
           : { drill: desired }
     );
-    if (result.ok)
-      st.men.set(id, { id: result.actionId, drill: desired, target: target, pointKey: pointKey });
+    if (result.ok) st.men.set(id, { id: result.actionId, drill: desired, pointKey: pointKey });
     st.rejected[id] = result.ok ? null : result.reason;
   }
   root.BattleTacticalContactSkills = {
