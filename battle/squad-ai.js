@@ -207,6 +207,15 @@
     heardConfidenceMin: 0.2,
     heardConfidenceMax: 0.5
   };
+  /* Default-on PinBridge (#641, independently ported): a real aimed burst pins its
+     target, and an area-fire burst extends pins for covered enemies through the
+     shooter's next trigger-pull cooldown plus a short tail. This does not assign
+     suppression roles or change tactical controller movement. The legacy hold
+     model is available via ?pinBridge=0 for A/B and rollback. */
+  var PIN_BRIDGE = !(
+      typeof location !== 'undefined' && /[?&]pinBridge=(?:0|off|false)(?:&|#|$)/i.test(location.search || '')
+    ),
+    PIN_TAIL = 0.6;
   /* Suppressing fire lands in a cone, not on a point: the further out, the looser the group. */
   var AREA_SPREAD_MIN = 3,
     AREA_SPREAD_PER_M = 0.05,
@@ -1675,16 +1684,20 @@
     var spread = clamp(AREA_SPREAD_MIN + d * AREA_SPREAD_PER_M, AREA_SPREAD_MIN, AREA_SPREAD_MAX);
     var enemies = battle.rosterOf(shooter.faction === 'us' ? 'ge' : 'us'),
       hold = SUPPRESSION_TIME * (stats.suppressive ? 1.25 : 0.85),
-      hit = 0;
+      hit = 0,
+      covered = [];
     for (var i = 0; i < enemies.length; i++) {
       var e = enemies[i];
       if (!threatDisposition(e).combatThreat) continue;
       if (dist2(e.root.position.x, e.root.position.z, point.x, point.z) > spread) continue;
       pin(e, battle, hold);
+      covered.push(e);
       hit++;
     }
     var rounds = discharge(shooter, battle, burstLength(stats, battle, d), function () {});
     setFireCooldown(shooter, triggerCooldown(stats, rounds, battle, AREA_FIRE_RATE, d));
+    if (PIN_BRIDGE && rounds > 0)
+      for (var c = 0; c < covered.length; c++) pin(covered[c], battle, shooter.fireCooldown + PIN_TAIL);
     battle.onSuppressiveShot && battle.onSuppressiveShot(shooter, point, hit, rounds);
     return hit;
   }
@@ -2304,6 +2317,7 @@
     /* The man on the receiving end learns the firing origin only after the burst, so the reveal
        cannot change the burst that produced it. Other aimed-at observers run after the same fact. */
     if (rounds > 0) {
+      if (PIN_BRIDGE && !target.dead) pin(target, battle, soldier.fireCooldown + PIN_TAIL);
       noteIncomingFire(target, soldier, battle);
       EXT.run('aimedAt', target, battle, { from: soldier, rounds: rounds, d: d });
     }
