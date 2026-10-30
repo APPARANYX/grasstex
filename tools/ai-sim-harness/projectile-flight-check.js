@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const source = fs.readFileSync('battle/modules/14-zz-projectile-flight.js', 'utf8');
-function setup(search = '?projectileFlight=1') {
+function setup(search = '?projectileFlight=1', preview = true) {
   let system,
     hits = [],
     resolved = [],
@@ -13,7 +13,7 @@ function setup(search = '?projectileFlight=1') {
     pins = [];
   const root = {
     location: { search },
-    BATTLE_PREVIEW: { isolatedLab: true },
+    BATTLE_PREVIEW: preview ? { isolatedLab: true } : false,
     GTLog: function () {},
     BattleModules: {
       registerSystem: function (_id, owner) {
@@ -144,6 +144,14 @@ function setup(search = '?projectileFlight=1') {
   x.fire();
   for (let t = 0.05; t <= 0.65; t += 0.05) x.advance(t);
   assert.equal(x.hits.length, 1, 'AI estimates ballistic drop at long range, within imperfect range error');
+}
+{
+  const x = setup('', false);
+  assert.equal(
+    x.root.BattleProjectileFlight.enabled,
+    true,
+    'projectile flight is on by default, previews or not'
+  );
 }
 {
   const x = setup('?projectileFlight=0');

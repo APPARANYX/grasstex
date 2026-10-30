@@ -1,4 +1,4 @@
-/* Optional native WW2 projectile flight for combat A/B (?projectileFlight=1).
+/* Native WW2 projectile flight, on by default; ?projectileFlight=0 restores hitscan.
    Same collision/wound owners as hitscan. No animated bullet meshes: each round
    is an immutable launch direction plus a small velocity/position record.
    The actual ray is swept over successive curved flight segments AFTER soldiers
@@ -6,7 +6,7 @@
 (function (root) {
   'use strict';
   var q = (root.location && root.location.search) || '',
-    enabled = !!root.BATTLE_PREVIEW && /[?&]projectileFlight=1(?:&|$)/.test(q);
+    enabled = !/[?&]projectileFlight=0(?:&|$)/.test(q);
   if (!root.BattleModules || !root.BattleBallistics || !root.SquadAI) return;
   var B = root.BattleBallistics,
     S = root.SquadAI,
