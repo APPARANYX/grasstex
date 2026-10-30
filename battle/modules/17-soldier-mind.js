@@ -82,10 +82,13 @@
     } else out.flag = 'observe';
     return out;
   }
-  /* Standalone opt-in port of #644: cap stress paid by one uninterrupted suppression spell.
-     Does not change pin duration, shooting, stance, movement or suppression ownership. */
-  var PIN_NERVE =
-    typeof location !== 'undefined' && /[?&]pinNerve=(?:1|on|true)(?:&|#|$)/i.test(location.search || '');
+  /* Default-on, independent port of #644: cap stress paid by one uninterrupted
+     suppression spell. ?pinNerve=0 restores the uncapped legacy rule for A/B tests.
+     Pin duration, shooting, stance, movement and suppression ownership are unchanged. */
+  var PIN_NERVE = !(
+    typeof location !== 'undefined' &&
+    /[?&]pinNerve=(?:0|off|false)(?:&|#|$)/i.test(location.search || '')
+  );
   var MODE = parse(typeof location !== 'undefined' ? location.search : '');
 
   /* ---- who reads stress, declared ------------------------------------------------------------
