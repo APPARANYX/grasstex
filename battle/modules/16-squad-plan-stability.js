@@ -2529,7 +2529,13 @@
   /* The Squad Leader skills a replacement controller reuses rather than replaces. Each is a lease,
      so at most one owns the squad's movement at a time; the provider reads the same answer. */
   function retainedSkill(sq) {
-    return L.get(sq, 'recon') ? 'recon' : L.get(sq, 'regroup') ? 'regroup' : null;
+    return L.get(sq, 'recon')
+      ? 'recon'
+      : L.get(sq, 'regroup')
+        ? 'regroup'
+        : DEFENSIVE[sq.commandPhase] && sq.state !== 'retreat'
+          ? 'defense'
+          : null;
   }
   /* The Squad Leader is SquadAI's squadCommand owner: status, fire and movement, anchor, fireteam slots. */
   root.SquadAI.extend('squadCommand', 'squad-leader', function (sq, battle) {
@@ -2685,7 +2691,7 @@
   root.BattleSquadStability = {
     version: '1.9-m3c-leaderless-intent',
     /* The owner entry for a controller's personal movement order (13b); see controllerMove above. */
-    /* Recon or regroup, when one of these retained skills holds the squad; a provider yields to it. */
+    /* Recon, regroup or a defensive phase (prepared posts, hold posts), when one of these retained skills holds the squad; a provider yields to it. */
     retainedSkill: retainedSkill,
     /* Meso's formation layout as a pure function (15g slotsAt); a replacement controller reuses it. */
     formationSlots: function (sq, anchor, forward, formation) {

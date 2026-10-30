@@ -277,6 +277,25 @@ test('a recon or regroup lease holds the squad: the march stands down, and asks 
   assert.equal(w.TC.summary(w.b).actions, alive(w).length, 'no gap with the men standing orderless');
 });
 
+test('a defensive phase stays with the fireteam owner: no march order beside a prepared post', () => {
+  const w = world();
+  w.systems['tactical-march-provider'].onBattleStart(w.b);
+  tick(w);
+  assert.equal(w.TC.summary(w.b).actions, alive(w).length);
+  w.q.commandPhase = 'defend';
+  w.b.time += 0.15;
+  w.TC.dispatch(w.b, w.q, 'squadCommand');
+  assert.equal(w.TC.summary(w.b).actions, 0, 'the march orders are finished');
+  assert.equal(row(w).idle, 'yield:defense');
+  w.b.time += 0.5;
+  tick(w);
+  assert.equal(w.TC.summary(w.b).actions, 0, 'and none are asked while the phase is defensive');
+  w.q.commandPhase = 'approach';
+  w.b.time += 0.15;
+  w.TC.dispatch(w.b, w.q, 'squadCommand');
+  assert.equal(w.TC.summary(w.b).actions, alive(w).length, 'the march resumes when the phase ends');
+});
+
 test('a retreat phase alone also stands the provider down, as it does the resolver', () => {
   const w = world();
   w.systems['tactical-march-provider'].onBattleStart(w.b);
