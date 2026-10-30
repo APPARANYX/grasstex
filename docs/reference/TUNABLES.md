@@ -70,6 +70,12 @@ constant; `RETREAT_CASUALTY_FRAC` below is `squad-ai.js`'s fallback for a squad 
 
 ## Modules
 
+### SquadAI fire-cycle suppression
+
+- `pinBridge` (**on by default**; `?pinBridge=0` restores pre-bridge pin lengths) — when a real area-fire burst discharges, enemies inside the already-established suppression spread remain pinned through the shooter's `fireCooldown + PIN_TAIL` (0.6 s); when a real aimed burst discharges, its living target is pinned through the same window. Only `SquadAI.pin` writes `suppressedUntil` and the soldier's fortitude still scales duration. Existing hit/wound, near-pass suppression, targeting and individual motion remain with their original owners. The old short area-fire hold and old suppressive-round behavior remain with `pinBridge=0`.
+- `PIN_TAIL = 0.6` seconds — brief buffer beyond the attacker's next scheduled trigger opportunity; this is tuning from the former #641 experiment, not a doctrinal value. `pinNerve=0` independently disables the psychological stress cap; both flags can be A/B tested independently.
+
+
 ### 16-squad-plan-stability.js
 - `ASSAULT_LEASE = 26` — assault lease duration (s)
 - `REGROUP_ENTER = 1.35` — regroup enter threshold
