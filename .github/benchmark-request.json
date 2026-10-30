@@ -1,0 +1,11 @@
+{
+ "benchmark": "standard",
+ "ref": "work/pin/roundstats-a018ab1b",
+ "seed": "roundstats-20261030",
+ "seeds": 60,
+ "battle_type": "ge-defend",
+ "sim_seconds": 600,
+ "query_off": "strategicInterception=0&roundStats=0",
+ "query_on": "strategicInterception=0",
+ "purpose": "#693 roundStats flag pair"
+}
