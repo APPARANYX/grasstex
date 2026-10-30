@@ -77,10 +77,7 @@ for (const how of ['area', 'aimed']) {
     baseline.left >= (baseline.cooldown + 0.6) * baseline.holdScale - 1e-6,
     how + ': pin spans the trigger cooldown plus tail (fortitude-scaled)'
   );
-  assert.ok(
-    baseline.left > disabled.left + 1e-6,
-    how + ': default-on pin exceeds the legacy hold'
-  );
+  assert.ok(baseline.left > disabled.left + 1e-6, how + ': default-on pin exceeds the legacy hold');
   assert.ok(
     Math.abs(baseline.left - explicitOn.left) < 1e-9,
     how + ': explicit on and shipping default are identical'
