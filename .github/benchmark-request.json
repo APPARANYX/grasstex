@@ -1,0 +1,11 @@
+{
+ "benchmark": "standard",
+ "ref": "work/pin/pacing-c75d7825",
+ "seed": "controller-pacing3-20261030",
+ "seeds": 60,
+ "battle_type": "us-defend",
+ "sim_seconds": 600,
+ "query_off": "strategicInterception=0",
+ "query_on": "strategicInterception=0&tacticalController=new",
+ "purpose": "#662 defender recon + posted-man fix flag pair"
+}
