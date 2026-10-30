@@ -213,8 +213,7 @@
      suppression roles or change tactical controller movement. The legacy hold
      model is available via ?pinBridge=0 for A/B and rollback. */
   var PIN_BRIDGE = !(
-      typeof location !== 'undefined' &&
-      /[?&]pinBridge=(?:0|off|false)(?:&|#|$)/i.test(location.search || '')
+      typeof location !== 'undefined' && /[?&]pinBridge=(?:0|off|false)(?:&|#|$)/i.test(location.search || '')
     ),
     PIN_TAIL = 0.6;
   /* Suppressing fire lands in a cone, not on a point: the further out, the looser the group. */
