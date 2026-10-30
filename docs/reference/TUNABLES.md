@@ -102,7 +102,7 @@ constant; `RETREAT_CASUALTY_FRAC` below is `squad-ai.js`'s fallback for a squad 
 ### 17-soldier-mind.js
 
 - `TAU = 22` — stress decay time constant (s)
-- `?pinNerve=1` (opt-in; default off) — limits one uninterrupted pin's **suppression-derived stress** to `SUPPRESSED_RATE (0.05/s) × 1.25 × SquadAI.SUPPRESSION_TIME` (1.625 s at the current 1.3-s constant), adjusted by nerve. Does **not** shorten `suppressedUntil`, mute incoming-round/wound/casualty stress, or enable the legacy `?pinBridge` behavior. New pin after the status actually clears resets the budget; see `docs/plans/COVERING_FIRE_CONTINUITY_AND_PIN_STRESS.md`.
+- Pin Nerve cap (default **on**, `?pinNerve=0` restores uncapped legacy stress) — limits one uninterrupted pin's **suppression-derived stress** to `SUPPRESSED_RATE (0.05/s) × 1.25 × SquadAI.SUPPRESSION_TIME` (1.625 s at the current 1.3-s constant), adjusted by nerve. Does **not** shorten `suppressedUntil`, mute incoming-round/wound/casualty stress, or enable the legacy `?pinBridge` behavior. New pin after the status actually clears resets the budget; see `docs/plans/COVERING_FIRE_CONTINUITY_AND_PIN_STRESS.md`.
 - `CASUALTY_RANGE = 30` — casualty observation range (m)
 - `LEADER_CALM = 0.65` — leader calming effect
 - `REACT_GAIN = 0.6` — reaction time gain (up to 1.6x)
