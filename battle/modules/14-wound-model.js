@@ -106,9 +106,10 @@
     if (root.PhaseCCombatLab && root.PhaseCCombatLab.preventWound(shooter, victim, battle, hit))
       return { zone: (hit && hit.zone) || 'unknown', outcome: 'lab-absorbed', damage: 0 };
     /* Fragment severity belongs to the released explosive, independent of the thrower's gun
-       (which can be abandoned before the fuse expires). Ordinary rounds keep their existing rolls. */
+       (which can be abandoned before the fuse expires). A round in flight carries its own weapon stats, since
+       the shooter may have lost his gun by the time it lands. Ordinary rounds keep their existing rolls. */
     var blast = !!(hit && hit.blast),
-      stats = blast ? { damage: hit.severity, power: hit.power } : shooter.weapon.stats,
+      stats = blast ? { damage: hit.severity, power: hit.power } : (hit && hit.stats) || shooter.weapon.stats,
       zone = (hit && ZONES[hit.zone] && hit.zone) || rollZone(battle),
       z = ZONES[zone],
       /* A round that already went through a man arrives with only part of its energy (hit.energy). */
