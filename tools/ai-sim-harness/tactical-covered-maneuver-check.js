@@ -366,6 +366,51 @@ test('a defensive staging arrival at B continues to its retained C through nativ
   assert.equal(w.q._macroMission.action, 'defend');
   clean(w);
 });
+test('a man at a prepared defence post is never a covered mover; his squadmates still hop', () => {
+  const w = world();
+  w.q._macroMission = {
+    version: 2,
+    action: 'defend',
+    intent: 'defend',
+    status: 'executing',
+    point: { x: 0, z: 0 },
+    objectiveId: 'captured'
+  };
+  w.q.commandPhase = 'defend';
+  w.r.BattleObjectiveSystem = { get: () => ({ def: { radius: 30 } }) };
+  const posted = new Set();
+  w.q.members.forEach((s, i) => {
+    if (i % 2 === 0) {
+      s._preparedDefensePost = { x: s.root.position.x, z: s.root.position.z };
+      posted.add(String(s.id));
+    }
+  });
+  const origins = new Map(w.q.members.map(s => [s, { x: s.root.position.x, z: s.root.position.z }]));
+  w.r.BattleCoverPositions.candidates = s =>
+    [6, 12].map(step => {
+      const origin = origins.get(s),
+        p = { x: origin.x, z: origin.z + step };
+      const slot = { ...p, id: 'retained:' + s.id + ':' + step, normalX: 0, normalZ: -1 };
+      return { ...p, slot, slotId: slot.id };
+    });
+  w.r.BattleTacticalContactRoute.pickDefense = (s, sim, reports, center, radius, team, retained) => {
+    const points = w.r.BattleCoverPositions.candidates(s),
+      cursor = retained ? retained.cursor : 0;
+    return {
+      point: { x: points[cursor].x, z: points[cursor].z },
+      waypoints: points,
+      reused: !!retained,
+      score: 1,
+      exposure: 0,
+      stats: { total: 2, progressing: 2, safe: 2, rejected: {} }
+    };
+  };
+  until(w, () => w.M.summary(w.q)?.retainedRoutes.length > 0, 60);
+  const routes = w.M.summary(w.q).retainedRoutes;
+  assert.ok(routes.length > 0, 'unposted men still hop');
+  routes.forEach(r => assert.ok(!posted.has(String(r.moverId)), 'no posted man is moved: ' + r.moverId));
+  clean(w);
+});
 test('one eligible native mover uses the singular Meso contract and reaches physical cover', () => {
   const w = world();
   const original = w.r.BattleTacticalContactRoute.pick;

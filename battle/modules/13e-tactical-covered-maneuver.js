@@ -409,6 +409,9 @@
       if (A.isMachineGun(s) || (st.lastMoverId === String(s.id) && ready.length > 2 && !pending)) return;
       var team = Q.teamKeyFor(s);
       if (defense) {
+        /* A man the engineers placed at a prepared defence post holds it (and still supports from it):
+           the defender owner and a covered hop must not both move him. */
+        if (s._preparedDefensePost) return;
         var post = st.defensePosts.get(String(s.id));
         if (
           post &&

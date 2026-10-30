@@ -110,7 +110,10 @@
     if (sq.state === 'retreat' || sq.commandPhase === 'retreat') return standDown(ctx, st, 'retreat');
     /* Recon and regroup are the Squad Leader's own skills, reused as they are: while one holds the
        squad the march stands down and that skill's fireteam orders move the men. */
-    var retained = Q && Q.retainedSkill && Q.retainedSkill(sq);
+    var retained =
+      Q &&
+      ((Q.retainedSkill && Q.retainedSkill(sq)) ||
+        (Q.defensivePhase && Q.defensivePhase(sq) ? 'defense' : null));
     if (retained) {
       st.idle = 'yield:' + retained;
       st.check = true; // the men are asked again on the first step after the lease ends
@@ -186,6 +189,7 @@
       C = root.BattleTacticalContactSkills,
       M = root.BattleTacticalCoveredManeuver;
     if (P && P.current(s)) return 'station-claimed';
+
     if (sq.inContact && !s.target) return 'unconfirmed-personal-contact';
     if ((M && M.wants(s, sim)) || (C && C.wants(s, sim))) return 'contact-skill';
     return null;

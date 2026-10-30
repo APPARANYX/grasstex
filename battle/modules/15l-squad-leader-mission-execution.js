@@ -285,6 +285,26 @@
       sq.objective = copy(wp);
       return true;
     }
+    /* Defenders at their objective scout toward the enemy before settling: the same Squad Leader skill
+       for a legacy squad (inside its route logic) and for a controlled one (on its final leg). */
+    function defenderRecon(sim, sq, m, wp, pos) {
+      if (!(m.intent === 'defend' && !sq.inContact && !L.get(sq, 'recon'))) return false;
+      /* #393: anchor the scouting decision on the owned objective waypoint, not the whole-squad
+         centroid — scouts walking out move the centroid and must not manufacture a new strategic
+         task. The control arm (?reconLedger=0) restores the centroid-derived base. */
+      var reconBase = RECON_LEDGER_ON ? wp : pos,
+        enemyDir = defendScoutDirection(sim, sq, reconBase);
+      if (!enemyDir) return false;
+      /* Match the 110 m objective-approach gate so defender recon can use the full
+         80 m crest look-ahead while scouts physically advance up to 50 m. */
+      var scoutGoal = { x: reconBase.x + enemyDir.x * 110, z: reconBase.z + enemyDir.z * 110 },
+        recon = reconCandidate(sq, sim, scoutGoal, reconBase);
+      if (recon) recon.defenderOrigin = true;
+      if (!recon || !startRecon(sq, sim, recon)) return false;
+      sq._missionHold = 'recon';
+      sq.objective = copy(wp);
+      return true;
+    }
     /* Squad Leader execution of the General's brief: the only runtime writer of phase, legs and the squad
    objective point. Without a brief (Macro OFF) the Squad Leader walks the assigned approach route. */
     function executeMission(sim, sq, town) {
@@ -330,8 +350,19 @@
         var MP = root.BattleTacticalMarchProvider,
           leg = MP && MP.leg ? MP.leg(sq) : null,
           plain = !m || !/^(screen|intercept|reserve|hold)$/.test(m.intent || '');
-        if (leg && plain && !reconHeld(sim, sq, m, leg.point, leg.final, pos, c))
-          reconStart(sim, sq, m, leg.point, leg.final, pos, c);
+        if (leg && !reconHeld(sim, sq, m, leg.point, leg.final, pos, c)) {
+          var started = plain && reconStart(sim, sq, m, leg.point, leg.final, pos, c);
+          if (
+            !started &&
+            leg.final &&
+            m &&
+            m.objectiveId &&
+            m.action !== 'hold' &&
+            m.action !== 'regroup' &&
+            m.action !== 'support'
+          )
+            defenderRecon(sim, sq, m, leg.point, pos);
+        }
         return;
       }
       /* A firefight under this brief is a commitment: contact never advances legs or rewrites phase. */
@@ -577,28 +608,7 @@
          likely approach direction instead. This is what breaks the two-defenders-
          on-opposite-sides-of-a-hill stalemate: scouts go over the crest and
          acquire the enemy, triggering contact. */
-        if (m.intent === 'defend' && !sq.inContact && !L.get(sq, 'recon')) {
-          /* #393: anchor the scouting decision on the owned objective waypoint, not the whole-squad
-             centroid — scouts walking out move the centroid and must not manufacture a new strategic
-             task. The control arm (?reconLedger=0) restores the centroid-derived base. */
-          var reconBase = RECON_LEDGER_ON ? wp : pos,
-            enemyDir = defendScoutDirection(sim, sq, reconBase);
-          if (enemyDir) {
-            /* Match the 110 m objective-approach gate so defender recon can use the full
-             80 m crest look-ahead while scouts physically advance up to 50 m. */
-            var scoutGoal = {
-                x: reconBase.x + enemyDir.x * 110,
-                z: reconBase.z + enemyDir.z * 110
-              },
-              defendRecon = reconCandidate(sq, sim, scoutGoal, reconBase);
-            if (defendRecon) defendRecon.defenderOrigin = true;
-            if (defendRecon && startRecon(sq, sim, defendRecon)) {
-              sq._missionHold = 'recon';
-              sq.objective = copy(wp);
-              return;
-            }
-          }
-        }
+        if (defenderRecon(sim, sq, m, wp, pos)) return;
         setPhase(sim, sq, objectivePhase(sim, sq, m, c, pos), 'mission ' + m.objectiveId);
         sq.objective = copy(wp);
         return;

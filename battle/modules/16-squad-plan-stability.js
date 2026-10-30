@@ -2693,6 +2693,10 @@
     /* The owner entry for a controller's personal movement order (13b); see controllerMove above. */
     /* Recon, regroup or a defensive phase (prepared posts, hold posts), when one of these retained skills holds the squad; a provider yields to it. */
     retainedSkill: retainedSkill,
+    /* A defensive phase: its men hold prepared and hold posts (15h), which a provider's movers must not override. */
+    defensivePhase: function (sq) {
+      return !!DEFENSIVE[sq.commandPhase] && sq.state !== 'retreat';
+    },
     /* Meso's formation layout as a pure function (15g slotsAt); a replacement controller reuses it. */
     formationSlots: function (sq, anchor, forward, formation) {
       return _fm && _fm.slotsAt ? _fm.slotsAt(sq, anchor, forward, formation) : [];
