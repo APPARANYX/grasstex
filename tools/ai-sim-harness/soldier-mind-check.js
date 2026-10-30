@@ -296,7 +296,9 @@ test('a wound and aimed rounds add stress; range decides how much a round counts
   near(felt(ctx.M, s), ctx.M.tuning.WOUNDED, 0.005, 'one wound');
   run(ctx, s, 0.15);
   near(felt(ctx.M, s), ctx.M.tuning.WOUNDED, 0.01, 'the same wound is not counted twice');
-  const t = world(),
+  /* Isolate the aimed-at distance stressor from PinBridge's independent,
+     newly default-on suppression stress so this test measures only range. */
+  const t = world({ search: '?pinBridge=0' }),
     near30 = man(t.us, 'rifleman', 0),
     far290 = man(t.us, 'rifleman', 1),
     beyond = man(t.us, 'rifleman', 2);
