@@ -174,14 +174,20 @@ test('dismount and abort consume Meso route adoption once and physically resume 
       resumed.every((key, i) => key !== keys[i]),
       'old action handles released'
     );
+    const resumedActions = w.TC.summary(w.b).live.map(action => action.actionId);
     w.b.time += 0.45;
-    tick(w);
+    w.Q.executeMission(w.b, w.q, null);
     assert.deepEqual(
-      w.q.members.map(s => record(w, s).data.publishKey),
-      resumed,
+      w.TC.summary(w.b).live.map(action => action.actionId),
+      resumedActions,
       'handoff is not repeated'
     );
-    H.run(w.r, w.b, 8);
+    // A later squad tick may legitimately publish the next paced formation stride (#662).
+    w.r.SquadAI.updateSquad(w.q, w.b);
+    for (let step = 0; step < 18; step++) {
+      H.run(w.r, w.b, 0.45);
+      tick(w);
+    }
     assert.ok(
       w.q.members.every(s => s.root.position.z > 202),
       'real infantry movement continues forward'
@@ -190,7 +196,12 @@ test('dismount and abort consume Meso route adoption once and physically resume 
 });
 
 test('a transport reset of a final-leg hold gets a fresh move after native adoption on that same leg', () => {
-  const w = world('hold');
+  const w = world();
+  // A route-only endpoint uses controller hold; an objective capture yields to prepared posts (#662).
+  delete w.q._macroMission.objectiveId;
+  tick(w);
+  placeAll(w, 300);
+  w.Q.publishAnchor(w.q, { x: 0, z: 300 });
   tick(w);
   const s = w.q.members[3],
     r = record(w, s);
@@ -215,7 +226,10 @@ test('a transport reset of a final-leg hold gets a fresh move after native adopt
   assert.notEqual(record(w, s).data.publishKey, r.data.publishKey);
   assert.equal(w.TC.summary(w.b).pending, 0);
   assert.equal(w.r.BattleTacticalMarchProvider.summary(w.b)[0].stopped['owner:replaced'], undefined);
-  H.run(w.r, w.b, 8);
+  for (let step = 0; step < 18; step++) {
+    H.run(w.r, w.b, 0.45);
+    tick(w);
+  }
   assert.ok(s.root.position.z > 202, 'a terminal old hold does not strand the dismounted man');
 });
 
