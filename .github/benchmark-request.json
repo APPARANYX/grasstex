@@ -1,0 +1,14 @@
+{
+  "benchmark": "standard",
+  "ref": "work/contact-role-stability-20261030",
+  "seed": "contact-690-5km",
+  "seeds": "3",
+  "battle_type": "ge-defend",
+  "sim_seconds": "1800",
+  "windows": "0+1800",
+  "query_off": "strategicInterception=1&pinBridge=1&pinNerve=1",
+  "query_on": "strategicInterception=1&pinBridge=1&pinNerve=1&tacticalController=new",
+  "origin_agent": "chatgpt",
+  "correlation_id": "pr-690-final-5km-ge-defend",
+  "purpose": "Final contact repair vs legacy; same seeds as f541 baseline; native preflight 40997614517 at bf00553"
+}
