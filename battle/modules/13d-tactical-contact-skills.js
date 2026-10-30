@@ -94,6 +94,13 @@
     }
     return prior.value;
   }
+  /* The squad's own fresh sighting of a threat: first-hand and recent, and no man has since seen him as
+     no threat. Never the enemy's live state (SquadAI.hasFirstHandMemory reads it, so it is not used). */
+  function ownSighting(sq, c, sim) {
+    var A = root.SquadAI,
+      at = c && c.unit ? A.firstHandAt(c) : null;
+    return at != null && sim.time - at <= A.CONTACT_MEMORY && A.seenThreat(sq, c.unit, sim) !== false;
+  }
   /* Fresh eyewitness sectors are lawful suppression intelligence, never
      personal targets. Ignore auditory, relayed and incoming-only beliefs. */
   var SIGHTING_AGE = 8;
@@ -128,8 +135,7 @@
       at = c && (c.firstHandAt == null ? c.at : c.firstHandAt);
     if (
       c &&
-      A.hasFirstHandMemory &&
-      A.hasFirstHandMemory(c, sim) &&
+      ownSighting(sq, c, sim) &&
       !c.heard &&
       !c.relayedFrom &&
       Number.isFinite(c.x) &&
@@ -156,11 +162,8 @@
       A = root.SquadAI,
       report = ctx.facts || {},
       c = A.squadContact && A.squadContact(sq, sim),
-      at = c && c.unit ? A.firstHandAt(c) : null,
-      /* The squad's own eyes only: a first-hand contact is recorded only for a threat, and for a
-         controlled squad it ends on a man's sighting of him as no threat (squadContact), not on his
-         live state. */
-      threat = at != null && sim.time - at <= A.CONTACT_MEMORY,
+      /* The squad's own eyes only (see ownSighting), never the enemy's live state. */
+      threat = ownSighting(sq, c, sim),
       underFire = report.underFire > 0;
     if (retreat(sq)) {
       finish(ctx, st);

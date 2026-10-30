@@ -113,6 +113,7 @@
     var retained = Q && Q.retainedSkill && Q.retainedSkill(sq);
     if (retained) {
       st.idle = 'yield:' + retained;
+      st.check = true; // the men are asked again on the first step after the lease ends
       return standDown(ctx, st, 'yield:' + retained);
     }
     if (!st.target || !Q || !Q.formationSlots) return;

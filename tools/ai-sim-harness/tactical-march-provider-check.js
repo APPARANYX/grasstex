@@ -260,6 +260,23 @@ test('live contact stands down march without issuing distant route-leg orders', 
   assert.equal(w.TC.summary(w.b).actions, alive(w).length, 'march resumes after contact ends');
 });
 
+test('a recon or regroup lease holds the squad: the march stands down, and asks again the step the lease ends', () => {
+  const w = world(),
+    L = w.r.BattleLeases;
+  w.systems['tactical-march-provider'].onBattleStart(w.b);
+  tick(w);
+  assert.equal(w.TC.summary(w.b).actions, alive(w).length);
+  L.grant(w.q, 'regroup', 'squad-leader', w.b.time, w.b.time + 30, 'test', 'test', {});
+  w.b.time += 0.15;
+  w.TC.dispatch(w.b, w.q, 'squadCommand');
+  assert.equal(w.TC.summary(w.b).actions, 0, 'the lease owner is the only mover');
+  assert.equal(row(w).idle, 'yield:regroup');
+  L.end(w.q, 'regroup', w.b.time, 'test done');
+  w.b.time += 0.15;
+  w.TC.dispatch(w.b, w.q, 'squadCommand'); // no mission tick in between
+  assert.equal(w.TC.summary(w.b).actions, alive(w).length, 'no gap with the men standing orderless');
+});
+
 test('a retreat phase alone also stands the provider down, as it does the resolver', () => {
   const w = world();
   w.systems['tactical-march-provider'].onBattleStart(w.b);
