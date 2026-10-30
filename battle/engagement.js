@@ -783,11 +783,9 @@
      exactly as before; the transition record adds provenance without changing moveReason. */
   var REQUESTS = {
     'urgent-cover': {
-      from:
-        root.BATTLE_PREVIEW &&
-        /[?&]firstContactResponse=1(?:&|#|$)/.test((root.location && root.location.search) || '')
-          ? ['pinned', 'engage', 'orient', 'alert', 'advance']
-          : ['pinned', 'engage', 'orient'],
+      from: !/[?&]firstContactResponse=0(?:&|#|$)/.test((root.location && root.location.search) || '')
+        ? ['pinned', 'engage', 'orient', 'alert', 'advance']
+        : ['pinned', 'engage', 'orient'],
       next: 'bound',
       reason: 'suppressed cover move'
     },

@@ -446,13 +446,11 @@
         safeToTransit = (+s.suppressedUntil || 0) <= now,
         briskContact =
           purposeful && safeToTransit && d > 1.5 && (stationIngress || (s.squad && s.squad.inContact)),
-        /* Preview A/B: a protected position change in actual contact should
+        /* On by default (Ivan 10-30; ?combatTempo=0 restores the old gait): a protected position change in actual contact should
            not turn into a slow crouch-walk merely because squad.inContact
            flickered false during the move. This does NOT authorize movement,
            change cover choice, override pinned/prone/reloading or affect holds. */
-        tempoOn =
-          !!root.BATTLE_PREVIEW &&
-          /[?&]combatTempo=1(?:&|$)/.test((root.location && root.location.search) || ''),
+        tempoOn = !/[?&]combatTempo=0(?:&|$)/.test((root.location && root.location.search) || ''),
         protectiveMove =
           tempoOn &&
           safeToTransit &&

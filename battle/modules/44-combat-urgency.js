@@ -22,9 +22,10 @@
     SHARED_RESET_QUIET = 4.5,
     SHARED_REACT_COOLDOWN = 4.5,
     URGENT_TTL = 0.55,
-    FIRST_CONTACT_RESPONSE =
-      !!root.BATTLE_PREVIEW &&
-      /[?&]firstContactResponse=1(?:&|#|$)/.test((root.location && root.location.search) || '');
+    // On by default (Ivan 10-30); ?firstContactResponse=0 restores the old response.
+    FIRST_CONTACT_RESPONSE = !/[?&]firstContactResponse=0(?:&|#|$)/.test(
+      (root.location && root.location.search) || ''
+    );
   function point(p) {
     return p && isFinite(+p.x) && isFinite(+p.z) ? { x: +p.x, z: +p.z } : null;
   }

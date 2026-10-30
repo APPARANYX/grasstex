@@ -180,11 +180,11 @@
     }
     /* Independent calibration arm: wider combat grouping while all motion,
        ballistic energy, wounds and target-tracking rules remain unchanged.
-       The old calibrated sigma remains the control when this URL flag is absent. */
+       On by default with projectile flight (Ivan 10-30); ?combatAccuracy=0 keeps the old sigma. */
     if (
       root.BattleProjectileFlight &&
       root.BattleProjectileFlight.enabled &&
-      /[?&]combatAccuracy=1(?:&|$)/.test((root.location && root.location.search) || '')
+      !/[?&]combatAccuracy=0(?:&|$)/.test((root.location && root.location.search) || '')
     )
       sigma *= 1.65;
     return sigma;
