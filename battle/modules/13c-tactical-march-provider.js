@@ -258,8 +258,10 @@
   function yields(sq, s, sim) {
     var P = root.BattleTacticalPositions,
       C = root.BattleTacticalContactSkills,
-      M = root.BattleTacticalCoveredManeuver;
+      M = root.BattleTacticalCoveredManeuver,
+      K = root.BattleTacticalAmbushSkill;
     if (P && P.current(s)) return 'station-claimed';
+    if (K && K.wants(s)) return 'ambush-post';
 
     if (sq.inContact && !s.target) return 'unconfirmed-personal-contact';
     if ((M && M.wants(s, sim)) || (C && C.wants(s, sim))) return 'contact-skill';
@@ -333,6 +335,7 @@
         if (root.BattleTacticalContactSkills) row.contact = root.BattleTacticalContactSkills.summary(a[i]);
         if (root.BattleTacticalCoveredManeuver)
           row.maneuver = root.BattleTacticalCoveredManeuver.summary(a[i]);
+        if (root.BattleTacticalAmbushSkill) row.ambush = root.BattleTacticalAmbushSkill.summary(a[i]);
         st.men.forEach(function (cur) {
           var l = byId[cur.actionId],
             key = cur.kind + ':' + (l ? l.stage : 'gone');
@@ -383,6 +386,7 @@
       fireAndMovement: function (ctx) {
         root.BattleTacticalContactSkills.update(ctx);
         if (root.BattleTacticalCoveredManeuver) root.BattleTacticalCoveredManeuver.update(ctx);
+        if (root.BattleTacticalAmbushSkill) root.BattleTacticalAmbushSkill.update(ctx);
       },
       executeMission: executeMission,
       engagement: function (ctx) {

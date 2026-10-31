@@ -3,7 +3,11 @@
    Reception adopts, and the resolver alone moves. No fire permission or world-state writer. */
 (function (root) {
   'use strict';
-  var states = new WeakMap(),
+  /* ?noHopStall=0 restores the old rule: a refusal stands until the squad's basis changes, unreported, forever. */
+  var STALL_ON = !/[?&]noHopStall=0(?:&|#|$)/i.test(
+      typeof location !== 'undefined' ? location.search || '' : ''
+    ),
+    states = new WeakMap(),
     teams = ['alpha', 'bravo', 'charlie'],
     MAX_PARALLEL_MOVERS = 3;
   function men(sq) {
@@ -349,7 +353,10 @@
       C = root.BattleCoverPositions,
       A = root.SquadAI,
       R = root.BattleTacticalContactRoute,
-      list = men(ctx.squad),
+      /* An ambush-held man stays on his masked post: his skill, not this one, holds him. */
+      list = men(ctx.squad).filter(function (s) {
+        return !(root.BattleTacticalAmbushSkill && root.BattleTacticalAmbushSkill.wants(s));
+      }),
       back = ctx.squad.state === 'retreat' || ctx.squad.commandPhase === 'retreat',
       defense = !back && defenseBrief(ctx, rs),
       goal = back
@@ -764,15 +771,40 @@
     if (!eligible) {
       st.reason = back ? 'ordinary-retreat' : 'no-authorized-contact';
       st.blocked = null;
+      st.stall = null;
       return;
     }
-    if (st.blocked === b) return;
+    /* A squad in contact with no hop in any team is a stall, not a settled answer. It is reported on the
+       summary (the session export reads it) and searched again once per Squad Leader bound cycle, since a
+       standing squad changes none of the basis it was refused on. After the Squad Leader's own review time
+       (tuning.lead.reviewAfter) the stall is released: the search stops, the reason says so, and the Squad
+       Leader asks the General for a new task where the mission allows one. */
+    var tune = Q.tuning,
+      cycle = Math.floor(ctx.sim.time / tune.boundCycle);
+    if (STALL_ON && st.stall && st.stall.released) {
+      st.reason = 'stall-released:no-hop';
+      return;
+    }
+    if (st.blocked === b && !(STALL_ON && st.stall && cycle !== st.stall.cycle)) return;
     var selected = choose(ctx, st, rs);
     if (!selected) {
       st.blocked = b;
       st.reason = 'no-directional-covered-team';
+      if (STALL_ON) {
+        if (!st.stall)
+          st.stall = { since: ctx.sim.time, reason: st.reason, retries: 0, cycle: cycle, released: false };
+        st.stall.retries++;
+        st.stall.cycle = cycle;
+        if (ctx.sim.time - st.stall.since >= tune.lead.reviewAfter) {
+          st.stall.released = true;
+          st.stall.reason = 'no-hop-after-' + tune.lead.reviewAfter + 's';
+          st.reason = 'stall-released:no-hop';
+          Q.requestReview(ctx.sim, ctx.squad, st.reason);
+        }
+      }
       return;
     }
+    st.stall = null;
     selected.plan.forEach(function (p) {
       root.BattleTacticalMarchProvider.releaseMan(ctx, p.man);
       root.BattleTacticalContactSkills.release(ctx, p.man);
@@ -867,6 +899,9 @@
         ? {
             phase: st.phase,
             reason: st.reason,
+            stall: st.stall
+              ? { since: st.stall.since, reason: st.stall.reason, retries: st.stall.retries }
+              : null,
             direction: st.direction,
             team: st.team,
             completed: st.completed,

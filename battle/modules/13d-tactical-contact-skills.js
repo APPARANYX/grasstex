@@ -3,7 +3,15 @@
    No legacy updateFireControl/assignSuppressors/decide call, authoritative write or new clock. */
 (function (root) {
   'use strict';
-  var states = new WeakMap();
+  /* A re-sighting resumes OPEN fire if it comes within two contact memories of the last one: the squad
+     forgets the enemy after one (SquadAI.CONTACT_MEMORY), and a second is the time it has to find him
+     again before the contact counts as a new engagement. Derived from that constant, not tuned. */
+  var RESUME_MEMORIES = 2,
+    states = new WeakMap(),
+    /* ?contactFireResume=0 restores the old reset: any gap in the squad's contact drops its fire discipline. */
+    RESUME = !(
+      typeof location !== 'undefined' && /[?&]contactFireResume=0(?:&|#|$)/i.test(location.search || '')
+    );
   function state(ctx) {
     var t = ctx.token,
       key = [t.battleId, t.generation, t.controllerEpoch, t.missionVersion].join(':'),
@@ -175,15 +183,27 @@
       st.fire = null;
       st.active = false;
       st.startedAt = null;
-      st.discipline = null;
       st.roles.clear();
       st.points.clear();
       st.grenadier = null;
       st.reason = 'contact-clear';
+      /* A gap in sightings is not a new engagement: the discipline the squad reached is kept, and a
+         re-sighting inside RESUME_MEMORIES of the last sighting resumes OPEN (below) instead of restarting HOLD. */
+      st.cleared = true;
       reconcile(ctx, st);
       return;
     }
     st.active = true;
+    /* Only OPEN resumes: a HOLD or PRECISION preparation that never finished starts again. */
+    if (
+      st.cleared &&
+      (!RESUME ||
+        st.discipline !== 'open' ||
+        !(sim.time - st.sightedAt <= RESUME_MEMORIES * A.CONTACT_MEMORY))
+    )
+      st.discipline = null;
+    st.cleared = false;
+    if (threat) st.sightedAt = sim.time;
     if (st.startedAt === null) st.startedAt = sim.time;
     var men = members(sq),
       T = Q.tuning.fireControl,
@@ -468,7 +488,7 @@
       if (!st) return null;
       return {
         active: st.active,
-        state: st.discipline || null,
+        state: (st.active && st.discipline) || null,
         startedAt: st.startedAt,
         reason: st.reason,
         ready: st.ready || 0,

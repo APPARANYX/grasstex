@@ -217,6 +217,15 @@ also skip personal-target observation. `readinessAt` dates the last preparation 
 suppression and native firing gates continue to run, and shared eyewitness sectors remain valid
 position-only intelligence.
 
+`13h-tactical-ambush-skill.js` (`BattleTacticalAmbushSkill`, `?controllerAmbush=0` turns it off) carries
+the legacy concealed firing line (15o, `?localPlan=1&localAmbush=1`, which never ran under a controller)
+through capability requests. From fresh own-faction reports, with no contact and no pressure, each
+uncommitted rifleman takes the first post that `BattleCoverPositions.maskedPost`/`maskedApproach` accept
+(three men minimum): `movement.move`, then `movement.hold` on arrival, `minimumHold` 4 s, then the line is
+ready and the contact skills fire on first-hand contact. The march and the station skill yield to a man it
+holds. Contact before ready, pressure, a lost threat or masking, a retained skill, a retreat, an owner
+ending a man's action, or the 12 s preparation/observation budgets release every man through his owner.
+
 `fire.control` asks `controllerFireControl.publish` in Meso to use 15a's existing publisher;
 `published` explicitly does not imply personal adoption. Engagement still uses each man's adopted
 order and retains immediate return fire. `combat.contact` holds locomotion/posture/weapon resources
