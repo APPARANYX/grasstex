@@ -1,0 +1,1 @@
+{"benchmark":"standard","ref":"work/pin/ncs-7e1ed1e1","seed":"ncs-c","seeds":"60","battle_type":"ge-defend","windows":"0+600","query_off":"tacticalController=new&strategicInterception=0&navCornerStand=0","query_on":"tacticalController=new&strategicInterception=0","origin_agent":"claude","purpose":"navCornerStand pair, controller on"}
