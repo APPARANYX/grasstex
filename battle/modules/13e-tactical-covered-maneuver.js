@@ -3,11 +3,10 @@
    Reception adopts, and the resolver alone moves. No fire permission or world-state writer. */
 (function (root) {
   'use strict';
-  /* ?noHopStall=0 restores the old rule: a refusal stands until the squad's basis changes, unreported. */
+  /* ?noHopStall=0 restores the old rule: a refusal stands until the squad's basis changes, unreported, forever. */
   var STALL_ON = !/[?&]noHopStall=0(?:&|#|$)/i.test(
       typeof location !== 'undefined' ? location.search || '' : ''
     ),
-    STALL_RETRY = 5,
     states = new WeakMap(),
     teams = ['alpha', 'bravo', 'charlie'],
     MAX_PARALLEL_MOVERS = 3;
@@ -772,18 +771,33 @@
       st.stall = null;
       return;
     }
-    /* A squad in contact with no hop in any team is a stall, not a settled answer: it is reported on the
-       summary (the diagnostics export reads it) and the search is repeated every STALL_RETRY seconds of sim
-       time, since a standing squad changes none of the basis it was refused on. */
-    if (st.blocked === b && !(STALL_ON && st.stall && ctx.sim.time >= st.stall.nextTry)) return;
+    /* A squad in contact with no hop in any team is a stall, not a settled answer. It is reported on the
+       summary (the session export reads it) and searched again once per Squad Leader bound cycle, since a
+       standing squad changes none of the basis it was refused on. After the Squad Leader's own review time
+       (tuning.lead.reviewAfter) the stall is released: the search stops, the reason says so, and the Squad
+       Leader asks the General for a new task where the mission allows one. */
+    var tune = Q.tuning,
+      cycle = Math.floor(ctx.sim.time / tune.boundCycle);
+    if (STALL_ON && st.stall && st.stall.released) {
+      st.reason = 'stall-released:no-hop';
+      return;
+    }
+    if (st.blocked === b && !(STALL_ON && st.stall && cycle !== st.stall.cycle)) return;
     var selected = choose(ctx, st, rs);
     if (!selected) {
       st.blocked = b;
       st.reason = 'no-directional-covered-team';
       if (STALL_ON) {
-        if (!st.stall) st.stall = { since: ctx.sim.time, reason: st.reason, retries: 0, nextTry: 0 };
+        if (!st.stall)
+          st.stall = { since: ctx.sim.time, reason: st.reason, retries: 0, cycle: cycle, released: false };
         st.stall.retries++;
-        st.stall.nextTry = ctx.sim.time + STALL_RETRY;
+        st.stall.cycle = cycle;
+        if (ctx.sim.time - st.stall.since >= tune.lead.reviewAfter) {
+          st.stall.released = true;
+          st.stall.reason = 'no-hop-after-' + tune.lead.reviewAfter + 's';
+          st.reason = 'stall-released:no-hop';
+          Q.requestReview(ctx.sim, ctx.squad, 'covered maneuver found no hop');
+        }
       }
       return;
     }

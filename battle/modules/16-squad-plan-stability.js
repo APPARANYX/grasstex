@@ -2691,6 +2691,8 @@
   root.BattleSquadStability = {
     version: '1.9-m3c-leaderless-intent',
     /* The owner entry for a controller's personal movement order (13b); see controllerMove above. */
+    /* The Squad Leader asks the General for a new task (hold, support and regroup missions only). */
+    requestReview: requestReview,
     /* Recon, regroup or a defensive phase (prepared posts, hold posts), when one of these retained skills holds the squad; a provider yields to it. */
     retainedSkill: retainedSkill,
     /* A defensive phase: its men hold prepared and hold posts (15h), which a provider's movers must not override. */
@@ -2727,6 +2729,7 @@
       coa: COA_TUNING,
       fireControl: FIRE_CONTROL_TUNING,
       lead: LEAD_TUNING,
+      boundCycle: BOUND_CYCLE,
       retreatAnchor: {
         lease: RETREAT_ANCHOR_LEASE,
         arrive: RETREAT_ANCHOR_ARRIVE,
