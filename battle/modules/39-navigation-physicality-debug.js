@@ -394,6 +394,10 @@
   /* Visibility tests the widened pass may still spend in this lookahead: one budget for the whole rolling plan,
      so a start boxed in by hedges cannot widen on every one of its (up to 48) segments. */
   var wideTestsLeft = WIDE_ROUTE_TESTS;
+  /* `?navStationExit=0` keeps another man's window station solid for a route that starts inside it, the old rule. */
+  var NAV_STATION_EXIT = !(
+    typeof location !== 'undefined' && /[?&]navStationExit=0\b/.test(location.search || '')
+  );
   function routeFootprints(sim, start, goal, soldier, limit, corridor) {
     corridor = corridor || ROUTE_CORRIDOR;
     var list = gatherStatic(sim, start, goal, corridor + ROUTE_MARGIN + 1),
@@ -411,6 +415,10 @@
     for (i = 0; i < occ.length; i++) {
       var st = occ[i];
       if (st.soldier === soldier) continue;
+      /* A held window is a reservation that keeps routes from crossing the man at it, not a wall. A route that
+         starts inside one can only leave it radially, and at a window that is into the wall: a man standing in
+         another man's station could never plan out of the house. */
+      if (NAV_STATION_EXIT && shapeHit(start, start, st, ROUTE_MARGIN)) continue;
       var c = pointSegmentDistance(st, start, goal) - boundRadius(st, ROUTE_MARGIN);
       if (c <= corridor)
         scored.push({ fp: st, direct: shapeHit(start, goal, st, ROUTE_MARGIN) ? 0 : 1, clearance: c });
