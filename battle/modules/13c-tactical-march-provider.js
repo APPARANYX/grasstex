@@ -293,6 +293,7 @@
           legs: (a[i].route || []).length,
           idle: st.idle || null,
           waiting: st.waiting || null,
+          entryTimedOut: st.timedOut === undefined ? null : st.timedOut,
           stages: {},
           stopped: {}
         };

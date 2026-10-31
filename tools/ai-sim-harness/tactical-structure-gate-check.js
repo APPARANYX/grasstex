@@ -151,6 +151,7 @@ test('a wait is bounded by the General’s stall-replan budget and then reports 
   assert.equal(row(w).waiting, 'entry-pending');
   stepFor(w, 30);
   assert.equal(row(w).leg, 2, 'past the budget the march moves on');
+  assert.equal(row(w).entryTimedOut, 1, 'and the summary says which leg it left without acceptance');
 });
 
 test('?controllerStructure=0 is the old march: no wait, no routeIndex publication', () => {
