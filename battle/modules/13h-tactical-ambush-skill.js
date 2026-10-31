@@ -83,12 +83,13 @@
       })
     );
   }
-  function retained(sq) {
+  /* sim is passed so a retained skill that needs it (structure orders) is seen. */
+  function retained(sq, sim) {
     var Q = root.BattleSquadStability;
     return (
       sq.state === 'retreat' ||
       sq.commandPhase === 'retreat' ||
-      !!(Q && ((Q.retainedSkill && Q.retainedSkill(sq)) || (Q.defensivePhase && Q.defensivePhase(sq))))
+      !!(Q && ((Q.retainedSkill && Q.retainedSkill(sq, sim)) || (Q.defensivePhase && Q.defensivePhase(sq))))
     );
   }
   /* The legacy all-men gate: 3 to 32 living men, none incapacitated, none possessed by the player.
@@ -251,7 +252,7 @@
       if (
         now < st.until ||
         !missionRunning(sq) ||
-        retained(sq) ||
+        retained(sq, sim) ||
         !rosterValid(sq) ||
         planned(sq) ||
         inContact(sq) ||
@@ -262,7 +263,7 @@
       if (rs.length) start(ctx, st, rs);
       return;
     }
-    if (retained(sq)) return end(ctx, st, 'retained-skill');
+    if (retained(sq, sim)) return end(ctx, st, 'retained-skill');
     if (!missionRunning(sq)) return end(ctx, st, 'mission-changed');
     if (!rosterValid(sq)) return end(ctx, st, 'roster-or-possession');
     if (facts && facts.underFire > 0) return end(ctx, st, 'pressure');
