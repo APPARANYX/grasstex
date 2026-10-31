@@ -1,0 +1,1 @@
+{"benchmark":"probe-pack","ref":"work/pin/ncs-7e1ed1e1","seed":"ncs-pl","seeds":"20","map":"tactical","sim_seconds":"600","query_off":"strategicInterception=0&navCornerStand=0","query_on":"strategicInterception=0","origin_agent":"claude","purpose":"navCornerStand probe pack, controller off"}
