@@ -1580,6 +1580,122 @@ section('a building corner inside a hedge buffer never blocks the whole route');
   check('no step on that route is movement-illegal', on.illegal === 0, 'illegal steps=' + on.illegal);
 }
 
+section("a man standing in another man's window station can still leave the house");
+{
+  /* meeting seed 0005 (controller off), ge:61: he held B10's east window, the station passed to ge:55 while he still
+     stood in it, and from 428 s every plan out of the house was empty. The occupied station is a circle the route
+     may only leave radially, and at a window that is into the wall. Geometry is the seed's own, relative to B10. */
+  function stationTrap(flagOff) {
+    const rr = bootstrap(),
+      NN = rr.BattleNavigation,
+      src = fs.readFileSync(path.join(REPO, 'battle/modules/39-navigation-physicality-debug.js'), 'utf8');
+    new Function('window', 'globalThis', 'console', 'BABYLON', 'location', src)(
+      rr,
+      rr,
+      quiet,
+      rr.BABYLON,
+      flagOff ? { search: '?navStationExit=0' } : { search: '' }
+    );
+    const door = (id, side, offset) => ({ id, type: 'door', side, offset, width: 1.35, bottom: 0, top: 2.2 }),
+      scenario = {
+        buildings: [
+          {
+            id: 'B10',
+            x: 0,
+            z: 0,
+            w: 19.46,
+            d: 16.9,
+            rot: Math.PI / 2,
+            openings: [door('B10-door-0', 'east', 1.03), door('B10-door-1', 'west', -2.39)]
+          }
+        ]
+      },
+      man = { id: 'ge:61', root: { position: { x: -4.24, z: -9.65 } } },
+      holder = { id: 'ge:55', root: { position: { x: -4.22, z: -9.28 } } },
+      passer = { id: 'ge:56', root: { position: { x: -4.22, z: -4 } } };
+    rr.BattleTacticalPositions = {
+      station: s => (s === holder ? { id: 'station-B10-win-east-0', x: -4.22, z: -9.28 } : null),
+      revision: () => 1,
+      current: () => null
+    };
+    const sim = {
+      time: 0,
+      heightAt: () => 0,
+      obstacles: [],
+      _roster: { us: [], ge: [man, holder, passer] },
+      scene: { metadata: { battleScenario: scenario } }
+    };
+    sim.obstacles.__physicalFootprints = [];
+    NN.installScenario(scenario);
+    rr.BattleModules.getSystem('navigation-physicality-debug').onBattleStart(sim);
+    const goal = { x: -40, z: 60 },
+      start = { ...man.root.position };
+    NN.nextWaypoint(sim, man, goal);
+    const firstBlocked = !!man._physicalPath.blocked;
+    let illegal = 0;
+    for (
+      let i = 0;
+      i < 400 && Math.hypot(man.root.position.x - goal.x, man.root.position.z - goal.z) > 0.7;
+      i++
+    ) {
+      sim.time += 0.15;
+      const p = man.root.position,
+        w = NN.nextWaypoint(sim, man, goal),
+        d = Math.hypot(w.x - p.x, w.z - p.z),
+        step = Math.min(0.4, d);
+      if (d < 0.001) continue;
+      let to = { x: p.x + ((w.x - p.x) / d) * step, z: p.z + ((w.z - p.z) / d) * step };
+      if (!NN.movementClear(p, to)) to = NN.resolveStep(p, to);
+      if (!to) continue;
+      if (!NN.movementClear(p, to)) illegal++;
+      man.root.position = { ...to };
+    }
+    // A man outside the station still routes around it: the held window keeps its reservation.
+    NN.nextWaypoint(sim, passer, { x: -4.22, z: -14 });
+    const P = rr.BattleNavigationPhysicality,
+      ring = { id: 'ring', type: 'occupied-window', shape: 'circle', x: -4.22, z: -9.28, radius: 0.92 };
+    let prev = passer.root.position,
+      crossed = false;
+    for (const q of passer._physicalPath.points) {
+      if (P.shapeHit(prev, q, ring, 0)) crossed = true;
+      prev = q;
+    }
+    // An order that ends on the held window still gets a legal stand point off the man at it.
+    const visitor = { id: 'ge:57', root: { position: { x: 4, z: 0 } } };
+    sim._roster.ge.push(visitor);
+    NN.nextWaypoint(sim, visitor, { x: -4.22, z: -9.28 });
+    const stand = visitor._physicalPath.standGoal;
+    return {
+      firstBlocked,
+      illegal,
+      crossed,
+      standOff: Math.hypot(stand.x + 4.22, stand.z + 9.28),
+      moved: Math.hypot(man.root.position.x - start.x, man.root.position.z - start.z),
+      end: man.root.position
+    };
+  }
+  const on = stationTrap(false),
+    off = stationTrap(true);
+  check(
+    'control: the old rule (?navStationExit=0) plans nothing and he never moves',
+    off.firstBlocked && off.moved < 0.01,
+    JSON.stringify(off)
+  );
+  check('his first plan out of the station is not blocked', !on.firstBlocked);
+  check(
+    'he walks out of the house to his goal within 60 s',
+    Math.hypot(on.end.x + 40, on.end.z - 60) <= 0.7,
+    JSON.stringify(on)
+  );
+  check('no step on that route is movement-illegal', on.illegal === 0, 'illegal steps=' + on.illegal);
+  check('a man outside the held station still routes around it', !on.crossed);
+  check(
+    'an order ending on the held window still stands off the man at it',
+    on.standOff > 0.92 && Math.abs(on.standOff - off.standOff) < 1e-6,
+    'on ' + on.standOff + ' off ' + off.standOff
+  );
+}
+
 console.log(
   '\n' + (failures ? failures + ' of ' + checks + ' checks FAILED' : 'all ' + checks + ' checks passed')
 );
