@@ -117,8 +117,8 @@
     }
     st.leg = Math.min(st.leg, last);
     /* Waiting support squads do not advance past leg 1; the legs themselves stay the brief's. */
-    st.waiting = supportWaiting(sim, sq, legCfg(sim, sq));
-    var ceiling = st.waiting ? Math.min(1, last) : last;
+    st.supportWaiting = supportWaiting(sim, sq, legCfg(sim, sq));
+    var ceiling = st.supportWaiting ? Math.min(1, last) : last;
     while (st.leg < ceiling && dist(here, point(legs[st.leg])) <= r) st.leg++;
     var target = point(legs[st.leg]);
     if (!st.target || dist(st.target, target) > 1e-6) {
@@ -151,7 +151,7 @@
     } else if (m && m.intent === 'hold') {
       phase = 'hold';
       objective = point(legs[legs.length - 1]);
-    } else if (st.waiting && st.leg >= 1) {
+    } else if (st.supportWaiting && st.leg >= 1) {
       phase = 'support-hold';
       objective = point(legs[Math.min(1, legs.length - 1)]);
     } else if (m && (m.intent === 'screen' || m.intent === 'intercept') && st.final) {
