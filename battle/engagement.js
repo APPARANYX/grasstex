@@ -51,6 +51,10 @@
     COVER_RANGE_UNDER_FIRE = 42,
     COVER_ARRIVED = 1.2;
   var GUNNER_SETUP = 1.4;
+  /* ?controllerGunner=0: a controlled machine gun on a suppress task is handed to advance every tick, so it never emplaces (the old behaviour). */
+  var CONTROLLER_GUNNER = !(
+    typeof location !== 'undefined' && /[?&]controllerGunner=0(?:&|#|$)/i.test(location.search || '')
+  );
   /* A position is "in the open" when the best stance available there still leaves the soldier
      nearly fully exposed. */
   var OPEN_COVER = 0.92,
@@ -1076,7 +1080,21 @@
 
     /* If the continuous-quiet handoff just released an expired alert, do not execute one final
        alert tick and renew a low-posture hold. The release tick is the hand-back to ordinary advance. */
-    if (ALERT_LATCH && COMBAT_HANDOFF_ON && !e.engaged && e.state === 'alert' && now >= e.until) {
+    /* A controlled machine gun on a suppress task stays in its alert state: handing it to advance each tick, only for
+       the controller to put it back, zeroed its emplacing clock (`setUpSince`) so it never fired. */
+    var gunSuppressing =
+      CONTROLLER_GUNNER &&
+      SA().isMachineGun(s) &&
+      controllerCombatTasks.has(s) &&
+      controllerCombatTasks.get(s).drill === 'suppress';
+    if (
+      ALERT_LATCH &&
+      COMBAT_HANDOFF_ON &&
+      !e.engaged &&
+      !gunSuppressing &&
+      e.state === 'alert' &&
+      now >= e.until
+    ) {
       e.cover = null;
       e.threatSector = null;
       e.suppressOrder = false;
