@@ -271,6 +271,7 @@ check(
       ['posture.lower', '1', { stance: 'crouch' }],
       ['station.claim', '1', { stationId: 'station-1', threat: { x: 9, z: 2 } }],
       ['mission.accept', null, { version: 3 }],
+      ['mission.execute', null, { leg: 0, phase: 'assault', point: { x: 9, z: 2 } }],
       ['transport.consider', null, {}],
       ['transport.cancel', null, {}]
     ];
@@ -299,6 +300,16 @@ check(
       ).reason,
       'invalid-parameters'
     );
+    for (const params of [
+      { leg: -1, phase: 'assault', point: { x: 9, z: 2 } },
+      { leg: 0.5, phase: 'assault', point: { x: 9, z: 2 } },
+      { leg: 0, phase: 'regroup', point: { x: 9, z: 2 } }
+    ])
+      assert.equal(
+        C.validateRequest(request({ capability: 'mission.execute', actorId: null, params }), context())
+          .reason,
+        'invalid-parameters'
+      );
   }
 );
 check(

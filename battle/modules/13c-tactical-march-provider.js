@@ -72,6 +72,7 @@
       st.mission = m;
       st.leg = 0;
       st.target = null;
+      st.transportHandoff = null;
     }
     if (!legs.length) {
       st.target = null;
@@ -84,6 +85,15 @@
     var last = legs.length - 1,
       here = centroid(men(sq)),
       r = legRadius(sim, sq);
+    /* Consume the retained owner's once-only route/anchor adoption, including a reset on the
+       same leg. Resolver resets do not end Meso handles; finish our own move AND hold actions. */
+    var ex = sq._missionExecution;
+    if (ex && ex.mission === m && ex.transportHandoff && st.transportHandoff !== ex) {
+      standDown(ctx, st, 'transport-handoff');
+      st.leg = Math.max(0, Math.min(last, +sq.routeIndex || 0));
+      st.target = null;
+      st.transportHandoff = ex;
+    }
     st.leg = Math.min(st.leg, last);
     while (st.leg < last && dist(here, point(legs[st.leg])) <= r) st.leg++;
     var target = point(legs[st.leg]);
@@ -94,6 +104,40 @@
       st.final = st.leg === last;
       st.stopped = new Map();
     }
+    publishMission(ctx, st, here);
+  }
+
+  function publishMission(ctx, st, here) {
+    var sq = ctx.squad,
+      sim = ctx.sim,
+      m = sq._macroMission,
+      Q = root.BattleSquadStability,
+      M = Q && Q.controllerMission;
+    if (!M || !here || (m && !point(m.point)) || sq.state === 'retreat' || sq.commandPhase === 'regroup')
+      return;
+    var phase = 'approach',
+      objective = st.target,
+      legs = sq.route,
+      C = root.BattleCommanderAI,
+      cfg = C && C.policyFor ? C.policyFor(sim, sq.faction) : {},
+      ex = sq._missionExecution;
+    if ((m && m.intent === 'reserve') || (!m && sq.commandRole === 'reserve')) {
+      phase = 'reserve';
+      objective = point(legs[legs.length - 1]);
+    } else if (m && m.intent === 'hold') {
+      phase = 'hold';
+      objective = point(legs[legs.length - 1]);
+    } else if (m && (m.intent === 'screen' || m.intent === 'intercept') && st.final) {
+      phase = dist(here, st.target) <= 38 ? 'hold' : 'approach';
+    } else if (m && m.objectiveId && st.final) {
+      if (m.action === 'hold' || m.action === 'regroup' || m.action === 'support') {
+        phase = m.action === 'support' ? 'support-hold' : 'hold';
+        objective = point(ex && ex.holdPoint) || here;
+      } else if (m.point) phase = M.objectivePhase(sim, sq, m, cfg, here);
+    } else if (m && m.action === 'flank' && st.leg === (m.route || []).length - 1) phase = 'flank';
+    if (sq.commandPhase === phase && sq.routeIndex === st.leg && dist(sq.objective, objective) < 1e-6) return;
+    var res = ctx.request('mission.execute', null, { leg: st.leg, phase: phase, point: objective });
+    if (res.ok) ctx.finish(res.actionId, 'completed');
   }
 
   /* squadCommand: each man walks to his formation slot around the leg point, then holds there on the

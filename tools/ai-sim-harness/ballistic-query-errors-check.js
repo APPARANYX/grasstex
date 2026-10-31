@@ -14,10 +14,11 @@ const assert = require('node:assert/strict'),
   vm = require('node:vm');
 const repo = path.resolve(__dirname, '../..'),
   read = f => fs.readFileSync(path.join(repo, f), 'utf8');
-function load(fieldThrows, navThrows) {
+function load(fieldThrows, navThrows, search) {
   const warns = [],
     r = { console: { log() {}, warn: (...a) => warns.push(a.join(' ')) } };
   r.window = r;
+  if (search != null) r.location = { search };
   r.SquadAI = {
     applyHit: () => null,
     stanceOf: () => 'stand',
@@ -83,3 +84,16 @@ assert.equal(
 );
 assert.equal(field.r.BattleBallistics.queryErrors().navigation, 0);
 console.log('PASS error policy fails closed without changing healthy rays');
+
+const open = load(true, true, '?ballisticFailClosed=0');
+assert.equal(open.r.BattleBallistics.failClosed(), false);
+assert.equal(
+  open.r.BattleBallistics.environmentLineBlocked(o, p, battle),
+  false,
+  '?ballisticFailClosed=0 restores the old read-as-clear'
+);
+assert.equal(open.r.BattleBallistics.queryErrors().obstacleField >= 1, true, 'the failure is still counted');
+assert.match(open.warns[0], /segment read as clear/);
+assert.equal(load(true, true, '?x=1').r.BattleBallistics.failClosed(), true);
+assert.match(bad.warns[0], /segment blocked/);
+console.log('PASS ?ballisticFailClosed=0 restores fail-open, counts still recorded, message matches policy');
