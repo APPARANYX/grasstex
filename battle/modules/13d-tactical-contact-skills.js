@@ -3,10 +3,10 @@
    No legacy updateFireControl/assignSuppressors/decide call, authoritative write or new clock. */
 (function (root) {
   'use strict';
-  /* A re-sighting this soon after the squad last saw the enemy resumes OPEN fire. The squad's contact
-     memory (12 s) already ends the contact; the 20 s covers the gaps measured in battle (every
-     re-contact came within 20 s of the last sighting) and no longer. */
-  var RESUME_WINDOW = 20,
+  /* A re-sighting resumes OPEN fire if it comes within two contact memories of the last one: the squad
+     forgets the enemy after one (SquadAI.CONTACT_MEMORY), and a second is the time it has to find him
+     again before the contact counts as a new engagement. Derived from that constant, not tuned. */
+  var RESUME_MEMORIES = 2,
     states = new WeakMap(),
     /* ?contactFireResume=0 restores the old reset: any gap in the squad's contact drops its fire discipline. */
     RESUME = !(
@@ -188,14 +188,19 @@
       st.grenadier = null;
       st.reason = 'contact-clear';
       /* A gap in sightings is not a new engagement: the discipline the squad reached is kept, and a
-         re-sighting inside RESUME_WINDOW of the last sighting resumes OPEN (below) instead of restarting HOLD. */
+         re-sighting inside RESUME_MEMORIES of the last sighting resumes OPEN (below) instead of restarting HOLD. */
       st.cleared = true;
       reconcile(ctx, st);
       return;
     }
     st.active = true;
     /* Only OPEN resumes: a HOLD or PRECISION preparation that never finished starts again. */
-    if (st.cleared && (!RESUME || st.discipline !== 'open' || !(sim.time - st.sightedAt <= RESUME_WINDOW)))
+    if (
+      st.cleared &&
+      (!RESUME ||
+        st.discipline !== 'open' ||
+        !(sim.time - st.sightedAt <= RESUME_MEMORIES * A.CONTACT_MEMORY))
+    )
       st.discipline = null;
     st.cleared = false;
     if (threat) st.sightedAt = sim.time;

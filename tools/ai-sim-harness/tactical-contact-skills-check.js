@@ -645,10 +645,23 @@ test('a short gap in sightings resumes OPEN; a long gap or an unfinished HOLD st
     squad(w);
     return w.q.fireControl.state;
   };
-  const q = '&commandPosture=0';
-  assert.equal(run(q, true, 15), 'open', 'a gap inside the window resumes OPEN');
-  assert.equal(run(q, true, 25), 'hold', 'a gap past the window is a new engagement');
-  assert.equal(run(q, false, 15), 'hold', 'a HOLD that never finished is not resumed');
-  assert.equal(run(q + '&contactFireResume=0', true, 15), 'hold', 'flag restores the old reset');
+  const q = '&commandPosture=0',
+    w0 = world(100, q).r;
+  assert.equal(run(q, true, w0.SquadAI.CONTACT_MEMORY + 3), 'open', 'a gap inside the window resumes OPEN');
+  assert.equal(
+    run(q, true, 2 * w0.SquadAI.CONTACT_MEMORY + 1),
+    'hold',
+    'a gap past the window is a new engagement'
+  );
+  assert.equal(
+    run(q, false, w0.SquadAI.CONTACT_MEMORY + 3),
+    'hold',
+    'a HOLD that never finished is not resumed'
+  );
+  assert.equal(
+    run(q + '&contactFireResume=0', true, w0.SquadAI.CONTACT_MEMORY + 3),
+    'hold',
+    'flag restores the old reset'
+  );
 });
 console.log(count + ' tactical contact skill checks passed');
