@@ -15,10 +15,13 @@ function test(name, fn) {
     console.error('FAIL ' + name + ': ' + error.message);
   }
 }
-function world(intent = 'capture', flags = '') {
+function world(intent = 'capture', flags = '', controller = true) {
   H.resetIds();
   const r = H.bootstrap({
-    search: '?tacticalController=new&commandMovement=1&commandRelay=0&stressAct=0&scoutsForward=0' + flags
+    search:
+      (controller ? '?tacticalController=new' : '?x=1') +
+      '&commandMovement=1&commandRelay=0&stressAct=0&scoutsForward=0' +
+      flags
   });
   const systems = {};
   r.BattleModules.registerSystem = (id, hooks) => (systems[id] = hooks);
@@ -55,7 +58,7 @@ function world(intent = 'capture', flags = '') {
     route: [],
     observations: { squad: { position: { x: 0, z: 0 } } }
   };
-  systems['tactical-march-provider'].onBattleStart(b);
+  if (systems['tactical-march-provider']) systems['tactical-march-provider'].onBattleStart(b);
   return { r, b, q, Q: r.BattleSquadStability, R: r.BattleMovementResolver, TC: r.BattleTacticalController };
 }
 function tick(w) {
@@ -280,6 +283,16 @@ test('?releasedOrder=0 keeps the old release position as the order destination',
   s.root.position.z += 7;
   w.Q.controllerMovement.end(s, order);
   assert.ok(s.orderDestination, 'the release position is still stored with the flag off');
+  assert.ok(Math.abs(s.orderDestination.z - s.root.position.z) < 1e-6);
+});
+test('without the controller a released order keeps the release position, exactly as before', () => {
+  const w = world('capture', '', false);
+  w.b.time += 1;
+  const s = w.q.members[3];
+  const order = w.R.proposeOrder(s, { x: 0, z: 120 }, w.b, false, 'squad-stability');
+  s.root.position.z += 7;
+  w.R.endOrder(s, order);
+  assert.ok(s.orderDestination, 'legacy release stores the release position');
   assert.ok(Math.abs(s.orderDestination.z - s.root.position.z) < 1e-6);
 });
 test('a support squad waits at its second leg until the support delay ends or the assault is committed', () => {

@@ -15,10 +15,15 @@
 (function (root) {
   'use strict';
 
-  /* ?releasedOrder=0 restores the old release: the man's release-time position stays as his order destination. */
-  var RELEASE_RETIRES = !/[?&]releasedOrder=0(?:&|#|$)/i.test(
-    (root.location && root.location.search) || (typeof location !== 'undefined' && location.search) || ''
-  );
+  /* Under ?tacticalController=new a released squad-order proposal retires the order itself; without the
+     controller, and with ?releasedOrder=0, the man keeps the release-time position as before. */
+  var RELEASE_RETIRES =
+    /[?&]tacticalController=new(?:&|#|$)/i.test(
+      (root.location && root.location.search) || (typeof location !== 'undefined' && location.search) || ''
+    ) &&
+    !/[?&]releasedOrder=0(?:&|#|$)/i.test(
+      (root.location && root.location.search) || (typeof location !== 'undefined' && location.search) || ''
+    );
   var ORDER_COMMIT = 1.35,
     COMBAT_TTL = 0.75,
     ORDER_EPS = 2.4,
