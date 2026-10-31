@@ -185,6 +185,21 @@ function setup(search = '?projectileFlight=1', preview = true) {
   for (let t = 0.05; t <= 0.35; t += 0.05) x.advance(t);
   assert.equal(x.pins.length, 0, 'physical cover prevents downstream suppression');
 }
+{
+  const x = setup();
+  x.fire();
+  x.shooter.weapon = null; // the gun was lost while the round was in the air
+  x.advance(0.2);
+  assert.equal(x.hits.length, 1, 'the round still lands');
+  assert.ok(
+    x.hits[0].stats && x.hits[0].stats.range === 450,
+    'and carries the stats of the gun that fired it'
+  );
+  const off = setup('?projectileFlight=1&roundStats=0');
+  off.fire();
+  off.advance(0.2);
+  assert.equal(off.hits[0].stats, null, '?roundStats=0 leaves the wound model to read the shooter');
+}
 console.log(
   'PASS: projectile travel, delayed impact, moving-target miss, obstruction, gravity, energy, off flag, restart'
 );

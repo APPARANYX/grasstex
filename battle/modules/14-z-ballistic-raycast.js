@@ -294,16 +294,29 @@
     };
     return out;
   }
-  /* Obstruction query exceptions are counted and conservatively block an otherwise unverified ray.
+  /* Obstruction query exceptions are counted and, unless ?ballisticFailClosed=0 (read once at load; the
+     behaviour before #608, a throw read as clear), conservatively block an otherwise unverified ray.
      Every failure is counted by source, the last message is kept, and the console hears of it on
      the 1st, 10th, 100th... failure so a hot path cannot flood it. queryErrors() hands out counts. */
+  var FAIL_CLOSED = !(
+    typeof location !== 'undefined' && /[?&]ballisticFailClosed=0\b/.test(location.search || '')
+  );
   var queryFaults = { obstacleField: 0, navigation: 0, last: null };
   function noteQueryFault(source, e) {
     var n = ++queryFaults[source];
     queryFaults.last = { source: source, message: String((e && e.message) || e) };
     for (var m = 1; m < n; m *= 10);
     if (m === n && typeof console !== 'undefined' && console.warn)
-      console.warn('[BALLISTICS] ' + source + ' query threw (segment read as clear), failure #' + n + ':', e);
+      console.warn(
+        '[BALLISTICS] ' +
+          source +
+          ' query threw (' +
+          (FAIL_CLOSED ? 'segment blocked' : 'segment read as clear') +
+          '), failure #' +
+          n +
+          ':',
+        e
+      );
   }
   function segmentBlocked(o, d, t, battle) {
     var p = pointAt(o, d, t),
@@ -329,7 +342,7 @@
       queryError = queryError || 'navigation';
     }
     // An unavailable geometry answer must never authorize an unobstructed shot.
-    return queryError ? { queryError: queryError } : false;
+    return queryError && FAIL_CLOSED ? { queryError: queryError } : false;
   }
   function obstacleStop(o, d, maxT, battle) {
     if (!segmentBlocked(o, d, maxT, battle)) return { travel: maxT };
@@ -995,6 +1008,9 @@
     exposedAim: exposedAim,
     pointLineBlocked: pointLineBlocked,
     flightCollision: flightCollision,
+    failClosed: function () {
+      return FAIL_CLOSED;
+    },
     queryErrors: function () {
       return {
         obstacleField: queryFaults.obstacleField,

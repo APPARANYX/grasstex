@@ -363,4 +363,14 @@ test('a full-power round can go through one man and hit the man behind him', () 
   assert.equal(pistol.back.hp, 100);
   assert.equal(pistol.meta.final, null);
 });
+test('a round that lands after its shooter lost his gun wounds with the stats it carried', () => {
+  const { r, b, us } = setup();
+  const [victim] = us.members.slice(1);
+  const shooter = us.members[0],
+    stats = shooter.weapon.stats,
+    hp = victim.hp;
+  shooter.weapon = null;
+  r.SquadAI.applyHit(shooter, victim, b, { zone: 'chest', energy: 1, stats });
+  assert.ok(victim.hp < hp || victim.dead, 'the hit landed with the carried stats');
+});
 console.log(n + ' weapon and wound checks passed');
