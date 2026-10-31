@@ -417,8 +417,9 @@
       if (st.soldier === soldier) continue;
       /* A held window is a reservation that keeps routes from crossing the man at it, not a wall. A route that
          starts inside one can only leave it radially, and at a window that is into the wall: a man standing in
-         another man's station could never plan out of the house. */
-      if (NAV_STATION_EXIT && shapeHit(start, start, st, ROUTE_MARGIN)) continue;
+         another man's station could never plan out of the house. Only a real route: a point test (start == goal,
+         as standGoal asks) must still see the held window, so no order ends on top of the man at it. */
+      if (NAV_STATION_EXIT && dist(start, goal) > 1e-6 && shapeHit(start, start, st, ROUTE_MARGIN)) continue;
       var c = pointSegmentDistance(st, start, goal) - boundRadius(st, ROUTE_MARGIN);
       if (c <= corridor)
         scored.push({ fp: st, direct: shapeHit(start, goal, st, ROUTE_MARGIN) ? 0 : 1, clearance: c });

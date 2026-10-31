@@ -1660,10 +1660,16 @@ section("a man standing in another man's window station can still leave the hous
       if (P.shapeHit(prev, q, ring, 0)) crossed = true;
       prev = q;
     }
+    // An order that ends on the held window still gets a legal stand point off the man at it.
+    const visitor = { id: 'ge:57', root: { position: { x: 4, z: 0 } } };
+    sim._roster.ge.push(visitor);
+    NN.nextWaypoint(sim, visitor, { x: -4.22, z: -9.28 });
+    const stand = visitor._physicalPath.standGoal;
     return {
       firstBlocked,
       illegal,
       crossed,
+      standOff: Math.hypot(stand.x + 4.22, stand.z + 9.28),
       moved: Math.hypot(man.root.position.x - start.x, man.root.position.z - start.z),
       end: man.root.position
     };
@@ -1683,6 +1689,11 @@ section("a man standing in another man's window station can still leave the hous
   );
   check('no step on that route is movement-illegal', on.illegal === 0, 'illegal steps=' + on.illegal);
   check('a man outside the held station still routes around it', !on.crossed);
+  check(
+    'an order ending on the held window still stands off the man at it',
+    on.standOff > 0.92 && Math.abs(on.standOff - off.standOff) < 1e-6,
+    'on ' + on.standOff + ' off ' + off.standOff
+  );
 }
 
 console.log(
