@@ -465,15 +465,24 @@
         var MP = root.BattleTacticalMarchProvider,
           leg = MP && MP.leg ? MP.leg(sq) : null,
           plain = !m || !/^(screen|intercept|reserve|hold)$/.test(m.intent || '');
-        /* This owner holds routeIndex, and the structure chain keys its entry evidence on it: it follows
-           the leg the provider is marching. Only with the chain on, so every other battle is unchanged. */
+        /* This owner holds routeIndex, and the structure chain keys its entry evidence on it. The provider's
+           mission.execute (publishControllerMission, guarded for retreat, regroup, succession and a stale
+           brief) is the one write of the leg it is marching; when it was refused the chain keeps the
+           old leg. Only with the chain on, so every other battle is unchanged. */
         var LPC = ctx.localPlan && ctx.localPlan();
-        if (leg && MP.structure && LPC && LPC.structuresOn && leg.index >= 0 && pos) {
+        if (
+          leg &&
+          MP.structure &&
+          LPC &&
+          LPC.structuresOn &&
+          leg.index >= 0 &&
+          pos &&
+          +sq.routeIndex === leg.index
+        ) {
           var fromLeg = legBefore,
             changed = fromLeg !== leg.index;
           if (changed && leg.index > fromLeg && LPC.noteStructureHandback && sq.route[fromLeg])
             LPC.noteStructureHandback(sim, sq, sq.route[fromLeg]);
-          sq.routeIndex = leg.index;
           /* A new leg gets its lease; so does a building leg the squad is already on when the controller
              takes it (no lease yet, and no firefight resume pending, which has its own path). */
           if (
