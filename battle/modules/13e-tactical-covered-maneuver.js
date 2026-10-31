@@ -796,7 +796,7 @@
           st.stall.released = true;
           st.stall.reason = 'no-hop-after-' + tune.lead.reviewAfter + 's';
           st.reason = 'stall-released:no-hop';
-          Q.requestReview(ctx.sim, ctx.squad, 'covered maneuver found no hop');
+          Q.requestReview(ctx.sim, ctx.squad, st.reason);
         }
       }
       return;

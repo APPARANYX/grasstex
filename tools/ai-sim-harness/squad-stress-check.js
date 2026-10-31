@@ -284,4 +284,18 @@ test("module 17's accessors read stress through the lead lever only", () => {
   assert.ok(r.BattleSoldierMind.LEVERS.indexOf('lead') >= 0);
 });
 
+test('review: a released no-hop stall may re-task an assault brief, once; other reasons may not', () => {
+  const w = world('slStress=review'),
+    sq = squad(w, null, { mean: 0.1, phase: 'assault' });
+  brief(sq, 'assault');
+  w.S.requestReview(w.b, sq, 'squad stress');
+  assert.ok(!sq._macroMissionRequest, 'an assault brief is not reviewed for stress');
+  w.S.requestReview(w.b, sq, 'stall-released:no-hop');
+  assert.ok(sq._macroMissionRequest);
+  assert.equal(sq._macroMissionRequest.why, 'stall-released:no-hop');
+  const at = sq._macroMissionRequest.at;
+  w.S.requestReview(w.b, sq, 'stall-released:no-hop');
+  assert.equal(sq._macroMissionRequest.at, at, 'once per brief');
+});
+
 console.log(n + ' squad-stress checks passed');
