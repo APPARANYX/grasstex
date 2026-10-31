@@ -1,0 +1,20 @@
+{
+  "branch": "work/benchmark-launch/slice23-cand-strategic-20261028",
+  "launch_parent_sha": "b913a7429d8cb4173c303a90e73a6c8be6958713",
+  "launch_sha": "f8b2e55bc8b29201503e23ba2e60ee86bf6a6fd6",
+  "note": "Launch parent is preserved; the child's actual checkout SHA must be read from the child run.",
+  "parent_retention_ref": "main-ancestor",
+  "request": {
+    "battle_type": "meeting",
+    "benchmark": "standard",
+    "purpose": "#662 slice 2+3 same-seed parity",
+    "query_off": "",
+    "query_on": "tacticalController=new",
+    "ref": "work/pin/slice23-b23fac3e",
+    "seed": "controller-contact-20261028",
+    "sim_seconds": 600
+  },
+  "schema_version": 1,
+  "source_ref": "work/pin/slice23-b23fac3e",
+  "source_sha_at_archive": "b23fac3e00347a2c898273a5c564240c5e1db3af"
+}
