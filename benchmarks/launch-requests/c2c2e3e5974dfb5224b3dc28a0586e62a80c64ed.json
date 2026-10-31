@@ -1,0 +1,20 @@
+{
+  "branch": "work/benchmark-launch/slice23-ctrl-strategic-20261028",
+  "launch_parent_sha": "b913a7429d8cb4173c303a90e73a6c8be6958713",
+  "launch_sha": "c2c2e3e5974dfb5224b3dc28a0586e62a80c64ed",
+  "note": "Launch parent is preserved; the child's actual checkout SHA must be read from the child run.",
+  "parent_retention_ref": "main-ancestor",
+  "request": {
+    "battle_type": "meeting",
+    "benchmark": "standard",
+    "purpose": "#662 slice 2+3 same-seed parity",
+    "query_off": "",
+    "query_on": "",
+    "ref": "work/pin/main-b913a742",
+    "seed": "controller-contact-20261028",
+    "sim_seconds": 600
+  },
+  "schema_version": 1,
+  "source_ref": "work/pin/main-b913a742",
+  "source_sha_at_archive": "b913a7429d8cb4173c303a90e73a6c8be6958713"
+}
