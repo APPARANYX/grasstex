@@ -193,4 +193,42 @@ test('after a firefight on the building leg the lease is re-granted through the 
   assert.equal(w.q._missionExecution.contactRouteResume, null);
 });
 
+test('while the chain’s structure orders are current they are the squad’s only movement: the provider stands down', () => {
+  const w = world(
+      '',
+      CHAIN + '&localSurvey=1&localWatch=1&localContactResume=1&localContinuity=1&localStructureOrders=1'
+    ),
+    g = approach(w);
+  stepFor(w, 1);
+  g.leader.root.position.x = g.p.inside.x;
+  g.leader.root.position.z = g.p.inside.z;
+  for (let i = 0; i < 4; i++) {
+    step(w);
+    w.r.SquadAI.updateSquad(w.q, w.b);
+  }
+  const orders = w.P.currentStructureOrders(w.b, w.q);
+  assert.ok(orders && orders.orders.length > 0, 'the chain issued structure orders');
+  assert.equal(w.r.BattleSquadStability.retainedSkill(w.q, w.b), 'structure');
+  assert.equal(row(w).idle, 'yield:structure');
+  assert.deepEqual(row(w).stages, {}, 'the provider holds no movement action for any man');
+  orders.orders.forEach(o => {
+    const man = w.q.members.find(s => String(s.id) === o.soldierId);
+    assert.equal(man._fireteamPublishKey, o.key, 'the man’s order is the fireteam publication of the chain');
+  });
+});
+
+test('a wait that was left starts afresh when the squad is back on the leg', () => {
+  const w = world();
+  approach(w);
+  stepFor(w, 100);
+  assert.equal(row(w).waiting, 'entry-pending');
+  w.q.members.forEach(s => (s.root.position.z = 120)); // away from the leg
+  stepFor(w, 1);
+  assert.equal(row(w).waiting, null);
+  approach(w);
+  stepFor(w, 30); // 130 s since the first wait began, but only 30 s of this one
+  assert.equal(row(w).leg, 1);
+  assert.equal(row(w).waiting, 'entry-pending');
+});
+
 console.log(n + ' controller structure checks passed');

@@ -118,6 +118,7 @@
       }
       st.leg++;
     }
+    if (!st.waiting) st.waitLeg = null; // a wait that was left starts afresh when the squad is back
     var target = point(legs[st.leg]);
     if (!st.target || dist(st.target, target) > 1e-6) {
       var from = st.leg > 0 ? point(legs[st.leg - 1]) : here;
@@ -144,7 +145,7 @@
        squad the march stands down and that skill's fireteam orders move the men. */
     var retained =
       Q &&
-      ((Q.retainedSkill && Q.retainedSkill(sq)) ||
+      ((Q.retainedSkill && Q.retainedSkill(sq, ctx.sim)) ||
         (Q.defensivePhase && Q.defensivePhase(sq) ? 'defense' : null));
     if (retained) {
       st.idle = 'yield:' + retained;
