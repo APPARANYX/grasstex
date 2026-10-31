@@ -125,6 +125,37 @@
           ? Math.max(+c.routeArrivalRadius || 8, limit * URBAN_ARRIVAL_COHESION)
           : +c.routeArrivalRadius || 8;
     }
+    /* The route-transition lease for the leg now being marched: the one record the structure chain reads
+       for its entry evidence. Squad Leader execution grants it on every leg change, controlled or not. */
+    function grantRouteLeg(sim, sq, from, idx, wp, pos, arrivalRadius) {
+      if (!ROUTE_TRANSITION_ON) return;
+      var t = sim.time,
+        budget = (root.BattleCommanderAI && +root.BattleCommanderAI.strategicStallReplan) || Infinity,
+        remaining = dist(pos, wp);
+      L.grant(
+        sq,
+        'route-transition',
+        'squad-leader',
+        t,
+        t + budget,
+        'leg ' + from + ' -> ' + idx,
+        'arrival, contact, blocked, superseded, retreat or no progress',
+        {
+          from: from,
+          leg: idx,
+          missionVersion: missionVersion(sq),
+          target: copy(wp),
+          arrivalRadius: arrivalRadius,
+          startDistance: remaining,
+          distance: remaining,
+          bestDistance: remaining,
+          traveled: 0,
+          lastPosition: copy(pos),
+          lastProgressAt: t,
+          noProgressBudget: budget
+        }
+      );
+    }
     function observeRouteTransition(sim, sq) {
       if (!ROUTE_TRANSITION_ON) return;
       var l = L.get(sq, 'route-transition');
@@ -357,6 +388,22 @@
         var MP = root.BattleTacticalMarchProvider,
           leg = MP && MP.leg ? MP.leg(sq) : null,
           plain = !m || !/^(screen|intercept|reserve|hold)$/.test(m.intent || '');
+        /* This owner holds routeIndex, and the structure chain keys its entry evidence on it: it follows
+           the leg the provider is marching. Only with the chain on, so every other battle is unchanged. */
+        var LPC = ctx.localPlan && ctx.localPlan();
+        if (
+          leg &&
+          MP.structure &&
+          LPC &&
+          LPC.structuresOn &&
+          leg.index >= 0 &&
+          +sq.routeIndex !== leg.index
+        ) {
+          var fromLeg = +sq.routeIndex || 0;
+          sq.routeIndex = leg.index;
+          if (leg.index > fromLeg && pos)
+            grantRouteLeg(sim, sq, fromLeg, leg.index, leg.point, pos, +c.routeArrivalRadius || 8);
+        }
         if (leg && !reconHeld(sim, sq, m, leg.point, leg.final, pos, c)) {
           var started = plain && reconStart(sim, sq, m, leg.point, leg.final, pos, c);
           if (
@@ -547,33 +594,7 @@
         var from = idx;
         sq.routeIndex = idx = idx + 1;
         wp = legs[idx];
-        if (ROUTE_TRANSITION_ON) {
-          var budget = (root.BattleCommanderAI && +root.BattleCommanderAI.strategicStallReplan) || Infinity,
-            remaining = dist(pos, wp);
-          L.grant(
-            sq,
-            'route-transition',
-            'squad-leader',
-            t,
-            t + budget,
-            'leg ' + from + ' -> ' + idx,
-            'arrival, contact, blocked, superseded, retreat or no progress',
-            {
-              from: from,
-              leg: idx,
-              missionVersion: missionVersion(sq),
-              target: copy(wp),
-              arrivalRadius: routeArrival(idx, axisEnd, town, wp, c, limit),
-              startDistance: remaining,
-              distance: remaining,
-              bestDistance: remaining,
-              traveled: 0,
-              lastPosition: copy(pos),
-              lastProgressAt: t,
-              noProgressBudget: budget
-            }
-          );
-        }
+        grantRouteLeg(sim, sq, from, idx, wp, pos, routeArrival(idx, axisEnd, town, wp, c, limit));
         telemetry(sim, 'decision-route', {
           faction: sq.faction,
           squad: sq.id,

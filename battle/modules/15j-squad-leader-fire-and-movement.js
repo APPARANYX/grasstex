@@ -25,9 +25,6 @@
       boundLeaseBlocker = ctx.boundLeaseBlocker,
       LEASE_CONFLICTS_ON = ctx.LEASE_CONFLICTS_ON === true,
       localPlan = ctx.localPlan,
-      CONTROLLER_STRUCTURE_ON = !/[?&]controllerStructure=0(?:&|#|$)/i.test(
-        (ctx.root.location && ctx.root.location.search) || ''
-      ),
       tacticalPostures = ctx.tacticalPostures,
       leaderlessActive = ctx.leaderlessActive,
       noteLeaderlessAction = ctx.noteLeaderlessAction,
@@ -90,9 +87,10 @@
          controlled march leave a building leg. The soldiers' structure orders stay with Engagement. */
       if (
         TC &&
-        CONTROLLER_STRUCTURE_ON &&
+        root.BattleTacticalMarchProvider &&
+        root.BattleTacticalMarchProvider.structure &&
         localPlan &&
-        localPlan.structureOrdersOn &&
+        localPlan.structuresOn &&
         TC.controls(battle, sq)
       )
         localPlan.update(battle, sq, r);

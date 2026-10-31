@@ -100,12 +100,24 @@
       here = centroid(men(sq)),
       r = legRadius(sim, sq);
     st.leg = Math.min(st.leg, last);
-    while (
-      st.leg < last &&
-      dist(here, point(legs[st.leg])) <= r &&
-      !entryPending(sim, sq, point(legs[st.leg]))
-    )
+    /* A leg inside a building waits for the chain, but only for the General's own stall-replan budget (the
+       one the legacy route-transition lease uses); the wait says why, and a timeout moves on. */
+    var budget = (root.BattleCommanderAI && +root.BattleCommanderAI.strategicStallReplan) || Infinity;
+    st.waiting = null;
+    while (st.leg < last && dist(here, point(legs[st.leg])) <= r) {
+      if (entryPending(sim, sq, point(legs[st.leg]))) {
+        if (st.waitLeg !== st.leg) {
+          st.waitLeg = st.leg;
+          st.waitSince = +sim.time || 0;
+        }
+        if ((+sim.time || 0) - st.waitSince < budget) {
+          st.waiting = 'entry-pending';
+          break;
+        }
+        st.timedOut = st.leg;
+      }
       st.leg++;
+    }
     var target = point(legs[st.leg]);
     if (!st.target || dist(st.target, target) > 1e-6) {
       var from = st.leg > 0 ? point(legs[st.leg - 1]) : here;
@@ -276,6 +288,7 @@
           leg: st.leg,
           legs: (a[i].route || []).length,
           idle: st.idle || null,
+          waiting: st.waiting || null,
           stages: {},
           stopped: {}
         };
@@ -298,6 +311,7 @@
 
   root.BattleTacticalMarchProvider = {
     on: ON,
+    structure: STRUCTURE,
     id: ID,
     summary: summary,
     target: function (sq) {
@@ -306,7 +320,7 @@
     /* The leg the march is on, for the Squad Leader's retained recon decision. */
     leg: function (sq) {
       var st = squads.get(sq);
-      return st && st.target ? { point: st.target, final: !!st.final } : null;
+      return st && st.target ? { point: st.target, final: !!st.final, index: st.leg } : null;
     },
     release: function (ctx) {
       standDown(ctx, stateOf(ctx.squad), 'covered-maneuver');
