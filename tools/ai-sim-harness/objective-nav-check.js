@@ -1469,6 +1469,117 @@ section('physical wayfinding respects body clearance through hedgerows');
   }
 }
 
+section('a building corner inside a hedge buffer never blocks the whole route');
+{
+  /* ge-defend seed 0005 (main 911c94c3, controller on), man us:44 at 445 s: retreating from a window station
+     inside B22, the base door graph sends him out the door to the building's padded corner, which lies inside the
+     hedge's body buffer 4 m beyond the wall. The physical planner kept that corner exact, found no legal edge into
+     it, and every 5 s replan returned the same empty plan: he stood there while his squad left. Geometry is the
+     seed's own, relative to the building centre. */
+  function cornerInHedge(flagOff) {
+    const rr = bootstrap(),
+      NN = rr.BattleNavigation,
+      src = fs.readFileSync(path.join(REPO, 'battle/modules/39-navigation-physicality-debug.js'), 'utf8');
+    new Function('window', 'globalThis', 'console', 'BABYLON', 'location', src)(
+      rr,
+      rr,
+      quiet,
+      rr.BABYLON,
+      flagOff ? { search: '?navCornerStand=0' } : { search: '' }
+    );
+    const scenario = {
+        buildings: [
+          {
+            id: 'B22',
+            x: 0,
+            z: 0,
+            w: 11.32,
+            d: 15.45,
+            rot: Math.PI / 2,
+            openings: [
+              {
+                id: 'B22-door-0',
+                type: 'door',
+                side: 'west',
+                offset: -1.01,
+                width: 1.35,
+                bottom: 0,
+                top: 2.2
+              }
+            ]
+          }
+        ]
+      },
+      sim = {
+        time: 0,
+        heightAt: () => 0,
+        obstacles: [],
+        _roster: { us: [], ge: [] },
+        scene: { metadata: { battleScenario: scenario } }
+      };
+    sim.obstacles.__physicalFootprints = [
+      {
+        id: 'hedge',
+        type: 'hedge',
+        shape: 'obb',
+        x: 12.61,
+        z: 10.28,
+        hx: 27.42,
+        hz: 1.1,
+        ux: 0.99932,
+        uz: 0.03692,
+        vx: -0.03692,
+        vz: 0.99932
+      }
+    ];
+    NN.installScenario(scenario);
+    rr.BattleModules.getSystem('navigation-physicality-debug').onBattleStart(sim);
+    const man = { id: 'us:44', root: { position: { x: -3.52, z: 5.17 } } },
+      goal = { x: 80, z: -60 },
+      start = { ...man.root.position };
+    NN.nextWaypoint(sim, man, goal);
+    const firstBlocked = !!man._physicalPath.blocked;
+    let illegal = 0;
+    for (
+      let i = 0;
+      i < 400 && Math.hypot(man.root.position.x - goal.x, man.root.position.z - goal.z) > 0.7;
+      i++
+    ) {
+      sim.time += 0.15;
+      const p = man.root.position,
+        w = NN.nextWaypoint(sim, man, goal),
+        d = Math.hypot(w.x - p.x, w.z - p.z),
+        step = Math.min(0.4, d);
+      if (d < 0.001) continue;
+      let to = { x: p.x + ((w.x - p.x) / d) * step, z: p.z + ((w.z - p.z) / d) * step };
+      if (!NN.movementClear(p, to)) to = NN.resolveStep(p, to);
+      if (!to) continue;
+      if (!NN.movementClear(p, to)) illegal++;
+      man.root.position = { ...to };
+    }
+    return {
+      firstBlocked,
+      illegal,
+      moved: Math.hypot(man.root.position.x - start.x, man.root.position.z - start.z),
+      end: man.root.position
+    };
+  }
+  const on = cornerInHedge(false),
+    off = cornerInHedge(true);
+  check(
+    'control: the old rule (?navCornerStand=0) plans nothing and he never moves',
+    off.firstBlocked && off.moved < 0.01,
+    JSON.stringify(off)
+  );
+  check('the corner is moved to a legal stand point and the first plan is not blocked', !on.firstBlocked);
+  check(
+    'he walks out of the door, past the hedge, to his far goal within 60 s',
+    Math.hypot(on.end.x - 80, on.end.z + 60) <= 0.7,
+    JSON.stringify(on)
+  );
+  check('no step on that route is movement-illegal', on.illegal === 0, 'illegal steps=' + on.illegal);
+}
+
 console.log(
   '\n' + (failures ? failures + ' of ' + checks + ' checks FAILED' : 'all ' + checks + ' checks passed')
 );
