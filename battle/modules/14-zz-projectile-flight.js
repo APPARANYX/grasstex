@@ -6,7 +6,9 @@
 (function (root) {
   'use strict';
   var q = (root.location && root.location.search) || '',
-    enabled = !/[?&]projectileFlight=0(?:&|$)/.test(q);
+    enabled = !/[?&]projectileFlight=0(?:&|$)/.test(q),
+    /* A round in flight carries its own weapon stats to the wound model; ?roundStats=0 reads the shooter's gun at impact. */
+    roundStats = !/[?&]roundStats=0(?:&|$)/.test(q);
   if (!root.BattleModules || !root.BattleBallistics || !root.SquadAI) return;
   var B = root.BattleBallistics,
     S = root.SquadAI,
@@ -281,7 +283,8 @@
         energy: energy,
         power: power * energy,
         body: p.passes.length,
-        velocity: speed(p.vel)
+        velocity: speed(p.vel),
+        stats: roundStats ? p.weapon : null
       });
     p.passes.push({
       victim: hit.victim,

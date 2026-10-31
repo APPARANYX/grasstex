@@ -24,7 +24,11 @@
     MODES = ['legacy', 'shadow', 'new'],
     providers = Object.create(null),
     battles = new WeakMap(),
-    nextBattle = 1;
+    nextBattle = 1,
+    /* ?rosterKeep=0 restores the old rule: any death or detachment cancels every action of the squad. */
+    ROSTER_KEEP = !/[?&]rosterKeep=0(?:&|#|$)/i.test(
+      typeof location !== 'undefined' ? location.search || '' : ''
+    );
 
   function contract() {
     return root.BattleTacticalCapabilityContract || null;
@@ -289,6 +293,20 @@
       unconfirmed: rec.pending.length
     };
   }
+  /* A roster change ends only the actions that depended on the roster: a squad-scoped action (no actor)
+     was planned for the old men, an actor-scoped one only for its own man. Everyone else keeps his
+     action, its request object and the owner's handle, so a death elsewhere does not restart his task. */
+  /* A covered bound is one episode (the cover window and its movers): losing any man ends all of it. */
+  var EPISODE = ['maneuver.cover', 'combat.bound'];
+  function rosterCancels(sq) {
+    var alive = Object.create(null),
+      a = members(sq);
+    for (var i = 0; i < a.length; i++) if (a[i] && !a[i].dead) alive[String(a[i].id)] = true;
+    return function (action) {
+      var id = action.request.actorId;
+      return id == null || !alive[String(id)] || EPISODE.indexOf(action.request.capability) >= 0;
+    };
+  }
   function retryCleanup(sim, rec) {
     if (!rec.pending.length || rec.cancelling) return;
     rec.cancelling = true;
@@ -367,7 +385,13 @@
     /* An action whose cancellation is unconfirmed still holds its resources at the owner. */
     var held = rec.actions.concat(rec.pending);
     for (var i = 0; i < held.length; i++) {
-      var clash = C.resourceConflicts(valid.request, held[i].request);
+      /* A kept action carries the roster revision it was issued under; only its resources are compared. */
+      var clash = C.resourceConflicts(
+        valid.request,
+        held[i].request.rosterRevision === valid.request.rosterRevision
+          ? held[i].request
+          : Object.assign({}, held[i].request, { rosterRevision: valid.request.rosterRevision })
+      );
       if (!clash.ok) return note(sim, clash.reason);
     }
     rec.nextAction++;
@@ -441,7 +465,8 @@
       rec.missionVersion = mission;
     }
     var observedRoster = rosterRevision(sq, rec, at);
-    if (observedRoster !== before) cancelAll(sim, sq, rec, 'roster-changed');
+    if (observedRoster !== before)
+      cancelAll(sim, sq, rec, 'roster-changed', ROSTER_KEEP ? rosterCancels(sq) : null);
     rec.handledRosterRevision = observedRoster;
     var snapshot = token(sim, sq, rec, at),
       ctx = {

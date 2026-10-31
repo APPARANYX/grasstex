@@ -377,10 +377,31 @@ test('mission supersession and roster changes cancel the old actions before the 
     P.log.indexOf('cancel:' + a + ':mission-superseded') < P.log.lastIndexOf('policy:executeMission')
   );
   const b = P.last().request('movement.move', 1, MOVE).actionId;
-  s.us.members[2].dead = true;
+  s.us.members[0].dead = true;
   w.TC.dispatch(s, s.us, 'executeMission');
-  assert.ok(P.log.includes('release:' + b + ':roster-changed'));
+  assert.ok(P.log.includes('release:' + b + ':roster-changed'), "the dead man's own action is released");
   assert.equal(P.last().token.rosterRevision, 1);
+});
+
+test("a death elsewhere in the squad leaves the other men's actions in place and new requests still work", () => {
+  const w = boot(),
+    { s, P } = owned(w);
+  w.TC.dispatch(s, s.us, 'executeMission');
+  const kept = P.last().request('movement.move', 1, MOVE).actionId,
+    gone = P.last().request('movement.move', 2, MOVE).actionId;
+  s.us.members[1].dead = true;
+  w.TC.dispatch(s, s.us, 'executeMission');
+  assert.ok(P.log.includes('release:' + gone + ':roster-changed'));
+  assert.ok(!P.log.includes('release:' + kept + ':roster-changed'), 'the survivor keeps his action');
+  assert.equal(P.last().token.rosterRevision, 1);
+  assert.equal(
+    w.TC.summary(s).live.some(a => a.actionId === kept),
+    true,
+    'still live at the owner'
+  );
+  const next = P.last().request('movement.move', 3, MOVE);
+  assert.equal(next.ok, true, "a new request is not refused for the kept action's older revision");
+  assert.equal(P.last().finish(kept), true, 'the kept action can still be finished');
 });
 
 test('an owner adapter cannot switch controllers while accepting; the action stays with its issuer', () => {
@@ -491,7 +512,7 @@ test('stale mission and roster contexts cannot complete an old action and do not
   assert.ok(P.log.includes('cancel:' + a + ':mission-superseded'));
   const second = P.last(),
     b = second.request('movement.move', 1, MOVE).actionId;
-  s.us.members[2].dead = true;
+  s.us.members[0].dead = true;
   assert.equal(second.finish(b), false, 'the old roster cannot complete a live action');
   w.TC.dispatch(s, s.us, 'fireAndMovement');
   assert.ok(P.log.includes('cancel:' + b + ':roster-changed'), 'dispatch still detects the roster change');
