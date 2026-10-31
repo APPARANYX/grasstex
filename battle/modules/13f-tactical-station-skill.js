@@ -33,6 +33,7 @@
       E = root.BattleTacticalContactSkills,
       A = root.SquadAI,
       B = root.BattleTacticalCoveredManeuver,
+      K = root.BattleTacticalAmbushSkill,
       st = state(ctx);
     if (!P || !P.canAssign || !P.candidates || !R || !R.knownThreat) {
       st.reason = 'station-owner-or-threat-unavailable';
@@ -60,7 +61,14 @@
     for (var i = 0; i < members.length; i++) {
       var man = members[i],
         id = String(man.id);
-      if (!P.canAssign(man) || P.current(man) || st.claims.has(id) || (B && B.wants(man, ctx.sim))) continue;
+      if (
+        !P.canAssign(man) ||
+        P.current(man) ||
+        st.claims.has(id) ||
+        (B && B.wants(man, ctx.sim)) ||
+        (K && K.wants(man))
+      )
+        continue;
       var threat = R.knownThreat(man, ctx.sim);
       if (!threat) continue;
       var basis = signature(ctx, members, threat, P);
