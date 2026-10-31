@@ -1,0 +1,1 @@
+{"benchmark":"standard","ref":"claude/project-thread-jxet0c","seed":"pr698-ro","seeds":"60","battle_type":"us-defend","windows":"0+600","query_off":"tacticalController=new&strategicInterception=0&releasedOrder=0","query_on":"tacticalController=new&strategicInterception=0","origin_agent":"claude","purpose":"PR698 releasedOrder pair, controller on"}
