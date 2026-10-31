@@ -70,6 +70,12 @@ constant; `RETREAT_CASUALTY_FRAC` below is `squad-ai.js`'s fallback for a squad 
 
 ## Modules
 
+### SquadAI fire-cycle suppression
+
+- `pinBridge` (**on by default**; `?pinBridge=0` restores pre-bridge pin lengths) — when a real area-fire burst discharges, enemies inside the already-established suppression spread remain pinned through the shooter's `fireCooldown + PIN_TAIL` (0.6 s); when a real aimed burst discharges, its living target is pinned through the same window. Only `SquadAI.pin` writes `suppressedUntil` and the soldier's fortitude still scales duration. Existing hit/wound, near-pass suppression, targeting and individual motion remain with their original owners. The old short area-fire hold and old suppressive-round behavior remain with `pinBridge=0`.
+- `PIN_TAIL = 0.6` seconds — brief buffer beyond the attacker's next scheduled trigger opportunity; this is tuning from the former #641 experiment, not a doctrinal value. `pinNerve=0` independently disables the psychological stress cap; both flags can be A/B tested independently.
+
+
 ### 16-squad-plan-stability.js
 - `ASSAULT_LEASE = 26` — assault lease duration (s)
 - `REGROUP_ENTER = 1.35` — regroup enter threshold
@@ -102,6 +108,7 @@ constant; `RETREAT_CASUALTY_FRAC` below is `squad-ai.js`'s fallback for a squad 
 ### 17-soldier-mind.js
 
 - `TAU = 22` — stress decay time constant (s)
+- Pin Nerve cap (default **on**, `?pinNerve=0` restores uncapped legacy stress) — limits one uninterrupted pin's **suppression-derived stress** to `SUPPRESSED_RATE (0.05/s) × 1.25 × SquadAI.SUPPRESSION_TIME` (1.625 s at the current 1.3-s constant), adjusted by nerve. Does **not** shorten `suppressedUntil`, mute incoming-round/wound/casualty stress, or enable the legacy `?pinBridge` behavior. New pin after the status actually clears resets the budget; see `docs/plans/COVERING_FIRE_CONTINUITY_AND_PIN_STRESS.md`.
 - `CASUALTY_RANGE = 30` — casualty observation range (m)
 - `LEADER_CALM = 0.65` — leader calming effect
 - `REACT_GAIN = 0.6` — reaction time gain (up to 1.6x)
