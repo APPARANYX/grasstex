@@ -14,7 +14,7 @@ function test(name, fn) {
   n++;
   console.log('PASS ' + name);
 }
-function boot(withContract = true) {
+function boot(withContract = true, search = '') {
   const root = { GTLog() {} };
   root.window = root;
   if (withContract)
@@ -45,8 +45,9 @@ function boot(withContract = true) {
   };
   new Function(
     'window',
+    'location',
     fs.readFileSync(path.join(REPO, 'battle/modules/13a-tactical-controller.js'), 'utf8')
-  )(root);
+  )(root, { search });
   return { root, TC: root.BattleTacticalController, ends, cleared, suppressed, released };
 }
 function squad(id, faction, ids) {
@@ -381,6 +382,35 @@ test('mission supersession and roster changes cancel the old actions before the 
   w.TC.dispatch(s, s.us, 'executeMission');
   assert.ok(P.log.includes('release:' + b + ':roster-changed'));
   assert.equal(P.last().token.rosterRevision, 1);
+});
+
+const CLAIM = { stationId: 'st-1', threat: { x: 5, z: 9 } };
+test('a station claim survives a squad-mate dying, and later requests are not stale', () => {
+  const w = boot(),
+    { s, P } = owned(w);
+  w.TC.dispatch(s, s.us, 'stationSelection');
+  const a = P.last().request('station.claim', 1, CLAIM).actionId;
+  s.us.members[2].dead = true;
+  w.TC.dispatch(s, s.us, 'stationSelection');
+  assert.ok(!P.log.some(e => e.includes(a + ':roster-changed')), 'the living man keeps his station');
+  assert.equal(P.last().token.rosterRevision, 1);
+  assert.equal(P.last().request('station.claim', 2, { stationId: 'st-2', threat: CLAIM.threat }).ok, true);
+});
+test('a station claim ends when its own man dies; ?stationKeep=0 cancels it with the rest', () => {
+  const w = boot(),
+    { s, P } = owned(w);
+  w.TC.dispatch(s, s.us, 'stationSelection');
+  const a = P.last().request('station.claim', 3, CLAIM).actionId;
+  s.us.members[2].dead = true;
+  w.TC.dispatch(s, s.us, 'stationSelection');
+  assert.ok(P.log.includes('release:' + a + ':roster-changed'));
+  const o = boot(true, '?stationKeep=0'),
+    off = owned(o);
+  o.TC.dispatch(off.s, off.s.us, 'stationSelection');
+  const b = off.P.last().request('station.claim', 1, CLAIM).actionId;
+  off.s.us.members[2].dead = true;
+  o.TC.dispatch(off.s, off.s.us, 'stationSelection');
+  assert.ok(off.P.log.includes('release:' + b + ':roster-changed'));
 });
 
 test('an owner adapter cannot switch controllers while accepting; the action stays with its issuer', () => {

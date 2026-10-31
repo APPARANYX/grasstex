@@ -424,6 +424,26 @@
     }
     return false;
   }
+  /* A firing station is a claim on a building window owned by module 20; a death or detachment
+     elsewhere in the squad is no reason to drop a living man's claim and make him re-route. The
+     station action survives a roster change while its man is alive and attached (?stationKeep=0
+     cancels it with the rest, as before) and is re-stamped with the new roster revision so the
+     contract's same-squad token comparison still holds for later requests. */
+  var STATION_KEEP = !(typeof location !== 'undefined' && /[?&]stationKeep=0\b/.test(location.search || ''));
+  function keepStationAcrossRoster(sq, revision) {
+    if (!STATION_KEEP) return null;
+    var a = members(sq);
+    return function (action) {
+      var id = action.request.actorId;
+      if (action.request.capability !== 'station.claim' || action.cancelReason) return true;
+      for (var i = 0; i < a.length; i++)
+        if (a[i] && !a[i].dead && String(a[i].id) === id) {
+          action.request = Object.freeze(Object.assign({}, action.request, { rosterRevision: revision }));
+          return false;
+        }
+      return true;
+    };
+  }
   /* Run the provider's policy for this entry point. Returns false (legacy runs) unless a
      replacement owns the squad. A provider fault never reactivates legacy for the same tick. */
   function dispatch(sim, sq, point, facts) {
@@ -441,7 +461,8 @@
       rec.missionVersion = mission;
     }
     var observedRoster = rosterRevision(sq, rec, at);
-    if (observedRoster !== before) cancelAll(sim, sq, rec, 'roster-changed');
+    if (observedRoster !== before)
+      cancelAll(sim, sq, rec, 'roster-changed', keepStationAcrossRoster(sq, observedRoster));
     rec.handledRosterRevision = observedRoster;
     var snapshot = token(sim, sq, rec, at),
       ctx = {
