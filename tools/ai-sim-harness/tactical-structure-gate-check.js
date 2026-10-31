@@ -17,13 +17,13 @@ function test(name, fn) {
   n++;
   console.log('PASS ' + name);
 }
-function world(extra) {
+function world(extra, chain) {
   H.resetIds();
   const r = H.bootstrap({
       modules: false,
       search:
         '?coa=0&fireControl=0&slStress=0&scoutsForward=0&stressAct=0&commandMovement=0&commandRelay=0&tacticalController=new' +
-        CHAIN +
+        (chain || CHAIN) +
         (extra || '')
     }),
     systems = {};
@@ -168,6 +168,29 @@ test('with the entry gate on and structure orders off the chain still updates, s
   approach(w);
   stepFor(w, 1);
   assert.ok(w.q._localTask, 'the chain ran for the controlled squad');
+});
+
+test('after a firefight on the building leg the lease is re-granted through the same path, not left to time out', () => {
+  const w = world(
+    '',
+    CHAIN + '&localSurvey=1&localWatch=1&localContactResume=1&localContinuity=1&localStructureOrders=1'
+  );
+  approach(w);
+  stepFor(w, 1);
+  const L = w.r.BattleLeases;
+  assert.ok(L.get(w.q, 'route-transition'), 'the leg has its lease');
+  w.q.inContact = true;
+  step(w);
+  assert.equal(L.get(w.q, 'route-transition'), null, 'contact ends it, as for a legacy squad');
+  assert.ok(w.q._missionExecution.contactRouteResume, 'and records the resume');
+  step(w);
+  assert.equal(L.get(w.q, 'route-transition'), null, 'no lease while the firefight lasts');
+  w.q.inContact = false;
+  step(w);
+  const lease = L.get(w.q, 'route-transition');
+  assert.ok(lease && /after contact/.test(lease.reason || lease.why || JSON.stringify(lease)), 'resumed');
+  assert.equal(lease.data.leg, 1);
+  assert.equal(w.q._missionExecution.contactRouteResume, null);
 });
 
 console.log(n + ' controller structure checks passed');

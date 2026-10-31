@@ -127,7 +127,7 @@
     }
     /* The route-transition lease for the leg now being marched: the one record the structure chain reads
        for its entry evidence. Squad Leader execution grants it on every leg change, controlled or not. */
-    function grantRouteLeg(sim, sq, from, idx, wp, pos, arrivalRadius) {
+    function grantRouteLeg(sim, sq, from, idx, wp, pos, arrivalRadius, why) {
       if (!ROUTE_TRANSITION_ON) return;
       var t = sim.time,
         budget = (root.BattleCommanderAI && +root.BattleCommanderAI.strategicStallReplan) || Infinity,
@@ -138,7 +138,7 @@
         'squad-leader',
         t,
         t + budget,
-        'leg ' + from + ' -> ' + idx,
+        why || 'leg ' + from + ' -> ' + idx,
         'arrival, contact, blocked, superseded, retreat or no progress',
         {
           from: from,
@@ -155,6 +155,50 @@
           noProgressBudget: budget
         }
       );
+    }
+    /* Contact may end the original structure route lease while the General's brief and route index remain
+       unchanged. Reissue through THIS Mission Execution owner only after the existing Engagement plan is
+       closed, for a legacy squad and for a controlled one alike. This grants no automatic doorway/clearance
+       credit: local evidence must be gathered again on the new lease and can legitimately fail closed. */
+    function resumeContactLeg(sim, sq, m, ex, idx, wp, pos, arrivalRadius) {
+      var pending = ex && ex.contactRouteResume,
+        t = sim.time;
+      if (!pending || !contactResumeOn()) return;
+      var N = root.BattleNavigation,
+        stale =
+          !m ||
+          m.status !== 'executing' ||
+          pending.missionVersion !== missionVersion(sq) ||
+          pending.leg !== idx ||
+          !pending.target ||
+          pending.target.x !== wp.x ||
+          pending.target.z !== wp.z ||
+          !N ||
+          pending.navigationVersion !== N.version ||
+          !isFinite(pending.interruptedAt) ||
+          t < pending.interruptedAt ||
+          !entryGate(sim, sq, wp);
+      if (stale || L.get(sq, 'route-transition')) ex.contactRouteResume = null;
+      else if (!sq.inContact && !L.get(sq, 'regroup') && !L.get(sq, 'recon')) {
+        grantRouteLeg(
+          sim,
+          sq,
+          idx - 1,
+          idx,
+          wp,
+          pos,
+          arrivalRadius,
+          'resuming structure leg ' + idx + ' after contact'
+        );
+        telemetry(sim, 'decision-route-transition-resume', {
+          faction: sq.faction,
+          squad: sq.id,
+          missionVersion: missionVersion(sq),
+          leg: idx,
+          interruptedAt: pending.interruptedAt
+        });
+        ex.contactRouteResume = null;
+      }
     }
     function observeRouteTransition(sim, sq) {
       if (!ROUTE_TRANSITION_ON) return;
@@ -404,6 +448,8 @@
           if (leg.index > fromLeg && pos)
             grantRouteLeg(sim, sq, fromLeg, leg.index, leg.point, pos, +c.routeArrivalRadius || 8);
         }
+        if (leg && MP.structure && LPC && LPC.structuresOn && pos)
+          resumeContactLeg(sim, sq, m, ex, leg.index, leg.point, pos, +c.routeArrivalRadius || 8);
         if (leg && !reconHeld(sim, sq, m, leg.point, leg.final, pos, c)) {
           var started = plain && reconStart(sim, sq, m, leg.point, leg.final, pos, c);
           if (
@@ -534,59 +580,7 @@
          Execution owner only after the existing Engagement plan is closed.
          This grants no automatic doorway/clearance credit: local evidence must
          be gathered again on the new lease and can legitimately fail closed. */
-      var pending = ex && ex.contactRouteResume;
-      if (pending && contactResumeOn()) {
-        var N = root.BattleNavigation,
-          stale =
-            !m ||
-            m.status !== 'executing' ||
-            pending.missionVersion !== missionVersion(sq) ||
-            pending.leg !== idx ||
-            !pending.target ||
-            pending.target.x !== wp.x ||
-            pending.target.z !== wp.z ||
-            !N ||
-            pending.navigationVersion !== N.version ||
-            !isFinite(pending.interruptedAt) ||
-            t < pending.interruptedAt ||
-            !entryGate(sim, sq, wp);
-        if (stale || L.get(sq, 'route-transition')) ex.contactRouteResume = null;
-        else if (!sq.inContact && !L.get(sq, 'regroup') && !L.get(sq, 'recon')) {
-          var budget = (root.BattleCommanderAI && +root.BattleCommanderAI.strategicStallReplan) || Infinity,
-            remaining = dist(pos, wp);
-          L.grant(
-            sq,
-            'route-transition',
-            'squad-leader',
-            t,
-            t + budget,
-            'resuming structure leg ' + idx + ' after contact',
-            'arrival, contact, blocked, superseded, retreat or no progress',
-            {
-              from: idx - 1,
-              leg: idx,
-              missionVersion: missionVersion(sq),
-              target: copy(wp),
-              arrivalRadius: routeArrival(idx, axisEnd, town, wp, c, limit),
-              startDistance: remaining,
-              distance: remaining,
-              bestDistance: remaining,
-              traveled: 0,
-              lastPosition: copy(pos),
-              lastProgressAt: t,
-              noProgressBudget: budget
-            }
-          );
-          telemetry(sim, 'decision-route-transition-resume', {
-            faction: sq.faction,
-            squad: sq.id,
-            missionVersion: missionVersion(sq),
-            leg: idx,
-            interruptedAt: pending.interruptedAt
-          });
-          ex.contactRouteResume = null;
-        }
-      }
+      resumeContactLeg(sim, sq, m, ex, idx, wp, pos, routeArrival(idx, axisEnd, town, wp, c, limit));
       var arrival = routeArrival(idx, axisEnd, town, wp, c, limit);
       if (idx < last && dist(pos, wp) < arrival && (!entryGate(sim, sq, wp) || entryAccepted(sim, sq, wp))) {
         var local = ctx.localPlan && ctx.localPlan();
