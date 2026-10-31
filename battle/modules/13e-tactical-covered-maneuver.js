@@ -3,7 +3,12 @@
    Reception adopts, and the resolver alone moves. No fire permission or world-state writer. */
 (function (root) {
   'use strict';
-  var states = new WeakMap(),
+  /* ?noHopStall=0 restores the old rule: a refusal stands until the squad's basis changes, unreported. */
+  var STALL_ON = !/[?&]noHopStall=0(?:&|#|$)/i.test(
+      typeof location !== 'undefined' ? location.search || '' : ''
+    ),
+    STALL_RETRY = 5,
+    states = new WeakMap(),
     teams = ['alpha', 'bravo', 'charlie'],
     MAX_PARALLEL_MOVERS = 3;
   function men(sq) {
@@ -764,15 +769,25 @@
     if (!eligible) {
       st.reason = back ? 'ordinary-retreat' : 'no-authorized-contact';
       st.blocked = null;
+      st.stall = null;
       return;
     }
-    if (st.blocked === b) return;
+    /* A squad in contact with no hop in any team is a stall, not a settled answer: it is reported on the
+       summary (the diagnostics export reads it) and the search is repeated every STALL_RETRY seconds of sim
+       time, since a standing squad changes none of the basis it was refused on. */
+    if (st.blocked === b && !(STALL_ON && st.stall && ctx.sim.time >= st.stall.nextTry)) return;
     var selected = choose(ctx, st, rs);
     if (!selected) {
       st.blocked = b;
       st.reason = 'no-directional-covered-team';
+      if (STALL_ON) {
+        if (!st.stall) st.stall = { since: ctx.sim.time, reason: st.reason, retries: 0, nextTry: 0 };
+        st.stall.retries++;
+        st.stall.nextTry = ctx.sim.time + STALL_RETRY;
+      }
       return;
     }
+    st.stall = null;
     selected.plan.forEach(function (p) {
       root.BattleTacticalMarchProvider.releaseMan(ctx, p.man);
       root.BattleTacticalContactSkills.release(ctx, p.man);
@@ -867,6 +882,9 @@
         ? {
             phase: st.phase,
             reason: st.reason,
+            stall: st.stall
+              ? { since: st.stall.since, reason: st.stall.reason, retries: st.stall.retries }
+              : null,
             direction: st.direction,
             team: st.team,
             completed: st.completed,

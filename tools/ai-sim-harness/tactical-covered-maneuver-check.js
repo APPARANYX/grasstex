@@ -611,4 +611,46 @@ test('discharge evidence does not survive ammunition reset, weapon change or ano
   w.r.BattleAmmunition.initialize(s, w.b);
   assert.equal(w.r.BattleAmmunition.shotEvidence(s, w.b), null);
 });
+test('a squad in contact whose every team has no hop hops, or reports a stall; it never stands silent', () => {
+  // Seen on a real meeting seed (controller on, ge-2, 170-300 s, enemy 165-170 m): every team returned
+  // no-connected-progress-route, 13c stood down for unconfirmed contact, 13d held fire at 0 of 7 ready,
+  // and nobody moved the squad or said so. One owner must act or report.
+  const w = world(150);
+  w.r.BattleTacticalContactRoute.pick = () => ({
+    point: null,
+    score: null,
+    exposure: 0,
+    stats: { total: 0, progressing: 0, safe: 0, rejected: { 'no-connected-progress-route': 1 } }
+  });
+  for (let i = 0; i < 45 / 0.15; i++) tick(w);
+  const m = w.M.summary(w.q);
+  const hopped = m.windowsCompleted > 0 || live(w, 'combat.bound').length > 0;
+  const stalled = !!(m.stall && isFinite(m.stall.since) && m.stall.reason);
+  assert.ok(
+    hopped || stalled,
+    'no hop and no stall report after 45 s in contact: ' +
+      JSON.stringify({ phase: m.phase, reason: m.reason })
+  );
+  clean(w);
+});
+test('a stalled no-hop squad searches again once a route exists, without its basis changing', () => {
+  const w = world(150),
+    real = w.r.BattleTacticalContactRoute.pick;
+  w.r.BattleTacticalContactRoute.pick = () => ({
+    point: null,
+    score: null,
+    exposure: 0,
+    stats: { total: 0, progressing: 0, safe: 0, rejected: { 'no-connected-progress-route': 1 } }
+  });
+  for (let i = 0; i < 8 / 0.15; i++) tick(w);
+  assert.ok(w.M.summary(w.q).stall, 'the refusal is reported as a stall');
+  w.r.BattleTacticalContactRoute.pick = real;
+  for (let i = 0; i < 20 / 0.15; i++) tick(w);
+  const m = w.M.summary(w.q);
+  assert.ok(
+    m.windowsStarted > 0 || m.stall === null,
+    'the retry found the route: ' + JSON.stringify(m.stall)
+  );
+  clean(w);
+});
 console.log(count + ' tactical covered maneuver checks passed');
