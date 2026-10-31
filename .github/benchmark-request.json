@@ -1,0 +1,1 @@
+{"benchmark":"probe-pack","ref":"claude/project-thread-jxet0c","seed":"pr698-pp","seeds":"20","map":"tactical","sim_seconds":"600","query_off":"tacticalController=new&strategicInterception=0&supportWait=0&releasedOrder=0","query_on":"tacticalController=new&strategicInterception=0","origin_agent":"claude","purpose":"PR698 probe pack"}
