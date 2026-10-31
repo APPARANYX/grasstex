@@ -1,0 +1,11 @@
+{
+ "benchmark": "standard",
+ "ref": "work/pin/rosterkeep-f3e1bfa2",
+ "seed": "controller-rk-20261031",
+ "seeds": 60,
+ "battle_type": "ge-defend",
+ "sim_seconds": 600,
+ "query_off": "strategicInterception=0&tacticalController=new&rosterKeep=0",
+ "query_on": "strategicInterception=0&tacticalController=new",
+ "purpose": "#662 rosterKeep flag pair (f3e1bfa2)"
+}
