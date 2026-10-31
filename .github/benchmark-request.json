@@ -1,0 +1,11 @@
+{
+ "benchmark": "standard",
+ "ref": "work/pin/final662-31f9d9e5",
+ "seed": "controller-fin-20261031",
+ "seeds": 60,
+ "battle_type": "meeting",
+ "sim_seconds": 600,
+ "query_off": "strategicInterception=0&tacticalController=new&rosterKeep=0&noHopStall=0",
+ "query_on": "strategicInterception=0&tacticalController=new",
+ "purpose": "#662 final head 31f9d9e5: rosterKeep + noHopStall pair"
+}
