@@ -319,6 +319,39 @@ test('a retreat phase alone also stands the provider down, as it does the resolv
   assert.equal(w.TC.summary(w.b).actions, 0);
 });
 
+test('a leg that ends inside a building waits for the structure chain to accept the entry, as Squad Leader execution does', () => {
+  const w = world();
+  let required = true,
+    accepted = false;
+  w.r.BattleSquadStability.localPlan = {
+    entryRequired: () => required,
+    entrySatisfied: () => accepted
+  };
+  w.systems['tactical-march-provider'].onBattleStart(w.b);
+  tick(w);
+  alive(w).forEach(s => place(s, LEGS[0]));
+  w.b.time += 0.5;
+  tick(w);
+  assert.equal(row(w).leg, 0, 'at the doorway leg without the chain accepting: no new leg');
+  accepted = true;
+  w.b.time += 0.5;
+  tick(w);
+  assert.equal(row(w).leg, 1, 'the chain accepted the entry: on to the next leg');
+  required = false;
+  accepted = false;
+});
+
+test('?controllerStructure=0 marches past a gated leg as before', () => {
+  const w = world('?stressAct=0&commandRelay=0&tacticalController=new&controllerStructure=0');
+  w.r.BattleSquadStability.localPlan = { entryRequired: () => true, entrySatisfied: () => false };
+  w.systems['tactical-march-provider'].onBattleStart(w.b);
+  tick(w);
+  alive(w).forEach(s => place(s, LEGS[0]));
+  w.b.time += 0.5;
+  tick(w);
+  assert.equal(row(w).leg, 1);
+});
+
 test('with the flag but no contract, the provider says so and legacy keeps the squad', () => {
   const w = world(),
     warnings = [],

@@ -14,6 +14,8 @@
   'use strict';
   var SEARCH = typeof location !== 'undefined' ? location.search || '' : '',
     ON = /[?&]tacticalController=new(?:&|#|$)/i.test(SEARCH),
+    /* ?controllerStructure=0: a leg inside a building no longer waits for the structure chain. */
+    STRUCTURE = !/[?&]controllerStructure=0(?:&|#|$)/i.test(SEARCH),
     ID = 'march';
   var squads = new WeakMap(),
     warned = false;
@@ -60,6 +62,19 @@
     return st;
   }
 
+  /* The structure security chain (local plan, 15n) is the one owner of "entered and accepted": a leg that
+     ends inside a building is not left until it says so, exactly as Squad Leader execution (15l) gates it.
+     Without the chain's flags it never requires an entry, so the march is unchanged. */
+  function entryPending(sim, sq, p) {
+    var LP = STRUCTURE && root.BattleSquadStability && root.BattleSquadStability.localPlan;
+    return !!(
+      LP &&
+      LP.entryRequired &&
+      LP.entryRequired(sim, sq, p) &&
+      !(LP.entrySatisfied && LP.entrySatisfied(sim, sq, p))
+    );
+  }
+
   /* executeMission: route progression. The squad moves to its next leg once its centre is within the
      leg radius; the last leg is where it holds. The brief's legs are the retained `sq.route`. */
   function executeMission(ctx) {
@@ -85,7 +100,12 @@
       here = centroid(men(sq)),
       r = legRadius(sim, sq);
     st.leg = Math.min(st.leg, last);
-    while (st.leg < last && dist(here, point(legs[st.leg])) <= r) st.leg++;
+    while (
+      st.leg < last &&
+      dist(here, point(legs[st.leg])) <= r &&
+      !entryPending(sim, sq, point(legs[st.leg]))
+    )
+      st.leg++;
     var target = point(legs[st.leg]);
     if (!st.target || dist(st.target, target) > 1e-6) {
       var from = st.leg > 0 ? point(legs[st.leg - 1]) : here;
