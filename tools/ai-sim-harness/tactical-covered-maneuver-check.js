@@ -366,6 +366,51 @@ test('a defensive staging arrival at B continues to its retained C through nativ
   assert.equal(w.q._macroMission.action, 'defend');
   clean(w);
 });
+test('a man at a prepared defence post is never a covered mover; his squadmates still hop', () => {
+  const w = world();
+  w.q._macroMission = {
+    version: 2,
+    action: 'defend',
+    intent: 'defend',
+    status: 'executing',
+    point: { x: 0, z: 0 },
+    objectiveId: 'captured'
+  };
+  w.q.commandPhase = 'defend';
+  w.r.BattleObjectiveSystem = { get: () => ({ def: { radius: 30 } }) };
+  const posted = new Set();
+  w.q.members.forEach((s, i) => {
+    if (i % 2 === 0) {
+      s._preparedDefensePost = { x: s.root.position.x, z: s.root.position.z };
+      posted.add(String(s.id));
+    }
+  });
+  const origins = new Map(w.q.members.map(s => [s, { x: s.root.position.x, z: s.root.position.z }]));
+  w.r.BattleCoverPositions.candidates = s =>
+    [6, 12].map(step => {
+      const origin = origins.get(s),
+        p = { x: origin.x, z: origin.z + step };
+      const slot = { ...p, id: 'retained:' + s.id + ':' + step, normalX: 0, normalZ: -1 };
+      return { ...p, slot, slotId: slot.id };
+    });
+  w.r.BattleTacticalContactRoute.pickDefense = (s, sim, reports, center, radius, team, retained) => {
+    const points = w.r.BattleCoverPositions.candidates(s),
+      cursor = retained ? retained.cursor : 0;
+    return {
+      point: { x: points[cursor].x, z: points[cursor].z },
+      waypoints: points,
+      reused: !!retained,
+      score: 1,
+      exposure: 0,
+      stats: { total: 2, progressing: 2, safe: 2, rejected: {} }
+    };
+  };
+  until(w, () => w.M.summary(w.q)?.retainedRoutes.length > 0, 60);
+  const routes = w.M.summary(w.q).retainedRoutes;
+  assert.ok(routes.length > 0, 'unposted men still hop');
+  routes.forEach(r => assert.ok(!posted.has(String(r.moverId)), 'no posted man is moved: ' + r.moverId));
+  clean(w);
+});
 test('one eligible native mover uses the singular Meso contract and reaches physical cover', () => {
   const w = world();
   const original = w.r.BattleTacticalContactRoute.pick;
@@ -565,5 +610,47 @@ test('discharge evidence does not survive ammunition reset, weapon change or ano
   s.weapon = weapon;
   w.r.BattleAmmunition.initialize(s, w.b);
   assert.equal(w.r.BattleAmmunition.shotEvidence(s, w.b), null);
+});
+test('a squad in contact whose every team has no hop hops, or reports a stall; it never stands silent', () => {
+  // Seen on a real meeting seed (controller on, ge-2, 170-300 s, enemy 165-170 m): every team returned
+  // no-connected-progress-route, 13c stood down for unconfirmed contact, 13d held fire at 0 of 7 ready,
+  // and nobody moved the squad or said so. One owner must act or report.
+  const w = world(150);
+  w.r.BattleTacticalContactRoute.pick = () => ({
+    point: null,
+    score: null,
+    exposure: 0,
+    stats: { total: 0, progressing: 0, safe: 0, rejected: { 'no-connected-progress-route': 1 } }
+  });
+  for (let i = 0; i < 45 / 0.15; i++) tick(w);
+  const m = w.M.summary(w.q);
+  const hopped = m.windowsCompleted > 0 || live(w, 'combat.bound').length > 0;
+  const stalled = !!(m.stall && isFinite(m.stall.since) && m.stall.reason);
+  assert.ok(
+    hopped || stalled,
+    'no hop and no stall report after 45 s in contact: ' +
+      JSON.stringify({ phase: m.phase, reason: m.reason })
+  );
+  clean(w);
+});
+test('a stalled no-hop squad searches again once a route exists, without its basis changing', () => {
+  const w = world(150),
+    real = w.r.BattleTacticalContactRoute.pick;
+  w.r.BattleTacticalContactRoute.pick = () => ({
+    point: null,
+    score: null,
+    exposure: 0,
+    stats: { total: 0, progressing: 0, safe: 0, rejected: { 'no-connected-progress-route': 1 } }
+  });
+  for (let i = 0; i < 8 / 0.15; i++) tick(w);
+  assert.ok(w.M.summary(w.q).stall, 'the refusal is reported as a stall');
+  w.r.BattleTacticalContactRoute.pick = real;
+  for (let i = 0; i < 20 / 0.15; i++) tick(w);
+  const m = w.M.summary(w.q);
+  assert.ok(
+    m.windowsStarted > 0 || m.stall === null,
+    'the retry found the route: ' + JSON.stringify(m.stall)
+  );
+  clean(w);
 });
 console.log(count + ' tactical covered maneuver checks passed');

@@ -248,6 +248,63 @@
       if (d > 1) return { x: dx / d, z: dz / d };
       return null;
     }
+    /* Recon is the Squad Leader's skill under any controller: these two steps run for a legacy squad
+       inside its route logic and for a controlled squad on the leg its provider is marching. */
+    function reconRadius(sim, m) {
+      var obj =
+        m && m.objectiveId && root.BattleObjectiveSystem
+          ? root.BattleObjectiveSystem.get(sim, m.objectiveId)
+          : null;
+      return +(obj && obj.def && obj.def.radius) || 30;
+    }
+    /* A live recon task is itself the mission hold. It never advances a route leg or silently changes
+       command phase while the scouts are out. A superseding macro brief invalidates it immediately.
+       But if the squad has arrived at the objective (inside capture radius), end the recon:
+       the scouts' job is done and the squad should transition to capture/defend. */
+    function reconHeld(sim, sq, m, wp, atLast, pos, c) {
+      if (!L.get(sq, 'recon')) return false;
+      if (!sq._reconTask || sq._reconTask.missionVersion !== missionVersion(sq))
+        endRecon(sq, sim, 'mission-change');
+      if (L.get(sq, 'recon') && atLast && !(sq._reconTask && sq._reconTask.defenderOrigin)) {
+        if (dist(pos, wp) < (+c.captureCommitRatio || 0.82) * reconRadius(sim, m))
+          endRecon(sq, sim, 'arrived at objective');
+      }
+      if (!L.get(sq, 'recon')) return false;
+      sq._missionHold = 'recon';
+      sq.objective = copy(wp);
+      return true;
+    }
+    /* Don't start a recon task when the squad is already at the objective (last leg and inside the
+       capture radius): the squad should transition to capture/defend, not send scouts. */
+    function reconStart(sim, sq, m, wp, atLast, pos, c) {
+      var recon = m && m.intent === 'screen' ? null : reconCandidate(sq, sim, wp);
+      if (recon && atLast && dist(pos, wp) < (+c.captureCommitRatio || 0.82) * reconRadius(sim, m))
+        recon = null;
+      if (!recon || !startRecon(sq, sim, recon)) return false;
+      sq._missionHold = 'recon';
+      sq.objective = copy(wp);
+      return true;
+    }
+    /* Defenders at their objective scout toward the enemy before settling: the same Squad Leader skill
+       for a legacy squad (inside its route logic) and for a controlled one (on its final leg). */
+    function defenderRecon(sim, sq, m, wp, pos) {
+      if (!(m.intent === 'defend' && !sq.inContact && !L.get(sq, 'recon'))) return false;
+      /* #393: anchor the scouting decision on the owned objective waypoint, not the whole-squad
+         centroid — scouts walking out move the centroid and must not manufacture a new strategic
+         task. The control arm (?reconLedger=0) restores the centroid-derived base. */
+      var reconBase = RECON_LEDGER_ON ? wp : pos,
+        enemyDir = defendScoutDirection(sim, sq, reconBase);
+      if (!enemyDir) return false;
+      /* Match the 110 m objective-approach gate so defender recon can use the full
+         80 m crest look-ahead while scouts physically advance up to 50 m. */
+      var scoutGoal = { x: reconBase.x + enemyDir.x * 110, z: reconBase.z + enemyDir.z * 110 },
+        recon = reconCandidate(sq, sim, scoutGoal, reconBase);
+      if (recon) recon.defenderOrigin = true;
+      if (!recon || !startRecon(sq, sim, recon)) return false;
+      sq._missionHold = 'recon';
+      sq.objective = copy(wp);
+      return true;
+    }
     /* Squad Leader execution of the General's brief: the only runtime writer of phase, legs and the squad
    objective point. Without a brief (Macro OFF) the Squad Leader walks the assigned approach route. */
     function executeMission(sim, sq, town) {
@@ -281,6 +338,13 @@
             throw new Error('Squad Leader cannot accept a brief without its Macro lifecycle owner');
           root.BattleCommanderAI.acceptMission(sim, sq, false);
         }
+        /* A replacement controller does not run phase transitions, so a squad that was holding (garrison,
+           capture, defend) would stay in that phase and its provider would yield to it for good. A new
+           brief ends the hold: the squad marches it, as a legacy squad would leave the phase. */
+        var QS = root.BattleSquadStability,
+          TCN = root.BattleTacticalController;
+        if (m && TCN && TCN.controls(sim, sq) && QS && QS.defensivePhase && QS.defensivePhase(sq))
+          setPhase(sim, sq, 'approach', 'new brief ends the hold');
       }
       /* Macro acceptance above and transport-arrival adoption stay here; route progression, phase,
          recon and hold decisions belong to a replacement controller when one owns the squad. */
@@ -290,6 +354,22 @@
         /* Not a mission hold: the replacement executes the brief. Loop Watch keeps judging its progress,
            and the controller counts these dispatches in its summary. */
         TC.dispatch(sim, sq, 'executeMission');
+        var MP = root.BattleTacticalMarchProvider,
+          leg = MP && MP.leg ? MP.leg(sq) : null,
+          plain = !m || !/^(screen|intercept|reserve|hold)$/.test(m.intent || '');
+        if (leg && !reconHeld(sim, sq, m, leg.point, leg.final, pos, c)) {
+          var started = plain && reconStart(sim, sq, m, leg.point, leg.final, pos, c);
+          if (
+            !started &&
+            leg.final &&
+            m &&
+            m.objectiveId &&
+            m.action !== 'hold' &&
+            m.action !== 'regroup' &&
+            m.action !== 'support'
+          )
+            defenderRecon(sim, sq, m, leg.point, pos);
+        }
         return;
       }
       /* A firefight under this brief is a commitment: contact never advances legs or rewrites phase. */
@@ -317,24 +397,7 @@
        command phase while the scouts are out. A superseding macro brief invalidates it immediately.
        But if the squad has arrived at the objective (inside capture radius), end the recon —
        the scouts' job is done and the squad should transition to capture/defend. */
-      if (L.get(sq, 'recon')) {
-        if (!sq._reconTask || sq._reconTask.missionVersion !== missionVersion(sq))
-          endRecon(sq, sim, 'mission-change');
-        if (L.get(sq, 'recon') && idx === last && !(sq._reconTask && sq._reconTask.defenderOrigin)) {
-          var liveReconObj =
-              m && m.objectiveId && root.BattleObjectiveSystem
-                ? root.BattleObjectiveSystem.get(sim, m.objectiveId)
-                : null,
-            liveReconRadius = +(liveReconObj && liveReconObj.def && liveReconObj.def.radius) || 30;
-          if (dist(pos, wp) < (+c.captureCommitRatio || 0.82) * liveReconRadius)
-            endRecon(sq, sim, 'arrived at objective');
-        }
-        if (L.get(sq, 'recon')) {
-          sq._missionHold = 'recon';
-          sq.objective = copy(wp);
-          return;
-        }
-      }
+      if (reconHeld(sim, sq, m, wp, idx === last, pos, c)) return;
       if (m && m.intent === 'screen' && idx === last) {
         /* The second truck's Squad Leader establishes an observation screen
            beyond the publicly secured objective. No invented enemy contact,
@@ -415,25 +478,7 @@
         sq.objective = copy(wp);
         return;
       }
-      var recon = m && m.intent === 'screen' ? null : reconCandidate(sq, sim, wp);
-      /* Don't start a recon task when the squad is already at the objective (idx === last and
-       inside the capture radius). The recon candidate looks at distance from the goal, but
-       when the squad is ON the goal, recon should not fire — the squad should transition
-       to capture/defend, not send scouts. This was masked when reconCandidate required
-       callouts (C gate); removing that gate exposed it. */
-      if (recon && idx === last) {
-        var reconObj =
-            m && m.objectiveId && root.BattleObjectiveSystem
-              ? root.BattleObjectiveSystem.get(sim, m.objectiveId)
-              : null,
-          reconRadius = +(reconObj && reconObj.def && reconObj.def.radius) || 30;
-        if (dist(pos, wp) < (+c.captureCommitRatio || 0.82) * reconRadius) recon = null;
-      }
-      if (recon && startRecon(sq, sim, recon)) {
-        sq._missionHold = 'recon';
-        sq.objective = copy(wp);
-        return;
-      }
+      if (reconStart(sim, sq, m, wp, idx === last, pos, c)) return;
       var axisEnd = m ? (m.route || []).length - 1 : last,
         limit = +(leaderAlive(sq) ? c.cohesionRadius : c.captainlessCohesion) || 34,
         urban = inTown(town, wp);
@@ -570,28 +615,7 @@
          likely approach direction instead. This is what breaks the two-defenders-
          on-opposite-sides-of-a-hill stalemate: scouts go over the crest and
          acquire the enemy, triggering contact. */
-        if (m.intent === 'defend' && !sq.inContact && !L.get(sq, 'recon')) {
-          /* #393: anchor the scouting decision on the owned objective waypoint, not the whole-squad
-             centroid — scouts walking out move the centroid and must not manufacture a new strategic
-             task. The control arm (?reconLedger=0) restores the centroid-derived base. */
-          var reconBase = RECON_LEDGER_ON ? wp : pos,
-            enemyDir = defendScoutDirection(sim, sq, reconBase);
-          if (enemyDir) {
-            /* Match the 110 m objective-approach gate so defender recon can use the full
-             80 m crest look-ahead while scouts physically advance up to 50 m. */
-            var scoutGoal = {
-                x: reconBase.x + enemyDir.x * 110,
-                z: reconBase.z + enemyDir.z * 110
-              },
-              defendRecon = reconCandidate(sq, sim, scoutGoal, reconBase);
-            if (defendRecon) defendRecon.defenderOrigin = true;
-            if (defendRecon && startRecon(sq, sim, defendRecon)) {
-              sq._missionHold = 'recon';
-              sq.objective = copy(wp);
-              return;
-            }
-          }
-        }
+        if (defenderRecon(sim, sq, m, wp, pos)) return;
         setPhase(sim, sq, objectivePhase(sim, sq, m, c, pos), 'mission ' + m.objectiveId);
         sq.objective = copy(wp);
         return;

@@ -1627,10 +1627,12 @@
   /* A doctrine hold/support/regroup is a bounded commitment, not a new objective. When the Squad Leader's
    plan for it ends (lease or contact closes) the Squad Leader reports back once instead of the General
    re-evaluating doctrine on a timer. */
-  var REVIEW_ACTIONS = { hold: 1, support: 1, regroup: 1 };
+  var REVIEW_ACTIONS = { hold: 1, support: 1, regroup: 1 },
+    /* The covered maneuver found no hop for a bounded time (13e): an assault squad may then be re-tasked too. */
+    NO_HOP_WHY = 'stall-released:no-hop';
   function requestReview(sim, sq, why) {
     var m = sq && sq._macroMission;
-    if (!m || !REVIEW_ACTIONS[m.action]) return;
+    if (!m || !(REVIEW_ACTIONS[m.action] || (m.action === 'assault' && why === NO_HOP_WHY))) return;
     var r = sq._macroMissionRequest;
     if (r && r.missionVersion === m.version) return;
     sq._macroMissionRequest = {
@@ -2328,7 +2330,7 @@
           return 'assault';
         },
     executeMission = _me ? _me.executeMission : function () {};
-  function advanceSquadAnchor(sq, battle) {
+  function advanceSquadAnchor(sq, battle, goalOverride) {
     var anchor = sq.orderAnchor || publishAnchor(sq, sq.rally);
     if (sq.state === 'retreat') {
       if (root.SquadAI.isExtractionToHome(sq)) {
@@ -2356,7 +2358,7 @@
     if (L.get(sq, 'recon')) return;
     var x = anchor.x,
       z = anchor.z,
-      mission = sq.objective || sq.home,
+      mission = goalOverride || sq.objective || sq.home,
       goalChanged = !sq._orderGoal || dist(mission, sq._orderGoal) > 3,
       /* Clearing heads for the last contact; its point moves with what is heard, so it never forces a stride. */
       goal = sq.clearContact || mission;
@@ -2526,6 +2528,17 @@
     noteSafePoint(sq, battle);
     fireAndMovement(sq, battle);
   }
+  /* The Squad Leader skills a replacement controller reuses rather than replaces. Each is a lease,
+     so at most one owns the squad's movement at a time. The provider asks this and also yields on any defensive phase (a covered bound is then the sole mover, see 13e). */
+  function retainedSkill(sq) {
+    return L.get(sq, 'recon')
+      ? 'recon'
+      : L.get(sq, 'regroup')
+        ? 'regroup'
+        : DEFENSIVE[sq.commandPhase] && sq.state !== 'retreat' && !L.get(sq, 'bound')
+          ? 'defense'
+          : null;
+  }
   /* The Squad Leader is SquadAI's squadCommand owner: status, fire and movement, anchor, fireteam slots. */
   root.SquadAI.extend('squadCommand', 'squad-leader', function (sq, battle) {
     updateSquadState(sq, battle);
@@ -2535,7 +2548,16 @@
     var TC = root.BattleTacticalController;
     if (TC && TC.dispatch(battle, sq, 'squadCommand')) {
       carryControllerMoves(sq, battle);
-      return;
+      /* Recon and regroup are retained Squad Leader skills: while either lease holds, the provider
+         has stood down and this skill's own fireteam orders are the squad's only movement. */
+      if (!retainedSkill(sq)) {
+        /* The march is paced by the Squad Leader's own anchor stride (advanceSquadAnchor), as on any
+           legacy march: men follow an anchor that waits for the squad, not the far end of the leg. */
+        var MP = root.BattleTacticalMarchProvider,
+          leg = MP && MP.leg ? MP.leg(sq) : null;
+        if (leg) advanceSquadAnchor(sq, battle, leg.point);
+        return;
+      }
     }
     advanceSquadAnchor(sq, battle);
     updateFireteams(sq, battle);
@@ -2649,9 +2671,10 @@
         if (legacy) {
           if (_lp && _lp.on) _lp.update(sim, q);
           if (_postures && _postures.on) _postures.update(sim, q);
-          updateCohesion(sim, q);
-          if (LEASE_CONFLICTS_ON || (_lp && _lp.on)) resolveLeaseConflicts(sim, q);
         }
+        /* Cohesion review (regroup) is a retained skill under any controller. */
+        updateCohesion(sim, q);
+        if (legacy && (LEASE_CONFLICTS_ON || (_lp && _lp.on))) resolveLeaseConflicts(sim, q);
         executeMission(sim, q, town);
         if (legacy) updatePlan(sim, q);
         L.prune(q, sim.time);
@@ -2670,6 +2693,14 @@
   root.BattleSquadStability = {
     version: '1.9-m3c-leaderless-intent',
     /* The owner entry for a controller's personal movement order (13b); see controllerMove above. */
+    /* The Squad Leader asks the General for a new task (hold, support and regroup missions only). */
+    requestReview: requestReview,
+    /* Recon, regroup or a defensive phase (prepared posts, hold posts), when one of these retained skills holds the squad; a provider yields to it. */
+    retainedSkill: retainedSkill,
+    /* A defensive phase: its men hold prepared and hold posts (15h), which a provider's movers must not override. */
+    defensivePhase: function (sq) {
+      return !!DEFENSIVE[sq.commandPhase] && sq.state !== 'retreat';
+    },
     /* Meso's formation layout as a pure function (15g slotsAt); a replacement controller reuses it. */
     formationSlots: function (sq, anchor, forward, formation) {
       return _fm && _fm.slotsAt ? _fm.slotsAt(sq, anchor, forward, formation) : [];
@@ -2700,6 +2731,7 @@
       coa: COA_TUNING,
       fireControl: FIRE_CONTROL_TUNING,
       lead: LEAD_TUNING,
+      boundCycle: BOUND_CYCLE,
       retreatAnchor: {
         lease: RETREAT_ANCHOR_LEASE,
         arrive: RETREAT_ANCHOR_ARRIVE,
