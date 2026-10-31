@@ -899,6 +899,10 @@
       runtimeDiagnostics: diagnosticFields(sim),
       timeline:
         root.BattleAITimeline && root.BattleAITimeline.snapshot ? root.BattleAITimeline.snapshot(sim) : null,
+      coveredManeuver:
+        root.BattleTacticalCoveredManeuver && root.BattleTacticalCoveredManeuver.telemetry
+          ? safePlain(root.BattleTacticalCoveredManeuver.telemetry(sim), 5)
+          : null,
       coordinationHealth: ai.coordinationHealth,
       diagnosticMetrics: ai.diagnosticMetrics,
       movementResolver: ai.movementResolver,

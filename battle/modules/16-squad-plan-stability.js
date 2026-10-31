@@ -1627,10 +1627,12 @@
   /* A doctrine hold/support/regroup is a bounded commitment, not a new objective. When the Squad Leader's
    plan for it ends (lease or contact closes) the Squad Leader reports back once instead of the General
    re-evaluating doctrine on a timer. */
-  var REVIEW_ACTIONS = { hold: 1, support: 1, regroup: 1 };
+  var REVIEW_ACTIONS = { hold: 1, support: 1, regroup: 1 },
+    /* The covered maneuver found no hop for a bounded time (13e): an assault squad may then be re-tasked too. */
+    NO_HOP_WHY = 'stall-released:no-hop';
   function requestReview(sim, sq, why) {
     var m = sq && sq._macroMission;
-    if (!m || !REVIEW_ACTIONS[m.action]) return;
+    if (!m || !(REVIEW_ACTIONS[m.action] || (m.action === 'assault' && why === NO_HOP_WHY))) return;
     var r = sq._macroMissionRequest;
     if (r && r.missionVersion === m.version) return;
     sq._macroMissionRequest = {
@@ -2695,6 +2697,8 @@
   root.BattleSquadStability = {
     version: '1.9-m3c-leaderless-intent',
     /* The owner entry for a controller's personal movement order (13b); see controllerMove above. */
+    /* The Squad Leader asks the General for a new task (hold, support and regroup missions only). */
+    requestReview: requestReview,
     /* Recon, regroup or a defensive phase (prepared posts, hold posts), when one of these retained skills holds the squad; a provider yields to it. */
     retainedSkill: retainedSkill,
     /* A defensive phase: its men hold prepared and hold posts (15h), which a provider's movers must not override. */
@@ -2731,6 +2735,7 @@
       coa: COA_TUNING,
       fireControl: FIRE_CONTROL_TUNING,
       lead: LEAD_TUNING,
+      boundCycle: BOUND_CYCLE,
       retreatAnchor: {
         lease: RETREAT_ANCHOR_LEASE,
         arrive: RETREAT_ANCHOR_ARRIVE,
