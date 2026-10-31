@@ -3,7 +3,11 @@
    No legacy updateFireControl/assignSuppressors/decide call, authoritative write or new clock. */
 (function (root) {
   'use strict';
-  var states = new WeakMap(),
+  /* A re-sighting this soon after the squad last saw the enemy resumes OPEN fire. The squad's contact
+     memory (12 s) already ends the contact; the 20 s covers the gaps measured in battle (every
+     re-contact came within 20 s of the last sighting) and no longer. */
+  var RESUME_WINDOW = 20,
+    states = new WeakMap(),
     /* ?contactFireResume=0 restores the old reset: any gap in the squad's contact drops its fire discipline. */
     RESUME = !(
       typeof location !== 'undefined' && /[?&]contactFireResume=0(?:&|#|$)/i.test(location.search || '')
@@ -184,14 +188,17 @@
       st.grenadier = null;
       st.reason = 'contact-clear';
       /* A gap in sightings is not a new engagement: the discipline the squad reached is kept, and a
-         re-sighting inside the squad's own contact memory resumes it (below) instead of restarting HOLD. */
-      if (st.clearedAt == null) st.clearedAt = sim.time;
+         re-sighting inside RESUME_WINDOW of the last sighting resumes OPEN (below) instead of restarting HOLD. */
+      st.cleared = true;
       reconcile(ctx, st);
       return;
     }
     st.active = true;
-    if (st.clearedAt != null && (!RESUME || sim.time - st.clearedAt > A.CONTACT_MEMORY)) st.discipline = null;
-    st.clearedAt = null;
+    /* Only OPEN resumes: a HOLD or PRECISION preparation that never finished starts again. */
+    if (st.cleared && (!RESUME || st.discipline !== 'open' || !(sim.time - st.sightedAt <= RESUME_WINDOW)))
+      st.discipline = null;
+    st.cleared = false;
+    if (threat) st.sightedAt = sim.time;
     if (st.startedAt === null) st.startedAt = sim.time;
     var men = members(sq),
       T = Q.tuning.fireControl,

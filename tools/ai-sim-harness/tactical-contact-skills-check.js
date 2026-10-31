@@ -621,14 +621,17 @@ test('contact decisions have no authoritative writes, new timers, random draws o
     /setTimeout|setInterval|Math\.random|\.updateFireControl\(|\.assignSuppressors\(|\.decide\(/
   );
 });
-test('a gap in sightings does not restart HOLD; the squad resumes the discipline it reached', () => {
-  const run = flags => {
+test('a short gap in sightings resumes OPEN; a long gap or an unfinished HOLD starts again', () => {
+  const run = (flags, reach, gap) => {
     const w = world(100, flags);
     squad(w);
-    w.b.time = 10 + w.r.BattleSquadStability.tuning.fireControl.maxHold + 0.5;
-    see(w);
-    squad(w);
-    assert.equal(w.q.fireControl.state, 'open');
+    if (reach) {
+      w.b.time = 10 + w.r.BattleSquadStability.tuning.fireControl.maxHold + 0.5;
+      see(w);
+      squad(w);
+      assert.equal(w.q.fireControl.state, 'open');
+    }
+    const lastSeen = w.b.time;
     // Contact lapses past the squad's contact memory, so the squad is clear...
     w.b.time += w.r.SquadAI.CONTACT_MEMORY + 1;
     w.q.members.forEach(s => (s.target = null));
@@ -636,17 +639,16 @@ test('a gap in sightings does not restart HOLD; the squad resumes the discipline
     w.q.inContact = false;
     squad(w);
     assert.equal(w.S.summary(w.q).reason, 'contact-clear', JSON.stringify(w.S.summary(w.q)));
-    // ...and the same enemy is sighted again inside the next contact memory.
-    w.b.time += 2;
+    // ...and the same enemy is sighted again `gap` seconds after the last sighting.
+    w.b.time = lastSeen + gap;
     see(w);
     squad(w);
-    return w;
+    return w.q.fireControl.state;
   };
-  assert.equal(run('&commandPosture=0').q.fireControl.state, 'open');
-  assert.equal(
-    run('&commandPosture=0&contactFireResume=0').q.fireControl.state,
-    'hold',
-    'flag restores the old reset'
-  );
+  const q = '&commandPosture=0';
+  assert.equal(run(q, true, 15), 'open', 'a gap inside the window resumes OPEN');
+  assert.equal(run(q, true, 25), 'hold', 'a gap past the window is a new engagement');
+  assert.equal(run(q, false, 15), 'hold', 'a HOLD that never finished is not resumed');
+  assert.equal(run(q + '&contactFireResume=0', true, 15), 'hold', 'flag restores the old reset');
 });
 console.log(count + ' tactical contact skill checks passed');
