@@ -435,18 +435,29 @@
         /* This owner holds routeIndex, and the structure chain keys its entry evidence on it: it follows
            the leg the provider is marching. Only with the chain on, so every other battle is unchanged. */
         var LPC = ctx.localPlan && ctx.localPlan();
-        if (
-          leg &&
-          MP.structure &&
-          LPC &&
-          LPC.structuresOn &&
-          leg.index >= 0 &&
-          +sq.routeIndex !== leg.index
-        ) {
-          var fromLeg = +sq.routeIndex || 0;
+        if (leg && MP.structure && LPC && LPC.structuresOn && leg.index >= 0 && pos) {
+          var fromLeg = +sq.routeIndex || 0,
+            changed = fromLeg !== leg.index;
           sq.routeIndex = leg.index;
-          if (leg.index > fromLeg && pos)
-            grantRouteLeg(sim, sq, fromLeg, leg.index, leg.point, pos, +c.routeArrivalRadius || 8);
+          /* A new leg gets its lease; so does a building leg the squad is already on when the controller
+             takes it (no lease yet, and no firefight resume pending, which has its own path). */
+          if (
+            (changed && leg.index > fromLeg) ||
+            (!changed &&
+              leg.index > 0 &&
+              !L.get(sq, 'route-transition') &&
+              !(ex && ex.contactRouteResume) &&
+              entryGate(sim, sq, leg.point))
+          )
+            grantRouteLeg(
+              sim,
+              sq,
+              Math.max(0, leg.index - 1),
+              leg.index,
+              leg.point,
+              pos,
+              +c.routeArrivalRadius || 8
+            );
         }
         if (leg && MP.structure && LPC && LPC.structuresOn && pos)
           resumeContactLeg(sim, sq, m, ex, leg.index, leg.point, pos, +c.routeArrivalRadius || 8);
