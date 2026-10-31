@@ -445,6 +445,46 @@ test('a fresh squadmate SEEN sector authorizes real area suppression from covere
   A.areaFire = actualAreaFire;
   clean(w);
 });
+test('a machine gun on a reported-sector suppress task is emplaced and fires; ?controllerGunner=0 keeps it silent', () => {
+  [
+    ['', true],
+    ['&controllerGunner=0', false]
+  ].forEach(([flag, fires]) => {
+    const w = world(80, '&commandPosture=0' + flag);
+    squad(w);
+    w.b.time = 16.1;
+    see(w);
+    const gun = w.q.members.find(s => w.r.SquadAI.isMachineGun(s));
+    assert.ok(gun, 'the squad carries a light machine gun');
+    gun.target = null;
+    gun._beliefs = { byKey: {} };
+    squad(w);
+    w.TC.dispatch(w.b, w.q, 'engagement', gun);
+    const role = w.S.summary(w.q).roles.find(x => x.actorId === String(gun.id));
+    assert.equal(
+      role && role.drill,
+      'suppress',
+      'the machine gun takes the suppress job: ' + JSON.stringify(role)
+    );
+    let shots = 0;
+    w.b.onFire = man => {
+      if (man === gun) shots++;
+    };
+    for (let i = 0; i < 40; i++) {
+      w.b.time += 0.15;
+      w.TC.dispatch(w.b, w.q, 'engagement', gun);
+      w.E.updateSoldier(gun, w.b);
+      gun.fireCooldown = 0;
+    }
+    assert.equal(
+      shots > 0,
+      fires,
+      flag ? 'flag off: the gun never counts as set up' : 'the gun is emplaced, then fires'
+    );
+    assert.equal(gun.target, null, 'area fire never forges a direct target');
+    clean(w);
+  });
+});
 test('contact execution fires real rounds after recognition and honors ammo/range gates', () => {
   const w = world();
   let shots = 0;
