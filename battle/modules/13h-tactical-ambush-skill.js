@@ -20,7 +20,6 @@
       minimumHold: 4,
       preparationBudget: 12,
       observationBudget: 12,
-      contactBudget: 30,
       minimumMen: 3,
       cooldown: 8,
       retry: 3,
@@ -94,6 +93,13 @@
   }
   /* The legacy all-men gate: 3 to 32 living men, none incapacitated, none possessed by the player.
      The roster revision covers deaths and detachment, not possession, so it is read here. */
+  /* The contact skills' own preparation deadline (fire-control maxHold): past it they release the
+     line's HOLD/PRECISION, so a posted line has no further job and the men go back to the march. */
+  function contactBudget() {
+    var Q = root.BattleSquadStability,
+      T = Q && Q.tuning && Q.tuning.fireControl;
+    return (T && +T.maxHold) || tuning.observationBudget;
+  }
   function rosterValid(sq) {
     var a = (sq.members || []).filter(function (s) {
       return s && !s.dead;
@@ -265,11 +271,12 @@
     var contact = inContact(sq);
     if (st.phase === 'contact') {
       if (!contact) return end(ctx, st, 'contact-ended');
-      if (now - st.readyAt > tuning.contactBudget) return end(ctx, st, 'contact-budget');
+      if (now - st.contactAt > contactBudget()) return end(ctx, st, 'contact-budget');
       return;
     }
     if (contact && st.readyAt != null) {
       st.phase = 'contact';
+      st.contactAt = now;
       st.contacts++;
       return;
     }
