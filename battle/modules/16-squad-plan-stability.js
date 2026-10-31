@@ -2530,14 +2530,18 @@
   }
   /* The Squad Leader skills a replacement controller reuses rather than replaces. Each is a lease,
      so at most one owns the squad's movement at a time. The provider asks this and also yields on any defensive phase (a covered bound is then the sole mover, see 13e). */
-  function retainedSkill(sq) {
+  /* `sim` lets the structure security chain count: while its orders for the leg are current, those fireteam
+     orders (published by updateFireteams) are the squad's only movement, as for recon and regroup. */
+  function retainedSkill(sq, sim) {
     return L.get(sq, 'recon')
       ? 'recon'
       : L.get(sq, 'regroup')
         ? 'regroup'
-        : DEFENSIVE[sq.commandPhase] && sq.state !== 'retreat' && !L.get(sq, 'bound')
-          ? 'defense'
-          : null;
+        : sim && _lp && _lp.structureOrdersOn && _lp.currentStructureOrders(sim, sq)
+          ? 'structure'
+          : DEFENSIVE[sq.commandPhase] && sq.state !== 'retreat' && !L.get(sq, 'bound')
+            ? 'defense'
+            : null;
   }
   /* The Squad Leader is SquadAI's squadCommand owner: status, fire and movement, anchor, fireteam slots. */
   root.SquadAI.extend('squadCommand', 'squad-leader', function (sq, battle) {
@@ -2550,7 +2554,7 @@
       carryControllerMoves(sq, battle);
       /* Recon and regroup are retained Squad Leader skills: while either lease holds, the provider
          has stood down and this skill's own fireteam orders are the squad's only movement. */
-      if (!retainedSkill(sq)) {
+      if (!retainedSkill(sq, battle)) {
         /* The march is paced by the Squad Leader's own anchor stride (advanceSquadAnchor), as on any
            legacy march: men follow an anchor that waits for the squad, not the far end of the leg. */
         var MP = root.BattleTacticalMarchProvider,

@@ -83,6 +83,17 @@
       /* Recon is a retained Squad Leader skill under any controller: its lease lifecycle (contact,
          timeout, arrival) runs here for every squad, and the provider yields while it holds. */
       updateRecon(sq, battle, r);
+      /* So is the structure security chain: its handoff, survey and watch evidence is what lets a
+         controlled march leave a building leg. The soldiers' structure orders stay with Engagement. */
+      if (
+        TC &&
+        root.BattleTacticalMarchProvider &&
+        root.BattleTacticalMarchProvider.structure &&
+        localPlan &&
+        localPlan.structuresOn &&
+        TC.controls(battle, sq)
+      )
+        localPlan.update(battle, sq, r);
       if (TC && TC.dispatch(battle, sq, 'fireAndMovement', r)) return;
       var localTask = localPlan && localPlan.on ? localPlan.update(battle, sq, r) : null;
       if (tacticalPostures && tacticalPostures.on) tacticalPostures.update(battle, sq, r);
