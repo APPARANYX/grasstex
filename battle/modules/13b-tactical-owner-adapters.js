@@ -272,6 +272,27 @@
       cancel: endStation,
       release: endStation
     },
+    /* Meso commits the selected mission state; release never rolls a brief back. */
+    'mission.execute': {
+      request: function (req, sim) {
+        var sq = squadOf(sim, req),
+          M = root.BattleSquadStability && root.BattleSquadStability.controllerMission;
+        return !!(M && M.publish(sim, sq, req.missionVersion, req.params)) && keep(req, sim, { squad: sq });
+      },
+      stage: function (h, req) {
+        var sq = h.squad,
+          p = req.params;
+        if (sq.routeIndex === p.leg && sq.commandPhase === p.phase && dist(sq.objective, p.point) < 1e-6)
+          mark(h, 'applied', 'mission-state-applied');
+        else mark(h, 'cancelled', 'mission-state-changed');
+      },
+      cancel: function () {
+        return true;
+      },
+      release: function () {
+        return true;
+      }
+    },
     /* The Commander owns mission status; acceptance is a transition it makes or refuses. */
     'mission.accept': {
       request: function (req, sim) {

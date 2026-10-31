@@ -14,6 +14,8 @@
   'use strict';
   var SEARCH = typeof location !== 'undefined' ? location.search || '' : '',
     ON = /[?&]tacticalController=new(?:&|#|$)/i.test(SEARCH),
+    /* ?supportWait=0 restores the controller marching support squads at once (no staged wait). */
+    SUPPORT_WAIT = !/[?&]supportWait=0(?:&|#|$)/i.test(SEARCH),
     /* ?controllerStructure=0: a leg inside a building no longer waits for the structure chain. */
     STRUCTURE = !/[?&]controllerStructure=0(?:&|#|$)/i.test(SEARCH),
     ID = 'march';
@@ -51,10 +53,29 @@
     return l > 1e-6 ? { x: dx / l, z: dz / l } : null;
   }
   /* The leg arrival radius is the doctrine's own (the radius Squad Leader execution uses on a route leg). */
+  function legCfg(sim, sq) {
+    var C = root.BattleCommanderAI;
+    return C && C.policyFor ? C.policyFor(sim, sq.faction) : null;
+  }
   function legRadius(sim, sq) {
-    var C = root.BattleCommanderAI,
-      cfg = C && C.policyFor ? C.policyFor(sim, sq.faction) : null;
+    var cfg = legCfg(sim, sq);
     return +(cfg && cfg.routeArrivalRadius) || 8;
+  }
+  /* The Squad Leader's own staging rule, reused as it is: a support squad that has reached its second
+     leg waits there until the doctrine's support delay ends or another squad of its side has committed. */
+  function supportWaiting(sim, sq, cfg) {
+    var Q = root.BattleSquadStability,
+      M = Q && Q.controllerMission,
+      m = sq._macroMission;
+    return !!(
+      SUPPORT_WAIT &&
+      M &&
+      M.assaultCommitted &&
+      sq.commandRole === 'support' &&
+      !(m && /^(screen|intercept|reserve|hold)$/.test(m.intent || '')) &&
+      +sim.time < (+(cfg && cfg.supportDelay) || 0) &&
+      !M.assaultCommitted(sim, sq)
+    );
   }
   function stateOf(sq) {
     var st = squads.get(sq);
@@ -83,6 +104,7 @@
       st.mission = m;
       st.leg = 0;
       st.target = null;
+      st.transportHandoff = null;
     }
     if (!legs.length) {
       st.target = null;
@@ -95,12 +117,24 @@
     var last = legs.length - 1,
       here = centroid(men(sq)),
       r = legRadius(sim, sq);
+    /* Consume the retained owner's once-only route/anchor adoption, including a reset on the
+       same leg. Resolver resets do not end Meso handles; finish our own move AND hold actions. */
+    var ex = sq._missionExecution;
+    if (ex && ex.mission === m && ex.transportHandoff && st.transportHandoff !== ex) {
+      standDown(ctx, st, 'transport-handoff');
+      st.leg = Math.max(0, Math.min(last, +sq.routeIndex || 0));
+      st.target = null;
+      st.transportHandoff = ex;
+    }
     st.leg = Math.min(st.leg, last);
     /* A leg inside a building waits for the chain, but only for the General's own stall-replan budget (the
        one the legacy route-transition lease uses); the wait says why, and a timeout moves on. */
-    var budget = (root.BattleCommanderAI && +root.BattleCommanderAI.strategicStallReplan) || Infinity;
+    /* Waiting support squads do not advance past leg 1; the legs themselves stay the brief's. */
+    st.supportWaiting = supportWaiting(sim, sq, legCfg(sim, sq));
+    var ceiling = st.supportWaiting ? Math.min(1, last) : last,
+      budget = (root.BattleCommanderAI && +root.BattleCommanderAI.strategicStallReplan) || Infinity;
     st.entryWait = null;
-    while (st.leg < last) {
+    while (st.leg < ceiling) {
       var legPoint = point(legs[st.leg]),
         gate = entryState(sim, sq, legPoint);
       /* The chain accepting a crossing is the leg reached: the squad's centre can stay outside the walls while
@@ -130,6 +164,43 @@
       st.final = st.leg === last;
       st.stopped = new Map();
     }
+    publishMission(ctx, st, here);
+  }
+
+  function publishMission(ctx, st, here) {
+    var sq = ctx.squad,
+      sim = ctx.sim,
+      m = sq._macroMission,
+      Q = root.BattleSquadStability,
+      M = Q && Q.controllerMission;
+    if (!M || !here || (m && !point(m.point)) || sq.state === 'retreat' || sq.commandPhase === 'regroup')
+      return;
+    var phase = 'approach',
+      objective = st.target,
+      legs = sq.route,
+      C = root.BattleCommanderAI,
+      cfg = C && C.policyFor ? C.policyFor(sim, sq.faction) : {},
+      ex = sq._missionExecution;
+    if ((m && m.intent === 'reserve') || (!m && sq.commandRole === 'reserve')) {
+      phase = 'reserve';
+      objective = point(legs[legs.length - 1]);
+    } else if (m && m.intent === 'hold') {
+      phase = 'hold';
+      objective = point(legs[legs.length - 1]);
+    } else if (st.supportWaiting && st.leg >= 1) {
+      phase = 'support-hold';
+      objective = point(legs[Math.min(1, legs.length - 1)]);
+    } else if (m && (m.intent === 'screen' || m.intent === 'intercept') && st.final) {
+      phase = dist(here, st.target) <= 38 ? 'hold' : 'approach';
+    } else if (m && m.objectiveId && st.final) {
+      if (m.action === 'hold' || m.action === 'regroup' || m.action === 'support') {
+        phase = m.action === 'support' ? 'support-hold' : 'hold';
+        objective = point(ex && ex.holdPoint) || here;
+      } else if (m.point) phase = M.objectivePhase(sim, sq, m, cfg, here);
+    } else if (m && m.action === 'flank' && st.leg === (m.route || []).length - 1) phase = 'flank';
+    if (sq.commandPhase === phase && sq.routeIndex === st.leg && dist(sq.objective, objective) < 1e-6) return;
+    var res = ctx.request('mission.execute', null, { leg: st.leg, phase: phase, point: objective });
+    if (res.ok) ctx.finish(res.actionId, 'completed');
   }
 
   /* squadCommand: each man walks to his formation slot around the leg point, then holds there on the

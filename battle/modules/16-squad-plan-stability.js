@@ -2897,6 +2897,7 @@
     teamKeyFor: teamKeyFor,
     placeAtSlots: placeAtSlots,
     executeMission: executeMission,
+    controllerMission: _me && _me.controllerMission,
     leaseConflictsOn: function () {
       return LEASE_CONFLICTS_ON;
     },

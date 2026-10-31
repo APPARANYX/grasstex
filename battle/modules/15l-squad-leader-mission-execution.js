@@ -296,6 +296,37 @@
       if (m.intent === 'defend') return m.requestKey || inside ? 'defend' : 'assault';
       return inside ? 'capture' : 'assault';
     }
+    /* Controller policy supplies a selected phase/point; only this owner publishes mission state.
+       Acceptance and transport adoption still run before controller dispatch in executeMission. */
+    function publishControllerMission(sim, sq, version, p) {
+      var TC = root.BattleTacticalController;
+      if (
+        !sq ||
+        !TC ||
+        !TC.controls(sim, sq) ||
+        missionVersion(sq) !== version ||
+        sq.state === 'retreat' ||
+        L.get(sq, 'regroup') ||
+        leaderlessActive(sq) ||
+        !p ||
+        !Number.isInteger(p.leg) ||
+        p.leg < 0 ||
+        p.leg >= (sq.route || []).length ||
+        !p.point ||
+        !isFinite(p.point.x) ||
+        !isFinite(p.point.z)
+      )
+        return false;
+      setPhase(
+        sim,
+        sq,
+        p.phase,
+        'controller mission ' + ((sq._macroMission && sq._macroMission.intent) || 'route')
+      );
+      sq.routeIndex = p.leg;
+      sq.objective = copy(p.point);
+      return true;
+    }
     /* For a defending squad at its objective, figure out which direction to scout.
      Looks toward the map center (where the enemy spawn is) or toward any known
      enemy contacts. Returns a normalized {x, z} direction vector, or null if
@@ -426,21 +457,32 @@
       var TC = root.BattleTacticalController;
       if (TC && TC.controls(sim, sq)) {
         adoptTransportArrival(sim, sq, m, ex, sq.route || []);
+        /* The leg this owner had before the provider's mission.execute publishes the new one below. */
+        var legBefore = +sq.routeIndex || 0;
         /* Not a mission hold: the replacement executes the brief. Loop Watch keeps judging its progress,
            and the controller counts these dispatches in its summary. */
         TC.dispatch(sim, sq, 'executeMission');
         var MP = root.BattleTacticalMarchProvider,
           leg = MP && MP.leg ? MP.leg(sq) : null,
           plain = !m || !/^(screen|intercept|reserve|hold)$/.test(m.intent || '');
-        /* This owner holds routeIndex, and the structure chain keys its entry evidence on it: it follows
-           the leg the provider is marching. Only with the chain on, so every other battle is unchanged. */
+        /* This owner holds routeIndex, and the structure chain keys its entry evidence on it. The provider's
+           mission.execute (publishControllerMission, guarded for retreat, regroup, succession and a stale
+           brief) is the one write of the leg it is marching; when it was refused the chain keeps the
+           old leg. Only with the chain on, so every other battle is unchanged. */
         var LPC = ctx.localPlan && ctx.localPlan();
-        if (leg && MP.structure && LPC && LPC.structuresOn && leg.index >= 0 && pos) {
-          var fromLeg = +sq.routeIndex || 0,
+        if (
+          leg &&
+          MP.structure &&
+          LPC &&
+          LPC.structuresOn &&
+          leg.index >= 0 &&
+          pos &&
+          +sq.routeIndex === leg.index
+        ) {
+          var fromLeg = legBefore,
             changed = fromLeg !== leg.index;
           if (changed && leg.index > fromLeg && LPC.noteStructureHandback && sq.route[fromLeg])
             LPC.noteStructureHandback(sim, sq, sq.route[fromLeg]);
-          sq.routeIndex = leg.index;
           /* A new leg gets its lease; so does a building leg the squad is already on when the controller
              takes it (no lease yet, and no firefight resume pending, which has its own path). */
           if (
@@ -461,7 +503,7 @@
               +c.routeArrivalRadius || 8
             );
         }
-        if (leg && MP.structure && LPC && LPC.structuresOn && pos)
+        if (leg && MP.structure && LPC && LPC.structuresOn && pos && +sq.routeIndex === leg.index)
           resumeContactLeg(sim, sq, m, ex, leg.index, leg.point, pos, +c.routeArrivalRadius || 8);
         if (leg && !reconHeld(sim, sq, m, leg.point, leg.final, pos, c)) {
           var started = plain && reconStart(sim, sq, m, leg.point, leg.final, pos, c);
@@ -662,6 +704,11 @@
       missionLegs: missionLegs,
       assaultCommitted: assaultCommitted,
       objectivePhase: objectivePhase,
+      controllerMission: {
+        publish: publishControllerMission,
+        objectivePhase: objectivePhase,
+        assaultCommitted: assaultCommitted
+      },
       executeMission: executeMission,
       observeRouteTransition: observeRouteTransition
     };

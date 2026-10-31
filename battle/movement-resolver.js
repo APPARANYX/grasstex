@@ -15,6 +15,15 @@
 (function (root) {
   'use strict';
 
+  /* Under ?tacticalController=new a released squad-order proposal retires the order itself; without the
+     controller, and with ?releasedOrder=0, the man keeps the release-time position as before. */
+  var RELEASE_RETIRES =
+    /[?&]tacticalController=new(?:&|#|$)/i.test(
+      (root.location && root.location.search) || (typeof location !== 'undefined' && location.search) || ''
+    ) &&
+    !/[?&]releasedOrder=0(?:&|#|$)/i.test(
+      (root.location && root.location.search) || (typeof location !== 'undefined' && location.search) || ''
+    );
   var ORDER_COMMIT = 1.35,
     COMBAT_TTL = 0.75,
     ORDER_EPS = 2.4,
@@ -527,7 +536,15 @@
     }
     if (combat) st.combat = null;
     return (
-      st.order || proposal('squad-orders', soldier.orderDestination, battle, 'formation', false, Infinity)
+      st.order ||
+      proposal(
+        'squad-orders',
+        soldier.orderDestination || (RELEASE_RETIRES ? soldier.root.position : null),
+        battle,
+        'formation',
+        false,
+        Infinity
+      )
     );
   }
   function tacticalWaypoint(soldier, battle, pick) {
@@ -793,7 +810,9 @@
       var st = s && s._movementResolver;
       if (proposal && st && st.order === proposal) {
         st.order = null;
-        s.orderDestination = { x: s.root.position.x, z: s.root.position.z };
+        /* Retire the command itself. A release-position snapshot must not become a new
+           formation destination when a later combat bound ends somewhere else. */
+        s.orderDestination = RELEASE_RETIRES ? null : { x: s.root.position.x, z: s.root.position.z };
       }
     },
     proposePlayer: proposePlayer,

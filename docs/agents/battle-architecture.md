@@ -192,11 +192,30 @@ ends. The preview launcher forwards the flag; with the flag but no contract on t
 provider warns and legacy keeps every squad. Mission acceptance, transport, casualties, succession, retreat, rally
 recovery, physiology and reactions stay with their owners.
 
+The provider converts reserve/hold and final-objective capture/defend intents through
+`mission.execute`, a squad capability with no retained resource. Its selected leg, phase and point
+go to `controllerMission.publish` in the existing mission-execution owner (15l); phase changes still
+use 16's transition machine, and the owner checks controller authority, mission version and route
+bounds. An `applied` receipt means that owner state matches the request, not that soldiers arrived.
+Completion/release does not roll back the mission. Macro acceptance and retained transport adoption
+still precede dispatch. On the owner's once-only transport handoff, the provider consumes the adopted
+route index, ends its own old move/hold actions and republishes through normal personal adoption,
+including when the carrier finishes on the same leg. Other cancelled actions remain terminal.
+
+Ending an owned Meso movement proposal retires its `orderDestination` rather than retaining the man's
+release position as a command. With no remaining squad order, the resolver's formation fallback is
+the current physical position; a later combat bound therefore cannot revive that released point.
+Live combat, player, retreat, station and fresh Meso intents keep their existing arbitration.
+
 Slice 3 adds the independent `13d-tactical-contact-skills.js` module. It selects HOLD, PRECISION,
 OPEN and personal suppressor roles without calling legacy `updateFireControl`, `assignSuppressors`
 or `decide`. Target changes preserve the current preparation episode clock; HOLD and PRECISION
 end at the existing `maxHold` deadline. A missing firing line releases locomotion to the route
 provider. This is foundational firing, not coordinated covered-bound acceptance.
+After OPEN, the readiness/marksman preparation scan is skipped; targetless suppression candidates
+also skip personal-target observation. `readinessAt` dates the last preparation sample. Live target,
+suppression and native firing gates continue to run, and shared eyewitness sectors remain valid
+position-only intelligence.
 
 `13h-tactical-ambush-skill.js` (`BattleTacticalAmbushSkill`, `?controllerAmbush=0` turns it off) carries
 the legacy concealed firing line (15o, `?localPlan=1&localAmbush=1`, which never ran under a controller)
