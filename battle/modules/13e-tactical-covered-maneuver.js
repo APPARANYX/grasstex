@@ -349,7 +349,10 @@
       C = root.BattleCoverPositions,
       A = root.SquadAI,
       R = root.BattleTacticalContactRoute,
-      list = men(ctx.squad),
+      /* An ambush-held man stays on his masked post: his skill, not this one, holds him. */
+      list = men(ctx.squad).filter(function (s) {
+        return !(root.BattleTacticalAmbushSkill && root.BattleTacticalAmbushSkill.wants(s));
+      }),
       back = ctx.squad.state === 'retreat' || ctx.squad.commandPhase === 'retreat',
       defense = !back && defenseBrief(ctx, rs),
       goal = back

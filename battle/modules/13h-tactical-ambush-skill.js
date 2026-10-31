@@ -20,6 +20,7 @@
       minimumHold: 4,
       preparationBudget: 12,
       observationBudget: 12,
+      contactBudget: 30,
       minimumMen: 3,
       cooldown: 8,
       retry: 3,
@@ -90,6 +91,24 @@
       sq.commandPhase === 'retreat' ||
       !!(Q && ((Q.retainedSkill && Q.retainedSkill(sq)) || (Q.defensivePhase && Q.defensivePhase(sq))))
     );
+  }
+  /* The legacy all-men gate: 3 to 32 living men, none incapacitated, none possessed by the player.
+     The roster revision covers deaths and detachment, not possession, so it is read here. */
+  function rosterValid(sq) {
+    var a = (sq.members || []).filter(function (s) {
+      return s && !s.dead;
+    });
+    return (
+      a.length >= tuning.minimumMen &&
+      a.length <= 32 &&
+      a.every(function (s) {
+        return !s.incapacitated && !s.isPlayer && s.root && point(s.root.position);
+      })
+    );
+  }
+  function planned(sq) {
+    var p = sq._engagementPlan;
+    return !!(p && (p.status === 'active' || p.status === 'quiet'));
   }
   function missionRunning(sq) {
     var m = sq._macroMission;
@@ -227,6 +246,8 @@
         now < st.until ||
         !missionRunning(sq) ||
         retained(sq) ||
+        !rosterValid(sq) ||
+        planned(sq) ||
         inContact(sq) ||
         (facts && facts.underFire > 0)
       )
@@ -237,12 +258,14 @@
     }
     if (retained(sq)) return end(ctx, st, 'retained-skill');
     if (!missionRunning(sq)) return end(ctx, st, 'mission-changed');
+    if (!rosterValid(sq)) return end(ctx, st, 'roster-or-possession');
     if (facts && facts.underFire > 0) return end(ctx, st, 'pressure');
     var lost = progress(ctx, st);
     if (lost) return end(ctx, st, lost);
     var contact = inContact(sq);
     if (st.phase === 'contact') {
       if (!contact) return end(ctx, st, 'contact-ended');
+      if (now - st.readyAt > tuning.contactBudget) return end(ctx, st, 'contact-budget');
       return;
     }
     if (contact && st.readyAt != null) {

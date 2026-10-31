@@ -230,4 +230,28 @@ test('first-hand contact before the line is ready does not keep a half-built amb
   assert.equal(w.K.summary(w.q).releases['contact-before-ready'], 1);
 });
 
+test('a possessed or incapacitated man ends the line; an active engagement plan blocks a start', () => {
+  const w = world();
+  tick(w);
+  assert.equal(phase(w), 'assemble');
+  w.q.members[3].isPlayer = true;
+  tick(w);
+  assert.equal(phase(w), 'idle');
+  assert.equal(w.K.summary(w.q).releases['roster-or-possession'], 1);
+  const v = world();
+  v.q._engagementPlan = { status: 'active' };
+  tick(v);
+  assert.equal(phase(v), 'idle');
+  assert.equal(v.K.summary(v.q).started, 0);
+});
+
+test('the covered-maneuver mover choice skips a man the ambush holds', () => {
+  const w = world();
+  tick(w);
+  const held = w.q.members.filter(s => w.K.wants(s));
+  assert.ok(held.length >= 3);
+  const B = w.r.BattleTacticalCoveredManeuver;
+  assert.ok(!B || !held.some(s => B.wants(s, w.b)), 'no ambush man has a bound role');
+});
+
 console.log('tactical ambush skill checks passed: ' + count);
