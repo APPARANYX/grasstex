@@ -94,6 +94,15 @@
         TC.controls(battle, sq)
       )
         localPlan.update(battle, sq, r);
+      /* Clearing the last contact is Squad Leader intent (a point for the anchor to advance on), not a tactical
+         skill: a controlled squad gets the same order, and the march follows the anchor. */
+      if (
+        TC &&
+        root.BattleTacticalMarchProvider &&
+        root.BattleTacticalMarchProvider.clear &&
+        TC.controls(battle, sq)
+      )
+        updateClearContact(sq, battle, r);
       if (TC && TC.dispatch(battle, sq, 'fireAndMovement', r)) return;
       var localTask = localPlan && localPlan.on ? localPlan.update(battle, sq, r) : null;
       if (tacticalPostures && tacticalPostures.on) tacticalPostures.update(battle, sq, r);
