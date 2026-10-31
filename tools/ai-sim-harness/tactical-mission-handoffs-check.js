@@ -270,6 +270,18 @@ test('ending Meso movement cannot resurrect its release position after a combat 
   const next = w.R.proposeOrder(s, { x: 10, z: 40 }, w.b, false, 'squad-stability');
   assert.equal(w.R.resolve(s, w.b).owner, next.owner, 'a fresh lawful Meso order still wins');
 });
+test('?releasedOrder=0 keeps the old release position as the order destination', () => {
+  const w = world('capture', '&releasedOrder=0');
+  tick(w);
+  const s = w.q.members[3];
+  const order = w.Q.controllerMovement.publish(w.q, w.b, s, { x: 0, z: 120 }, 'release-probe');
+  w.b.time += 3;
+  w.r.SquadAI.updateSquad(w.q, w.b);
+  s.root.position.z += 7;
+  w.Q.controllerMovement.end(s, order);
+  assert.ok(s.orderDestination, 'the release position is still stored with the flag off');
+  assert.ok(Math.abs(s.orderDestination.z - s.root.position.z) < 1e-6);
+});
 test('a support squad waits at its second leg until the support delay ends or the assault is committed', () => {
   const w = world();
   w.q._macroMission = {
