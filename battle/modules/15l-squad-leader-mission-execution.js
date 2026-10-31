@@ -503,7 +503,7 @@
               +c.routeArrivalRadius || 8
             );
         }
-        if (leg && MP.structure && LPC && LPC.structuresOn && pos)
+        if (leg && MP.structure && LPC && LPC.structuresOn && pos && +sq.routeIndex === leg.index)
           resumeContactLeg(sim, sq, m, ex, leg.index, leg.point, pos, +c.routeArrivalRadius || 8);
         if (leg && !reconHeld(sim, sq, m, leg.point, leg.final, pos, c)) {
           var started = plain && reconStart(sim, sq, m, leg.point, leg.final, pos, c);
