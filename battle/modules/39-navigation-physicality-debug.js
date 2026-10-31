@@ -475,12 +475,19 @@
     }
     return out;
   }
+  /* `?navCornerStand=0` keeps base-graph building corners exact, the old rule, for a paired A/B. */
+  var NAV_CORNER_STAND = !(
+    typeof location !== 'undefined' && /[?&]navCornerStand=0\b/.test(location.search || '')
+  );
   function planLocal(sim, soldier, start, goal, expanded) {
     /* A lookahead is a synthetic point on the straight line, not a command. It obeys the same legal-stand
      invariant as a real destination: no route can end inside a body buffer, so an illegal horizon point
-     turned a reachable long-range goal into a permanently blocked plan. */
+     turned a reachable long-range goal into a permanently blocked plan. A building corner from the base
+     door graph is the same kind of point: a routing hint padded off the walls, blind to hedges and rocks. One
+     inside a hedge's buffer left every replan empty, so a man stood still for the rest of the battle. */
     var end = localGoal(start, goal);
-    if (end.kind === 'lookahead') end = standGoal(sim, soldier, start, end);
+    if (end.kind === 'lookahead' || (NAV_CORNER_STAND && end.kind === 'corner'))
+      end = standGoal(sim, soldier, start, end);
     var shapes = routeFootprints(
       sim,
       start,
