@@ -352,6 +352,28 @@ test('a crossing the chain accepted is the leg reached, even with the squad cent
   assert.equal(row(w).leg, 1);
 });
 
+test('a clearing order keeps the march going in a quiet contact; ?controllerClear=0 stands down as before', () => {
+  [
+    ['', true],
+    ['&controllerClear=0', false]
+  ].forEach(([extra, marches]) => {
+    const w = world('?stressAct=0&commandRelay=0&tacticalController=new' + extra);
+    w.systems['tactical-march-provider'].onBattleStart(w.b);
+    tick(w);
+    w.q.inContact = true;
+    w.q.clearContact = { x: LEGS[0].x, z: LEGS[0].z, seen: w.b.time, since: w.b.time };
+    alive(w).forEach(s => (s.target = null));
+    w.TC.dispatch(w.b, w.q, 'squadCommand');
+    assert.equal(
+      w.TC.summary(w.b).actions > 0,
+      marches,
+      extra
+        ? 'flag off: contact without a personal target stands the march down'
+        : 'clearing order: the march continues'
+    );
+  });
+});
+
 test('?controllerStructure=0 marches past a gated leg as before', () => {
   const w = world('?stressAct=0&commandRelay=0&tacticalController=new&controllerStructure=0');
   w.r.BattleSquadStability.localPlan = { entryRequired: () => true, entrySatisfied: () => false };
