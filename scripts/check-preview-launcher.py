@@ -59,6 +59,7 @@ for ($mask = 0; $mask < 1024; $mask++) {
 }
 check(grasstex_preview_options(array()) === array(), 'absent flags do not become explicit defaults');
 check(grasstex_preview_options(array('blockedExit'=>'0')) === array('blockedExit'=>'0'), 'truck-exit rollback survives preview forwarding');
+check(grasstex_preview_options(array('ballisticFailClosed'=>'0')) === array('ballisticFailClosed'=>'0'), 'ballistic fail-open rollback survives preview forwarding');
 check(grasstex_preview_options(array('tacticalController'=>'new')) === array('tacticalController'=>'new'), 'the replacement-controller flag survives preview forwarding');
 check(grasstex_preview_options(array('seed'=>'seed-1','motorTransport'=>'0','unknown'=>'1','aerialRecon'=>array('1'),'interception'=>"1\n")) === array('seed'=>'seed-1','motorTransport'=>'0'), 'malformed and unsupported controls rejected without dropping valid controls');
 $groups = grasstex_runtime_contract()['optionalModules'];
