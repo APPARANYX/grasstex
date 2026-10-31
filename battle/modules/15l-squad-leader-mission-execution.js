@@ -438,6 +438,8 @@
         if (leg && MP.structure && LPC && LPC.structuresOn && leg.index >= 0 && pos) {
           var fromLeg = +sq.routeIndex || 0,
             changed = fromLeg !== leg.index;
+          if (changed && leg.index > fromLeg && LPC.noteStructureHandback && sq.route[fromLeg])
+            LPC.noteStructureHandback(sim, sq, sq.route[fromLeg]);
           sq.routeIndex = leg.index;
           /* A new leg gets its lease; so does a building leg the squad is already on when the controller
              takes it (no lease yet, and no firefight resume pending, which has its own path). */

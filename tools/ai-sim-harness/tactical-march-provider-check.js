@@ -341,6 +341,17 @@ test('a leg that ends inside a building waits for the structure chain to accept 
   accepted = false;
 });
 
+test('a crossing the chain accepted is the leg reached, even with the squad centre outside the walls', () => {
+  const w = world();
+  w.r.BattleSquadStability.localPlan = { entryRequired: () => true, entrySatisfied: () => true };
+  w.systems['tactical-march-provider'].onBattleStart(w.b);
+  tick(w);
+  alive(w).forEach(s => place(s, { x: 0, z: 10 })); // 30 m short of the leg
+  w.b.time += 0.5;
+  tick(w);
+  assert.equal(row(w).leg, 1);
+});
+
 test('?controllerStructure=0 marches past a gated leg as before', () => {
   const w = world('?stressAct=0&commandRelay=0&tacticalController=new&controllerStructure=0');
   w.r.BattleSquadStability.localPlan = { entryRequired: () => true, entrySatisfied: () => false };

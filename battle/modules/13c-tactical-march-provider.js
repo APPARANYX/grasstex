@@ -65,14 +65,10 @@
   /* The structure security chain (local plan, 15n) is the one owner of "entered and accepted": a leg that
      ends inside a building is not left until it says so, exactly as Squad Leader execution (15l) gates it.
      Without the chain's flags it never requires an entry, so the march is unchanged. */
-  function entryPending(sim, sq, p) {
+  function entryState(sim, sq, p) {
     var LP = STRUCTURE && root.BattleSquadStability && root.BattleSquadStability.localPlan;
-    return !!(
-      LP &&
-      LP.entryRequired &&
-      LP.entryRequired(sim, sq, p) &&
-      !(LP.entrySatisfied && LP.entrySatisfied(sim, sq, p))
-    );
+    if (!LP || !LP.entryRequired || !LP.entryRequired(sim, sq, p)) return 'none';
+    return LP.entrySatisfied && LP.entrySatisfied(sim, sq, p) ? 'accepted' : 'pending';
   }
 
   /* executeMission: route progression. The squad moves to its next leg once its centre is within the
@@ -104,17 +100,24 @@
        one the legacy route-transition lease uses); the wait says why, and a timeout moves on. */
     var budget = (root.BattleCommanderAI && +root.BattleCommanderAI.strategicStallReplan) || Infinity;
     st.waiting = null;
-    while (st.leg < last && dist(here, point(legs[st.leg])) <= r) {
-      if (entryPending(sim, sq, point(legs[st.leg]))) {
-        if (st.waitLeg !== st.leg) {
-          st.waitLeg = st.leg;
-          st.waitSince = +sim.time || 0;
+    while (st.leg < last) {
+      var legPoint = point(legs[st.leg]),
+        gate = entryState(sim, sq, legPoint);
+      /* The chain accepting a crossing is the leg reached: the squad's centre can stay outside the walls while
+         its guards hold the doorway. */
+      if (gate !== 'accepted') {
+        if (dist(here, legPoint) > r) break;
+        if (gate === 'pending') {
+          if (st.waitLeg !== st.leg) {
+            st.waitLeg = st.leg;
+            st.waitSince = +sim.time || 0;
+          }
+          if ((+sim.time || 0) - st.waitSince < budget) {
+            st.waiting = 'entry-pending';
+            break;
+          }
+          st.timedOut = st.leg;
         }
-        if ((+sim.time || 0) - st.waitSince < budget) {
-          st.waiting = 'entry-pending';
-          break;
-        }
-        st.timedOut = st.leg;
       }
       st.leg++;
     }
