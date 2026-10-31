@@ -621,4 +621,32 @@ test('contact decisions have no authoritative writes, new timers, random draws o
     /setTimeout|setInterval|Math\.random|\.updateFireControl\(|\.assignSuppressors\(|\.decide\(/
   );
 });
+test('a gap in sightings does not restart HOLD; the squad resumes the discipline it reached', () => {
+  const run = flags => {
+    const w = world(100, flags);
+    squad(w);
+    w.b.time = 10 + w.r.BattleSquadStability.tuning.fireControl.maxHold + 0.5;
+    see(w);
+    squad(w);
+    assert.equal(w.q.fireControl.state, 'open');
+    // Contact lapses past the squad's contact memory, so the squad is clear...
+    w.b.time += w.r.SquadAI.CONTACT_MEMORY + 1;
+    w.q.members.forEach(s => (s.target = null));
+    w.q.contact = null;
+    w.q.inContact = false;
+    squad(w);
+    assert.equal(w.S.summary(w.q).reason, 'contact-clear', JSON.stringify(w.S.summary(w.q)));
+    // ...and the same enemy is sighted again inside the next contact memory.
+    w.b.time += 2;
+    see(w);
+    squad(w);
+    return w;
+  };
+  assert.equal(run('&commandPosture=0').q.fireControl.state, 'open');
+  assert.equal(
+    run('&commandPosture=0&contactFireResume=0').q.fireControl.state,
+    'hold',
+    'flag restores the old reset'
+  );
+});
 console.log(count + ' tactical contact skill checks passed');

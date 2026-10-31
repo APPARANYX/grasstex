@@ -3,7 +3,11 @@
    No legacy updateFireControl/assignSuppressors/decide call, authoritative write or new clock. */
 (function (root) {
   'use strict';
-  var states = new WeakMap();
+  var states = new WeakMap(),
+    /* ?contactFireResume=0 restores the old reset: any gap in the squad's contact drops its fire discipline. */
+    RESUME = !(
+      typeof location !== 'undefined' && /[?&]contactFireResume=0(?:&|#|$)/i.test(location.search || '')
+    );
   function state(ctx) {
     var t = ctx.token,
       key = [t.battleId, t.generation, t.controllerEpoch, t.missionVersion].join(':'),
@@ -175,15 +179,19 @@
       st.fire = null;
       st.active = false;
       st.startedAt = null;
-      st.discipline = null;
       st.roles.clear();
       st.points.clear();
       st.grenadier = null;
       st.reason = 'contact-clear';
+      /* A gap in sightings is not a new engagement: the discipline the squad reached is kept, and a
+         re-sighting inside the squad's own contact memory resumes it (below) instead of restarting HOLD. */
+      if (st.clearedAt == null) st.clearedAt = sim.time;
       reconcile(ctx, st);
       return;
     }
     st.active = true;
+    if (st.clearedAt != null && (!RESUME || sim.time - st.clearedAt > A.CONTACT_MEMORY)) st.discipline = null;
+    st.clearedAt = null;
     if (st.startedAt === null) st.startedAt = sim.time;
     var men = members(sq),
       T = Q.tuning.fireControl,
@@ -461,7 +469,7 @@
       if (!st) return null;
       return {
         active: st.active,
-        state: st.discipline || null,
+        state: (st.active && st.discipline) || null,
         startedAt: st.startedAt,
         reason: st.reason,
         ready: st.ready || 0,
