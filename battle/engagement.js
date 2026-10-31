@@ -1137,6 +1137,20 @@
     /* Physiology, reactions, retreat, grenades and stations above are retained. Ordinary cover, assault and
        withdrawal drills below belong to a replacement controller when one owns his squad. */
     var TC = root.BattleTacticalController;
+    /* The structure security chain is a retained skill: a man holding one of its soldier orders adopts it
+       here (facing, stance, following the order) under a replacement controller as under legacy. Without
+       a current order for him this does nothing. */
+    var MPS = root.BattleTacticalMarchProvider;
+    if (
+      TC &&
+      MPS &&
+      MPS.structure &&
+      s.squad &&
+      !s.isPlayer &&
+      TC.controls(battle, s.squad) &&
+      structureObservation(s, battle)
+    )
+      return;
     if (TC && s.squad && !s.isPlayer && TC.dispatch(battle, s.squad, 'engagement', s)) {
       /* A committed survival displacement is retained execution, including its native arrival and
          failure paths. decide() below refuses new legacy choices for controlled squads. */

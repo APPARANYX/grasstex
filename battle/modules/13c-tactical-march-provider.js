@@ -14,6 +14,8 @@
   'use strict';
   var SEARCH = typeof location !== 'undefined' ? location.search || '' : '',
     ON = /[?&]tacticalController=new(?:&|#|$)/i.test(SEARCH),
+    /* ?controllerStructure=0: a leg inside a building no longer waits for the structure chain. */
+    STRUCTURE = !/[?&]controllerStructure=0(?:&|#|$)/i.test(SEARCH),
     ID = 'march';
   var squads = new WeakMap(),
     warned = false;
@@ -60,6 +62,15 @@
     return st;
   }
 
+  /* The structure security chain (local plan, 15n) is the one owner of "entered and accepted": a leg that
+     ends inside a building is not left until it says so, exactly as Squad Leader execution (15l) gates it.
+     Without the chain's flags it never requires an entry, so the march is unchanged. */
+  function entryState(sim, sq, p) {
+    var LP = STRUCTURE && root.BattleSquadStability && root.BattleSquadStability.localPlan;
+    if (!LP || !LP.entryRequired || !LP.entryRequired(sim, sq, p)) return 'none';
+    return LP.entrySatisfied && LP.entrySatisfied(sim, sq, p) ? 'accepted' : 'pending';
+  }
+
   /* executeMission: route progression. The squad moves to its next leg once its centre is within the
      leg radius; the last leg is where it holds. The brief's legs are the retained `sq.route`. */
   function executeMission(ctx) {
@@ -85,7 +96,32 @@
       here = centroid(men(sq)),
       r = legRadius(sim, sq);
     st.leg = Math.min(st.leg, last);
-    while (st.leg < last && dist(here, point(legs[st.leg])) <= r) st.leg++;
+    /* A leg inside a building waits for the chain, but only for the General's own stall-replan budget (the
+       one the legacy route-transition lease uses); the wait says why, and a timeout moves on. */
+    var budget = (root.BattleCommanderAI && +root.BattleCommanderAI.strategicStallReplan) || Infinity;
+    st.entryWait = null;
+    while (st.leg < last) {
+      var legPoint = point(legs[st.leg]),
+        gate = entryState(sim, sq, legPoint);
+      /* The chain accepting a crossing is the leg reached: the squad's centre can stay outside the walls while
+         its guards hold the doorway. */
+      if (gate !== 'accepted') {
+        if (dist(here, legPoint) > r) break;
+        if (gate === 'pending') {
+          if (st.waitLeg !== st.leg) {
+            st.waitLeg = st.leg;
+            st.waitSince = +sim.time || 0;
+          }
+          if ((+sim.time || 0) - st.waitSince < budget) {
+            st.entryWait = 'entry-pending';
+            break;
+          }
+          st.timedOut = st.leg;
+        }
+      }
+      st.leg++;
+    }
+    if (!st.entryWait) st.waitLeg = null; // a wait that was left starts afresh when the squad is back
     var target = point(legs[st.leg]);
     if (!st.target || dist(st.target, target) > 1e-6) {
       var from = st.leg > 0 ? point(legs[st.leg - 1]) : here;
@@ -112,7 +148,7 @@
        squad the march stands down and that skill's fireteam orders move the men. */
     var retained =
       Q &&
-      ((Q.retainedSkill && Q.retainedSkill(sq)) ||
+      ((Q.retainedSkill && Q.retainedSkill(sq, ctx.sim)) ||
         (Q.defensivePhase && Q.defensivePhase(sq) ? 'defense' : null));
     if (retained) {
       st.idle = 'yield:' + retained;
@@ -258,6 +294,8 @@
           leg: st.leg,
           legs: (a[i].route || []).length,
           idle: st.idle || null,
+          entryWait: st.entryWait || null,
+          entryTimedOut: st.timedOut === undefined ? null : st.timedOut,
           stages: {},
           stopped: {}
         };
@@ -281,6 +319,7 @@
 
   root.BattleTacticalMarchProvider = {
     on: ON,
+    structure: STRUCTURE,
     id: ID,
     summary: summary,
     target: function (sq) {
@@ -289,7 +328,7 @@
     /* The leg the march is on, for the Squad Leader's retained recon decision. */
     leg: function (sq) {
       var st = squads.get(sq);
-      return st && st.target ? { point: st.target, final: !!st.final } : null;
+      return st && st.target ? { point: st.target, final: !!st.final, index: st.leg } : null;
     },
     release: function (ctx) {
       standDown(ctx, stateOf(ctx.squad), 'covered-maneuver');
