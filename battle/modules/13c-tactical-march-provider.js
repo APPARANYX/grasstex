@@ -14,6 +14,8 @@
   'use strict';
   var SEARCH = typeof location !== 'undefined' ? location.search || '' : '',
     ON = /[?&]tacticalController=new(?:&|#|$)/i.test(SEARCH),
+    /* ?supportWait=0 restores the controller marching support squads at once (no staged wait). */
+    SUPPORT_WAIT = !/[?&]supportWait=0(?:&|#|$)/i.test(SEARCH),
     ID = 'march';
   var squads = new WeakMap(),
     warned = false;
@@ -49,10 +51,29 @@
     return l > 1e-6 ? { x: dx / l, z: dz / l } : null;
   }
   /* The leg arrival radius is the doctrine's own (the radius Squad Leader execution uses on a route leg). */
+  function legCfg(sim, sq) {
+    var C = root.BattleCommanderAI;
+    return C && C.policyFor ? C.policyFor(sim, sq.faction) : null;
+  }
   function legRadius(sim, sq) {
-    var C = root.BattleCommanderAI,
-      cfg = C && C.policyFor ? C.policyFor(sim, sq.faction) : null;
+    var cfg = legCfg(sim, sq);
     return +(cfg && cfg.routeArrivalRadius) || 8;
+  }
+  /* The Squad Leader's own staging rule, reused as it is: a support squad that has reached its second
+     leg waits there until the doctrine's support delay ends or another squad of its side has committed. */
+  function supportWaiting(sim, sq, cfg) {
+    var Q = root.BattleSquadStability,
+      M = Q && Q.controllerMission,
+      m = sq._macroMission;
+    return !!(
+      SUPPORT_WAIT &&
+      M &&
+      M.assaultCommitted &&
+      sq.commandRole === 'support' &&
+      !(m && /^(screen|intercept|reserve|hold)$/.test(m.intent || '')) &&
+      +sim.time < (+(cfg && cfg.supportDelay) || 0) &&
+      !M.assaultCommitted(sim, sq)
+    );
   }
   function stateOf(sq) {
     var st = squads.get(sq);
@@ -95,7 +116,10 @@
       st.transportHandoff = ex;
     }
     st.leg = Math.min(st.leg, last);
-    while (st.leg < last && dist(here, point(legs[st.leg])) <= r) st.leg++;
+    /* Waiting support squads do not advance past leg 1; the legs themselves stay the brief's. */
+    st.waiting = supportWaiting(sim, sq, legCfg(sim, sq));
+    var ceiling = st.waiting ? Math.min(1, last) : last;
+    while (st.leg < ceiling && dist(here, point(legs[st.leg])) <= r) st.leg++;
     var target = point(legs[st.leg]);
     if (!st.target || dist(st.target, target) > 1e-6) {
       var from = st.leg > 0 ? point(legs[st.leg - 1]) : here;
@@ -127,6 +151,9 @@
     } else if (m && m.intent === 'hold') {
       phase = 'hold';
       objective = point(legs[legs.length - 1]);
+    } else if (st.waiting && st.leg >= 1) {
+      phase = 'support-hold';
+      objective = point(legs[Math.min(1, legs.length - 1)]);
     } else if (m && (m.intent === 'screen' || m.intent === 'intercept') && st.final) {
       phase = dist(here, st.target) <= 38 ? 'hold' : 'approach';
     } else if (m && m.objectiveId && st.final) {

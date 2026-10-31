@@ -665,7 +665,11 @@
       missionLegs: missionLegs,
       assaultCommitted: assaultCommitted,
       objectivePhase: objectivePhase,
-      controllerMission: { publish: publishControllerMission, objectivePhase: objectivePhase },
+      controllerMission: {
+        publish: publishControllerMission,
+        objectivePhase: objectivePhase,
+        assaultCommitted: assaultCommitted
+      },
       executeMission: executeMission,
       observeRouteTransition: observeRouteTransition
     };

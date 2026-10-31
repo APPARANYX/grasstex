@@ -15,10 +15,10 @@ function test(name, fn) {
     console.error('FAIL ' + name + ': ' + error.message);
   }
 }
-function world(intent = 'capture') {
+function world(intent = 'capture', flags = '') {
   H.resetIds();
   const r = H.bootstrap({
-    search: '?tacticalController=new&commandMovement=1&commandRelay=0&stressAct=0&scoutsForward=0'
+    search: '?tacticalController=new&commandMovement=1&commandRelay=0&stressAct=0&scoutsForward=0' + flags
   });
   const systems = {};
   r.BattleModules.registerSystem = (id, hooks) => (systems[id] = hooks);
@@ -32,7 +32,12 @@ function world(intent = 'capture') {
   ])
     loadModule(r, file, { location: r.location });
   r.BattleCommanderAI = {
-    policyFor: () => ({ routeArrivalRadius: 8, cohesionRadius: 34, captureCommitRatio: 0.82 })
+    policyFor: () => ({
+      routeArrivalRadius: 8,
+      cohesionRadius: 34,
+      captureCommitRatio: 0.82,
+      supportDelay: 20
+    })
   };
   r.BattleObjectiveSystem = { get: () => ({ def: { radius: 30 } }) };
   const b = H.makeBattle(r, { seed: 57 });
@@ -265,5 +270,76 @@ test('ending Meso movement cannot resurrect its release position after a combat 
   const next = w.R.proposeOrder(s, { x: 10, z: 40 }, w.b, false, 'squad-stability');
   assert.equal(w.R.resolve(s, w.b).owner, next.owner, 'a fresh lawful Meso order still wins');
 });
+test('a support squad waits at its second leg until the support delay ends or the assault is committed', () => {
+  const w = world();
+  w.q._macroMission = {
+    ...w.q._macroMission,
+    route: [
+      { x: 0, z: 40 },
+      { x: 0, z: 80 },
+      { x: 0, z: 150 }
+    ]
+  };
+  w.q.commandRole = 'support';
+  w.b.time = 5;
+  placeAll(w, 40);
+  tick(w);
+  tick(w);
+  assert.equal(w.q.commandPhase, 'support-hold');
+  assert.deepEqual(w.q.objective, { x: 0, z: 80 });
+  placeAll(w, 80);
+  w.b.time += 0.45;
+  tick(w);
+  assert.equal(w.q.commandPhase, 'support-hold', 'it does not march past leg 1 while waiting');
+  assert.ok(w.q.routeIndex <= 1);
+  w.b.time = 21;
+  tick(w);
+  assert.notEqual(w.q.commandPhase, 'support-hold', 'the delay is over');
+  assert.ok(w.q.routeIndex >= 2);
+});
+
+test('?supportWait=0 restores the immediate march for support squads', () => {
+  const w = world('capture', '&supportWait=0');
+  w.q._macroMission = {
+    ...w.q._macroMission,
+    route: [
+      { x: 0, z: 40 },
+      { x: 0, z: 80 },
+      { x: 0, z: 150 }
+    ]
+  };
+  w.q.commandRole = 'support';
+  w.b.time = 5;
+  placeAll(w, 80);
+  tick(w);
+  tick(w);
+  assert.notEqual(w.q.commandPhase, 'support-hold');
+});
+
+test('a support squad is released early when another squad of its side has committed', () => {
+  const w = world();
+  w.q._macroMission = {
+    ...w.q._macroMission,
+    route: [
+      { x: 0, z: 40 },
+      { x: 0, z: 80 },
+      { x: 0, z: 150 }
+    ]
+  };
+  w.q.commandRole = 'support';
+  w.b.time = 5;
+  placeAll(w, 40);
+  tick(w);
+  tick(w);
+  assert.equal(w.q.commandPhase, 'support-hold');
+  const mate = H.addSquad(w.r, w.b, { id: 'us-1', faction: 'us', x: 20, z: 0, objective: { x: 0, z: 300 } });
+  mate.routeIndex = 2;
+  placeAll(w, 80);
+  w.b.time += 0.45;
+  tick(w);
+  tick(w);
+  assert.notEqual(w.q.commandPhase, 'support-hold');
+});
+
 console.log(checks + ' tactical mission handoff checks passed');
 process.exitCode = failures ? 1 : 0;
