@@ -18,6 +18,8 @@
     SUPPORT_WAIT = !/[?&]supportWait=0(?:&|#|$)/i.test(SEARCH),
     /* ?controllerStructure=0: a leg inside a building no longer waits for the structure chain. */
     STRUCTURE = !/[?&]controllerStructure=0(?:&|#|$)/i.test(SEARCH),
+    /* ?controllerClear=0: a quiet contact no longer sends the controlled squad up on the last place the enemy was seen. */
+    CLEAR = !/[?&]controllerClear=0(?:&|#|$)/i.test(SEARCH),
     ID = 'march';
   var squads = new WeakMap(),
     warned = false;
@@ -299,7 +301,9 @@
     if (P && P.current(s)) return 'station-claimed';
     if (K && K.wants(s)) return 'ambush-post';
 
-    if (sq.inContact && !s.target) return 'unconfirmed-personal-contact';
+    /* The Squad Leader's clearing order (15i) is the one contact state in which the squad moves up on a point nobody
+       has confirmed, so a man without a personal target follows the march then. */
+    if (sq.inContact && !s.target && !(CLEAR && sq.clearContact)) return 'unconfirmed-personal-contact';
     if ((M && M.wants(s, sim)) || (C && C.wants(s, sim))) return 'contact-skill';
     return null;
   }
@@ -391,6 +395,7 @@
   root.BattleTacticalMarchProvider = {
     on: ON,
     structure: STRUCTURE,
+    clear: CLEAR,
     id: ID,
     summary: summary,
     target: function (sq) {

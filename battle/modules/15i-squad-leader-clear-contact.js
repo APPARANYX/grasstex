@@ -26,72 +26,76 @@
       CLEAR_ARRIVED = ctx.CLEAR_ARRIVED,
       CLEAR_HOLD_PHASES = ctx.CLEAR_HOLD_PHASES,
       FIRE_CONTROL_ON = ctx.FIRE_CONTROL_ON;
-  function endClearContact(sq, battle, why) {
-    if (sq.clearContact && why !== 'sighting' && why !== 'under fire') sq._clearedSeen = sq.clearContact.seen;
-    if (sq.clearContact)
-      telemetry(battle, 'decision-clear-contact-end', {
+    function endClearContact(sq, battle, why) {
+      if (sq.clearContact && why !== 'sighting' && why !== 'under fire')
+        sq._clearedSeen = sq.clearContact.seen;
+      if (sq.clearContact)
+        telemetry(battle, 'decision-clear-contact-end', {
+          faction: sq.faction,
+          squad: sq.id,
+          reason: why,
+          seconds: battle.time - sq.clearContact.since
+        });
+      sq.clearContact = null;
+    }
+    function updateClearContact(sq, battle, r) {
+      if (!ALERT_ADVANCE) return;
+      var A = root.SquadAI,
+        c = A.squadContact ? A.squadContact(sq, battle) : null,
+        own = !!(c && (A.hasFirstHandMemory ? A.hasFirstHandMemory(c, battle) : !c.heard && !c.relayedFrom)),
+        cc = sq.clearContact,
+        why =
+          sq.contactCount > 0
+            ? 'sighting'
+            : r.underFire > 0
+              ? 'under fire'
+              : sq.state === 'retreat'
+                ? 'retreat'
+                : battle.winner
+                  ? 'battle over'
+                  : CLEAR_HOLD_PHASES[sq.commandPhase || '']
+                    ? 'holding phase'
+                    : null;
+      if (why) {
+        sq._quietSince = null;
+        endClearContact(sq, battle, why);
+        return;
+      }
+      if (cc) {
+        if (own) {
+          cc.x = c.x;
+          cc.z = c.z;
+          cc.seen = c.at;
+        }
+        var a = sq.orderAnchor;
+        if (a && dist(a, cc) <= CLEAR_ARRIVED && orderCanAdvance(sq, battle))
+          endClearContact(sq, battle, 'cleared');
+        else if (battle.time - cc.since >= CLEAR_MAX) endClearContact(sq, battle, 'timeout');
+        if (!sq.clearContact) sq._quietSince = null;
+        return;
+      }
+      /* A picture the squad has already cleared, timed out on or left for a holding task is not ordered again. */
+      if (!own || (sq._clearedSeen != null && c.at <= sq._clearedSeen)) {
+        sq._quietSince = null;
+        return;
+      }
+      if (sq._quietSince == null) sq._quietSince = battle.time;
+      if (battle.time - sq._quietSince < CLEAR_AFTER) return;
+      sq.clearContact = { x: c.x, z: c.z, seen: c.at, since: battle.time };
+      telemetry(battle, 'decision-clear-contact', {
         faction: sq.faction,
         squad: sq.id,
-        reason: why,
-        seconds: battle.time - sq.clearContact.since
+        phase: sq.commandPhase || '',
+        point: { x: c.x, z: c.z }
       });
-    sq.clearContact = null;
-  }
-  function updateClearContact(sq, battle, r) {
-    if (!ALERT_ADVANCE) return;
-    var A = root.SquadAI,
-      c = A.squadContact ? A.squadContact(sq, battle) : null,
-      own = !!(c && (A.hasFirstHandMemory ? A.hasFirstHandMemory(c, battle) : !c.heard && !c.relayedFrom)),
-      cc = sq.clearContact,
-      why =
-        sq.contactCount > 0
-          ? 'sighting'
-          : r.underFire > 0
-            ? 'under fire'
-            : sq.state === 'retreat'
-              ? 'retreat'
-              : battle.winner
-                ? 'battle over'
-                : CLEAR_HOLD_PHASES[sq.commandPhase || '']
-                  ? 'holding phase'
-                  : null;
-    if (why) {
-      sq._quietSince = null;
-      endClearContact(sq, battle, why);
-      return;
+      var fc = sq.fireControl,
+        TC = root.BattleTacticalController;
+      /* A controlled squad's fire permission belongs to the controller's contact skills; the order only moves the anchor. */
+      if (FIRE_CONTROL_ON && !(TC && TC.controls(battle, sq)) && !(fc && fc.state === 'open'))
+        setFireControl(sq, battle, fc || null, 'open', 'contact quiet: clearing', {
+          targetId: fc ? fc.targetId : c.unit && c.unit.id
+        });
     }
-    if (cc) {
-      if (own) {
-        cc.x = c.x;
-        cc.z = c.z;
-        cc.seen = c.at;
-      }
-      var a = sq.orderAnchor;
-      if (a && dist(a, cc) <= CLEAR_ARRIVED && orderCanAdvance(sq, battle)) endClearContact(sq, battle, 'cleared');
-      else if (battle.time - cc.since >= CLEAR_MAX) endClearContact(sq, battle, 'timeout');
-      if (!sq.clearContact) sq._quietSince = null;
-      return;
-    }
-    /* A picture the squad has already cleared, timed out on or left for a holding task is not ordered again. */
-    if (!own || (sq._clearedSeen != null && c.at <= sq._clearedSeen)) {
-      sq._quietSince = null;
-      return;
-    }
-    if (sq._quietSince == null) sq._quietSince = battle.time;
-    if (battle.time - sq._quietSince < CLEAR_AFTER) return;
-    sq.clearContact = { x: c.x, z: c.z, seen: c.at, since: battle.time };
-    telemetry(battle, 'decision-clear-contact', {
-      faction: sq.faction,
-      squad: sq.id,
-      phase: sq.commandPhase || '',
-      point: { x: c.x, z: c.z }
-    });
-    var fc = sq.fireControl;
-    if (FIRE_CONTROL_ON && !(fc && fc.state === 'open'))
-      setFireControl(sq, battle, fc || null, 'open', 'contact quiet: clearing', {
-        targetId: fc ? fc.targetId : c.unit && c.unit.id
-      });
-  }
 
     return {
       endClearContact: endClearContact,
