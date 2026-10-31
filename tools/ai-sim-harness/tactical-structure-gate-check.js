@@ -131,7 +131,7 @@ test('the march waits at the doorway leg, says why, and goes on once the chain a
     g = approach(w);
   stepFor(w, 3);
   assert.equal(row(w).leg, 1, 'exterior proximity does not advance a building-bound leg');
-  assert.equal(row(w).waiting, 'entry-pending');
+  assert.equal(row(w).entryWait, 'entry-pending');
   g.leader.root.position.x = g.p.inside.x;
   g.leader.root.position.z = g.p.inside.z;
   w.b.time += 0.45;
@@ -139,7 +139,7 @@ test('the march waits at the doorway leg, says why, and goes on once the chain a
   assert.equal(w.P.entrySatisfied(w.b, w.q, w.q.route[1]), true, 'the real chain accepted the entry');
   w.S.executeMission(w.b, w.q, null);
   assert.equal(row(w).leg, 2, 'accepted: on to the next leg');
-  assert.equal(row(w).waiting, null);
+  assert.equal(row(w).entryWait, null);
   assert.equal(w.q.routeIndex, 2);
 });
 
@@ -148,7 +148,7 @@ test('a wait is bounded by the General’s stall-replan budget and then reports 
   approach(w);
   stepFor(w, 100);
   assert.equal(row(w).leg, 1);
-  assert.equal(row(w).waiting, 'entry-pending');
+  assert.equal(row(w).entryWait, 'entry-pending');
   stepFor(w, 30);
   assert.equal(row(w).leg, 2, 'past the budget the march moves on');
   assert.equal(row(w).entryTimedOut, 1, 'and the summary says which leg it left without acceptance');
@@ -159,7 +159,7 @@ test('?controllerStructure=0 is the old march: no wait, no routeIndex publicatio
   approach(w);
   stepFor(w, 3);
   assert.equal(row(w).leg, 2);
-  assert.equal(row(w).waiting, null);
+  assert.equal(row(w).entryWait, null);
 });
 
 test('with the entry gate on and structure orders off the chain still updates, so the wait can end', () => {
@@ -222,14 +222,14 @@ test('a wait that was left starts afresh when the squad is back on the leg', () 
   const w = world();
   approach(w);
   stepFor(w, 100);
-  assert.equal(row(w).waiting, 'entry-pending');
+  assert.equal(row(w).entryWait, 'entry-pending');
   w.q.members.forEach(s => (s.root.position.z = 120)); // away from the leg
   stepFor(w, 1);
-  assert.equal(row(w).waiting, null);
+  assert.equal(row(w).entryWait, null);
   approach(w);
   stepFor(w, 30); // 130 s since the first wait began, but only 30 s of this one
   assert.equal(row(w).leg, 1);
-  assert.equal(row(w).waiting, 'entry-pending');
+  assert.equal(row(w).entryWait, 'entry-pending');
 });
 
 console.log(n + ' controller structure checks passed');

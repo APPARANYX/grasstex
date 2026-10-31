@@ -99,7 +99,7 @@
     /* A leg inside a building waits for the chain, but only for the General's own stall-replan budget (the
        one the legacy route-transition lease uses); the wait says why, and a timeout moves on. */
     var budget = (root.BattleCommanderAI && +root.BattleCommanderAI.strategicStallReplan) || Infinity;
-    st.waiting = null;
+    st.entryWait = null;
     while (st.leg < last) {
       var legPoint = point(legs[st.leg]),
         gate = entryState(sim, sq, legPoint);
@@ -113,7 +113,7 @@
             st.waitSince = +sim.time || 0;
           }
           if ((+sim.time || 0) - st.waitSince < budget) {
-            st.waiting = 'entry-pending';
+            st.entryWait = 'entry-pending';
             break;
           }
           st.timedOut = st.leg;
@@ -121,7 +121,7 @@
       }
       st.leg++;
     }
-    if (!st.waiting) st.waitLeg = null; // a wait that was left starts afresh when the squad is back
+    if (!st.entryWait) st.waitLeg = null; // a wait that was left starts afresh when the squad is back
     var target = point(legs[st.leg]);
     if (!st.target || dist(st.target, target) > 1e-6) {
       var from = st.leg > 0 ? point(legs[st.leg - 1]) : here;
@@ -223,8 +223,10 @@
   function yields(sq, s, sim) {
     var P = root.BattleTacticalPositions,
       C = root.BattleTacticalContactSkills,
-      M = root.BattleTacticalCoveredManeuver;
+      M = root.BattleTacticalCoveredManeuver,
+      K = root.BattleTacticalAmbushSkill;
     if (P && P.current(s)) return 'station-claimed';
+    if (K && K.wants(s)) return 'ambush-post';
 
     if (sq.inContact && !s.target) return 'unconfirmed-personal-contact';
     if ((M && M.wants(s, sim)) || (C && C.wants(s, sim))) return 'contact-skill';
@@ -292,7 +294,7 @@
           leg: st.leg,
           legs: (a[i].route || []).length,
           idle: st.idle || null,
-          waiting: st.waiting || null,
+          entryWait: st.entryWait || null,
           entryTimedOut: st.timedOut === undefined ? null : st.timedOut,
           stages: {},
           stopped: {}
@@ -300,6 +302,7 @@
         if (root.BattleTacticalContactSkills) row.contact = root.BattleTacticalContactSkills.summary(a[i]);
         if (root.BattleTacticalCoveredManeuver)
           row.maneuver = root.BattleTacticalCoveredManeuver.summary(a[i]);
+        if (root.BattleTacticalAmbushSkill) row.ambush = root.BattleTacticalAmbushSkill.summary(a[i]);
         st.men.forEach(function (cur) {
           var l = byId[cur.actionId],
             key = cur.kind + ':' + (l ? l.stage : 'gone');
@@ -351,6 +354,7 @@
       fireAndMovement: function (ctx) {
         root.BattleTacticalContactSkills.update(ctx);
         if (root.BattleTacticalCoveredManeuver) root.BattleTacticalCoveredManeuver.update(ctx);
+        if (root.BattleTacticalAmbushSkill) root.BattleTacticalAmbushSkill.update(ctx);
       },
       executeMission: executeMission,
       engagement: function (ctx) {
