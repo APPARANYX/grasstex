@@ -1,0 +1,14 @@
+{
+  "benchmark": "standard",
+  "ref": "work/profile-source/meso706-048d46c7",
+  "seed": "controller-natural-20261026",
+  "seeds": "3",
+  "battle_type": "meeting",
+  "sim_seconds": "600",
+  "windows": "0+600",
+  "query_off": "strategicInterception=0",
+  "query_on": "strategicInterception=0&tacticalController=new",
+  "origin_agent": "chatgpt",
+  "correlation_id": "meso706-post-receipt-meeting-048d46c7",
+  "purpose": "Post-048d46c7 uninstrumented performance check after sampled CPU trace; three paired meeting seeds, preserve tactical behavior and acceptance gate."
+}
