@@ -1,0 +1,11 @@
+{
+  "benchmark": "causal",
+  "ref": "work/controller-meso-wrap-20261101",
+  "exact_seed": "controller-natural-20261026-0002",
+  "seeds": "1",
+  "seconds": "600",
+  "side": "all",
+  "role": "all",
+  "lifecycle": "1",
+  "query": "strategicInterception=0&tacticalController=new"
+}
