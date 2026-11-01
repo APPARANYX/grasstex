@@ -1,0 +1,14 @@
+{
+  "benchmark": "standard",
+  "ref": "work/controller-meso-wrap-20261101",
+  "sim_seconds": "600",
+  "seed": "controller-natural-20261026",
+  "seeds": "3",
+  "battle_type": "us-defend",
+  "windows": "0+600",
+  "query_off": "strategicInterception=0",
+  "query_on": "strategicInterception=0&tacticalController=new",
+  "origin_agent": "chatgpt",
+  "correlation_id": "meso706-us-defend-2838555a",
+  "purpose": "PR706 final-source acceptance after exact-head CI and Native Lab 41296050524 passed; inspect actual ownership, lifecycle, physical movement and fire. Legacy behavior deltas are diagnostic."
+}
