@@ -170,6 +170,45 @@ test('owner cover discovery padding retains valid short slots and exact hop limi
   }
 });
 
+test('static cover quality is reused, but claims and map-version changes remain live', () => {
+  const f = fixture([hedge()]),
+    F = f.r.BattleObstacleField,
+    native = F.coverPotentialAt,
+    threat = { x: 0, z: 60 };
+  let calls = 0;
+  F.coverPotentialAt = function (...args) {
+    calls++;
+    return native.apply(this, args);
+  };
+  try {
+    assert.ok(f.C.warm(f.b) > 0, 'real cover slots warmed');
+    const warmCalls = calls,
+      first = f.C.candidates(f.s, f.b, threat, 26);
+    assert.ok(first.length > 0, 'native shelter candidates available');
+    assert.equal(calls, warmCalls, 'candidate scans reuse immutable shelter quality');
+    for (const pick of first)
+      assert.equal(pick.quality, native(f.b.obstacles, pick.x, pick.z), 'exact native quality retained');
+
+    const claim = f.C.reserve(f.s, f.b, first[0].slot, 'route');
+    assert.ok(claim, 'soldier can claim native shelter');
+    const other = f.C.candidates(f.q.members[1], f.b, threat, 26);
+    assert.ok(
+      !other.some(p => p.slotId === first[0].slotId),
+      'cached quality never bypasses a live reservation'
+    );
+    assert.equal(calls, warmCalls, 'live reservation checks do not redo static field queries');
+    f.C.release(f.s, f.b, 'route');
+    f.C.candidates(f.q.members[1], f.b, threat, 26);
+    assert.equal(calls, warmCalls, 'release still rechecks availability without new geometry work');
+
+    f.b.obstacles.__physicalVersion++;
+    f.C.candidates(f.s, f.b, threat, 26);
+    assert.ok(calls > warmCalls, 'physical geometry version invalidates the quality cache');
+  } finally {
+    F.coverPotentialAt = native;
+  }
+});
+
 test('the parent seam keeps the pre-split names, arities and the spacing export', () => {
   const r = H.bootstrap({ modules: false }),
     E = r.BattleEngagement,
