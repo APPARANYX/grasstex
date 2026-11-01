@@ -1,0 +1,8 @@
+{
+  "benchmark": "hotpath",
+  "ref": "work/profile-source/meso706-ef29100e",
+  "battle_type": "meeting",
+  "seed": "controller-natural-20261026-0002",
+  "sim_seconds": "600",
+  "query": "strategicInterception=0&tacticalController=new"
+}
