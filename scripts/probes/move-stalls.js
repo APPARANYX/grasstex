@@ -1,0 +1,133 @@
+/* The standard benchmark's "soldier movement" stall, with the reason he stopped. Same criterion as
+   run_battle_benchmark.mjs: a man with no target, not in a combat Engagement state, in a phase that
+   may advance, >= 8 m from his destination, who has not moved 1.5 m in 12 s and is below 0.35 m/s.
+   Per stall: stepMovement's `_movementStopReason` at the moment it is reported (step-blocked,
+   path-blocked, prone-hold, speed-settling, arrived...), and the destination kind that owned it.
+   `examples` carry his last 12 s (position, waypoint, destination, stop reason every 1.5 s) and the
+   obstacles within 5 m, so a stall can be told from a man being pushed round a circle. Observe only. */
+(function (root) {
+  var COMBAT = {
+      orient: 1,
+      bound: 1,
+      engage: 1,
+      pinned: 1,
+      assault: 1,
+      station: 1,
+      withdraw: 1,
+      suppress: 1,
+      cower: 1,
+      flee: 1,
+      freeze: 1,
+      rage: 1
+    },
+    ADVANCE = { approach: 1, assault: 1, capture: 1, 'clear-town': 1, flank: 1 },
+    c,
+    track;
+  function bump(o, k) {
+    o[k] = (o[k] || 0) + 1;
+  }
+  (root.BattleProbes = root.BattleProbes || {})['move-stalls'] = {
+    every: 0.5,
+    start: function () {
+      c = { stalls: 0, byStopReason: {}, byKind: {}, examples: [] };
+      track = new Map();
+    },
+    sample: function (sim) {
+      var men = root.BattleModules.unitsFor(sim),
+        now = sim.time;
+      for (var i = 0; i < men.length; i++) {
+        var s = men[i];
+        if (!s) continue;
+        /* A man who stops qualifying starts his clock again when he does (the benchmark runner and module 97 do the same). */
+        if (
+          s.dead ||
+          !s.root ||
+          !s.destination ||
+          s.target ||
+          !ADVANCE[(s.squad && s.squad.commandPhase) || ''] ||
+          COMBAT[(s.eng && s.eng.state) || '']
+        ) {
+          track.delete(s);
+          continue;
+        }
+        var p = s.root.position,
+          d = Math.hypot(p.x - s.destination.x, p.z - s.destination.z),
+          prior = track.get(s);
+        if (d < 8) {
+          track.delete(s);
+          continue;
+        }
+        if (!prior) {
+          track.set(s, { x: p.x, z: p.z, at: now, reported: false, hist: [] });
+          continue;
+        }
+        var wp = s._movementWaypoint;
+        if (!prior.hist.length || now - prior.hist[prior.hist.length - 1].t >= 1.5) {
+          prior.hist.push({
+            t: +now.toFixed(1),
+            at: [+p.x.toFixed(1), +p.z.toFixed(1)],
+            wp: wp ? [+wp.x.toFixed(1), +wp.z.toFixed(1)] : null,
+            dest: [+s.destination.x.toFixed(1), +s.destination.z.toFixed(1)],
+            stop: s._movementStopReason || null,
+            v: +(+s.moveSpeed || 0).toFixed(2)
+          });
+          if (prior.hist.length > 9) prior.hist.shift();
+        }
+        if (Math.hypot(p.x - prior.x, p.z - prior.z) >= 1.5) {
+          prior.x = p.x;
+          prior.z = p.z;
+          prior.at = now;
+          prior.reported = false;
+          prior.hist = [];
+        } else if (!prior.reported && now - prior.at >= 12 && (+s.moveSpeed || 0) < 0.35) {
+          prior.reported = true;
+          c.stalls++;
+          var why = s._movementStopReason || 'none',
+            last = (s._movementResolver && s._movementResolver.last) || {};
+          bump(c.byStopReason, why);
+          bump(c.byKind, (last.owner || '?') + '/' + (last.kind || '?'));
+          if (c.examples.length < 8)
+            c.examples.push({
+              t: +now.toFixed(1),
+              soldier: s.id,
+              squad: s.squad && s.squad.id,
+              stop: why,
+              dest: +d.toFixed(1),
+              kind: last.kind || null,
+              history: prior.hist,
+              /* Navigation's rolling queue: a first point inside the man's own 0.35 m arrival with more
+                 behind it is a waypoint he will never walk to (stepMovement calls it `arrived`). */
+              path: s._physicalPath
+                ? {
+                    blocked: !!s._physicalPath.blocked,
+                    replanIn: +(s._physicalPath.replanAt - now).toFixed(1),
+                    points: (s._physicalPath.points || []).slice(0, 3).map(function (q) {
+                      return {
+                        x: +q.x.toFixed(1),
+                        z: +q.z.toFixed(1),
+                        away: +Math.hypot(q.x - p.x, q.z - p.z).toFixed(2)
+                      };
+                    }),
+                    queue: (s._physicalPath.points || []).length
+                  }
+                : null,
+              near: root.BattleObstacleField
+                ? root.BattleObstacleField.nearby(sim.obstacles, p.x, p.z, 5).map(function (o) {
+                    return {
+                      kind: o.kind || o.type || null,
+                      dx: +(o.x - p.x).toFixed(1),
+                      dz: +(o.z - p.z).toFixed(1),
+                      r: +(+o.radius).toFixed(2),
+                      phys: o.physicalId != null
+                    };
+                  })
+                : null
+            });
+        }
+      }
+    },
+    report: function () {
+      return c;
+    }
+  };
+})(window);

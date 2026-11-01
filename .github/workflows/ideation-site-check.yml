@@ -1,0 +1,45 @@
+name: ⭐️ Commander Ideation Site QA
+on:
+  pull_request:
+    paths:
+      - 'wargame/**'
+      - 'scripts/check-ideation-exchange.py'
+      - 'scripts/check-ideation-assets.py'
+      - 'scripts/check-ideation-field-effects.php'
+      - 'scripts/prepare_incremental_deploy.py'
+      - '.github/workflows/ideation-site-check.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  php-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify browser/API versions and cache-busted asset URLs
+        run: python3 scripts/check-ideation-assets.py
+      - name: Check PHP syntax
+        run: |
+          php -l wargame/api.php
+          php -l wargame/engine.php
+      - name: Check sealed order and automatic referee workflow
+        run: python3 scripts/check-ideation-exchange.py
+      - name: Check field object gameplay stats and effects
+        run: php scripts/check-ideation-field-effects.php
+      - name: Check V1/V2 contested-referee behavior
+        run: php scripts/check-ideation-referee.php
+      - name: Check managed deploy inventory
+        run: |
+          python3 - <<'PY'
+          import sys
+          sys.path.insert(0, 'scripts')
+          import prepare_incremental_deploy as p
+          expected = ['wargame/index.html', 'wargame/app.js', 'wargame/map.js', 'wargame/api.php', 'wargame/engine.php', 'wargame/scenario.json']
+          for name in expected:
+              assert (name, name) in p.STATIC_FILES, name
+              assert not p.is_protected(name), name
+          assert p.is_protected('state/ideation-v1/protected.php') is False
+          assert 'state/ideation-v1/protected.php' not in [dest for _,dest in p.STATIC_FILES]
+          print('PASS: wargame site assets managed, mutable match state never deployed')
+          PY

@@ -1,0 +1,63 @@
+name: ⭐ New Tactical Controller Natural A-B
+on:
+  pull_request:
+    # Full acceptance runs only when a draft is marked ready to review.
+    types: [ready_for_review]
+    paths:
+      - battle/modules/13c-tactical-march-provider.js
+      - battle/modules/13d-tactical-contact-skills.js
+      - battle/modules/13e-tactical-covered-maneuver.js
+      - scripts/probes/probe_tactical_controller_natural.cjs
+      - .github/workflows/tactical-controller-natural.yml
+  workflow_dispatch:
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+jobs:
+  natural:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        battle: [meeting, us-defend, ge-defend]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Verify exact checkout and install Chromium
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          npm install --no-save playwright@1.58.2
+          npx playwright install --with-deps chromium
+      - name: Serve exact checked-out battle runtime locally
+        shell: bash
+        run: |
+          mkdir -p /tmp/tactical-natural-www
+          ln -s "$GITHUB_WORKSPACE" /tmp/tactical-natural-www/grasstex
+          PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8765 -t /tmp/tactical-natural-www >/tmp/tactical-natural-php.log 2>&1 &
+          for i in $(seq 1 40); do
+            if curl -fsS 'http://127.0.0.1:8765/grasstex/battle_sim_local.php?seed=tactical-natural-health' >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          tail -100 /tmp/tactical-natural-php.log
+          exit 1
+      - name: Pinned same-seed OFF versus new-controller ON
+        env:
+          TC_NATURAL_URL: http://127.0.0.1:8765/grasstex/battle_sim_local.php
+          TC_NATURAL_TYPE: ${{ matrix.battle }}
+          TC_NATURAL_COUNT: '3'
+          TC_NATURAL_SECONDS: '300'
+          TC_NATURAL_PREFIX: controller-natural-20261026
+        run: node scripts/probes/probe_tactical_controller_natural.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: controller-natural-${{ matrix.battle }}
+          path: reports/tactical-controller-natural/

@@ -1,0 +1,932 @@
+#!/usr/bin/env node
+'use strict';
+
+/* Exercise the shipping weapon owners and clock. No rendered assets or AI seed arms are needed
+   to prove that a committed grenade releases once, survives its thrower, and obeys blast cover. */
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const H = require('./harness');
+
+let checks = 0;
+function test(name, fn) {
+  fn();
+  checks++;
+  console.log('PASS ' + name);
+}
+function load(root, rel, errors) {
+  new Function(
+    'window',
+    'globalThis',
+    'console',
+    'BABYLON',
+    'location',
+    fs.readFileSync(path.join(H.REPO, rel), 'utf8')
+  )(root, root, { log() {}, warn() {}, error: (...args) => errors.push(args) }, root.BABYLON, root.location);
+}
+function man(ctx, faction, x, z, role) {
+  const sq = H.addSquad(ctx.r, ctx.b, {
+    id: faction + '-' + ctx.b.factions[faction].squads.length,
+    faction,
+    x,
+    z,
+    composition: [role || 'rifleman'],
+    objective: { x: 100, z: 0 }
+  });
+  const s = sq.members[0];
+  s.root.position.set(x, ctx.b.heightAt(x, z), z);
+  return s;
+}
+function setup(opts) {
+  opts = opts || {};
+  H.resetIds();
+  const r = H.bootstrap({ modules: false, search: opts.search == null ? '?grenades=1&log=0' : opts.search });
+  const errors = [];
+  for (const rel of [
+    'battle/module-registry.js',
+    'battle/scenario-generator.js',
+    'battle/modules/08-soldier-events.js',
+    'battle/modules/14-wound-model.js',
+    'battle/modules/14-z-ballistic-raycast.js'
+  ])
+    load(r, rel, errors);
+  const ownDraws = { count: 0, streams: [] };
+  const rngFor = r.BattleScenarioGenerator.rngFor;
+  r.BattleScenarioGenerator.rngFor = (seed, salt) => {
+    ownDraws.streams.push(salt);
+    const rng = rngFor(seed, salt);
+    return () => {
+      ownDraws.count++;
+      return rng();
+    };
+  };
+  load(r, 'battle/modules/23-grenades.js', errors);
+  const b = H.makeBattle(r, { obstacles: opts.obstacles || [], heightAt: opts.heightAt });
+  b.scene = { metadata: { battleScenario: { seed: opts.seed || 'grenade-contract' } } };
+  b.time = 10;
+  let combatDraws = 0;
+  b.random = () => {
+    combatDraws++;
+    return 0.5; // abdomen, mean severity, no drop: distance can be compared without casualty noise.
+  };
+  const ctx = { r, b, G: r.BattleGrenades, errors, ownDraws, combatDraws: () => combatDraws };
+  ctx.s = man(ctx, 'us', 0, 0);
+  r.BattleSoldierEvents.subscribe('grenade-check', ['suppressed', 'wound']);
+  r.BattleModules.runHook('onBattleStart', b, {});
+  assert.deepEqual(errors, [], 'lifecycle hooks must not swallow a runtime error');
+  return ctx;
+}
+function at(ctx, time) {
+  const dt = time - ctx.b.time;
+  ctx.b.time = time;
+  ctx.r.BattleModules.runHook('onSimulationStep', ctx.b, { dt });
+  assert.deepEqual(ctx.errors, [], 'simulation hooks must not swallow a runtime error');
+}
+function throwOnce(ctx, aim) {
+  ctx.s.isPlayer = true;
+  const plan = ctx.G.playerThrow(ctx.s, ctx.b, aim || { x: 20, z: 0 });
+  assert.ok(plan, 'a player can commit a safe throw');
+  at(ctx, plan.releaseAt);
+  const live = ctx.G.projectiles(ctx.b);
+  assert.equal(live.length, 1, 'the release creates exactly one live grenade');
+  return live[0];
+}
+function victim(ctx, x, z, faction) {
+  const s = man(ctx, faction || 'ge', x, z);
+  s.hp = s.maxHp = 1000;
+  return s;
+}
+function events(ctx, s) {
+  const rows = [];
+  ctx.r.BattleSoldierEvents.drain(s, 'grenade-check', (kind, data, at) => rows.push({ kind, data, at }));
+  return rows;
+}
+function hiddenContact(ctx, opts) {
+  opts = opts || {};
+  ctx.b.obstacles = [{ shape: 'obb', x: 10, z: 0, hx: 0.25, hz: 6, y: 0, height: 3, type: 'wall' }];
+  ctx.r.SquadAI.rememberReportedContact(ctx.s, ctx.b, {
+    x: opts.x == null ? 20 : opts.x,
+    z: 0,
+    observedAt: opts.at == null ? ctx.b.time : opts.at,
+    confidence: 0.9,
+    sourceId: 'known-observer',
+    reportId: 'grenade-known-contact',
+    otherFaction: 'ge'
+  });
+}
+
+test('grenades are on by default and only an absent or complete grenades=1 value keeps them on', () => {
+  for (const search of [
+    '?grenades=0',
+    '?grenades=10',
+    '?grenades=1.0',
+    '?grenades=1-extra',
+    '?grenades=off',
+    '?grenades='
+  ]) {
+    const { G } = setup({ search: search + '&log=0' });
+    assert.equal(G.on(), false, search);
+  }
+  for (const search of ['?log=0', '?xgrenades=0&log=0', '?x=1&grenades=1&log=0'])
+    assert.equal(setup({ search }).G.on(), true, search);
+  assert.equal(setup({ search: '' }).G.on(), true, 'an empty query string is the default battle');
+});
+
+test('explicit covered-assault opportunity preserves personal intel, range, friendly safety and native throw gates', () => {
+  const ctx = setup();
+  const { r, b, s, G } = ctx;
+  r.BattleTacticalController = { controls: () => true };
+  const enemy = victim(ctx, 28, 0);
+  s.target = enemy;
+  r.SquadAI.rememberSeen(s, enemy, b, true, 'grenade-assault-fixture');
+  assert.ok(G.assaultOpportunity(s, b), 'a visible close target is legal even with a usable rifle line');
+  const before = ctx.ownDraws.count;
+  G.assaultOpportunity(s, b);
+  assert.equal(ctx.ownDraws.count, before, 'planning draws no scatter RNG');
+  s.moving = true;
+  assert.equal(G.assaultOpportunity(s, b), null, 'finish the active movement before selecting a grenade');
+  s.moving = false;
+  r.BattleEngagement.stateOf(s).urgentBound = true;
+  assert.equal(G.assaultOpportunity(s, b), null, 'urgent survival displacement retains precedence');
+  s.eng.urgentBound = false;
+  r.BattleTacticalPositions = { current: () => ({ id: 'owned-station' }) };
+  assert.equal(G.assaultOpportunity(s, b), null, 'station holders cannot starve a free grenadier selection');
+  delete r.BattleTacticalPositions;
+  s.reloading = true;
+  assert.equal(G.assaultOpportunity(s, b), null);
+  s.reloading = false;
+  s.suppressedUntil = b.time + 1;
+  assert.equal(G.assaultThrow(s, b), null);
+  s.suppressedUntil = 0;
+  const friend = man(ctx, 'us', 23, 0);
+  assert.equal(G.assaultThrow(s, b), null, 'friendly clearance is never bypassed');
+  friend.root.position.x = -20;
+  b.time += G.TUNING.CONTACT_FRESH + 1;
+  s.target = null;
+  assert.equal(G.assaultOpportunity(s, b), null, 'stale contact cannot authorize the finisher');
+  r.BattleTacticalController.controls = () => false;
+  assert.equal(G.assaultThrow(s, b), null, 'legacy controller cannot invoke the explicit finisher');
+});
+test('35m throwing reach adds eligible contacts but preserves 26m friendly clearance', () => {
+  const ctx = setup();
+  const { G, b, s, r } = ctx;
+  r.BattleTacticalController = { controls: () => true };
+  assert.equal(G.TUNING.RANGE, 35);
+  assert.equal(G.TUNING.WINDUP, 1.6, 'throw cadence must give FBX clips natural time to wind up');
+  assert.equal(G.TUNING.FRIEND_CLEAR, 26, 'original planning safety retained');
+  assert.equal(G.TUNING.ROLL_MAX_TRAVEL, 1.4);
+  const enemy = victim(ctx, 34, 0);
+  s.target = enemy;
+  r.SquadAI.rememberSeen(s, enemy, b, true, 'extended-range-safe-throw');
+  assert.ok(G.assaultOpportunity(s, b), 'a fresh personal contact at 34m is in range');
+  const friend = man(ctx, 'us', 34, 0);
+  assert.equal(G.assaultOpportunity(s, b), null, 'friendly in fragment field still vetoes a throw');
+  friend.root.position.x = -35;
+  assert.ok(G.assaultOpportunity(s, b), 'clear landing permits the extended throw');
+});
+test('AI rejects an exposed ally 16m from the aim although the old 13m gate would pass', () => {
+  const ctx = setup();
+  const { G, b, s, r } = ctx;
+  r.BattleTacticalController = { controls: () => true };
+  const enemy = victim(ctx, 28, 0);
+  s.target = enemy;
+  r.SquadAI.rememberSeen(s, enemy, b, true, 'grenade-unsafe-fragment-field');
+  assert.ok(G.assaultOpportunity(s, b), 'clean 28m throw has space to clear its own thrower');
+  const friend = man(ctx, 'us', 44, 0); // 16m from the planned landing, exposed
+  assert.equal(G.assaultOpportunity(s, b), null, '22m fragment reach plus 3.5m scatter must be respected');
+  friend.root.position.x = 58;
+  assert.ok(G.assaultOpportunity(s, b), 'ally outside full hazard permits the same throw');
+});
+
+test('AI release aborts if a friendly moves into the burst zone during windup', () => {
+  const ctx = setup();
+  const { G, b, s, r } = ctx;
+  r.BattleTacticalController = { controls: () => true };
+  const enemy = victim(ctx, 28, 0);
+  s.target = enemy;
+  r.SquadAI.rememberSeen(s, enemy, b, true, 'grenade-release-safety');
+  const carried = G.count(s);
+  const plan = G.assaultThrow(s, b);
+  assert.ok(plan, 'grenade committed with safe initial formation');
+  const friend = man(ctx, 'us', 28, 0); // intervening movement invalidates release
+  at(ctx, plan.releaseAt);
+  assert.equal(G.projectiles(b).length, 0, 'unsafe live landing never becomes a projectile');
+  assert.equal(G.count(s), carried, 'cancelled grenade does not consume inventory');
+  assert.equal(G.summary(b).unsafeAborts, 1, 'diagnostics record the safety abort');
+  assert.equal(G.summary(b).throws, 0);
+  assert.equal(G.pendingOf(s, b), null, 'a cancelled plan frees its native reservation');
+  friend.root.position.x = 60;
+});
+
+test('OFF has no registered grenade clock, field writes or RNG draws, including read APIs', () => {
+  const ctx = setup({ search: '?grenades=0&log=0' });
+  const { r, b, s, G } = ctx;
+  const before = Object.keys(s).sort();
+  const battleBefore = Object.keys(b).sort();
+  assert.ok(!r.BattleModules.listSystems().some(system => /grenade/.test(system.id)));
+  assert.ok(!G.consider(s, b));
+  s.isPlayer = true;
+  assert.ok(!G.playerThrow(s, b, { x: 20, z: 0 }));
+  delete s.isPlayer;
+  G.count(s);
+  G.cooldownLeft(s, b);
+  G.pendingOf(s, b);
+  assert.equal(G.reviewDue(s, b), false);
+  G.preview(s, b, { x: 20, z: 0 });
+  G.projectiles(b);
+  G.summary(b);
+  r.BattleModules.runHook('onBattleRestart', b, {});
+  at(ctx, b.time + 1);
+  assert.deepEqual(Object.keys(s).sort(), before);
+  assert.deepEqual(Object.keys(b).sort(), battleBefore);
+  assert.equal(ctx.ownDraws.count, 0);
+  assert.deepEqual(ctx.ownDraws.streams, []);
+  assert.equal(ctx.combatDraws(), 0);
+});
+
+test('inventory is role-issued, consumed at release once, and cooldown begins at release', () => {
+  const ctx = setup();
+  const { G, s, b, r } = ctx;
+  const carried = G.count(s);
+  assert.equal(carried, r.SquadAI.loadoutFor(s.role, s.faction).grenades);
+  assert.ok(carried > 0);
+  s.isPlayer = true;
+  const plan = G.playerThrow(s, b, { x: 20, z: 0 });
+  assert.ok(plan);
+  assert.equal(G.count(s), carried, 'a windup does not spend inventory');
+  assert.equal(G.cooldownLeft(s, b), 0);
+  assert.ok(!G.playerThrow(s, b, { x: 20, z: 0 }), 'the same man cannot commit twice');
+  assert.equal(
+    r.SquadAI.playerFireRay(s, { x: 20, y: 1, z: 0 }, b),
+    false,
+    'the authoritative player trigger rejects rifle fire during a throw windup'
+  );
+  assert.equal(b.events.fired, 0);
+  at(ctx, plan.releaseAt - 0.001);
+  assert.equal(G.projectiles(b).length, 0);
+  at(ctx, plan.releaseAt);
+  assert.equal(G.count(s), carried - 1);
+  assert.equal(G.pendingOf(s, b), null);
+  assert.equal(G.cooldownLeft(s, b), G.TUNING.COOLDOWN);
+  assert.equal(G.summary(b).throws, 1);
+  assert.equal(ctx.combatDraws(), 0, 'landing scatter does not touch combat RNG');
+  assert.ok(ctx.ownDraws.count > 0);
+  assert.deepEqual(ctx.ownDraws.streams, ['grenades', 'grenade-fragments']);
+  at(ctx, b.time);
+  assert.equal(G.count(s), carried - 1);
+  assert.equal(G.summary(b).throws, 1);
+});
+
+test('a committed motion survives possession, retreat, freeze, reload and loss of weapon', () => {
+  const ctx = setup();
+  const { G, s, b } = ctx;
+  const carried = G.count(s);
+  s.isPlayer = true;
+  const plan = G.playerThrow(s, b, { x: 20, z: 0 });
+  assert.ok(plan);
+  s.isPlayer = false;
+  s.squad.state = 'retreat';
+  s.eng = { state: 'freeze' };
+  s.weapon = null;
+  s.reloading = true;
+  s.crawling = true;
+  at(ctx, plan.releaseAt);
+  assert.equal(G.count(s), carried - 1);
+  assert.equal(G.projectiles(b).length, 1);
+  assert.equal(G.summary(b).aborted, 0);
+});
+
+test('death during windup aborts once without spending inventory or scatter draws', () => {
+  const ctx = setup();
+  const { G, s, b } = ctx;
+  s.isPlayer = true;
+  const carried = G.count(s);
+  const plan = G.playerThrow(s, b, { x: 20, z: 0 });
+  assert.ok(plan);
+  s.dead = true;
+  at(ctx, b.time + 0.1);
+  assert.equal(G.pendingOf(s, b), null);
+  assert.equal(G.count(s), carried);
+  assert.equal(G.summary(b).aborted, 1);
+  at(ctx, plan.releaseAt + 1);
+  assert.equal(G.summary(b).aborted, 1);
+  assert.equal(G.projectiles(b).length, 0);
+  assert.equal(ctx.ownDraws.count, 0);
+});
+
+test('a late clock step uses casualty time to distinguish death before and after release', () => {
+  for (const offset of [-0.1, 0, 0.1]) {
+    const ctx = setup();
+    const { G, s, b } = ctx;
+    s.isPlayer = true;
+    const carried = G.count(s);
+    const plan = G.playerThrow(s, b, { x: 20, z: 0 });
+    assert.ok(plan);
+    b.killSoldier(s, null);
+    s.casualty = { at: plan.releaseAt + offset };
+    at(ctx, plan.releaseAt + 0.25);
+    const released = offset > 0;
+    assert.equal(G.summary(b).throws, released ? 1 : 0, 'casualty offset ' + offset);
+    assert.equal(G.summary(b).aborted, released ? 0 : 1, 'casualty offset ' + offset);
+    assert.equal(G.count(s), carried - (released ? 1 : 0));
+    assert.equal(G.projectiles(b).length, released ? 1 : 0);
+    if (released) assert.equal(G.projectiles(b)[0].releasedAt, plan.releaseAt);
+    else assert.equal(ctx.ownDraws.count, 0, 'death before release cannot consume scatter draws');
+  }
+});
+
+test('AI needs a known blocked close contact and preserves reported coordinates', () => {
+  const ctx = setup();
+  const { G, s, b, r } = ctx;
+  assert.equal(G.consider(s, b), null, 'unreported enemies cannot supply an aim');
+  const enemy = man(ctx, 'ge', 20, 0);
+  s.target = enemy;
+  assert.equal(G.consider(s, b), null, 'a clear rifle solution does not need a grenade');
+  r.SquadAI.clearTarget(s);
+  hiddenContact(ctx);
+  enemy.root.position.x = 100;
+  const plan = G.consider(s, b);
+  assert.ok(plan, 'a fresh personal report behind cover is actionable');
+  assert.deepEqual(plan.aim, { x: 20, z: 0 }, 'memory is not upgraded from the enemy live position');
+});
+
+test('AI decision rejects stale, distant, friendly-danger, empty, reload, crawl and cooldown cases', () => {
+  for (const reason of ['stale', 'range', 'friend', 'empty', 'reload', 'crawl', 'cooldown']) {
+    const ctx = setup();
+    hiddenContact(ctx, reason === 'stale' ? { at: ctx.b.time - ctx.G.TUNING.CONTACT_FRESH - 0.1 } : {});
+    if (reason === 'range') ctx.s.root.position.x = -ctx.G.TUNING.RANGE;
+    if (reason === 'friend') man(ctx, 'us', 20, 0);
+    if (reason === 'empty') ctx.s.grenades = 0;
+    if (reason === 'reload') ctx.s.reloading = true;
+    if (reason === 'crawl') ctx.s.crawling = true;
+    if (reason === 'cooldown') ctx.s._grenadeNextAt = ctx.b.time + 1;
+    assert.equal(ctx.G.consider(ctx.s, ctx.b), null, reason);
+  }
+});
+
+test('Engagement orients, reserves and blocks rifle fire, then aborts if cover vanishes at release', () => {
+  const ctx = setup();
+  const { G, r, s, b } = ctx;
+  const E = r.BattleEngagement;
+  const enemy = man(ctx, 'ge', 20, 0);
+  s.target = enemy;
+  s.root.rotation.y = Math.PI / 2;
+  r.SquadAI.rememberSeen(s, enemy, b, true, 'grenade-test');
+  const e = E.stateOf(s);
+  E.updateSoldier(s, b);
+  assert.equal(e.state, 'orient', 'recognition precedes the combat decision');
+  b.time = e.until;
+  hiddenContact(ctx);
+  E.updateSoldier(s, b);
+  assert.equal(e.state, 'throw');
+  assert.equal(s.state, 'throw');
+  const plan = G.pendingOf(s, b);
+  assert.ok(plan, 'the Engagement action owns a real pending commitment');
+  b.obstacles = [];
+  r.SquadAI.setFireCooldown(s, 0);
+  assert.equal(r.SquadAI.tryFire(s, b), false, 'a now-clear rifle cannot fire during the windup');
+  assert.equal(E.suppress(s, b, { x: 20, z: 0 }), false, 'suppression cannot bypass the windup');
+  assert.equal(ctx.combatDraws(), 0);
+  at(ctx, plan.releaseAt);
+  E.updateSoldier(s, b);
+  assert.notEqual(e.state, 'throw', 'the next Engagement tick resumes combat after clock release');
+  assert.equal(G.summary(b).throws, 0, 'exposed thrower must not release into his own fragment field');
+  assert.equal(G.summary(b).unsafeAborts, 1, 'release checks the lost cover before spending a grenade');
+});
+
+test('Engagement can throw at a remembered enemy after cover removes its live target', () => {
+  const ctx = setup();
+  const { G, r, s, b } = ctx;
+  hiddenContact(ctx);
+  s.squad.inContact = true;
+  r.BattleEngagement.requestState(s, b, 'shared-contact', 1);
+  r.BattleEngagement.updateSoldier(s, b);
+  assert.equal(s.target, null);
+  assert.equal(r.BattleEngagement.stateOf(s).state, 'throw');
+  assert.deepEqual(G.pendingOf(s, b).aim, { x: 20, z: 0 });
+});
+
+test('an alert with no actionable grenade preserves the existing Engagement cover-review clock', () => {
+  const ctx = setup();
+  const { G, r, s, b } = ctx;
+  const E = r.BattleEngagement;
+  s.squad.inContact = true;
+  E.requestState(s, b, 'shared-contact', 10);
+  const e = E.stateOf(s);
+  const coverReviewAt = b.time - 2;
+  e.reviewAt = coverReviewAt;
+  E.updateSoldier(s, b);
+  assert.equal(G.pendingOf(s, b), null, 'the alert has no known grenade target');
+  assert.equal(e.reviewAt, coverReviewAt, 'a failed grenade decision cannot reschedule cover review');
+  b.time += G.TUNING.DECISION_EVERY;
+  E.updateSoldier(s, b);
+  assert.equal(e.reviewAt, coverReviewAt, 'later grenade reviews still leave that clock alone');
+  assert.equal(G.summary(b).throws, 0);
+});
+
+test('grenade review cadence is per soldier, resets with the battle, and never writes Engagement state', () => {
+  const ctx = setup();
+  const { G, r, s, b } = ctx;
+  const e = r.BattleEngagement.stateOf(s);
+  e.reviewAt = 37;
+  const before = JSON.stringify(e);
+  assert.equal(G.reviewDue(s, b), true);
+  assert.equal(G.reviewDue(s, b), false, 'a repeated same-tick review is not due');
+  b.time += G.TUNING.DECISION_EVERY - 0.01;
+  assert.equal(G.reviewDue(s, b), false);
+  b.time += 0.01;
+  assert.equal(G.reviewDue(s, b), true, 'the next review becomes due at its own cadence');
+  const other = man(ctx, 'us', -100, 0);
+  assert.equal(G.reviewDue(other, b), true, 'one soldier cannot delay another soldier review');
+  assert.equal(G.reviewDue(s, b), false);
+  r.BattleModules.runHook('onBattleRestart', b, {});
+  assert.equal(G.reviewDue(s, b), true, 'restart discards the prior review cadence');
+  assert.equal(JSON.stringify(e), before, 'cadence and reset never mutate the Engagement record');
+});
+
+test('a bound without cover cannot bypass HOLD FIRE, and OPEN FIRE permits the same throw', () => {
+  const ctx = setup({ search: '?grenades=1&commandPosture=0&stressAct=0&log=0' });
+  const { G, r, s, b } = ctx;
+  const E = r.BattleEngagement;
+  const enemy = man(ctx, 'ge', 20, 0);
+  s.target = enemy;
+  hiddenContact(ctx);
+  const e = E.stateOf(s);
+  e.state = 'bound';
+  e.cover = null;
+  s.squad.fireControl = { state: 'hold' };
+  assert.equal(E.fireAuthorized(s, b), false);
+  E.updateSoldier(s, b);
+  assert.equal(G.pendingOf(s, b), null, 'the bound recovery must honor the Squad Leader fire permission');
+  assert.equal(G.summary(b).throws, 0);
+  assert.equal(ctx.ownDraws.count, 0);
+  e.state = 'bound';
+  e.cover = null;
+  s.crawling = false;
+  s.squad.fireControl = { state: 'open' };
+  assert.equal(E.fireAuthorized(s, b), true);
+  E.updateSoldier(s, b);
+  assert.equal(e.state, 'throw');
+  assert.ok(G.pendingOf(s, b), 'opening fire authorizes that same bound-recovery decision');
+});
+
+test('grenade bounce and roll follow native physics before detonation at the resting position', () => {
+  const ctx = setup({ seed: 'grenade-impact-physics' });
+  const { G, b } = ctx;
+  const g = throwOnce(ctx, { x: 30, z: 0 });
+  assert.ok(Object.isFrozen(g) && Object.isFrozen(g.points) && Object.isFrozen(g.impact));
+  assert.ok(g.impactAt < g.flight, 'simulation gives post-contact motion its own scheduled time');
+  assert.ok(g.rollDistance > 0.05 && g.rollDistance <= G.TUNING.ROLL_MAX_TRAVEL + 1e-8);
+  assert.ok(
+    g.points.some(p => p.at > g.impactAt && p.y > g.impact.y + 0.015),
+    'restitution creates a visible, physics-integrated first bounce'
+  );
+  assert.ok(
+    Math.hypot(g.to.x - g.impact.x, g.to.z - g.impact.z) > 0.05,
+    'friction reduces an actual sliding velocity, not just mesh rotation'
+  );
+  assert.deepEqual(G.position(g, g.releasedAt + g.impactAt), g.impact);
+  assert.deepEqual(G.position(g, g.releasedAt + g.flight), g.to);
+  assert.deepEqual(G.position(g, g.detonateAt - 0.01), g.to);
+  assert.equal(g.detonateAt, g.releasedAt + g.flight + G.TUNING.FUSE);
+  assert.deepEqual(G.projectiles(b)[0].to, g.to, 'final collision result belongs to simulation');
+  at(ctx, g.detonateAt);
+  assert.equal(G.summary(b).bursts, 1);
+});
+
+test('grenade landing motion replays identically without frame/render or combat RNG dependence', () => {
+  const a = setup({ seed: 'grenade-roll-determinism' });
+  const ga = throwOnce(a, { x: 30, z: 0 });
+  const b = setup({ seed: 'grenade-roll-determinism' });
+  for (let i = 0; i < 20; i++) b.b.random();
+  const gb = throwOnce(b, { x: 30, z: 0 });
+  assert.deepEqual(gb.points, ga.points);
+  assert.deepEqual(gb.to, ga.to);
+  assert.deepEqual(gb.impact, ga.impact);
+  assert.equal(gb.detonateAt, ga.detonateAt);
+  assert.ok(ga.points.length > 24, 'native physics produced actual substep trajectory points');
+});
+
+test('preview is deterministic and read-only, and an intervening wall stops the released arc', () => {
+  const ctx = setup();
+  const { G, r, s, b } = ctx;
+  s.isPlayer = true;
+  const keys = Object.keys(s).sort();
+  const first = G.preview(s, b, { x: 100, z: 0 });
+  assert.ok(first.legal);
+  assert.ok(Math.hypot(first.to.x, first.to.z) <= G.TUNING.RANGE, 'player aim is capped at throw range');
+  assert.deepEqual(G.preview(s, b, { x: 100, z: 0 }), first);
+  assert.deepEqual(Object.keys(s).sort(), keys);
+  assert.equal(ctx.ownDraws.count, 0);
+  assert.equal(ctx.combatDraws(), 0);
+  b.obstacles = [{ shape: 'obb', x: 10, z: 0, hx: 0.25, hz: 20, y: 0, height: 20, type: 'wall' }];
+  assert.equal(G.preview(s, b, { x: 20, z: 0 }).legal, false);
+  assert.equal(G.playerThrow(s, b, { x: 20, z: 0 }), null, 'a known blocked arc cannot be committed');
+  b.obstacles = [];
+  const plan = G.playerThrow(s, b, { x: 20, z: 0 });
+  assert.ok(plan);
+  b.obstacles = [{ shape: 'obb', x: 10, z: 0, hx: 0.25, hz: 20, y: 0, height: 20, type: 'wall' }];
+  at(ctx, plan.releaseAt);
+  const g = G.projectiles(b)[0];
+  assert.ok(g, 'a committed throw releases even when the arc becomes obstructed');
+  assert.ok(g.to.x <= 9.75, 'the actual flight stops outside the physical wall face');
+  for (let t = g.releasedAt; t <= g.releasedAt + g.flight; t += 0.02)
+    assert.ok(G.position(g, t).x <= 9.75, 'the visible flight cannot pass through the wall');
+  assert.ok(r.BattleBallistics.environmentLineBlocked, 'flight uses the shared physical-line owner');
+});
+
+test('every released flight segment stays clear, including settling onto a building roof', () => {
+  const ctx = setup();
+  const { G, r, s, b } = ctx;
+  s.isPlayer = true;
+  const plan = G.playerThrow(s, b, { x: 24, z: 0 });
+  assert.ok(plan);
+  b.obstacles = [{ shape: 'obb', x: 20, z: 0, hx: 5, hz: 5, y: 0, height: 3, type: 'building' }];
+  at(ctx, plan.releaseAt);
+  const g = G.projectiles(b)[0];
+  assert.ok(g, 'appearing cover changes the flight without cancelling the committed release');
+  assert.ok(g.to.x > 15 && g.to.x < 25, 'the landing lies over the building footprint');
+  assert.ok(
+    g.to.y >= 3,
+    'a roof impact cannot settle through the building to ground level: ' + JSON.stringify(g.points.slice(-2))
+  );
+  for (let i = 1; i < g.points.length; i++)
+    assert.equal(
+      r.BattleBallistics.environmentLineBlocked(g.points[i - 1], g.points[i], b),
+      false,
+      'released path segment ' + i + ' must remain outside physical cover'
+    );
+  assert.deepEqual(G.position(g, g.releasedAt + g.flight), g.to);
+});
+
+test('a late clock step preserves scheduled release, cooldown and fuse times', () => {
+  const ctx = setup();
+  const { G, s, b } = ctx;
+  s.isPlayer = true;
+  const plan = G.playerThrow(s, b, { x: 20, z: 0 });
+  assert.ok(plan);
+  at(ctx, plan.releaseAt + 0.25);
+  const g = G.projectiles(b)[0];
+  assert.equal(g.releasedAt, plan.releaseAt);
+  assert.equal(g.detonateAt, plan.releaseAt + g.flight + G.TUNING.FUSE);
+  assert.equal(G.cooldownLeft(s, b), G.TUNING.COOLDOWN - 0.25);
+  at(ctx, g.detonateAt + 0.25);
+  assert.equal(G.summary(b).bursts, 1);
+  at(ctx, b.time + 0.25);
+  assert.equal(G.summary(b).throws, 1);
+  assert.equal(G.summary(b).bursts, 1);
+});
+
+test('scatter replays from its own scenario stream and projectiles cannot be rewritten by readers', () => {
+  const a = setup({ seed: 'grenade-replay' });
+  const ga = throwOnce(a);
+  const b = setup({ seed: 'grenade-replay' });
+  for (let i = 0; i < 19; i++) b.b.random();
+  const gb = throwOnce(b);
+  assert.deepEqual(ga.to, gb.to, 'unrelated combat RNG draws cannot move the grenade');
+  const c = setup({ seed: 'grenade-other' });
+  assert.notDeepEqual(ga.to, throwOnce(c).to, 'a different scenario seed changes the landing');
+  assert.ok(Object.isFrozen(ga));
+  assert.ok(Object.isFrozen(ga.from));
+  assert.ok(Object.isFrozen(ga.to));
+  assert.throws(() => (ga.to.x = 900), TypeError);
+  const view = a.G.projectiles(a.b);
+  assert.ok(Object.isFrozen(view));
+  assert.throws(() => view.pop(), TypeError);
+  assert.equal(a.G.projectiles(a.b).length, 1, 'presentation cannot remove a live grenade');
+});
+
+test('the projectile flies, lands and detonates once on simulation time', () => {
+  const ctx = setup();
+  const { G, b } = ctx;
+  const g = throwOnce(ctx);
+  assert.deepEqual(G.position(g, g.releasedAt), g.from);
+  const middle = G.position(g, g.releasedAt + g.flight / 2);
+  assert.ok(middle.y > Math.max(g.from.y, g.to.y), 'flight has a visible arc');
+  assert.deepEqual(G.position(g, g.releasedAt + g.flight), g.to);
+  assert.deepEqual(G.position(g, g.detonateAt - 0.001), g.to);
+  at(ctx, g.detonateAt - 0.001);
+  assert.equal(G.summary(b).bursts, 0);
+  at(ctx, g.detonateAt);
+  assert.equal(G.summary(b).bursts, 1);
+  assert.equal(G.projectiles(b).length, 0);
+  at(ctx, g.detonateAt + 1);
+  assert.equal(G.summary(b).bursts, 1);
+});
+
+function ring(ctx, center, d, n, faction, mutate) {
+  return Array.from({ length: n }, (_, i) => {
+    const a = (i / n) * Math.PI * 2;
+    const v = victim(ctx, center.x + d * Math.cos(a), center.z + d * Math.sin(a), faction);
+    if (mutate) mutate(v);
+    return v;
+  });
+}
+const lost = men => men.reduce((sum, v) => sum + (1000 - v.hp), 0);
+function prng(seed) {
+  let a = seed;
+  return () => {
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+test('one burst wounds by fragment density, hits friends and the thrower, and stops at its radii', () => {
+  const ctx = setup();
+  const { G, b, s } = ctx;
+  const T = G.TUNING;
+  const g = throwOnce(ctx);
+  const close = ring(ctx, g.to, 1, 12);
+  const mid = ring(ctx, g.to, 6, 12);
+  const far = ring(ctx, g.to, 12, 12);
+  const beyond = ring(ctx, g.to, T.FRAG_MAX_RANGE + 0.5, 6);
+  const friend = victim(ctx, g.to.x + 2, g.to.z, 'us');
+  s.root.position.set(g.to.x - 2, 0, g.to.z);
+  s.hp = s.maxHp = 1000;
+  at(ctx, g.detonateAt);
+  assert.ok(
+    close.every(v => v.wounds && v.wounds.length > 0),
+    'every man at a metre is struck'
+  );
+  assert.ok(
+    lost(close) > lost(mid) && lost(mid) > lost(far) && lost(far) > 0,
+    'fragment wounds fall with range'
+  );
+  const bleed = men => men.reduce((sum, v) => sum + (v.bleedRate || 0), 0);
+  assert.ok(bleed(close) > bleed(mid) && bleed(mid) > bleed(far), 'fragment bleeding also falls with range');
+  const slow = men => men.reduce((sum, v) => sum + (1 - (v.woundSpeed || 1)), 0);
+  assert.ok(slow(close) > slow(mid) && slow(mid) > slow(far), 'fragment slowing also falls with range');
+  assert.ok(friend.hp < 1000, 'friendship does not grant immunity after release');
+  assert.ok(s.hp < 1000, 'the thrower is a normal blast victim');
+  assert.equal(lost(beyond), 0, 'nothing beyond the fragment range is wounded');
+  assert.ok(beyond.every(v => v.suppressedUntil === 0 && !(v.wounds && v.wounds.length)));
+  assert.ok(
+    far.every(v => v.suppressedUntil > b.time),
+    'suppression covers the whole fragment field it overlaps'
+  );
+  const seen = events(ctx, close[0]);
+  assert.ok(seen.some(row => row.kind === 'suppressed'));
+  assert.ok(
+    seen.some(row => row.kind === 'wound'),
+    'the wound owner posts ordinary stress events'
+  );
+  const struck = [...close, ...mid, ...far, friend, s].filter(v => v.wounds && v.wounds.length).length;
+  assert.equal(G.summary(b).wounded, struck, 'a man struck by several fragments is counted once');
+});
+
+test('prone and crouched men present less of themselves than standing men', () => {
+  const ctx = setup();
+  const { G, b, s } = ctx;
+  const g = throwOnce(ctx, { x: 29, z: 0 });
+  const stand = ring(ctx, g.to, 4, 24);
+  const crouch = ring(ctx, g.to, 4, 24, undefined, v => (v.tacticalCrouch = true));
+  const prone = ring(ctx, g.to, 4, 24, undefined, v => (v.prone = true));
+  at(ctx, g.detonateAt);
+  const hits = men => men.reduce((sum, v) => sum + ((v.wounds && v.wounds.length) || 0), 0);
+  assert.ok(hits(stand) > hits(crouch) && hits(crouch) > hits(prone), 'exposure falls with a lower stance');
+  assert.ok(hits(prone) > 0, 'lying down is cover from a ground burst, not immunity');
+  assert.ok(!s.dead);
+});
+
+test('each side throws its own grenade: Mk 2 for US, M24 for German, and cover stops fragments', () => {
+  const us = setup();
+  const usBurst = throwOnce(us, { x: 29, z: 0 });
+  assert.equal(usBurst.kind, 'mk2');
+  const ge = setup();
+  ge.s = man(ge, 'ge', 0, 0);
+  ge.s.isPlayer = true;
+  const plan = ge.G.playerThrow(ge.s, ge.b, { x: 29, z: 0 });
+  assert.ok(plan);
+  at(ge, plan.releaseAt);
+  const geBurst = ge.G.projectiles(ge.b)[0];
+  assert.equal(geBurst.kind, 'm24');
+  assert.ok(Object.isFrozen(geBurst) && geBurst.severity === ge.G.TUNING.FRAG_SEVERITY);
+  const K = us.G.TUNING.KINDS;
+  assert.ok(K.m24.blast > K.mk2.blast, 'the 170 g charge has the larger overpressure radius');
+  assert.ok(
+    K.m24.spread > K.mk2.spread && K.m24.reach < K.mk2.reach,
+    'the thin steel head carries fewer, shorter fragments'
+  );
+  // Cover between the burst and the men: a wall absorbs every fragment, the blast, but not the pin.
+  us.b.obstacles = [
+    { shape: 'obb', x: usBurst.to.x + 2, z: usBurst.to.z, hx: 0.25, hz: 8, y: 0, height: 3, type: 'wall' }
+  ];
+  const behind = ring(us, { x: usBurst.to.x + 4, z: usBurst.to.z }, 1, 8);
+  at(us, usBurst.detonateAt);
+  assert.equal(lost(behind), 0, 'fragments do not pass a physical wall');
+  assert.ok(behind.every(v => v.suppressedUntil > us.b.time));
+});
+
+test('lethality matches the published radii for a standing man in the open', () => {
+  const casualty = (faction, d) => {
+    const ctx = setup();
+    ctx.b.random = prng(20260101);
+    if (faction === 'ge') {
+      ctx.s = man(ctx, 'ge', 0, 0);
+      ctx.s.isPlayer = true;
+    }
+    const victimSide = faction === 'ge' ? 'us' : 'ge';
+    let down = 0,
+      total = 0;
+    for (let burst = 0; burst < 8; burst++) {
+      ctx.s.grenades = 3;
+      ctx.s._grenadeNextAt = 0;
+      const g = throwOnce(ctx, { x: 29, z: 0 });
+      const men = ring(ctx, g.to, d, 24, victimSide, v => (v.hp = v.maxHp = 100));
+      at(ctx, g.detonateAt);
+      for (let t = 0; t < 90; t += 5) at(ctx, ctx.b.time + 5);
+      down += men.filter(v => v.dead).length;
+      total += men.length;
+    }
+    return down / total;
+  };
+  // Doctrine for fragmentation grenades of this class: lethal within ~5 m, casualties to ~15 m.
+  const mk2 = {
+    1: casualty('us', 1),
+    3: casualty('us', 3),
+    5: casualty('us', 5),
+    10: casualty('us', 10),
+    15: casualty('us', 15)
+  };
+  assert.ok(mk2[1] >= 0.95, 'a man on top of a Mk 2 is a casualty: ' + mk2[1]);
+  assert.ok(mk2[3] >= 0.6 && mk2[3] <= 0.9, 'Mk 2 at 3 m: ' + mk2[3]);
+  assert.ok(mk2[5] >= 0.3 && mk2[5] <= 0.6, 'about half of exposed men at the 5 m lethal radius: ' + mk2[5]);
+  assert.ok(mk2[10] >= 0.05 && mk2[10] <= 0.25, 'Mk 2 at 10 m: ' + mk2[10]);
+  assert.ok(mk2[15] <= 0.12, 'a few at the 15 m casualty radius: ' + mk2[15]);
+  const m24 = { 1: casualty('ge', 1), 5: casualty('ge', 5), 10: casualty('ge', 10) };
+  assert.ok(m24[1] >= 0.95, 'blast alone kills at the charge: ' + m24[1]);
+  assert.ok(m24[5] < mk2[5] && m24[10] < mk2[10], 'poor fragmentation falls off faster than the Mk 2');
+});
+
+test('enemy grenade casualties earn kill credit while friendly and self casualties retain cause only', () => {
+  for (const relation of ['enemy', 'friend', 'self']) {
+    const ctx = setup();
+    const { G, r, s, b } = ctx;
+    const g = throwOnce(ctx);
+    const v = relation === 'self' ? s : victim(ctx, g.to.x + 0.5, g.to.z, relation === 'enemy' ? 'ge' : 'us');
+    if (relation === 'self') s.root.position.set(g.to.x + 0.5, 0, g.to.z);
+    v.hp = 1;
+    r.BattleSoldierEvents.subscribe('grenade-check', ['kill']);
+    const credited = [];
+    const noteKill = r.BattleEngagement.noteKill;
+    r.BattleEngagement.noteKill = by => {
+      credited.push(by);
+      noteKill(by);
+    };
+    at(ctx, g.detonateAt);
+    assert.ok(v.dead, relation + ' fixture receives a lethal blast');
+    assert.equal(v.casualty.by, s.id, relation + ' casualty retains the causal thrower');
+    assert.equal(v.casualty.source, 'grenade');
+    assert.equal(v.wounds.at(-1).source, 'grenade');
+    assert.equal(v.wounds.at(-1).by, s.id);
+    assert.equal(b.factions.us.kills, relation === 'enemy' ? 1 : 0);
+    assert.equal(b.factions.ge.kills, 0);
+    assert.deepEqual(
+      credited,
+      [relation === 'enemy' ? s : null],
+      'Engagement receives enemy kill credit only'
+    );
+    assert.equal(events(ctx, s).filter(row => row.kind === 'kill').length, relation === 'enemy' ? 1 : 0);
+    assert.equal(G.summary(b).casualties, 1);
+    assert.equal(G.summary(b).friendlyCasualties, relation === 'enemy' ? 0 : 1);
+  }
+});
+
+test('a legal AI release can still wound a friendly who enters before detonation', () => {
+  const ctx = setup();
+  const { G, b, s, r } = ctx;
+  r.BattleTacticalController = { controls: () => true };
+  const enemy = victim(ctx, 28, 0);
+  s.target = enemy;
+  r.SquadAI.rememberSeen(s, enemy, b, true, 'grenade-late-friendly');
+  const plan = G.assaultThrow(s, b);
+  assert.ok(plan, 'formation is safe when the AI commits');
+  at(ctx, plan.releaseAt);
+  const [g] = G.projectiles(b);
+  assert.ok(g, 'safe AI release remains live');
+  const friend = victim(ctx, g.to.x + 0.5, g.to.z, 'us');
+  friend.hp = 1;
+  at(ctx, g.detonateAt);
+  assert.ok(friend.dead, 'late entry retains physical friendly-fire damage');
+  assert.equal(friend.casualty.by, s.id);
+  assert.equal(friend.casualty.source, 'grenade');
+  assert.equal(G.summary(b).friendlyWounded, 1);
+  assert.equal(G.summary(b).friendlyCasualties, 1);
+  assert.ok(G.summary(b).wounded >= G.summary(b).friendlyWounded);
+  assert.ok(G.summary(b).casualties >= G.summary(b).friendlyCasualties);
+  assert.equal(G.summary(b).unsafeAborts, 0, 'later friendly entry does not retroactively cancel the throw');
+});
+
+test('a friendly grenade wound that later bleeds out preserves source and counts without kill credit', () => {
+  const ctx = setup();
+  const { G, r, s, b } = ctx;
+  const g = throwOnce(ctx);
+  const friends = ring(ctx, g.to, 7, 16, 'us', v => (v.hp = 60));
+  r.BattleSoldierEvents.subscribe('grenade-check', ['kill']);
+  const credited = [];
+  const noteKill = r.BattleEngagement.noteKill;
+  r.BattleEngagement.noteKill = by => {
+    credited.push(by);
+    noteKill(by);
+  };
+  at(ctx, g.detonateAt - 0.001);
+  at(ctx, g.detonateAt);
+  const droppedAtOnce = friends.filter(v => v.dead).length;
+  const bleeding = friends.filter(v => !v.dead && v.bleedRate > 0);
+  assert.ok(bleeding.length > 0, 'some friends survive the initial fragmentation hit and bleed');
+  assert.ok(bleeding.every(v => v.wounds.at(-1).source === 'grenade' && v.wounds.at(-1).by === s.id));
+  assert.equal(G.summary(b).casualties, droppedAtOnce);
+  s.weapon = null;
+  for (let i = 0; i < 120; i++) at(ctx, b.time + 1);
+  const dead = friends.filter(v => v.dead);
+  assert.ok(dead.length > droppedAtOnce, 'the ordinary wound clock eventually records a bleed-out');
+  const bledOut = dead.filter(v => v.casualty.cause === 'bledOut');
+  assert.ok(bledOut.length > 0);
+  assert.ok(dead.every(v => v.casualty.by === s.id && v.casualty.source === 'grenade'));
+  assert.ok(credited.length === dead.length && credited.every(by => by === null), 'no kill credit');
+  assert.equal(b.factions.us.kills, 0);
+  assert.equal(events(ctx, s).filter(row => row.kind === 'kill').length, 0);
+  assert.equal(r.BattleWounds.summary(b).grenadeCasualties, dead.length);
+  assert.equal(r.BattleWounds.summary(b).grenadeFriendlyCasualties, dead.length);
+  assert.equal(G.summary(b).casualties, dead.length, 'grenade totals include delayed casualties');
+  assert.equal(G.summary(b).friendlyCasualties, dead.length);
+  assert.equal(G.summary(b).bursts, 1);
+});
+
+test('blast follows physical cover footprints, including a clear line inside a wider visual volume', () => {
+  for (const blocked of [false, true]) {
+    const ctx = setup();
+    const g = throwOnce(ctx);
+    const v = victim(ctx, g.to.x + 4, g.to.z);
+    const z = g.to.z + (blocked ? 0 : 1.5);
+    const ob = { x: g.to.x + 2, z, y: 0, height: 3, radius: 2.1, type: 'log', physicalId: 'blast-log' };
+    const obstacles = [ob];
+    obstacles.__physicalFootprints = [
+      { id: 'blast-log', shape: 'obb', x: ob.x, z, hx: 0.2, hz: 0.2, ux: 1, uz: 0, vx: 0, vz: 1 }
+    ];
+    obstacles.__physicalVersion = 1;
+    ctx.b.obstacles = obstacles;
+    at(ctx, g.detonateAt);
+    assert.equal(
+      v.hp < 1000,
+      !blocked,
+      blocked ? 'physical cover stops fragments' : 'visual padding is not cover'
+    );
+    assert.ok(v.suppressedUntil > ctx.b.time, 'the blast pins through cover');
+  }
+});
+
+test('terrain and navigation walls stop fragments while leaving burst suppression', () => {
+  for (const blocker of ['terrain', 'wall']) {
+    const ctx = setup();
+    const g = throwOnce(ctx, { x: 29, z: 0 }); // the thrower stays beyond fragment range
+    const v = victim(ctx, g.to.x + 5, g.to.z);
+    if (blocker === 'terrain') ctx.b.heightAt = x => (x > g.to.x + 1.5 && x < g.to.x + 3.5 ? 3 : 0);
+    else ctx.r.BattleNavigation = { lineOfSightBlocked: () => true };
+    at(ctx, g.detonateAt);
+    assert.equal(v.hp, 1000, blocker);
+    assert.ok(v.suppressedUntil > ctx.b.time, blocker + ' still transmits suppression');
+    assert.equal(ctx.combatDraws(), 0, 'an occluded victim never invokes wound RNG');
+  }
+});
+
+test('a released blast keeps its own severity after its thrower dies or abandons the rifle', () => {
+  const damage = [];
+  for (const change of ['none', 'death', 'weapon']) {
+    const ctx = setup({ seed: 'grenade-thrower-lifecycle' });
+    const g = throwOnce(ctx, { x: 29, z: 0 });
+    const v = victim(ctx, g.to.x + 1, g.to.z);
+    if (change === 'death') ctx.b.killSoldier(ctx.s, null);
+    if (change === 'weapon') ctx.s.weapon = null;
+    at(ctx, g.detonateAt);
+    damage.push(1000 - v.hp);
+    assert.equal(ctx.G.summary(ctx.b).bursts, 1);
+  }
+  assert.ok(damage[0] > 0);
+  assert.equal(damage[1], damage[0]);
+  assert.equal(damage[2], damage[0]);
+});
+
+test('restart discards old commitments and projectiles, restores loadout and replays scatter', () => {
+  const ctx = setup({ seed: 'grenade-restart' });
+  const { G, s, b, r } = ctx;
+  const carried = G.count(s);
+  const first = throwOnce(ctx);
+  const other = man(ctx, 'us', -50, 0);
+  other.isPlayer = true;
+  assert.ok(G.playerThrow(other, b, { x: -30, z: 0 }));
+  b.time = 10;
+  r.BattleModules.runHook('onBattleRestart', b, {});
+  assert.deepEqual(ctx.errors, []);
+  assert.equal(G.pendingOf(other, b), null);
+  assert.equal(G.projectiles(b).length, 0);
+  assert.equal(G.summary(b).throws, 0);
+  assert.equal(G.summary(b).bursts, 0);
+  assert.equal(G.count(s), carried);
+  assert.equal(G.cooldownLeft(s, b), 0);
+  assert.deepEqual(throwOnce(ctx).to, first.to);
+});
+
+console.log(checks + ' grenade checks passed');

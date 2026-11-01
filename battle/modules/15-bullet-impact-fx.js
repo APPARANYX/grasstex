@@ -1,0 +1,890 @@
+/* Bullet impacts: material bursts, and decals from the sprite sheets in Assets/effects/decals.
+
+   Cosmetic only: consumes the ballistic result (shot.impact, normal, blocker, zone, victim) and never
+   casts another damage ray or draws from the battle RNG. Every decal has a hard budget, and restart
+   clears them all.
+
+     body hit       for every man on the round's path (shot.passes): blood burst and a wound decal
+                    riding the bone that was hit (head, chest, belly, arm or leg), a splash on the
+                    ground under him and, where the round came out, a larger exit wound on the far
+                    side, a burst at the exit and a spray on the ground along its path; then the
+                    hole where the spent round finally struck (shot.final)
+     wall / stone   masonry hole with spall; timber gets a splintered hole; metal a bright dent
+     ground         dirt strike; suppressive bursts kick a few up around the point they are laid on
+     hedge / grass  a burst of leaves, no hole
+
+   Sheets: a fixed 4 x 4 grid (tools/generate-decal-atlas.js writes them). DECAL_SHEETS addresses
+   cells by row and column only, so a sheet can be replaced at any resolution that keeps the grid.
+   World decals are thin instances of one quad per cell (one draw call per used cell). FBX body wounds paint into a private per-soldier UV damage map on first hit; the map deforms with
+   the skinned mesh at no per-frame wound cost. Unsupported UV/material cases retain the skinned-
+   vertex quad fallback; the procedural rig keeps its bone-parented fallback. */
+(function (root) {
+  'use strict';
+  if (!root.BattleSim || !root.BattleModules || typeof BABYLON === 'undefined' || root.BattleImpactFx) return;
+  var B = BABYLON,
+    oldStart = root.BattleSim.start,
+    MAX_BURSTS = 28,
+    MAX_DECALS = 360,
+    MAX_BODY_DECALS = 120,
+    MAX_PER_SOLDIER = 6,
+    DECAL_LIFE = 150,
+    LIFT = 0.012,
+    WALL_HALF = 0.165,
+    SUPPRESSION_STRIKES = 3;
+  var DECAL_SHEETS = {
+    blood: { file: 'blood.png', grid: [4, 4], rows: { wound: 0, soak: 1, pool: 2, spray: 3 } },
+    holes: { file: 'bullet-holes.png', grid: [4, 4], rows: { masonry: 0, wood: 1, dirt: 2, metal: 3 } }
+  };
+  /* Decal size in metres per kind: [min, max]. */
+  var SIZE = {
+    wound: [0.1, 0.14],
+    soak: [0.16, 0.24],
+    pool: [0.35, 0.6],
+    spray: [0.9, 1.5],
+    masonry: [0.13, 0.2],
+    wood: [0.1, 0.15],
+    dirt: [0.14, 0.24],
+    metal: [0.07, 0.1]
+  };
+  /* UV body-wound fit per zone: the stamp is projected in 3D, so a stamp wider than the part
+     reads as a band around the limb, and a projection deeper than the part paints whatever is
+     behind it (arm -> torso). size scales the stamp, max caps it (exits run large), depth caps
+     the projection box. All metres. */
+  var WOUND_FIT = {
+    head: { size: 0.6, max: 0.14, depth: 0.1 },
+    arm: { size: 0.55, max: 0.14, depth: 0.06 },
+    leg: { size: 0.7, max: 0.18, depth: 0.1 },
+    abdomen: { size: 0.85, max: 0.22, depth: 0.15 },
+    chest: { size: 1.0, max: 0.26, depth: 0.18 }
+  };
+  var STYLES = {
+    blood: { color: [0.48, 0.025, 0.035], count: 9, size: 0.075, power: 1.6, life: 0.42 },
+    dirt: { color: [0.42, 0.29, 0.16], count: 9, size: 0.16, power: 1.5, life: 0.55 },
+    cement: { color: [0.65, 0.63, 0.58], count: 8, size: 0.12, power: 1.7, life: 0.42 },
+    metal: { color: [1, 0.69, 0.24], count: 7, size: 0.055, power: 3.5, life: 0.25 },
+    vegetation: { color: [0.3, 0.43, 0.13], count: 8, size: 0.095, power: 1.5, life: 0.48 }
+  };
+  /* Where a wound decal rides: bone (FBX canonical name / procedural rig part), how far out from
+     the limb's axis the skin is toward the shooter, and the band [below, above] the joint the part
+     occupies. The decal sits at the height the round struck, clamped into that band: a thigh or an
+     arm hangs below its joint, the head sits above the neck joint. */
+  var BODY = {
+    head: { fbx: ['head'], rig: ['head'], out: 0.13, band: [0.06, 0.12] },
+    chest: { fbx: ['spine2'], rig: ['chest'], out: 0.16, band: [-0.05, 0.3] },
+    abdomen: { fbx: ['spine0', 'spine1'], rig: ['spine'], out: 0.15, band: [-0.05, 0.25] },
+    arm: {
+      fbx: ['leftarm', 'rightarm'],
+      rig: ['upperArmL', 'upperArmR'],
+      out: 0.08,
+      band: [-0.5, -0.05],
+      sided: true
+    },
+    leg: {
+      fbx: ['leftupleg', 'rightupleg'],
+      rig: ['thighL', 'thighR'],
+      out: 0.11,
+      band: [-0.8, -0.1],
+      sided: true
+    }
+  };
+
+  function material(shot) {
+    if (shot.stoppedBy === 'soldier') return 'blood';
+    if (shot.blocker === 'ground') return 'dirt';
+    var s = String(shot.surface || '').toLowerCase();
+    if (/metal|steel|iron|armou?r|vehicle/.test(s)) return 'metal';
+    if (/hedge|tree|log|wood|bush|grass|leaf|vegetation/.test(s)) return 'vegetation';
+    if (/dirt|earth|soil|ground|sand|mud/.test(s)) return 'dirt';
+    return 'cement';
+  }
+  /* Which hole a surface takes; null leaves none (foliage). */
+  function holeKind(shot, kind) {
+    if (kind === 'dirt') return 'dirt';
+    if (kind === 'metal') return 'metal';
+    if (kind === 'vegetation')
+      return /tree|log|wood|timber|plank|door/.test(String(shot.surface || '').toLowerCase()) ? 'wood' : null;
+    return 'masonry';
+  }
+  function randomFor(seed) {
+    var n = seed || 1;
+    return function () {
+      n ^= n << 13;
+      n ^= n >>> 17;
+      n ^= n << 5;
+      return (n >>> 0) / 4294967296;
+    };
+  }
+  function groundHeight(sim, x, z) {
+    var y = sim.heightAt(x, z),
+      scenario = sim.scene.metadata && sim.scene.metadata.battleScenario,
+      buildings = (scenario && scenario.buildings) || [];
+    for (var i = 0; i < buildings.length; i++) {
+      var b = buildings[i],
+        dx = x - b.x,
+        dz = z - b.z,
+        c = Math.cos(b.rot || 0),
+        s = Math.sin(b.rot || 0);
+      if (Math.abs(dx * c - dz * s) < b.w / 2 && Math.abs(dx * s + dz * c) < b.d / 2)
+        y = Math.max(y, sim.heightAt(b.x, b.z) + 0.08);
+    }
+    return y;
+  }
+  function groundNormal(sim, x, z) {
+    var e = 0.25,
+      nx = sim.heightAt(x - e, z) - sim.heightAt(x + e, z),
+      nz = sim.heightAt(x, z - e) - sim.heightAt(x, z + e),
+      l = Math.hypot(nx, 2 * e, nz);
+    return { x: nx / l, y: (2 * e) / l, z: nz / l };
+  }
+  function norm(v) {
+    var l = Math.hypot(v.x, v.y, v.z) || 1;
+    return { x: v.x / l, y: v.y / l, z: v.z / l };
+  }
+  /* World matrix (Babylon row-major) of a unit quad in XY laid on a surface with normal n at p:
+     its +Z is n, its +X points along `along` (projected into the surface) or a random roll. */
+  function basis(n, along, roll) {
+    n = norm(n);
+    var x;
+    if (along) {
+      var d = along.x * n.x + along.y * n.y + along.z * n.z;
+      x = { x: along.x - n.x * d, y: along.y - n.y * d, z: along.z - n.z * d };
+    }
+    if (!x || Math.hypot(x.x, x.y, x.z) < 1e-4) {
+      var up = Math.abs(n.y) > 0.9 ? { x: 1, y: 0, z: 0 } : { x: 0, y: 1, z: 0 };
+      x = { x: up.y * n.z - up.z * n.y, y: up.z * n.x - up.x * n.z, z: up.x * n.y - up.y * n.x };
+    }
+    x = norm(x);
+    var y = { x: n.y * x.z - n.z * x.y, y: n.z * x.x - n.x * x.z, z: n.x * x.y - n.y * x.x };
+    if (roll) {
+      var c = Math.cos(roll),
+        s = Math.sin(roll),
+        rx = { x: x.x * c + y.x * s, y: x.y * c + y.y * s, z: x.z * c + y.z * s };
+      y = { x: -x.x * s + y.x * c, y: -x.y * s + y.y * c, z: -x.z * s + y.z * c };
+      x = rx;
+    }
+    return { x: x, y: y, z: n };
+  }
+  function composeInto(out, o, b, p, size) {
+    out[o] = b.x.x * size;
+    out[o + 1] = b.x.y * size;
+    out[o + 2] = b.x.z * size;
+    out[o + 3] = 0;
+    out[o + 4] = b.y.x * size;
+    out[o + 5] = b.y.y * size;
+    out[o + 6] = b.y.z * size;
+    out[o + 7] = 0;
+    out[o + 8] = b.z.x;
+    out[o + 9] = b.z.y;
+    out[o + 10] = b.z.z;
+    out[o + 11] = 0;
+    out[o + 12] = p.x;
+    out[o + 13] = p.y;
+    out[o + 14] = p.z;
+    out[o + 15] = 1;
+    return out;
+  }
+  /* UV rectangle of a sheet cell. Textures load with invertY, so v runs up from the bottom row. */
+  function cellUV(sheet, row, col) {
+    var g = DECAL_SHEETS[sheet].grid,
+      cw = 1 / g[0],
+      ch = 1 / g[1];
+    return { u0: col * cw, u1: (col + 1) * cw, v0: 1 - (row + 1) * ch, v1: 1 - row * ch };
+  }
+
+  function state(sim) {
+    return (
+      sim._impactFx ||
+      (sim._impactFx = {
+        bursts: [],
+        decals: [],
+        body: [],
+        cells: {},
+        materials: {},
+        surfaceMaps: [],
+        surfaceStamps: {},
+        texture: null,
+        serial: 0,
+        epoch: 0
+      })
+    );
+  }
+  function texture(sim, st) {
+    if (st.texture) return st.texture;
+    var size = 32,
+      data = new Uint8Array(size * size * 4);
+    for (var y = 0; y < size; y++)
+      for (var x = 0; x < size; x++) {
+        var d = Math.hypot((x + 0.5 - size / 2) / (size / 2), (y + 0.5 - size / 2) / (size / 2)),
+          i = (x + y * size) * 4;
+        data[i] = data[i + 1] = data[i + 2] = 255;
+        data[i + 3] = Math.round(255 * Math.pow(Math.max(0, 1 - d), 1.4));
+      }
+    st.texture = B.RawTexture.CreateRGBATexture(
+      data,
+      size,
+      size,
+      sim.scene,
+      false,
+      false,
+      B.Texture.BILINEAR_SAMPLINGMODE
+    );
+    st.texture.hasAlpha = true;
+    return st.texture;
+  }
+  /* Small procedural blood stamps for the UV-space body layer. World blood still uses the painted
+     atlas. Keeping these as tiny shared RawTextures avoids a unique source texture per soldier:
+     only each wounded soldier's destination UV render target is private. */
+  function surfaceStamp(sim, st, kind, variant) {
+    variant = variant & 3;
+    var key = kind + ':' + variant;
+    if (st.surfaceStamps[key]) return st.surfaceStamps[key];
+    var n = 96,
+      data = new Uint8Array(n * n * 4),
+      seed = (variant + 1) * 0x45d9f3b + (kind === 'soak' ? 0x51ed270b : 0x119de1f3);
+    function hash(x, y, k) {
+      var q =
+        (Math.imul(x + 17, 374761393) ^
+          Math.imul(y + 31, 668265263) ^
+          Math.imul(seed + k * 101, 2246822519)) |
+        0;
+      q = Math.imul(q ^ (q >>> 13), 1274126177);
+      return ((q ^ (q >>> 16)) >>> 0) / 4294967296;
+    }
+    var drops = [];
+    for (var d = 0; d < 4; d++) {
+      var a = hash(d, 3, 7) * Math.PI * 2,
+        rr = 0.48 + hash(d, 9, 11) * 0.34;
+      drops.push({
+        x: Math.cos(a) * rr,
+        y: Math.sin(a) * rr,
+        r: (kind === 'soak' ? 0.055 : 0.04) + hash(d, 13, 17) * 0.045
+      });
+    }
+    for (var y = 0; y < n; y++)
+      for (var x = 0; x < n; x++) {
+        var nx = ((x + 0.5) / n - 0.5) * 2,
+          ny = ((y + 0.5) / n - 0.5) * 2,
+          r = Math.hypot(nx, ny),
+          ang = Math.atan2(ny, nx),
+          edge =
+            (kind === 'soak' ? 0.78 : 0.62) +
+            0.075 * Math.sin(ang * (5 + variant) + variant * 1.7) +
+            0.04 * Math.sin(ang * (9 - variant) - 0.8) +
+            (hash(x >> 2, y >> 2, 23) - 0.5) * 0.07,
+          alpha = Math.max(0, Math.min(1, (edge - r) / (edge * 0.5)));
+        for (var k = 0; k < drops.length; k++) {
+          var dr = Math.hypot(nx - drops[k].x, ny - drops[k].y),
+            da = Math.max(0, Math.min(1, (drops[k].r - dr) / 0.025));
+          alpha = Math.max(alpha, da * 0.9);
+        }
+        /* Dark centre, slightly brighter wet edge; alpha stays straight (not premultiplied). */
+        var core = Math.max(0, 1 - r / Math.max(0.001, edge)),
+          noise = hash(x, y, 37),
+          red = Math.round(72 + 46 * (1 - core) + noise * 14),
+          green = Math.round(2 + noise * 4),
+          blue = Math.round(5 + noise * 5),
+          i = (x + y * n) * 4;
+        data[i] = red;
+        data[i + 1] = green;
+        data[i + 2] = blue;
+        data[i + 3] = Math.round(alpha * (kind === 'soak' ? 205 : 235));
+      }
+    var tex = B.RawTexture.CreateRGBATexture(
+      data,
+      n,
+      n,
+      sim.scene,
+      false,
+      false,
+      B.Texture.BILINEAR_SAMPLINGMODE
+    );
+    tex.hasAlpha = true;
+    tex.gammaSpace = true;
+    if (B.Texture.CLAMP_ADDRESSMODE != null) tex.wrapU = tex.wrapV = B.Texture.CLAMP_ADDRESSMODE;
+    st.surfaceStamps[key] = tex;
+    return tex;
+  }
+  function decalBase() {
+    return (
+      String(root.BATTLE_SOLDIER_ASSET_BASE || root.BATTLE_ASSET_BASE || '../Assets/').replace(/\/?$/, '/') +
+      'effects/decals/'
+    );
+  }
+  function sheetMaterial(sim, st, sheet) {
+    if (st.materials[sheet]) return st.materials[sheet];
+    var mat = new B.StandardMaterial('decal-' + sheet, sim.scene),
+      tex = new B.Texture(decalBase() + DECAL_SHEETS[sheet].file, sim.scene, false, true);
+    tex.hasAlpha = true;
+    mat.diffuseTexture = tex;
+    mat.useAlphaFromDiffuseTexture = true;
+    /* A little of the sheet unlit, so blood stays red and holes stay readable in shade. */
+    mat.emissiveTexture = tex;
+    mat.emissiveColor = new B.Color3(0.3, 0.3, 0.3);
+    mat.specularColor = B.Color3.Black();
+    mat.backFaceCulling = false;
+    mat.zOffset = -2;
+    st.materials[sheet] = mat;
+    return mat;
+  }
+  function quad(sim, name, uv) {
+    var mesh = new B.Mesh(name, sim.scene),
+      data = new B.VertexData();
+    data.positions = [-0.5, -0.5, 0, 0.5, -0.5, 0, 0.5, 0.5, 0, -0.5, 0.5, 0];
+    /* +Z is the surface normal the quad is laid along (see basis), so it is lit from the front. */
+    data.normals = [0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1];
+    data.uvs = [uv.u0, uv.v0, uv.u1, uv.v0, uv.u1, uv.v1, uv.u0, uv.v1];
+    data.indices = [0, 2, 1, 0, 3, 2];
+    data.applyToMesh(mesh);
+    mesh.isPickable = false;
+    mesh.receiveShadows = true;
+    return mesh;
+  }
+  /* One thin-instanced quad per sheet cell carries every world decal drawn from that cell. */
+  function cell(sim, st, sheet, row, col) {
+    var key = sheet + ':' + row + ':' + col;
+    if (st.cells[key]) return st.cells[key];
+    var mesh = quad(sim, 'decal-' + key, cellUV(sheet, row, col));
+    mesh.material = sheetMaterial(sim, st, sheet);
+    mesh.alwaysSelectAsActiveMesh = true;
+    mesh.setEnabled(false);
+    return (st.cells[key] = {
+      key: key,
+      sheet: sheet,
+      row: row,
+      col: col,
+      mesh: mesh,
+      dirty: false,
+      count: 0
+    });
+  }
+  function pick(sheet, kind, rng) {
+    var g = DECAL_SHEETS[sheet].grid;
+    return { row: DECAL_SHEETS[sheet].rows[kind], col: Math.floor(rng() * g[0]) % g[0] };
+  }
+  function size(kind, rng) {
+    var s = SIZE[kind];
+    return s[0] + rng() * (s[1] - s[0]);
+  }
+  function worldDecal(sim, st, sheet, kind, p, n, rng, along) {
+    while (st.decals.length >= MAX_DECALS) {
+      var old = st.decals.shift();
+      old.cell.dirty = true;
+    }
+    var at = pick(sheet, kind, rng),
+      c = cell(sim, st, sheet, at.row, at.col),
+      b = basis(n, along, along ? 0 : rng() * Math.PI * 2),
+      m = composeInto(
+        new Float32Array(16),
+        0,
+        b,
+        { x: p.x + n.x * LIFT, y: p.y + n.y * LIFT, z: p.z + n.z * LIFT },
+        size(kind, rng)
+      );
+    var d = { cell: c, kind: kind, matrix: m, at: sim.time };
+    st.decals.push(d);
+    c.dirty = true;
+    return d;
+  }
+  function flush(st) {
+    var keys = Object.keys(st.cells),
+      k,
+      i;
+    for (k = 0; k < keys.length; k++) {
+      var c = st.cells[keys[k]];
+      if (!c.dirty) continue;
+      var list = [];
+      for (i = 0; i < st.decals.length; i++) if (st.decals[i].cell === c) list.push(st.decals[i]);
+      var buf = new Float32Array(Math.max(1, list.length) * 16);
+      for (i = 0; i < list.length; i++) buf.set(list[i].matrix, i * 16);
+      c.count = list.length;
+      c.mesh.thinInstanceSetBuffer('matrix', list.length ? buf : null, 16, false);
+      c.mesh.setEnabled(list.length > 0);
+      c.dirty = false;
+    }
+  }
+
+  function burst(sim, shot, kind, st) {
+    while (st.bursts.length >= MAX_BURSTS) st.bursts.shift().system.dispose(false);
+    var style = STYLES[kind],
+      c = style.color,
+      p = shot.impact,
+      n = shot.normal || { x: 0, y: 1, z: 0 };
+    var ps = new B.ParticleSystem('impact-' + kind, style.count, sim.scene);
+    ps.particleTexture = texture(sim, st);
+    ps.emitter = new B.Vector3(p.x + n.x * 0.025, p.y + n.y * 0.025, p.z + n.z * 0.025);
+    ps.minEmitBox = new B.Vector3(-0.035, -0.025, -0.035);
+    ps.maxEmitBox = new B.Vector3(0.035, 0.025, 0.035);
+    ps.direction1 = new B.Vector3(n.x - 0.65, n.y * 0.65 + 0.15, n.z - 0.65);
+    ps.direction2 = new B.Vector3(n.x + 0.65, n.y * 0.65 + 0.9, n.z + 0.65);
+    ps.color1 = new B.Color4(c[0], c[1], c[2], 0.9);
+    ps.color2 = new B.Color4(c[0] * 0.65, c[1] * 0.65, c[2] * 0.65, 0.7);
+    ps.colorDead = new B.Color4(c[0] * 0.5, c[1] * 0.5, c[2] * 0.5, 0);
+    ps.minSize = style.size * 0.45;
+    ps.maxSize = style.size;
+    ps.minLifeTime = style.life * 0.55;
+    ps.maxLifeTime = style.life;
+    ps.minEmitPower = style.power * 0.4;
+    ps.maxEmitPower = style.power;
+    ps.gravity = new B.Vector3(0, kind === 'metal' ? -8 : -4, 0);
+    ps.blendMode = kind === 'metal' ? B.ParticleSystem.BLENDMODE_ADD : B.ParticleSystem.BLENDMODE_STANDARD;
+    ps.emitRate = 0;
+    ps.manualEmitCount = style.count;
+    ps.updateSpeed = 1 / 60;
+    ps.start();
+    st.bursts.push({ system: ps, until: sim.time + style.life + 0.3 });
+  }
+
+  /* The bone a wound rides and the side it is on, relative to the shot. */
+  function bodyNode(victim, zone, shot) {
+    var spec = BODY[zone];
+    if (!spec || !victim) return null;
+    var side = 0;
+    if (spec.sided && shot.direction && victim.root) {
+      /* Right of the shot line (seen by the shooter) is the victim's left when he faces the shooter. */
+      var p = victim.root.position,
+        d = shot.direction,
+        cross = (shot.impact.x - p.x) * d.z - (shot.impact.z - p.z) * d.x;
+      side = cross > 0 ? 0 : 1;
+    }
+    var F = root.BattleFbxSoldier,
+      node = F && F.boneNode ? F.boneNode(victim, spec.fbx[Math.min(side, spec.fbx.length - 1)]) : null;
+    if (!node && victim.rig) node = victim.rig[spec.rig[Math.min(side, spec.rig.length - 1)]] || null;
+    return node && !(node.isDisposed && node.isDisposed()) ? node : null;
+  }
+  function placeSkinWound(body) {
+    var F = root.BattleFbxSoldier;
+    if (!body || !body.skin || !F || !F.skinSample || !F.skinSample(body.skin, body.skinPos, body.skinNormal))
+      return false;
+    var n = body.skinNormal,
+      out = body.out;
+    if (out && n.x * out.x + n.y * out.y + n.z * out.z < 0) {
+      n.x = -n.x;
+      n.y = -n.y;
+      n.z = -n.z;
+    }
+    var p = {
+        x: body.skinPos.x + n.x * LIFT,
+        y: body.skinPos.y + n.y * LIFT,
+        z: body.skinPos.z + n.z * LIFT
+      },
+      b = basis(n, null, body.roll),
+      m = B.Matrix.FromArray(composeInto(body.matrix, 0, b, p, body.size));
+    m.decompose(body.scale, body.rot, body.pos);
+    body.mesh.scaling.copyFrom(body.scale);
+    body.mesh.rotationQuaternion = body.rot;
+    body.mesh.position.copyFrom(body.pos);
+    return true;
+  }
+  function refreshBody(sim) {
+    var st = sim && sim._impactFx;
+    if (!st) return;
+    for (var i = st.body.length - 1; i >= 0; i--) {
+      var body = st.body[i];
+      /* UV wounds already live in the mesh's texture space and need no per-frame transform work. */
+      if (body.uv) continue;
+      if (body.skin && !placeSkinWound(body) && (!body.mesh.isDisposed || !body.mesh.isDisposed()))
+        body.mesh.dispose();
+    }
+  }
+  function disposeBodyEntry(body) {
+    if (!body || body.uv || !body.mesh) return;
+    if (!body.mesh.isDisposed || !body.mesh.isDisposed()) body.mesh.dispose();
+  }
+  function rememberSurfaceMap(st, renderer, soldier) {
+    if (!renderer) return;
+    for (var i = 0; i < st.surfaceMaps.length; i++) if (st.surfaceMaps[i].renderer === renderer) return;
+    st.surfaceMaps.push({ renderer: renderer, soldier: soldier || null });
+  }
+  /* FBX wounds first paint into that soldier mesh's private UV damage layer. Babylon skins the
+     projection pass, so the texture-space mark bends with every later pose and costs no wound mesh
+     draw or per-frame resampling. The just-shipped skinned quad remains the safety fallback; the
+     procedural rig keeps its old bone-local path. */
+  function woundDecal(sim, st, pass, rng, exit) {
+    var victim = pass.victim,
+      zone = pass.zone || 'chest',
+      at3 = exit ? pass.exit : pass.entry,
+      dir = exit ? pass.exitDirection || pass.direction : pass.direction;
+    if (!victim || !dir || !at3) return;
+    /* UV marks are permanent but st.body is a FIFO of MAX_BODY_DECALS, so once it turns over the list
+       forgets a man's old marks: count them on the man too, or a body shot again keeps collecting blood. */
+    var mine = victim._uvWoundMarks || 0;
+    for (var i = 0; i < st.body.length; i++) if (!st.body[i].uv && st.body[i].soldier === victim) mine++;
+    if (mine >= MAX_PER_SOLDIER) return;
+    while (st.body.length >= MAX_BODY_DECALS) disposeBodyEntry(st.body.shift());
+
+    var sign = exit ? 1 : -1,
+      out = norm({ x: dir.x * sign, y: 0, z: dir.z * sign }),
+      kind = exit || rng() < 0.35 ? 'soak' : 'wound',
+      cellAt = pick('blood', kind, rng),
+      roll = rng() * 0.6 - 0.3,
+      fit = WOUND_FIT[zone] || WOUND_FIT.chest,
+      s = Math.min(size(kind, rng) * fit.size * (exit ? 1.35 : 1), fit.max),
+      F = root.BattleFbxSoldier,
+      skin = F && F.skinAnchor ? F.skinAnchor(victim, at3) : null;
+
+    /* Preferred FBX path: project a shared blood stamp into a destination texture that belongs only
+       to this soldier mesh. No material clone: the uniform material is still shared by the model. */
+    if (skin && F && F.paintSurfaceWound) {
+      var painted = F.paintSurfaceWound(
+        skin,
+        surfaceStamp(sim, st, kind, cellAt.col),
+        out,
+        s,
+        roll,
+        fit.depth
+      );
+      if (painted) {
+        victim._uvWoundMarks = (victim._uvWoundMarks || 0) + 1;
+        rememberSurfaceMap(st, painted.renderer, victim);
+        st.body.push({
+          uv: true,
+          mesh: painted.mesh,
+          renderer: painted.renderer,
+          soldier: victim,
+          at: sim.time,
+          exit: !!exit,
+          skin: skin,
+          position: painted.position,
+          normal: painted.normal,
+          resolution: painted.resolution
+        });
+        return;
+      }
+    }
+
+    /* Safety fallback for unsupported UVs/materials or projection failure. */
+    var mesh = quad(sim, (exit ? 'exit-wound-' : 'wound-') + zone, cellUV('blood', cellAt.row, cellAt.col));
+    mesh.material = sheetMaterial(sim, st, 'blood');
+    if (skin) {
+      var body = {
+        mesh: mesh,
+        soldier: victim,
+        at: sim.time,
+        exit: !!exit,
+        skin: skin,
+        skinPos: new B.Vector3(),
+        skinNormal: new B.Vector3(0, 1, 0),
+        out: out,
+        roll: roll,
+        size: s,
+        matrix: new Float32Array(16),
+        scale: new B.Vector3(),
+        rot: new B.Quaternion(),
+        pos: new B.Vector3()
+      };
+      if (!placeSkinWound(body)) {
+        mesh.dispose();
+        return;
+      }
+      st.body.push(body);
+      return;
+    }
+
+    var node = bodyNode(victim, zone, { direction: pass.direction, impact: pass.entry });
+    if (!node || !node.getAbsolutePosition) {
+      mesh.dispose();
+      return;
+    }
+    if (node.computeWorldMatrix) node.computeWorldMatrix(true);
+    var anchor = node.getAbsolutePosition(),
+      band = BODY[zone].band,
+      lift = Math.max(band[0], Math.min(band[1], at3.y - anchor.y)),
+      p = { x: anchor.x + out.x * BODY[zone].out, y: anchor.y + lift, z: anchor.z + out.z * BODY[zone].out },
+      b = basis(out, null, roll),
+      m = B.Matrix.FromArray(composeInto(new Float32Array(16), 0, b, p, s)),
+      scale = new B.Vector3(),
+      rot = new B.Quaternion(),
+      pos = new B.Vector3();
+    m.decompose(scale, rot, pos);
+    mesh.scaling.copyFrom(scale);
+    mesh.rotationQuaternion = rot;
+    mesh.position.copyFrom(pos);
+    mesh.setParent(node);
+    st.body.push({ mesh: mesh, soldier: victim, at: sim.time, exit: !!exit });
+  }
+  /* The splash on the ground under a hit and, where the round came out, the exit spray thrown
+     forward along its path from the exit point. */
+  function bloodOnGround(sim, st, pass, rng) {
+    var p = pass.entry;
+    worldDecal(
+      sim,
+      st,
+      'blood',
+      'pool',
+      { x: p.x + (rng() - 0.5) * 0.2, y: groundHeight(sim, p.x, p.z), z: p.z + (rng() - 0.5) * 0.2 },
+      groundNormal(sim, p.x, p.z),
+      rng
+    );
+    if (!pass.exit) return;
+    var d = pass.exitDirection || pass.direction,
+      flat = norm({ x: d.x, y: 0, z: d.z }),
+      reach = 0.4 + rng() * 0.6,
+      q = { x: pass.exit.x + flat.x * reach, z: pass.exit.z + flat.z * reach };
+    worldDecal(
+      sim,
+      st,
+      'blood',
+      'spray',
+      { x: q.x, y: groundHeight(sim, q.x, q.z), z: q.z },
+      groundNormal(sim, q.x, q.z),
+      rng,
+      flat
+    );
+  }
+  function hole(sim, st, shot, kind, rng) {
+    var hk = holeKind(shot, kind);
+    if (!hk) return;
+    var n = shot.normal || { x: 0, y: 1, z: 0 },
+      p = shot.impact;
+    if (hk === 'dirt') {
+      n = groundNormal(sim, p.x, p.z);
+      p = { x: p.x, y: groundHeight(sim, p.x, p.z), z: p.z };
+    } else if (shot.blocker === 'wall') {
+      /* Navigation walls are centre lines; the rendered wall face is half its thickness out. */
+      p = { x: p.x + n.x * WALL_HALF, y: p.y, z: p.z + n.z * WALL_HALF };
+    }
+    worldDecal(sim, st, 'holes', hk, p, n, rng);
+  }
+
+  function impact(sim, shot, shooter) {
+    if (!sim || !sim.scene || !shot || !shot.impact || shot.stoppedBy === 'range') return;
+    if (shot.stoppedBy !== 'soldier' && shot.stoppedBy !== 'environment') return;
+    var p = shot.impact;
+    if (!isFinite(p.x) || !isFinite(p.y) || !isFinite(p.z)) return;
+    var st = state(sim),
+      kind = material(shot),
+      rng = randomFor(((++st.serial * 73856093) ^ Math.floor(sim.time * 1000)) | 1);
+    if (kind !== 'blood') {
+      burst(sim, shot, kind, st);
+      hole(sim, st, shot, kind, rng);
+      return;
+    }
+    /* Every body on the round's path: entry wound, splash, and exit wound + spray where it came out. */
+    var passes =
+      shot.passes && shot.passes.length
+        ? shot.passes
+        : [
+            {
+              victim: shot.victim,
+              zone: shot.zone,
+              entry: shot.impact,
+              direction: shot.direction,
+              exit: null
+            }
+          ];
+    for (var i = 0; i < passes.length; i++) {
+      var pass = passes[i],
+        lab = root.PhaseCCombatLab;
+      if (lab && lab.isTrainingTarget && lab.isTrainingTarget(pass.victim || shot.victim)) continue;
+      burst(sim, { impact: pass.entry, normal: neg(pass.direction) }, 'blood', st);
+      woundDecal(sim, st, pass, rng, false);
+      bloodOnGround(sim, st, pass, rng);
+      if (pass.exit) {
+        burst(sim, { impact: pass.exit, normal: pass.exitDirection || pass.direction }, 'blood', st);
+        woundDecal(sim, st, pass, rng, true);
+      }
+    }
+    /* A round that came out of the last man flies on to strike whatever is behind him. */
+    var end = shot.final;
+    if (end && end.stoppedBy === 'environment' && end.impact && isFinite(end.impact.x)) {
+      var endKind = material(end);
+      burst(sim, end, endKind, st);
+      hole(sim, st, end, endKind, rng);
+    }
+  }
+  function neg(v) {
+    return v ? { x: -v.x, y: -v.y, z: -v.z } : { x: 0, y: 1, z: 0 };
+  }
+  /* Area fire has no rays: kick up a few strikes in the ground around the point it is laid on. */
+  function suppressionStrikes(sim, shooter, point, rounds) {
+    if (!sim || !sim.scene || !point || !(rounds > 0)) return;
+    var st = state(sim),
+      rng = randomFor(((++st.serial * 19349663) ^ Math.floor(sim.time * 1000)) | 1),
+      n = Math.min(SUPPRESSION_STRIKES, Math.ceil(rounds / 2));
+    for (var i = 0; i < n; i++) {
+      var a = rng() * Math.PI * 2,
+        r = 0.5 + rng() * 3,
+        x = point.x + Math.cos(a) * r,
+        z = point.z + Math.sin(a) * r,
+        at = { x: x, y: groundHeight(sim, x, z), z: z };
+      var strike = { impact: at, normal: groundNormal(sim, x, z), blocker: 'ground', surface: 'dirt' };
+      burst(sim, strike, 'dirt', st);
+      worldDecal(sim, st, 'holes', 'dirt', at, strike.normal, rng);
+    }
+  }
+  function tick(sim) {
+    var st = sim && sim._impactFx;
+    if (!st) return;
+    for (var i = st.bursts.length - 1; i >= 0; i--)
+      if (sim.time >= st.bursts[i].until) {
+        st.bursts[i].system.dispose(false);
+        st.bursts.splice(i, 1);
+      }
+    while (st.decals.length && sim.time - st.decals[0].at >= DECAL_LIFE) st.decals.shift().cell.dirty = true;
+    for (i = st.body.length - 1; i >= 0; i--) {
+      var body = st.body[i];
+      if (body.mesh && body.mesh.isDisposed && body.mesh.isDisposed()) st.body.splice(i, 1);
+    }
+    flush(st);
+  }
+  function clear(sim) {
+    var st = sim && sim._impactFx;
+    if (!st) return;
+    st.epoch = (+st.epoch || 0) + 1;
+    st.bursts.forEach(function (b) {
+      b.system.dispose(false);
+    });
+    st.body.forEach(disposeBodyEntry);
+    /* UV marks are persistent by design, so explicitly wipe every private map touched this battle. */
+    var F = root.BattleFbxSoldier,
+      clearedSoldiers = [];
+    st.surfaceMaps.forEach(function (entry) {
+      try {
+        if (
+          entry &&
+          entry.soldier &&
+          F &&
+          F.clearSurfaceDamage &&
+          clearedSoldiers.indexOf(entry.soldier) < 0
+        ) {
+          clearedSoldiers.push(entry.soldier);
+          F.clearSurfaceDamage(entry.soldier);
+        } else if (entry && entry.renderer && entry.renderer.clear) entry.renderer.clear();
+      } catch (_) {}
+    });
+    st.surfaceMaps = [];
+    st.bursts = [];
+    st.body = [];
+    st.decals.forEach(function (d) {
+      d.cell.dirty = true;
+    });
+    st.decals = [];
+    flush(st);
+    st.serial = 0;
+  }
+  /* Warm-up (see 13-combat-fx-consistency.js): the decal sheets, every sheet cell and the particle
+     texture are built, and their shaders compiled (the thin-instanced variant too), when the battle is
+     set up rather than on the first hit. Presentation only; `?fxPrewarm=0` leaves them lazy. */
+  var FX_PREWARM = !(typeof location !== 'undefined' && /[?&]fxPrewarm=0\b/.test(location.search || ''));
+  function prewarm(sim) {
+    if (!FX_PREWARM || !sim || !sim.scene) return;
+    try {
+      var st = state(sim),
+        one = new Float32Array(B.Matrix.Identity().m);
+      texture(sim, st);
+      Object.keys(DECAL_SHEETS).forEach(function (sheet) {
+        var g = DECAL_SHEETS[sheet].grid,
+          first = null;
+        for (var r = 0; r < g[1]; r++)
+          for (var c = 0; c < g[0]; c++) {
+            var made = cell(sim, st, sheet, r, c);
+            if (!first) first = made;
+          }
+        var mat = sheetMaterial(sim, st, sheet);
+        if (!mat.forceCompilation || !first) return;
+        /* The wound quad (plain) and the world decal cell (thin-instanced) are two shader variants. */
+        var plain = quad(sim, 'decal-prewarm-' + sheet, cellUV(sheet, 0, 0));
+        plain.material = mat;
+        plain.setEnabled(false);
+        var drop = function () {
+          if (!plain.isDisposed()) plain.dispose();
+        };
+        mat.forceCompilation(plain, drop);
+        setTimeout(drop, 15000); /* never left behind if the sheet fails to load */
+        first.mesh.thinInstanceSetBuffer('matrix', one, 16, true);
+        mat.forceCompilation(first.mesh, function () {
+          if (!first.count) first.mesh.thinInstanceSetBuffer('matrix', null, 16, false);
+        });
+      });
+      if (B.ParticleSystem) {
+        var ps = new B.ParticleSystem('impact-prewarm', 1, sim.scene);
+        ps.particleTexture = st.texture;
+        if (ps.isReady) ps.isReady();
+        setTimeout(function () {
+          ps.dispose(false);
+        }, 2000);
+      }
+    } catch (_) {}
+  }
+  function install(sim) {
+    if (!sim || sim._impactFxInstalled) return sim;
+    sim._impactFxInstalled = true;
+    prewarm(sim);
+    var oldShot = sim.onShot,
+      oldSuppressive = sim.onSuppressiveShot;
+    sim.onShot = function (shooter, target, hit, d, shot) {
+      if (oldShot) oldShot.apply(sim, arguments);
+      if (shot && shot.delay > 0 && sim.presentAfter) {
+        var epoch = state(sim).epoch;
+        sim.presentAfter(shot.delay, function () {
+          if (!sim._impactFx || sim._impactFx.epoch !== epoch) return;
+          impact(sim, shot, shooter);
+        });
+      } else impact(sim, shot, shooter);
+    };
+    sim.onSuppressiveShot = function (shooter, point, hit, rounds) {
+      if (oldSuppressive) oldSuppressive.apply(sim, arguments);
+      suppressionStrikes(sim, shooter, point, rounds || 1);
+    };
+    // Match visual particle time to the simulation, including pause and fast-forward.
+    var observer = sim.scene.onBeforeRenderObservable.add(function () {
+      var st = sim._impactFx;
+      if (!st) return;
+      var dt =
+        sim.paused || sim.winner
+          ? 0
+          : Math.min(0.25, (sim.scene.getEngine().getDeltaTime() / 1000) * (sim.timeScale || 1));
+      var speed = dt / Math.max(0.001, sim.scene.getAnimationRatio());
+      st.bursts.forEach(function (b) {
+        b.system.updateSpeed = speed;
+      });
+      refreshBody(sim);
+      flush(st);
+    });
+    sim.scene.onDisposeObservable.addOnce(function () {
+      clear(sim);
+      sim.scene.onBeforeRenderObservable.remove(observer);
+      var st = sim._impactFx;
+      if (st) {
+        if (st.texture) st.texture.dispose();
+        Object.keys(st.cells).forEach(function (k) {
+          st.cells[k].mesh.dispose();
+        });
+        Object.keys(st.materials).forEach(function (k) {
+          if (st.materials[k].diffuseTexture) st.materials[k].diffuseTexture.dispose();
+          st.materials[k].dispose();
+        });
+        Object.keys(st.surfaceStamps || {}).forEach(function (k) {
+          if (st.surfaceStamps[k] && st.surfaceStamps[k].dispose) st.surfaceStamps[k].dispose();
+        });
+      }
+      delete sim._impactFx;
+    });
+    return sim;
+  }
+  root.BattleSim.start = function (scene, opts) {
+    return install(oldStart(scene, opts));
+  };
+  root.BattleModules.registerSystem('bullet-impact-fx', {
+    version: '2.2-uv-surface-wounds',
+    onSimulationStep: tick,
+    beforeBattleRestart: clear
+  });
+  root.BattleImpactFx = {
+    version: '2.2-uv-surface-wounds',
+    install: install,
+    impact: impact,
+    suppressionStrikes: suppressionStrikes,
+    material: material,
+    holeKind: holeKind,
+    cellUV: cellUV,
+    sheets: DECAL_SHEETS,
+    clear: clear,
+    tick: tick,
+    refreshBody: refreshBody,
+    maxBursts: MAX_BURSTS,
+    maxDecals: MAX_DECALS,
+    maxBodyDecals: MAX_BODY_DECALS,
+    decalLife: DECAL_LIFE
+  };
+})(typeof window !== 'undefined' ? window : globalThis);

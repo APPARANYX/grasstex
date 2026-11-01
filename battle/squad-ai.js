@@ -1,0 +1,2488 @@
+/* Squad + soldier AI for the battle sim.
+
+   This file owns perception (who can see whom), the shot resolution, squad formations/orders and
+   the squad state machine. The individual combat decision - stop, take cover, go prone, shoot,
+   bound forward - lives in engagement.js, which this file delegates to. Keeping the two apart is
+   what stops half a dozen modules from each writing soldier.destination on the same tick. */
+(function (root) {
+  'use strict';
+
+  var ROLES = {
+    sergeant: { speed: 3.0, visionRange: 150, hp: 110 },
+    rifleman: { speed: 2.9, visionRange: 140, hp: 100 },
+    gunner: { speed: 2.2, visionRange: 150, hp: 100 },
+    scout: { speed: 3.8, visionRange: 175, hp: 90 }
+  };
+  /* What a man is issued, kept apart from what he does (ROLES). A loadout names the weapon kind of
+     each slot; `BattleWeapons.issue` turns the kind into the side's own weapon (profile, magSize,
+     carried). Squad leaders carry a submachine gun (US Thompson, GE MP40), not a pistol: a sidearm
+     left the leader out of every fight past 25 m. `loadoutFor` is the only place a role picks a
+     weapon, so a per-man variation (sniper, sidearm) is a new loadout, not a new code path. */
+  var LOADOUTS = {
+    sergeant: { primary: 'smg', secondary: 'pistol', grenades: 2 },
+    rifleman: { primary: 'rifle', grenades: 2 },
+    gunner: { primary: 'lmg', secondary: 'pistol', grenades: 1 },
+    scout: { primary: 'carbine', grenades: 2 },
+    engineer: { primary: 'rifle', grenades: 3 }
+  };
+  /* A light machine gun is emplaced, fires from a base of fire and takes the suppression job first:
+     what the man carries decides it, not his role. */
+  function isMachineGun(soldier) {
+    return !!(soldier && soldier.weapon && soldier.weapon.kind === 'lmg');
+  }
+  function loadoutFor(role, faction) {
+    var l = LOADOUTS[role] || LOADOUTS.rifleman;
+    return { primary: l.primary, secondary: l.secondary || null, grenades: l.grenades || 0 };
+  }
+  /* Build a man's weapons from his loadout: the primary he carries out, and a sidearm holstered
+     (hidden, ready for `BattleWeapons.equip`). Both are the side's own weapon for the kind. */
+  function dealLoadout(scene, socket, role, faction) {
+    var l = loadoutFor(role, faction),
+      W = root.BattleWeapons,
+      out = { weapon: W.attachWeapon(scene, socket, l.primary), secondary: null };
+    if (l.secondary) {
+      out.secondary = W.attachWeapon(scene, socket, l.secondary);
+      W.holster(out.secondary);
+    }
+    return out;
+  }
+  /* A man who left his weapons behind is issued the loadout of his role again (the same deal as at spawn): a fled man
+     at base. Returns false for one who still carries a weapon. Presentation draws what he now holds. */
+  function rearm(soldier, scene, battle) {
+    var W = root.BattleWeapons;
+    if (!soldier || soldier.dead || soldier.weapon || !W) return false;
+    var deal = dealLoadout(scene, soldier.weaponSocket || null, soldier.role, soldier.faction);
+    if (W.issue) {
+      W.issue(deal.weapon, soldier.faction);
+      if (deal.secondary) W.issue(deal.secondary, soldier.faction);
+    }
+    if (!W.arm(soldier, deal.weapon, deal.secondary)) return false;
+    if (root.BattleAmmunition && root.BattleAmmunition.initialize)
+      root.BattleAmmunition.initialize(soldier, battle);
+    return true;
+  }
+  var COMPOSITION = [
+    'sergeant',
+    'gunner',
+    'scout',
+    'scout',
+    'rifleman',
+    'rifleman',
+    'rifleman',
+    'rifleman',
+    'rifleman',
+    'rifleman'
+  ];
+  /* A squad reduced to this many living men is no longer a tactical formation while retreating.
+     It is a survivor remnant: each man extracts to home independently until Macro legitimately
+     assigns the remnant to a reconstitution rally. This is the single shared threshold read by
+     Squad Leader and Force Command, so the two layers cannot disagree about who belongs in the
+     survivor pool. */
+  var REMNANT_EXTRACTION_MAX = 4;
+  function livingCount(squad) {
+    var n = 0,
+      a = (squad && squad.members) || [];
+    for (var i = 0; i < a.length; i++) if (a[i] && !a[i].dead) n++;
+    return n;
+  }
+  function isExtractionRemnant(squad) {
+    return !!(
+      squad &&
+      squad.state === 'retreat' &&
+      livingCount(squad) > 0 &&
+      livingCount(squad) <= REMNANT_EXTRACTION_MAX
+    );
+  }
+  function isReconstitutionMarch(squad) {
+    var a = squad && squad._assembly,
+      m = squad && squad._macroMission;
+    return !!(
+      squad &&
+      squad.state === 'retreat' &&
+      a &&
+      a.phase === 'to-rally' &&
+      m &&
+      m.intent === 'reconstitute' &&
+      (m.status === 'issued' || m.status === 'executing') &&
+      m.version === a.missionVersion &&
+      m.point
+    );
+  }
+  function isExtractionToHome(squad) {
+    return isExtractionRemnant(squad) && !isReconstitutionMarch(squad);
+  }
+  /* `home` can be a tactical fallback (prepared defenders rewrite it near their sector).
+     `baseHome` is the squad's immutable rear/base point from creation and is the destination
+     for permanent fled/extraction lifecycles. */
+  function extractionHome(squad) {
+    /* Front-lines layout: the frontmost line the side fully holds is the rear base
+       (published by 21b-strategic-front-lines.js); otherwise the spawn base. */
+    if (squad && squad._frontLineRear) return squad._frontLineRear;
+    return squad && (squad.baseHome || squad.home) ? squad.baseHome || squad.home : null;
+  }
+
+  var RETREAT_CASUALTY_FRAC = 0.6,
+    GUNNER_SETUP_TIME = 1.4,
+    SUPPRESSION_TIME = 1.3,
+    LOS_SAMPLES = 8;
+  /* Fallback movement only (no Movement Resolver): hold a destination briefly before re-pathing. */
+  var DESTINATION_COMMIT = 1.35;
+  var EYE_HEIGHT = 1.55,
+    EYE_HEIGHT_CROUCH = 1.05,
+    EYE_HEIGHT_PRONE = 0.42;
+  /* Perception cadence. Staggering the sweeps keeps a 100-man field cheap and stops a whole
+     squad from acquiring the same target on the same frame. */
+  var SCAN_INTERVAL = 0.3,
+    TRACK_MARGIN = 1.15;
+  /* How much of a man each stance leaves visible. A low, still silhouette should matter without
+     making prone infantry magically disappear: the shipping curve is the midpoint between the old
+     72/45% values and the proposed 50/25% ambush curve. Movement gives some of the concealment back.
+     ?stanceVis=0 restores the pre-2026-10-01 values for paired A/B work. */
+  var STANCE_VIS_ON = !(typeof location !== 'undefined' && /[?&]stanceVis=0\b/.test(location.search || ''));
+  var VISIBILITY = STANCE_VIS_ON
+      ? { stand: 1, crouch: 0.6, prone: 0.35 }
+      : { stand: 1, crouch: 0.72, prone: 0.45 },
+    MOVING_VISIBILITY_BONUS = STANCE_VIS_ON ? 0.18 : 0.22;
+  /* View cone. A man spots at full range inside FOCUS_HALF of where he is looking, at a fraction of
+     it in his peripheral vision (more if the enemy is moving, which is what catches the eye), and
+     behind him only a man right on top of him. He looks where his body faces, or, when his squad
+     knows where the enemy is and that is within HEAD_TURN of his body, that way. Tracking a man he
+     already has is not cone-limited: he is looking at him. */
+  var FOCUS_HALF = Math.PI / 3, // 60 deg: a 120 deg cone
+    PERIPHERAL_HALF = (100 * Math.PI) / 180,
+    PERIPHERAL_RANGE = 0.35,
+    PERIPHERAL_MOVING = 0.55,
+    BEHIND_RANGE = 10,
+    HEAD_TURN = (70 * Math.PI) / 180;
+  /* Word of the enemy that does not come through a man's own eyes. Gunfire: an enemy trigger pull
+     within HEAR_RANGE of a squad that knows of nobody tells it roughly where the shooter is (the
+     error grows with distance: HEAR_ERROR of the range). Relay: a squad whose men can see the enemy
+     passes it to a friendly squad within RELAY_RANGE that cannot. Only first-hand sightings are
+     relayed, and a relayed contact keeps the sighting's age, so word never outlives the sighting. */
+  var HEAR_RANGE = 120,
+    HEAR_MEMORY = 1.5,
+    HEAR_ERROR = 0.08,
+    RELAY_RANGE = 50;
+  /* `?perception=0`: the perception before PR #55, for A/B benchmarks only (the scout-balance
+     question: the FG 42 and the view cones shipped together). No view cone, no sector scan, nothing
+     heard or relayed: a man sees every enemy in range and line of sight, whichever way he faces. */
+  var PERCEPTION_ON = !(typeof location !== 'undefined' && /[?&]perception=0\b/.test(location.search || ''));
+  /* Personal beliefs replace treating squad.contact as instant common knowledge. Perception owns
+     soldier._beliefs; Engagement and its declared drills read only the public soldierContact /
+     beliefSnapshot views. Shipped on after the 100-seed Slice 2 benchmark; ?soldierBeliefs=0/off/
+     false/none is the legacy shared-contact control arm. */
+  function parseSoldierBeliefs(search) {
+    return !/[?&]soldierBeliefs=(?:0|off|false|none)(?:&|#|$)/i.test(search || '');
+  }
+  var SOLDIER_BELIEFS_ON = parseSoldierBeliefs(typeof location !== 'undefined' ? location.search || '' : '');
+  /* Aimed fire is stronger evidence than ambient gunfire. A man who is actually being shot at gets
+     the shooter's firing origin even when the shooter is too far/prone to spot cold; the existing
+     tracking rule decides whether he can keep the shooter visually after that reveal. The legacy
+     arm is retained for paired benchmarks. */
+  function parseIncomingFireReveal(search) {
+    return !/[?&]incomingFireReveal=(?:0|off|false)(?:&|#|$)/i.test(search || '');
+  }
+  var INCOMING_FIRE_REVEAL_ON = parseIncomingFireReveal(
+    typeof location !== 'undefined' ? location.search || '' : ''
+  );
+  /* Phase 0G1: secondary threat awareness. When on, soldierContact gains a 'secondary' field
+     holding the next-best belief in a different 20m sector from the primary. Engagement can
+     orient toward the secondary when the primary is behind cover or out of range. Default off;
+     the off arm is unchanged single-contact behavior. */
+  var SECONDARY_THREAT_ON = !!(
+    typeof location !== 'undefined' &&
+    location.search &&
+    /[?&]secondaryThreat=1\b/.test(location.search)
+  );
+  /* How long a squad keeps acting on a last-known enemy position after nobody can see him. */
+  var CONTACT_MEMORY = 12;
+  var BELIEF_TUNING = {
+    seenTtl: CONTACT_MEMORY,
+    toldTtl: CONTACT_MEMORY,
+    heardTtl: 5,
+    incomingFireTtl: 6,
+    nonThreatTtl: 4,
+    toldConfidenceMin: 0.55,
+    toldConfidenceMax: 0.92,
+    heardConfidenceMin: 0.2,
+    heardConfidenceMax: 0.5
+  };
+  /* Default-on PinBridge (#641, independently ported): a real aimed burst pins its
+     target, and an area-fire burst extends pins for covered enemies through the
+     shooter's next trigger-pull cooldown plus a short tail. This does not assign
+     suppression roles or change tactical controller movement. The legacy hold
+     model is available via ?pinBridge=0 for A/B and rollback. */
+  var PIN_BRIDGE = !(
+      typeof location !== 'undefined' && /[?&]pinBridge=(?:0|off|false)(?:&|#|$)/i.test(location.search || '')
+    ),
+    PIN_TAIL = 0.6;
+  /* Suppressing fire lands in a cone, not on a point: the further out, the looser the group. */
+  var AREA_SPREAD_MIN = 3,
+    AREA_SPREAD_PER_M = 0.05,
+    AREA_SPREAD_MAX = 12,
+    AREA_FIRE_RATE = 1.55,
+    AREA_AIM_HEIGHT = 0.85;
+
+  var clamp = root.GTMath.clamp;
+  function dist2(ax, az, bx, bz) {
+    var dx = ax - bx,
+      dz = az - bz;
+    return Math.sqrt(dx * dx + dz * dz);
+  }
+  function rand(battle) {
+    return battle && battle.random ? battle.random() : Math.random();
+  }
+  function field() {
+    return root.BattleObstacleField;
+  }
+  function stanceOf(s) {
+    return s.prone ? 'prone' : s.crouching || s.tacticalCrouch ? 'crouch' : 'stand';
+  }
+  function eyeHeight(s) {
+    return s.prone ? EYE_HEIGHT_PRONE : s.crouching ? EYE_HEIGHT_CROUCH : EYE_HEIGHT;
+  }
+
+  /* Legacy height-blind circle test, kept as the fallback for callers that run without the
+     obstacle field (old saved scenarios, unit tests, trimmed deployments). */
+  function segmentHitsObstacle(ax, az, bx, bz, ob) {
+    var dx = bx - ax,
+      dz = bz - az,
+      len2 = dx * dx + dz * dz;
+    var t = len2 > 1e-6 ? ((ob.x - ax) * dx + (ob.z - az) * dz) / len2 : 0;
+    t = clamp(t, 0, 1);
+    var px = ax + dx * t,
+      pz = az + dz * t,
+      ddx = px - ob.x,
+      ddz = pz - ob.z;
+    return ddx * ddx + ddz * ddz <= ob.radius * ob.radius;
+  }
+  function obstacleBlocks(ax, az, bx, bz, obstacles) {
+    if (!obstacles) return false;
+    for (var i = 0; i < obstacles.length; i++)
+      if (segmentHitsObstacle(ax, az, bx, bz, obstacles[i])) return true;
+    return false;
+  }
+
+  function coverMultiplierAt(x, z, obstacles, stance) {
+    var F = field();
+    if (F) return F.coverAt(obstacles, x, z, stance || 'stand');
+    if (!obstacles) return 1;
+    var best = 1;
+    for (var i = 0; i < obstacles.length; i++) {
+      var ob = obstacles[i],
+        dx = x - ob.x,
+        dz = z - ob.z,
+        r = ob.radius + 1.4;
+      if (dx * dx + dz * dz <= r * r && ob.cover < best) best = ob.cover;
+    }
+    return best;
+  }
+  function coverPotentialAt(x, z, obstacles) {
+    var F = field();
+    return F ? F.coverPotentialAt(obstacles, x, z) : coverMultiplierAt(x, z, obstacles, 'prone');
+  }
+
+  function hasLineOfSight(a, b, heightAt, obstacles) {
+    var ax = a.root.position.x,
+      az = a.root.position.z,
+      ay = heightAt(ax, az) + eyeHeight(a);
+    var bx = b.root.position.x,
+      bz = b.root.position.z,
+      by = heightAt(bx, bz) + eyeHeight(b);
+    var F = field();
+    if (F) {
+      // Only an admitted occupant can look out through his own carrier envelope.
+      // Other trucks, terrain and static cover still occlude the crew's sight.
+      var carrier = root.BattleSquadTransport ? root.BattleSquadTransport.carrierId(a) : null,
+        sightOptions = carrier != null ? { ignoreDynamicId: carrier } : undefined;
+      if (F.sightBlocked(obstacles, { x: ax, z: az, y: ay }, { x: bx, z: bz, y: by }, sightOptions))
+        return false;
+    } else if (obstacleBlocks(ax, az, bx, bz, obstacles)) return false;
+    if (
+      root.BattleNavigation &&
+      root.BattleNavigation.lineOfSightBlocked({ x: ax, z: az }, { x: bx, z: bz }, ay, by)
+    )
+      return false;
+    for (var i = 1; i < LOS_SAMPLES; i++) {
+      var t = i / LOS_SAMPLES,
+        x = ax + (bx - ax) * t,
+        z = az + (bz - az) * t;
+      var lineY = ay + (by - ay) * t,
+        groundY = heightAt(x, z);
+      if (groundY > lineY - 0.15) return false;
+    }
+    return true;
+  }
+
+  /* Effective spotting range against one particular man in one particular stance. */
+  function detectionRange(observerRole, target) {
+    var mult = VISIBILITY[stanceOf(target)] || 1;
+    if (target.moving) mult += MOVING_VISIBILITY_BONUS;
+    var lab = root.PhaseCCombatLab,
+      scale = (lab && lab.rangeScale) || 1;
+    return observerRole.visionRange * clamp(mult, 0.3, 1.25) * scale;
+  }
+  /* Range first, sight second: sorting the in-range enemies by distance and stopping at the first
+     visible one turns a full O(enemies) sight sweep into one or two sight tests, which matters now
+     that sight tests consult a few thousand obstacles. */
+  var scanBuffer = [];
+  function angleBetween(a, b) {
+    var diff = a - b;
+    return Math.abs(Math.atan2(Math.sin(diff), Math.cos(diff)));
+  }
+  /* A man holding still with no known threat scans his sector: his head sweeps SCAN_SWEEP either side
+     of where his body faces and back every SCAN_PERIOD seconds, each man on his own phase so a
+     line of them covers the arc between them. The sweep stays inside FOCUS_HALF, so his front is
+     always in focus and the scan only widens what he sees (full range out to ±100°); a 70° sweep
+     looked away from the enemy straight ahead (run.js seeds 6 and 23 lost their first target). A
+     man on the move looks where he is going. The clock is sim time and his id, never the combat RNG. */
+  var SCAN_SWEEP = (40 * Math.PI) / 180,
+    SCAN_PERIOD = 8;
+  function scanOffset(soldier, battle) {
+    var u = ((battle.time || 0) / SCAN_PERIOD + (((+soldier.id || 0) * 0.618) % 1)) % 1,
+      tri = u < 0.5 ? 4 * u - 1 : 3 - 4 * u;
+    return SCAN_SWEEP * tri;
+  }
+  /* Where the man is looking: his body's facing, or the squad's known threat if a head turn reaches it;
+     with no known threat and standing still, his scan across the sector. */
+  function reactionState(soldier) {
+    var E = root.BattleEngagement;
+    return E && E.reactionState ? E.reactionState(soldier) : null;
+  }
+  /* Perception-owned, read-only disposition. "Visible non-threat" is deliberately different from
+     invisible/dead: a dazed, fleeing or explicitly non-combatant person still exists in the scene and
+     can be seen, but must not become a combat target, shared threat, suppression victim or tactical
+     threat reference. This is the soldier contract today and the civilian hook later. */
+  function disposition(kind, visible, combatThreat, reason) {
+    var d = { kind: kind, visible: visible, combatThreat: combatThreat, reason: reason };
+    return typeof Object.freeze === 'function' ? Object.freeze(d) : d;
+  }
+  var THREAT_ACTIVE = disposition('active-threat', true, true, 'combatant'),
+    THREAT_RAGE = disposition('active-threat', true, true, 'rage'),
+    THREAT_FREEZE = disposition('visible-non-threat', true, false, 'freeze'),
+    THREAT_FLEE = disposition('visible-non-threat', true, false, 'flee'),
+    THREAT_DECLARED_NONCOMBATANT = disposition('visible-non-threat', true, false, 'declared-non-threat'),
+    THREAT_DEAD = disposition('inactive', false, false, 'dead'),
+    THREAT_MISSING = disposition('inactive', false, false, 'missing');
+  function threatDisposition(unit) {
+    if (!unit) return THREAT_MISSING;
+    if (unit.dead) return THREAT_DEAD;
+    if (unit.combatThreat === false || unit.combatant === false) return THREAT_DECLARED_NONCOMBATANT;
+    var r = reactionState(unit);
+    if (r === 'freeze') return THREAT_FREEZE;
+    if (r === 'flee') return THREAT_FLEE;
+    return r === 'rage' ? THREAT_RAGE : THREAT_ACTIVE;
+  }
+
+  /* ---- personal information model ------------------------------------------------------------
+     Perception owns these records. They contain only what the man has actually sensed or received:
+     seen, told, heard. The known unit reference is retained for provenance/identity, but remembered
+     contacts expose only the recorded location; they never follow the unit's live position. Time,
+     not hidden ground truth, expires a belief. */
+  function beliefStats(battle) {
+    if (!SOLDIER_BELIEFS_ON || !battle) return null;
+    var st = battle._soldierBeliefStats;
+    if (!st || (st.lastTime != null && battle.time < st.lastTime)) {
+      st = battle._soldierBeliefStats = {
+        lastTime: battle.time,
+        updates: 0,
+        seen: 0,
+        seenRefreshes: 0,
+        told: 0,
+        heard: 0,
+        incoming: 0,
+        nonThreatSeen: 0,
+        superseded: 0,
+        rejectedOlder: 0,
+        expired: 0,
+        calloutDelaySum: 0,
+        calloutDelayCount: 0
+      };
+    }
+    st.lastTime = battle.time;
+    return st;
+  }
+  function newBeliefStore(battle) {
+    return {
+      byKey: Object.create(null),
+      history: [],
+      lastTime: battle ? battle.time : 0,
+      lastCalloutId: null,
+      lastHeardKey: null,
+      lastPrunedAt: null,
+      version: 0,
+      readAt: null,
+      readVersion: -1,
+      readSelected: null
+    };
+  }
+  function beliefStore(soldier, battle) {
+    if (!soldier) return null;
+    var st = soldier._beliefs;
+    if (!st || (battle && st.lastTime != null && battle.time < st.lastTime))
+      st = soldier._beliefs = newBeliefStore(battle);
+    if (battle) st.lastTime = battle.time;
+    return st;
+  }
+  function beliefUnitKey(unit) {
+    return unit && unit.id != null ? 'unit:' + String(unit.faction || '?') + ':' + String(unit.id) : null;
+  }
+  function beliefSector(soldier, x, z) {
+    if (!soldier || !soldier.root || !isFinite(+x) || !isFinite(+z)) return null;
+    var p = soldier.root.position,
+      a = Math.atan2(z - p.z, x - p.x);
+    return ((Math.round((a + Math.PI) / (Math.PI / 4)) % 8) + 8) % 8;
+  }
+  function beliefRank(source) {
+    return source === 'seen'
+      ? 4
+      : source === 'incoming'
+        ? 3
+        : source === 'told'
+          ? 2
+          : source === 'heard'
+            ? 1
+            : 0;
+  }
+  function beliefConfidence(rec, battle) {
+    if (!rec || !battle || battle.time >= rec.expiresAt) return 0;
+    var span = Math.max(0.001, rec.expiresAt - rec.observedAt),
+      age = Math.max(0, battle.time - rec.observedAt);
+    return clamp((+rec.baseConfidence || 0) * (1 - age / span), 0, 1);
+  }
+  function beliefView(rec, battle) {
+    if (!rec || !battle) return null;
+    var age = Math.max(0, battle.time - rec.observedAt);
+    return {
+      key: rec.key,
+      targetId: rec.targetId,
+      source: rec.source,
+      sourceSoldierId: rec.sourceSoldierId,
+      sourceCalloutId: rec.sourceCalloutId,
+      location: { x: rec.x, z: rec.z },
+      sector: rec.sector,
+      observedAt: rec.observedAt,
+      reportedAt: rec.reportedAt,
+      receivedAt: rec.receivedAt,
+      age: +age.toFixed(3),
+      confidence: +beliefConfidence(rec, battle).toFixed(3),
+      expiresAt: rec.expiresAt,
+      stale: battle.time >= rec.expiresAt,
+      combatThreat: rec.combatThreat !== false,
+      precision: rec.precision,
+      reason: rec.reason || null
+    };
+  }
+  function beliefHistory(store, row) {
+    if (!store) return;
+    store.history.push(row);
+    if (store.history.length > 24) store.history.splice(0, store.history.length - 24);
+  }
+  function pruneBeliefs(soldier, battle) {
+    if (!SOLDIER_BELIEFS_ON || !soldier || !battle) return;
+    var store = beliefStore(soldier, battle);
+    if (store.lastPrunedAt === battle.time) return;
+    store.lastPrunedAt = battle.time;
+    var stats = beliefStats(battle),
+      changed = false;
+    Object.keys(store.byKey).forEach(function (key) {
+      var rec = store.byKey[key];
+      if (!rec || battle.time < rec.expiresAt) return;
+      delete store.byKey[key];
+      changed = true;
+      stats.expired++;
+      beliefHistory(store, {
+        at: battle.time,
+        kind: 'expired',
+        key: key,
+        source: rec.source,
+        targetId: rec.targetId,
+        observedAt: rec.observedAt
+      });
+    });
+    if (changed) store.version++;
+  }
+  function writeBelief(soldier, battle, next) {
+    if (!SOLDIER_BELIEFS_ON || !soldier || !battle || !next) return null;
+    var store = beliefStore(soldier, battle),
+      stats = beliefStats(battle),
+      old = store.byKey[next.key];
+    if (
+      old &&
+      old.combatThreat !== false &&
+      old.source === 'seen' &&
+      next.source !== 'seen' &&
+      battle.time - old.observedAt <= CONTACT_REFRESH
+    ) {
+      stats.rejectedOlder++;
+      return old;
+    }
+    if (
+      old &&
+      next.observedAt < old.observedAt - 1e-6 &&
+      !(next.source === 'seen' && next.combatThreat === false)
+    ) {
+      stats.rejectedOlder++;
+      return old;
+    }
+    if (
+      old &&
+      Math.abs(next.observedAt - old.observedAt) <= 1e-6 &&
+      beliefRank(next.source) < beliefRank(old.source) &&
+      !(next.source === 'seen' && next.combatThreat === false)
+    ) {
+      stats.rejectedOlder++;
+      return old;
+    }
+    if (old) stats.superseded++;
+    store.byKey[next.key] = next;
+    store.version++;
+    stats.updates++;
+    if (next.source === 'seen') {
+      stats.seen++;
+      if (next.combatThreat === false) stats.nonThreatSeen++;
+    } else if (next.source === 'incoming') stats.incoming++;
+    else if (next.source === 'told') stats.told++;
+    else if (next.source === 'heard') stats.heard++;
+    beliefHistory(store, {
+      at: battle.time,
+      kind: 'update',
+      key: next.key,
+      targetId: next.targetId,
+      source: next.source,
+      sourceSoldierId: next.sourceSoldierId,
+      sourceCalloutId: next.sourceCalloutId,
+      observedAt: next.observedAt,
+      receivedAt: next.receivedAt,
+      confidence: next.baseConfidence,
+      combatThreat: next.combatThreat !== false,
+      reason: next.reason || null
+    });
+    return next;
+  }
+  function rememberSeen(soldier, unit, battle, combatThreat, reason) {
+    if (!SOLDIER_BELIEFS_ON || !soldier || !unit || !unit.root || !battle) return null;
+    var p = unit.root.position,
+      key = beliefUnitKey(unit);
+    if (!key) return null;
+    var store = beliefStore(soldier, battle),
+      old = store.byKey[key],
+      isThreat = combatThreat !== false;
+    /* Direct sight is sampled every perception tick. Refresh the owned fact in place instead of
+       allocating a new record + diagnostic history row for the same continuous sighting. A source
+       change or threat/non-threat transition still goes through writeBelief and is recorded. */
+    if (old && old.source === 'seen' && (old.combatThreat !== false) === isThreat) {
+      old.unit = unit;
+      old.x = +p.x;
+      old.z = +p.z;
+      old.sector = beliefSector(soldier, p.x, p.z);
+      old.observedAt = battle.time;
+      old.receivedAt = battle.time;
+      old.baseConfidence = 1;
+      old.expiresAt = battle.time + (isThreat ? BELIEF_TUNING.seenTtl : BELIEF_TUNING.nonThreatTtl);
+      old.precision = 'exact-sight';
+      old.reason = reason || (isThreat ? 'direct-sight' : 'seen-non-threat');
+      store.version++;
+      beliefStats(battle).seenRefreshes++;
+      return old;
+    }
+    return writeBelief(soldier, battle, {
+      key: key,
+      unit: unit,
+      targetId: unit.id == null ? null : String(unit.id),
+      source: 'seen',
+      sourceSoldierId: soldier.id == null ? null : String(soldier.id),
+      sourceCalloutId: null,
+      x: +p.x,
+      z: +p.z,
+      sector: beliefSector(soldier, p.x, p.z),
+      observedAt: battle.time,
+      reportedAt: null,
+      receivedAt: battle.time,
+      baseConfidence: 1,
+      expiresAt: battle.time + (combatThreat === false ? BELIEF_TUNING.nonThreatTtl : BELIEF_TUNING.seenTtl),
+      combatThreat: combatThreat !== false,
+      precision: 'exact-sight',
+      reason: reason || (combatThreat === false ? 'seen-non-threat' : 'direct-sight')
+    });
+  }
+  function applyCalloutBelief(soldier, battle) {
+    if (!SOLDIER_BELIEFS_ON || !soldier || !battle) return null;
+    var calls = root.BattleCallouts;
+    if (!calls || !calls.enabled || !calls.enabled() || !calls.heardBy) return null;
+    var delivery = calls.heardBy(battle, soldier);
+    if (!delivery || !delivery.msg || !delivery.msg.fact) return null;
+    var store = beliefStore(soldier, battle),
+      msg = delivery.msg;
+    if (String(store.lastCalloutId) === String(msg.id)) return null;
+    store.lastCalloutId = msg.id;
+    var f = msg.fact,
+      key = beliefUnitKey(f.unit);
+    if (!key || !isFinite(+f.x) || !isFinite(+f.z) || !isFinite(+f.at)) return null;
+    var c = clamp(+delivery.confidence || 0, 0, 1),
+      conf =
+        BELIEF_TUNING.toldConfidenceMin +
+        (BELIEF_TUNING.toldConfidenceMax - BELIEF_TUNING.toldConfidenceMin) * c,
+      stats = beliefStats(battle);
+    stats.calloutDelaySum += Math.max(0, (+delivery.at || battle.time) - (+msg.sentAt || 0));
+    stats.calloutDelayCount++;
+    if (calls.noteBeliefApplied) calls.noteBeliefApplied(battle);
+    return writeBelief(soldier, battle, {
+      key: key,
+      unit: f.unit || null,
+      targetId: f.unit && f.unit.id != null ? String(f.unit.id) : null,
+      source: 'told',
+      sourceSoldierId: msg.from == null ? null : String(msg.from),
+      sourceCalloutId: msg.id,
+      x: +f.x,
+      z: +f.z,
+      sector: beliefSector(soldier, f.x, f.z),
+      observedAt: +f.at,
+      reportedAt: +msg.sentAt,
+      receivedAt: +delivery.at || battle.time,
+      baseConfidence: +conf.toFixed(3),
+      expiresAt: +f.at + BELIEF_TUNING.toldTtl,
+      combatThreat: true,
+      precision: f.precision || 'reported-position',
+      reason: f.reason ? 'callout:' + String(f.reason) : 'heard-callout'
+    });
+  }
+  function rememberReportedContact(soldier, battle, fact) {
+    if (!SOLDIER_BELIEFS_ON || !soldier || soldier.dead || !battle || !fact) return null;
+    if (!isFinite(+fact.x) || !isFinite(+fact.z) || !isFinite(+fact.observedAt)) return null;
+    var observedAt = +fact.observedAt,
+      unit = fact.unit || null,
+      targetId = null,
+      key = null,
+      sourceId = fact.sourceId == null ? null : String(fact.sourceId),
+      reportId = fact.reportId,
+      confidence = fact.confidence == null ? BELIEF_TUNING.toldConfidenceMin : +fact.confidence;
+    if (fact.targetId != null) targetId = String(fact.targetId);
+    else if (unit && unit.id != null) targetId = String(unit.id);
+    if (targetId)
+      key = 'unit:' + String(unit && unit.faction ? unit.faction : fact.otherFaction || '?') + ':' + targetId;
+    else key = 'reported-sector:' + Math.round(+fact.x / 20) + ':' + Math.round(+fact.z / 20);
+    if (!reportId) reportId = 'report:' + sourceId + ':' + observedAt + ':' + (targetId || key);
+    reportId = String(reportId);
+    var conf = clamp(confidence, BELIEF_TUNING.toldConfidenceMin, BELIEF_TUNING.toldConfidenceMax);
+    return writeBelief(soldier, battle, {
+      key: key,
+      unit: unit,
+      targetId: targetId,
+      source: 'told',
+      sourceSoldierId: sourceId,
+      sourceCalloutId: reportId,
+      x: +fact.x,
+      z: +fact.z,
+      sector: beliefSector(soldier, fact.x, fact.z),
+      observedAt: observedAt,
+      reportedAt: isFinite(+fact.reportedAt) ? +fact.reportedAt : battle.time,
+      receivedAt: battle.time,
+      baseConfidence: +conf.toFixed(3),
+      expiresAt: observedAt + BELIEF_TUNING.toldTtl,
+      combatThreat: true,
+      precision: fact.precision || 'reported-position',
+      reason: fact.reason || 'reported-contact'
+    });
+  }
+  function heardHash(unit, at, listener) {
+    var a = ((+unit.id || 0) * 73856093) ^ Math.floor((+at || 0) * 7) ^ ((+listener.id || 0) * 19349663);
+    return a >>> 0;
+  }
+  function hearGunfireBelief(soldier, battle) {
+    if (!SOLDIER_BELIEFS_ON || !PERCEPTION_ON || !soldier || !battle || soldier.dead || !soldier.root)
+      return null;
+    var shots = battle._gunfire;
+    if (!shots || !shots.length) return null;
+    var p = soldier.root.position,
+      best = null,
+      bestAt = -Infinity,
+      bestD = Infinity;
+    for (var i = 0; i < shots.length; i++) {
+      var shot = shots[i];
+      if (!shot || shot.faction === soldier.faction || battle.time - shot.at > HEAR_MEMORY) continue;
+      /* The recorded enemy gunfire event is the evidence. Do not consult the shooter's current
+         object/state here: a later death/freeze/flee must not rewrite what this man heard. */
+      var d = dist2(p.x, p.z, shot.x, shot.z);
+      if (d > HEAR_RANGE) continue;
+      if (shot.at > bestAt + 1e-6 || (Math.abs(shot.at - bestAt) <= 1e-6 && d < bestD)) {
+        best = shot;
+        bestAt = shot.at;
+        bestD = d;
+      }
+    }
+    if (!best) return null;
+    var store = beliefStore(soldier, battle),
+      eventKey = String(best.at) + ':' + (+best.x).toFixed(2) + ':' + (+best.z).toFixed(2);
+    if (store.lastHeardKey === eventKey) return null;
+    store.lastHeardKey = eventKey;
+    var k = heardHash(
+        { id: Math.floor((+best.x || 0) * 17) ^ Math.floor((+best.z || 0) * 31) },
+        best.at,
+        soldier
+      ),
+      ang = ((k % 360) * Math.PI) / 180,
+      err = bestD * HEAR_ERROR * (0.5 + ((k >>> 9) % 50) / 100),
+      x = best.x + Math.sin(ang) * err,
+      z = best.z + Math.cos(ang) * err,
+      closeness = clamp(1 - bestD / HEAR_RANGE, 0, 1),
+      conf =
+        BELIEF_TUNING.heardConfidenceMin +
+        (BELIEF_TUNING.heardConfidenceMax - BELIEF_TUNING.heardConfidenceMin) * closeness;
+    return writeBelief(soldier, battle, {
+      key: 'heard-sector',
+      unit: null,
+      targetId: null,
+      source: 'heard',
+      sourceSoldierId: null,
+      sourceCalloutId: null,
+      x: +x,
+      z: +z,
+      sector: beliefSector(soldier, x, z),
+      observedAt: +best.at,
+      reportedAt: null,
+      receivedAt: battle.time,
+      baseConfidence: +conf.toFixed(3),
+      expiresAt: +best.at + BELIEF_TUNING.heardTtl,
+      combatThreat: true,
+      precision: 'imprecise-sound',
+      reason: 'gunfire'
+    });
+  }
+  function canPersonallySeeKnown(soldier, unit, battle) {
+    if (!soldier || !unit || !unit.root || !battle) return false;
+    var role = ROLES[soldier.role],
+      p = soldier.root.position,
+      u = unit.root.position,
+      d = dist2(p.x, p.z, u.x, u.z),
+      sight = sightScale(soldier);
+    if (d > detectionRange(role, unit) * sight) return false;
+    if (PERCEPTION_ON && d > BEHIND_RANGE) {
+      var reach = viewReach(angleBetween(Math.atan2(u.x - p.x, u.z - p.z), lookYaw(soldier, battle)), unit);
+      if (!reach || d > detectionRange(role, unit) * reach * sight) return false;
+    }
+    return hasLineOfSight(soldier, unit, battle.heightAt, battle.obstacles);
+  }
+  function observeKnownNonThreats(soldier, battle) {
+    if (!SOLDIER_BELIEFS_ON || !soldier || !battle) return;
+    var store = beliefStore(soldier, battle);
+    Object.keys(store.byKey).forEach(function (key) {
+      var rec = store.byKey[key],
+        unit = rec && rec.unit;
+      if (!unit || !unit.root) return;
+      var d = threatDisposition(unit);
+      if (d.kind !== 'visible-non-threat') return;
+      if (!canPersonallySeeKnown(soldier, unit, battle)) return;
+      rememberSeen(soldier, unit, battle, false, 'personally-seen-' + d.reason);
+      if (soldier.target === unit) clearTarget(soldier);
+    });
+  }
+  /* Across different threats, freshness/confidence decides which sector matters now; provenance
+     breaks ties. For the SAME target, writeBelief separately guarantees fresh personal sight cannot
+     be overwritten by weaker word. */
+  function selectBelief(store, battle) {
+    if (!store || !battle) return null;
+    var best = null,
+      bestRank = -1,
+      bestConf = -1;
+    Object.keys(store.byKey).forEach(function (key) {
+      var rec = store.byKey[key];
+      if (!rec || rec.combatThreat === false || battle.time >= rec.expiresAt) return;
+      var rank = beliefRank(rec.source),
+        conf = beliefConfidence(rec, battle);
+      if (
+        !best ||
+        conf > bestConf + 1e-6 ||
+        (Math.abs(conf - bestConf) <= 1e-6 && rank > bestRank) ||
+        (Math.abs(conf - bestConf) <= 1e-6 && rank === bestRank && rec.observedAt > best.observedAt)
+      ) {
+        best = rec;
+        bestRank = rank;
+        bestConf = conf;
+      }
+    });
+    return best;
+  }
+  /* Phase 0G1: the next-best belief in a DIFFERENT 20m sector from the primary. A soldier
+     being shot at from the north while engaging an enemy to the south has both beliefs in
+     his store; selectBelief returns the south one (higher confidence), and this returns the
+     north one. The sector grid (20m, matching the broadcast module's) is coarse enough that
+     two enemies in the same building are the same sector, but fine enough that enemies on
+     opposite sides of a street are different. Returns null if there is no secondary or if
+     the only other beliefs are in the same sector as the primary. */
+  function selectSecondaryBelief(store, battle, primary) {
+    if (!store || !battle || !primary) return null;
+    var primarySector = Math.round(+primary.x / 20) + ':' + Math.round(+primary.z / 20),
+      best = null,
+      bestRank = -1,
+      bestConf = -1;
+    Object.keys(store.byKey).forEach(function (key) {
+      var rec = store.byKey[key];
+      if (!rec || rec.combatThreat === false || battle.time >= rec.expiresAt) return;
+      if (rec === primary) return;
+      var sector = Math.round(+rec.x / 20) + ':' + Math.round(+rec.z / 20);
+      if (sector === primarySector) return; /* same sector as primary, not a secondary */
+      var rank = beliefRank(rec.source),
+        conf = beliefConfidence(rec, battle);
+      if (
+        !best ||
+        conf > bestConf + 1e-6 ||
+        (Math.abs(conf - bestConf) <= 1e-6 && rank > bestRank) ||
+        (Math.abs(conf - bestConf) <= 1e-6 && rank === bestRank && rec.observedAt > best.observedAt)
+      ) {
+        best = rec;
+        bestRank = rank;
+        bestConf = conf;
+      }
+    });
+    return best;
+  }
+  function bestBelief(soldier, battle) {
+    if (!SOLDIER_BELIEFS_ON || !soldier || !battle) return null;
+    pruneBeliefs(soldier, battle);
+    var store = beliefStore(soldier, battle);
+    if (store.readAt === battle.time && store.readVersion === store.version) return store.readSelected;
+    var selected = selectBelief(store, battle);
+    store.readAt = battle.time;
+    store.readVersion = store.version;
+    store.readSelected = selected;
+    return selected;
+  }
+  function hasKnownNonThreat(soldier, battle) {
+    if (!SOLDIER_BELIEFS_ON || !soldier || !battle || !soldier._beliefs) return false;
+    var store = soldier._beliefs,
+      keys = Object.keys(store.byKey || {});
+    for (var i = 0; i < keys.length; i++) {
+      var rec = store.byKey[keys[i]];
+      if (rec && rec.combatThreat === false && battle.time < rec.expiresAt) return true;
+    }
+    return false;
+  }
+  function soldierContact(soldier, battle) {
+    if (!SOLDIER_BELIEFS_ON) return soldier && soldier.squad ? squadContact(soldier.squad, battle) : null;
+    var rec = bestBelief(soldier, battle);
+    if (!rec) return null;
+    var liveUnit =
+      rec.source === 'seen' && rec.unit && soldier.target === rec.unit && rec.combatThreat !== false
+        ? rec.unit
+        : null;
+    var contact = {
+      unit: liveUnit,
+      knownUnitId: rec.targetId,
+      x: rec.x,
+      z: rec.z,
+      at: rec.observedAt,
+      seenBy: rec.source === 'seen' ? soldier.id : null,
+      stance: liveUnit ? stanceOf(liveUnit) : null,
+      heard: rec.source === 'heard',
+      told: rec.source === 'told',
+      relayedFrom: rec.source === 'told' ? rec.sourceSoldierId : null,
+      callout: rec.sourceCalloutId,
+      source: rec.source,
+      confidence: beliefConfidence(rec, battle),
+      precision: rec.precision || null,
+      reason: rec.reason || null,
+      receivedAt: rec.receivedAt,
+      expiresAt: rec.expiresAt,
+      beliefKey: rec.key
+    };
+    /* Phase 0G1: attach the secondary threat (next-best belief in a different 20m sector)
+       so Engagement can orient toward it when the primary is behind cover or out of range.
+       The secondary is a lightweight contact shape (x, z, source, confidence) — not a full
+       target — because the man does not switch targets, he just faces the secondary. */
+    if (SECONDARY_THREAT_ON) {
+      var store = soldier._beliefs;
+      if (store) {
+        var sec = selectSecondaryBelief(store, battle, rec);
+        if (sec) {
+          contact.secondary = {
+            x: sec.x,
+            z: sec.z,
+            at: sec.observedAt,
+            source: sec.source,
+            confidence: beliefConfidence(sec, battle),
+            sector: Math.round(+sec.x / 20) + ':' + Math.round(+sec.z / 20)
+          };
+        }
+      }
+    }
+    return contact;
+  }
+  function beliefSnapshot(soldier, battle) {
+    if (!SOLDIER_BELIEFS_ON || !soldier || !battle) return null;
+    var store = soldier._beliefs || newBeliefStore(battle),
+      selected = selectBelief(store, battle),
+      rows = Object.keys(store.byKey)
+        .sort()
+        .map(function (key) {
+          return beliefView(store.byKey[key], battle);
+        });
+    return {
+      owner: 'perception',
+      readers: ['engagement', 'combat-urgency', 'tactical-route', 'diagnostics', 'probes'],
+      selectedKey: selected ? selected.key : null,
+      unknown: !selected,
+      beliefs: rows,
+      recentHistory: store.history.slice(-12),
+      truthConsultedForMemory: false
+    };
+  }
+  function beliefTelemetry(battle) {
+    if (!SOLDIER_BELIEFS_ON || !battle) return null;
+    var stats = Object.assign({}, beliefStats(battle)),
+      active = { seen: 0, told: 0, heard: 0 },
+      unknown = 0,
+      men = 0;
+    delete stats.lastTime;
+    ['us', 'ge'].forEach(function (f) {
+      var roster = (battle._roster && battle._roster[f]) || [];
+      for (var i = 0; i < roster.length; i++) {
+        var s = roster[i];
+        if (!s || s.dead) continue;
+        men++;
+        var store = s._beliefs;
+        var rec = store ? selectBelief(store, battle) : null;
+        if (!rec) unknown++;
+        else active[rec.source] = (active[rec.source] || 0) + 1;
+      }
+    });
+    stats.format = 'grasstex-soldier-beliefs-v1';
+    stats.activeBySource = active;
+    stats.livingMen = men;
+    stats.unknownMen = unknown;
+    stats.meanCalloutDelay = stats.calloutDelayCount
+      ? +(stats.calloutDelaySum / stats.calloutDelayCount).toFixed(3)
+      : 0;
+    return stats;
+  }
+
+  function lookYaw(soldier, battle) {
+    var body = soldier.root.rotation.y || 0;
+    if (reactionState(soldier) === 'freeze') return body;
+    var c = battle && soldierContact(soldier, battle),
+      p = soldier.root.position;
+    if (!c) return battle && !soldier.moving ? body + scanOffset(soldier, battle) : body;
+    var toThreat = Math.atan2(c.x - p.x, c.z - p.z);
+    return angleBetween(toThreat, body) <= HEAD_TURN ? toThreat : body;
+  }
+  /* The share of his spotting range a man has in that direction (1 in his focus). */
+  function viewReach(off, target) {
+    if (off <= FOCUS_HALF) return 1;
+    if (off <= PERIPHERAL_HALF) return target.moving ? PERIPHERAL_MOVING : PERIPHERAL_RANGE;
+    return 0;
+  }
+  /* His awareness (module 10, BattleSoldierStats) stretches or shortens how far he spots: 1 for an average
+     man, and when the module is absent or that lever is off. */
+  function sightScale(soldier) {
+    var stats = root.BattleSoldierStats;
+    return stats ? stats.scale(soldier, 'sight') : 1;
+  }
+  function findTarget(soldier, enemies, heightAt, obstacles, battle) {
+    var role = ROLES[soldier.role],
+      p = soldier.root.position,
+      look = lookYaw(soldier, battle),
+      sight = sightScale(soldier),
+      i;
+    scanBuffer.length = 0;
+    for (i = 0; i < enemies.length; i++) {
+      var e = enemies[i];
+      if (!threatDisposition(e).combatThreat) continue;
+      var ex = e.root.position.x,
+        ez = e.root.position.z,
+        d = dist2(p.x, p.z, ex, ez);
+      if (d > detectionRange(role, e) * sight) continue;
+      if (PERCEPTION_ON && d > BEHIND_RANGE) {
+        var reach = viewReach(angleBetween(Math.atan2(ex - p.x, ez - p.z), look), e);
+        if (!reach || d > detectionRange(role, e) * reach * sight) continue;
+      }
+      scanBuffer.push({ unit: e, d: d });
+    }
+    scanBuffer.sort(function (a, b) {
+      return a.d - b.d;
+    });
+    for (i = 0; i < scanBuffer.length; i++)
+      if (hasLineOfSight(soldier, scanBuffer[i].unit, heightAt, obstacles)) return scanBuffer[i].unit;
+    return null;
+  }
+  /* Eyes already on a man stay on him past the point where he could have been spotted cold. */
+  function stillTracking(soldier, heightAt, obstacles) {
+    var t = soldier.target;
+    if (!threatDisposition(t).combatThreat) return false;
+    var role = ROLES[soldier.role],
+      p = soldier.root.position;
+    if (
+      dist2(p.x, p.z, t.root.position.x, t.root.position.z) >
+      role.visionRange *
+        ((root.PhaseCCombatLab && root.PhaseCCombatLab.rangeScale) || 1) *
+        TRACK_MARGIN *
+        sightScale(soldier)
+    )
+      return false;
+    return hasLineOfSight(soldier, t, heightAt, obstacles);
+  }
+
+  /* Shared contact.
+     Men used to acquire targets entirely on their own, so a squad had no collective idea where the
+     enemy was: the moment a man lost line of sight he held his own last-seen point and everyone
+     else carried on as if nothing had happened. One record per squad, written by whoever can
+     currently see the enemy, gives the other nine a direction to face, a position to put fire on,
+     and a reason to be already looking the right way when their own turn comes. */
+  /* The record is the NEAREST enemy the squad currently knows about, not whichever man happened to
+     write last. A scout's eyes reach 175 m and routinely mark someone a rifleman cannot even shoot
+     at, so last-writer-wins pointed the whole squad at the furthest contact. Fresh news still
+     always gets in: an entry older than CONTACT_REFRESH is replaced regardless of distance. */
+  var CONTACT_REFRESH = 2;
+  /* Provenance and freshness are separate facts. A newer callout may update the position of an
+     enemy this squad saw itself without erasing that first-hand history. Fire control uses the
+     remembered first-hand timestamp to continue an existing preparation episode, while firstHand()
+     below still requires a CURRENT own sighting and therefore never lets relayed word initiate one. */
+  function firstHandAt(c) {
+    if (!c) return null;
+    if (c.firstHandAt != null && isFinite(+c.firstHandAt)) return +c.firstHandAt;
+    return !c.heard && !c.relayedFrom && c.at != null && isFinite(+c.at) ? +c.at : null;
+  }
+  function hasFirstHandMemory(c, battle) {
+    var at = firstHandAt(c);
+    return !!(
+      c &&
+      c.unit &&
+      threatDisposition(c.unit).combatThreat &&
+      at != null &&
+      battle &&
+      battle.time - at <= CONTACT_MEMORY
+    );
+  }
+  /* What a squad has itself seen of one enemy: the freshest unexpired sighting any living man holds,
+     carrying the threat judgement perception made when he looked (a non-threat is recorded only on
+     sight). True or false from that sighting; null when no man has his own. Never the unit's live state. */
+  function seenThreat(squad, unit, battle) {
+    var key = beliefUnitKey(unit),
+      best = null;
+    if (!SOLDIER_BELIEFS_ON || !squad || !key || !battle) return null;
+    (squad.members || []).forEach(function (s) {
+      var rec = s && !s.dead && s._beliefs && s._beliefs.byKey && s._beliefs.byKey[key];
+      if (
+        rec &&
+        rec.source === 'seen' &&
+        battle.time < rec.expiresAt &&
+        (!best || rec.observedAt > best.observedAt)
+      )
+        best = rec;
+    });
+    return best ? best.combatThreat !== false : null;
+  }
+  function ownFirstHandFor(held, unit, battle) {
+    if (!held || held.unit !== unit) return null;
+    var at = firstHandAt(held);
+    return at != null && battle.time - at <= CONTACT_MEMORY ? at : null;
+  }
+  function shareContact(soldier, battle) {
+    var sq = soldier.squad,
+      t = soldier.target;
+    if (!sq || !threatDisposition(t).combatThreat) return null;
+    var p = t.root.position,
+      anchor = sq.orderAnchor || sq.rally || p,
+      held = sq.contact;
+    /* Heard or relayed word gives way to the squad's own eyes. */
+    if (
+      held &&
+      threatDisposition(held.unit).combatThreat &&
+      !held.heard &&
+      !held.relayedFrom &&
+      battle.time - held.at <= CONTACT_REFRESH &&
+      held.unit !== t &&
+      dist2(anchor.x, anchor.z, held.x, held.z) <= dist2(anchor.x, anchor.z, p.x, p.z)
+    )
+      return held;
+    sq.contact = {
+      unit: t,
+      x: p.x,
+      z: p.z,
+      at: battle.time,
+      seenBy: soldier.id,
+      stance: stanceOf(t),
+      firstHandAt: battle.time
+    };
+    return sq.contact;
+  }
+  /* A trigger pull is heard: one report per pull, kept HEAR_MEMORY seconds. */
+  function reportGunfire(shooter, battle) {
+    var list = battle._gunfire || (battle._gunfire = []),
+      p = shooter.root.position;
+    list.push({ x: p.x, z: p.z, faction: shooter.faction, unit: shooter, at: battle.time });
+  }
+
+  /* Being the intended recipient of aimed fire reveals where that fire came from. This is not the
+     ambient 120 m hearing path: the bullet/shot itself supplies the direction. Perception records
+     the shooter's position at trigger time, never a magic live position. The victim may acquire the
+     shooter as a target when otherwise unaware; normal stillTracking() then decides whether his eyes
+     can keep that target. Squad-mates learn the same firing origin through the existing simulated
+     callout channel, with its delay/miss rules. */
+  function noteIncomingFire(victim, shooter, battle) {
+    if (
+      !INCOMING_FIRE_REVEAL_ON ||
+      !PERCEPTION_ON ||
+      !victim ||
+      victim.dead ||
+      !victim.root ||
+      !shooter ||
+      !shooter.root ||
+      !battle ||
+      victim.faction === shooter.faction ||
+      !threatDisposition(shooter).combatThreat
+    )
+      return null;
+    var p = shooter.root.position,
+      now = battle.time,
+      key = beliefUnitKey(shooter),
+      rec = null,
+      sq = victim.squad,
+      held = sq ? squadContact(sq, battle) : null,
+      sameRecent = !!(
+        held &&
+        held.fireRevealed &&
+        held.unit === shooter &&
+        now - (+held.at || 0) < CONTACT_REFRESH
+      );
+
+    if (SOLDIER_BELIEFS_ON && key)
+      rec = writeBelief(victim, battle, {
+        key: key,
+        unit: shooter,
+        targetId: shooter.id == null ? null : String(shooter.id),
+        source: 'incoming',
+        sourceSoldierId: victim.id == null ? null : String(victim.id),
+        sourceCalloutId: null,
+        x: +p.x,
+        z: +p.z,
+        sector: beliefSector(victim, p.x, p.z),
+        observedAt: now,
+        reportedAt: null,
+        receivedAt: now,
+        baseConfidence: 1,
+        expiresAt: now + BELIEF_TUNING.incomingFireTtl,
+        combatThreat: true,
+        precision: 'fire-origin',
+        reason: 'incoming-fire'
+      });
+
+    if (!threatDisposition(victim.target).combatThreat) victim.target = shooter;
+
+    if (sq) {
+      /* Do not erase a simultaneous direct sighting of another enemy. The victim still keeps his
+         personal fire-origin belief and can call it out as a second threat. */
+      if (!firstHand(held, battle) || (held && held.unit === shooter))
+        sq.contact = {
+          unit: shooter,
+          x: +p.x,
+          z: +p.z,
+          at: now,
+          seenBy: null,
+          stance: stanceOf(shooter),
+          heard: true,
+          fireRevealed: true,
+          precision: 'fire-origin',
+          reportedBy: victim.id
+        };
+      var calls = root.BattleCallouts;
+      if (!sameRecent && calls && calls.enabled && calls.enabled() && calls.send)
+        calls.send(battle, victim, 'incomingFire', {
+          unit: shooter,
+          x: +p.x,
+          z: +p.z,
+          at: now,
+          stance: stanceOf(shooter),
+          precision: 'fire-origin',
+          reason: 'incoming-fire'
+        });
+    }
+    return rec || (sq && sq.contact) || null;
+  }
+  function squadCentre(sq, battle) {
+    if (sq._centreAt === battle.time) return sq._centre;
+    var x = 0,
+      z = 0,
+      n = 0;
+    for (var i = 0; i < sq.members.length; i++) {
+      var s = sq.members[i];
+      if (s.dead) continue;
+      x += s.root.position.x;
+      z += s.root.position.z;
+      n++;
+    }
+    sq._centreAt = battle.time;
+    sq._centre = n ? { x: x / n, z: z / n } : null;
+    return sq._centre;
+  }
+  function firstHand(c, battle) {
+    return !!(
+      c &&
+      threatDisposition(c.unit).combatThreat &&
+      !c.heard &&
+      !c.relayedFrom &&
+      battle.time - c.at <= CONTACT_REFRESH
+    );
+  }
+  /* What a squad learns without its own eyes: word from a neighbour squad within RELAY_RANGE that
+     can see the enemy, else enemy gunfire within HEAR_RANGE. Once per squad per tick, and only
+     while it has no current sighting of its own; neither ever replaces one. */
+  function squadSenses(sq, battle) {
+    if (!PERCEPTION_ON || !sq || sq._sensedAt === battle.time) return;
+    sq._sensedAt = battle.time;
+    var held = squadContact(sq, battle),
+      calls = root.BattleCallouts && root.BattleCallouts.enabled() ? root.BattleCallouts : null;
+    if (firstHand(held, battle)) {
+      if (calls) calls.report(battle, sq, held);
+      return;
+    }
+    var here = squadCentre(sq, battle);
+    if (!here) return;
+    /* `?callouts=1`: word from another squad comes only as a call one of this squad's men heard (modules/09). */
+    if (calls) {
+      var msg = calls.heard(battle, sq);
+      if (msg && (!held || held.heard || msg.fact.at > held.at)) {
+        var f = msg.fact,
+          ownAt = ownFirstHandFor(held, f.unit, battle);
+        sq.contact = {
+          unit: f.unit,
+          x: f.x,
+          z: f.z,
+          at: f.at,
+          seenBy: null,
+          stance: f.stance,
+          relayedFrom: msg.fromSquad,
+          callout: msg.id,
+          firstHandAt: ownAt
+        };
+        calls.noteApplied(battle);
+        return;
+      }
+    }
+    var side = battle.factions && battle.factions[sq.faction],
+      squads = (side && side.squads) || [],
+      best = null,
+      bestD = RELAY_RANGE,
+      i;
+    for (i = 0; !calls && i < squads.length; i++) {
+      var o = squads[i];
+      if (o === sq || o.disbanded || !firstHand(o.contact, battle)) continue;
+      var there = squadCentre(o, battle),
+        d = there ? dist2(here.x, here.z, there.x, there.z) : Infinity;
+      if (d <= bestD) {
+        bestD = d;
+        best = o;
+      }
+    }
+    if (best && (!held || held.heard || best.contact.at > held.at)) {
+      var c = best.contact,
+        ownAt = ownFirstHandFor(held, c.unit, battle);
+      sq.contact = {
+        unit: c.unit,
+        x: c.x,
+        z: c.z,
+        at: c.at,
+        seenBy: null,
+        stance: c.stance,
+        relayedFrom: best.id,
+        firstHandAt: ownAt
+      };
+      return;
+    }
+    if (held && !held.heard) return;
+    var shots = battle._gunfire;
+    if (!shots || !shots.length) return;
+    if (battle._gunfirePrunedAt !== battle.time) {
+      battle._gunfirePrunedAt = battle.time;
+      var keep = 0;
+      for (i = 0; i < shots.length; i++)
+        if (battle.time - shots[i].at <= HEAR_MEMORY) shots[keep++] = shots[i];
+      shots.length = keep;
+    }
+    var heard = null,
+      heardD = HEAR_RANGE;
+    for (i = 0; i < shots.length; i++) {
+      var s = shots[i];
+      if (s.faction === sq.faction || !threatDisposition(s.unit).combatThreat) continue;
+      var ds = dist2(here.x, here.z, s.x, s.z);
+      if (ds <= heardD) {
+        heardD = ds;
+        heard = s;
+      }
+    }
+    if (!heard || (held && held.at >= heard.at)) return;
+    /* Deterministic, not the combat RNG: the error's direction comes from who fired and when. */
+    var k = (((+heard.unit.id || 0) * 73856093) ^ Math.floor(heard.at * 7)) >>> 0,
+      ang = ((k % 360) * Math.PI) / 180,
+      err = heardD * HEAR_ERROR * (0.5 + ((k >>> 9) % 50) / 100);
+    sq.contact = {
+      unit: heard.unit,
+      x: heard.x + Math.sin(ang) * err,
+      z: heard.z + Math.cos(ang) * err,
+      at: heard.at,
+      seenBy: null,
+      stance: stanceOf(heard.unit),
+      heard: true
+    };
+  }
+  function squadContact(squad, battle) {
+    var c = squad && squad.contact;
+    if (!c) return null;
+    /* Intel expires. Dropping the one man the squad had eyes on decays it faster - the reason for
+       the record is gone - but it does NOT erase it: there are usually nine more enemies right
+       there, and wiping the squad's whole picture because it scored a hit left it blind at exactly
+       the moment it was winning. Any new sighting overwrites the record anyway. */
+    /* A living person who ceases to be a combat threat remains visible in the world, but the squad's
+       threat contact is no longer about him. Dead contacts keep the old short decay so nearby enemies
+       are not erased from the squad picture by one kill. */
+    /* A squad the tactical controller owns drops him on what its men saw of him (seenThreat), not
+       on his live state; legacy keeps its read until it is retired. */
+    var TC = root.BattleTacticalController,
+      owned = !!(c.unit && TC && TC.controls && TC.controls(battle, squad));
+    if (
+      c.unit &&
+      (owned
+        ? seenThreat(squad, c.unit, battle) === false
+        : threatDisposition(c.unit).kind === 'visible-non-threat')
+    ) {
+      squad.contact = null;
+      return null;
+    }
+    var limit = c.unit && c.unit.dead ? CONTACT_MEMORY / 3 : CONTACT_MEMORY;
+    if (battle.time - c.at > limit) {
+      squad.contact = null;
+      return null;
+    }
+    return c;
+  }
+  /* Phase 0G2: squad-level contacts map. Aggregates all living members' beliefs into a sector-keyed
+     map so the Squad Leader can detect multi-sector threats. Unlike squad.contact (one threat at a
+     time), this returns ALL active threat sectors the squad knows about, each with the freshest
+     belief in that sector. Behavior-neutral: read-only, no state written, no combat-RNG draw.
+     The Squad Leader reads this to decide whether to split fireteams (0G3). */
+  function squadContactsMap(squad, battle) {
+    if (!squad || !battle || !SOLDIER_BELIEFS_ON) return null;
+    var sectors = {},
+      now = +battle.time || 0;
+    for (var i = 0; squad.members && i < squad.members.length; i++) {
+      var s = squad.members[i];
+      if (!s || s.dead) continue;
+      var store = s._beliefs;
+      if (!store || !store.byKey) continue;
+      Object.keys(store.byKey).forEach(function (key) {
+        var rec = store.byKey[key];
+        if (!rec || rec.combatThreat === false || now >= rec.expiresAt) return;
+        var sector = Math.round(+rec.x / 20) + ':' + Math.round(+rec.z / 20),
+          existing = sectors[sector];
+        /* Keep the freshest, highest-confidence belief per sector. */
+        if (
+          !existing ||
+          rec.observedAt > existing.at ||
+          (rec.observedAt === existing.at && beliefConfidence(rec, battle) > existing.confidence)
+        ) {
+          sectors[sector] = {
+            x: +rec.x,
+            z: +rec.z,
+            at: +rec.observedAt,
+            source: rec.source,
+            confidence: beliefConfidence(rec, battle),
+            targetId: rec.targetId,
+            sector: sector,
+            sourceSoldier: s.id
+          };
+        }
+      });
+    }
+    var out = Object.keys(sectors).map(function (k) {
+      return sectors[k];
+    });
+    out.sort(function (a, b) {
+      return b.confidence - a.confidence || b.at - a.at;
+    });
+    return out;
+  }
+
+  /* Suppressing fire at a POSITION rather than at a man.
+     Deliberately deals no damage: the shooter has no line of sight to a body, so a round that
+     would have hit is stopped by whatever is hiding him. What it does do is pin whoever is there,
+     which is the whole tactical point - it is what makes a bound survivable and what stops a
+     squad falling silent the instant line of sight breaks. No damage also means it can never be
+     used to farm kills through cover. */
+  /* Can this man put rounds on that spot at all - in range, and with something other than a hill
+     in the way? Asked during suppression assignment as well as at the trigger, because a man who
+     cannot reach the position should be left to get on with the advance rather than stood in the
+     open pointing at something 180 m away. The scout's eyes routinely mark contacts further out
+     than a rifle will carry, so this is the common case, not the edge case. */
+  function canSuppress(shooter, point, battle, readOnly) {
+    if (!point || !shooter || shooter.dead || !shooter.weapon) return false;
+    var stats = shooter.weapon.stats,
+      p = shooter.root.position,
+      d = dist2(p.x, p.z, point.x, point.z);
+    if (d > stats.range * 0.95) return false;
+    var eyeY = battle.heightAt(p.x, p.z) + eyeHeight(shooter),
+      aimY = battle.heightAt(point.x, point.z) + AREA_AIM_HEIGHT,
+      F = field();
+    /* The obstacle field lets him shoot at the cover a man is behind without letting him shoot
+       through a hill. */
+    if (
+      F &&
+      F.sightBlocked(battle.obstacles, { x: p.x, z: p.z, y: eyeY }, { x: point.x, z: point.z, y: aimY })
+    )
+      return false;
+    if (
+      root.BattleNavigation &&
+      root.BattleNavigation.lineOfSightBlocked({ x: p.x, z: p.z }, { x: point.x, z: point.z }, eyeY, aimY)
+    )
+      return false;
+    /* Ballistics owns terrain intersection. Suppressive fire used to stop at obstacles and walls
+       but never sampled the ground, so rifles could visibly fire through a hill at a remembered contact. */
+    var B = root.BattleBallistics;
+    if (
+      B &&
+      typeof B.pointLineBlocked === 'function' &&
+      B.pointLineBlocked(shooter, point, battle, AREA_AIM_HEIGHT)
+    ) {
+      if (!readOnly)
+        shooter._terrainBlockedSuppressiveFire = (shooter._terrainBlockedSuppressiveFire || 0) + 1;
+      return false;
+    }
+    return true;
+  }
+  /* Owned command leases. A lease is a commitment that holds a squad's intent for a while: one
+     table per squad (sq._leases) says which commitments are live, who owns each, why it was taken,
+     when it lapses and what releases it early, so no hold is an anonymous `...Until` field.
+     `until` is an absolute sim time (Infinity while a condition, not the clock, holds it);
+     holds() is `t < until`, the same test every migrated timer used.
+     Each kind is declared once by its owner (define): its priority (which hold matters most when
+     several are live), whether it is a pure timer (nothing reads it once expired, so prune() may end
+     it), and an optional read-only progress test answering "is this hold getting anywhere?". */
+  var LEASE_LOG = 8,
+    LEASE_KINDS = {};
+  function leaseTable(sq) {
+    if (!sq._leases) sq._leases = { live: {}, ended: [] };
+    return sq._leases;
+  }
+  var Leases = {
+    define: function (kind, spec) {
+      LEASE_KINDS[kind] = {
+        priority: +spec.priority || 0,
+        timer: !!spec.timer,
+        diagnostic: !!spec.diagnostic,
+        progress: spec.progress || null,
+        label: spec.label || kind
+      };
+    },
+    kinds: function () {
+      return LEASE_KINDS;
+    },
+    grant: function (sq, kind, owner, since, until, reason, release, data) {
+      var l = {
+        kind: kind,
+        owner: owner,
+        since: since,
+        until: until,
+        reason: reason || kind,
+        release: release || 'expiry'
+      };
+      if (data) l.data = data;
+      leaseTable(sq).live[kind] = l;
+      return l;
+    },
+    /* Push an existing lease's expiry out (never in); grants it if absent. */
+    extend: function (sq, kind, owner, since, until, reason, release) {
+      var l = sq && sq._leases && sq._leases.live[kind];
+      if (!l) return Leases.grant(sq, kind, owner, since, until, reason, release);
+      if (until > l.until) {
+        l.until = until;
+        if (reason) l.reason = reason;
+      }
+      return l;
+    },
+    get: function (sq, kind) {
+      return (sq && sq._leases && sq._leases.live[kind]) || null;
+    },
+    holds: function (sq, kind, t) {
+      var l = sq && sq._leases && sq._leases.live[kind];
+      return !!l && t < l.until;
+    },
+    until: function (sq, kind) {
+      var l = sq && sq._leases && sq._leases.live[kind];
+      return l ? l.until : 0;
+    },
+    end: function (sq, kind, t, why) {
+      var table = sq && sq._leases,
+        l = table && table.live[kind];
+      if (!l) return null;
+      delete table.live[kind];
+      l.endedAt = t;
+      l.endReason = why || 'released';
+      /* Observer commitments must not evict the existing gameplay outcome ledger. */
+      var def = LEASE_KINDS[kind],
+        ended = def && def.diagnostic ? table.observedEnded || (table.observedEnded = []) : table.ended;
+      ended.push(l);
+      if (ended.length > LEASE_LOG) ended.shift();
+      return l;
+    },
+    clear: function (sq) {
+      if (sq) sq._leases = { live: {}, ended: [] };
+    },
+    /* End pure-timer leases whose time has run out, logged as 'expired' at their expiry time.
+       Leases whose expired record still means something (a used objective-security window, a
+       succession that is due, a regroup released by its own age test) are never pruned. */
+    prune: function (sq, t) {
+      var live = sq && sq._leases && sq._leases.live;
+      if (!live) return 0;
+      var n = 0;
+      Object.keys(live).forEach(function (kind) {
+        var def = LEASE_KINDS[kind],
+          l = live[kind];
+        if (def && def.timer && t >= l.until) {
+          Leases.end(sq, kind, l.until, 'expired');
+          n++;
+        }
+      });
+      return n;
+    },
+    /* Live leases at time t, highest priority first, for diagnostics and the operator view. */
+    active: function (sq, t) {
+      var live = (sq && sq._leases && sq._leases.live) || {},
+        out = [];
+      Object.keys(live).forEach(function (kind) {
+        var l = live[kind],
+          def = LEASE_KINDS[kind] || {},
+          progress = null;
+        if (!(t < l.until)) return;
+        if (def.progress) {
+          try {
+            progress = def.progress(sq, l, t);
+          } catch (_) {
+            progress = null;
+          }
+        }
+        out.push({
+          kind: l.kind,
+          owner: l.owner,
+          priority: def.priority || 0,
+          reason: l.reason,
+          release: l.release,
+          since: l.since,
+          remaining: isFinite(l.until) ? +(l.until - t).toFixed(2) : null,
+          progress: progress
+        });
+      });
+      out.sort(function (a, b) {
+        return b.priority - a.priority || (a.kind < b.kind ? -1 : 1);
+      });
+      return out;
+    },
+    /* The live lease that matters most right now, or null. */
+    top: function (sq, t) {
+      return Leases.active(sq, t)[0] || null;
+    }
+  };
+
+  /* Declared extension points. A module attaches to a named slot instead of replacing a SquadAI
+     function, and the owner fixes the order each slot runs in, so the pipeline reads here rather
+     than from whichever file happened to load last. */
+  function extensionPoints(order) {
+    var slots = {};
+    Object.keys(order).forEach(function (stage) {
+      slots[stage] = [];
+    });
+    return {
+      order: order,
+      attach: function (stage, id, fn) {
+        var ids = order[stage],
+          at = ids ? ids.indexOf(id) : -1;
+        if (at < 0) throw new Error('Extension ' + id + ' is not declared for ' + stage);
+        slots[stage][at] = fn;
+      },
+      /* Gates: any extension returning false vetoes the action. */
+      pass: function (stage, a, b, c) {
+        var fns = slots[stage];
+        for (var i = 0; i < fns.length; i++) if (fns[i] && fns[i](a, b, c) === false) return false;
+        return true;
+      },
+      run: function (stage, a, b, c) {
+        var fns = slots[stage];
+        for (var i = 0; i < fns.length; i++) if (fns[i]) fns[i](a, b, c);
+      },
+      /* Replaceable models: the first attached extension decides; otherwise the owner's default. */
+      first: function (stage, fallback) {
+        var fns = slots[stage];
+        for (var i = 0; i < fns.length; i++) if (fns[i]) return fns[i];
+        return fallback;
+      }
+    };
+  }
+  var EXT = extensionPoints({
+    fireGate: ['ammunition', 'ballistics', 'direct-fire-los', 'grenades'], // weapon ready, target reachable, no throw windup
+    shotModel: ['ballistics'], // where an aimed round goes (default: resolveFire accuracy roll)
+    woundModel: ['wounds'], // what a round that struck a man does to him (default: flat hp damage)
+    areaFireGate: ['ammunition'], // before a suppressive shot
+    roundGate: ['ammunition'], // before each further round of an automatic burst: still loaded, not stopped
+    afterShot: ['ammunition'], // a round committed: (soldier, battle, muzzleDelay), ammo, heat, stoppages
+    squadCommand: ['squad-leader'], // the squad's command owner; without one a squad only reports status
+    beforeSoldier: ['soldier-mind', 'sidearm', 'weapon-cycle'], // each soldier AI tick, before perception
+    afterSoldier: ['weapon-cycle'], // after engagement and movement resolution
+    aimedAt: ['soldier-events'] // a trigger pull had this man as its target: (victim, battle, {from, rounds, d})
+  });
+
+  /* One trigger pull. Semi-automatic and bolt-action weapons fire one round; an automatic weapon
+     fires a burst at its cyclic rate. The AI ticks every 0.15 s, far slower than an MG42 cycles
+     (0.05 s a round), so the whole burst is resolved on this tick and each round carries its
+     offset in seconds for presentation to play it at the cyclic rate. */
+  /* An automatic fires bursts; one with a selector (`autoWithin`, the FG 42) only inside that
+     distance, and single aimed rounds beyond it. */
+  function automatic(stats, d) {
+    return stats.cyclic > 0 && !!stats.burst && !(stats.autoWithin > 0 && d > stats.autoWithin);
+  }
+  function burstLength(stats, battle, d) {
+    if (!automatic(stats, d)) return 1;
+    var lo = Math.max(1, stats.burst[0] | 0),
+      hi = Math.max(lo, stats.burst[1] | 0);
+    return lo + Math.floor(rand(battle) * (hi - lo + 1));
+  }
+  /* Seconds until the next trigger pull: the burst itself plus the pause to re-lay the gun, or the
+     aimed rate of a semi-automatic weapon. */
+  function triggerCooldown(stats, rounds, battle, factor, d) {
+    var jitter = 0.85 + rand(battle) * 0.3;
+    if (automatic(stats, d)) return rounds / stats.cyclic + (stats.burstPause || 0.8) * factor * jitter;
+    return (1 / stats.rof) * factor * jitter;
+  }
+  /* Fires the rounds of one trigger pull through fire(round, delay); stops early if the weapon
+     runs dry or stops, or fire() returns false. Returns the rounds that left the weapon. */
+  function discharge(shooter, battle, rounds, fire) {
+    if (root.PhaseCCombatLab && root.PhaseCCombatLab.blockShot(shooter, battle, 'discharge')) return 0;
+    var stats = shooter.weapon.stats,
+      fired = 0;
+    for (var i = 0; i < rounds; i++) {
+      if (i && !EXT.pass('roundGate', shooter, battle)) break;
+      var delay = stats.cyclic > 0 ? i / stats.cyclic : 0;
+      if (fire(i, delay) === false) break;
+      if (!fired) reportGunfire(shooter, battle);
+      fired++;
+      battle.onFire && battle.onFire(shooter, delay);
+      EXT.run('afterShot', shooter, battle, delay);
+    }
+    return fired;
+  }
+
+  /* The one writer of `suppressedUntil`, until when a man is pinned by fire (Engagement's `pinned` state and
+     the mind read it). Everything that pins a man comes through here: area fire on his position, a
+     suppressive round passing him (14-z) and a wound that did not drop him (14-wound-model). `seconds` is
+     the hold for an average man; a hold only ever extends. (Not BattleEngagement.suppress, which is a
+     soldier firing suppressive bursts.) */
+  function pin(target, battle, seconds) {
+    /* His fortitude decides how long it holds him (BattleSoldierStats, 1 for an average man or with it off). */
+    var stats = root.BattleSoldierStats;
+    if (stats) seconds *= stats.scale(target, 'hold');
+    target.suppressedUntil = Math.max(target.suppressedUntil || 0, battle.time + seconds);
+    // The queue carries what this writer computed (the hold after the fortitude scale), never a recomputation.
+    if (root.BattleSoldierEvents)
+      root.BattleSoldierEvents.post(target, battle, 'suppressed', {
+        until: target.suppressedUntil,
+        seconds: seconds
+      });
+  }
+
+  /* Fire-cycle clock ownership. All runtime/setup layers outside SquadAI route through these
+     helpers; this file is the sole direct writer of soldier.fireCooldown. set is for owner/setup
+     decisions, extend for interruptions such as reload/draw, and tick for frame countdown. */
+  function setFireCooldown(soldier, seconds) {
+    if (!soldier) return 0;
+    soldier.fireCooldown = Math.max(0, +seconds || 0);
+    return soldier.fireCooldown;
+  }
+  function extendFireCooldown(soldier, seconds) {
+    if (!soldier) return 0;
+    return setFireCooldown(soldier, Math.max(+soldier.fireCooldown || 0, +seconds || 0));
+  }
+  function tickFireCooldown(soldier, dt) {
+    if (!soldier) return 0;
+    return setFireCooldown(soldier, (+soldier.fireCooldown || 0) - Math.max(0, +dt || 0));
+  }
+
+  function areaFire(shooter, point, battle) {
+    if (root.PhaseCCombatLab && root.PhaseCCombatLab.blockShot(shooter, battle, 'area')) return 0;
+    if (!EXT.pass('areaFireGate', shooter, battle, point)) return 0;
+    if (shooter.fireCooldown > 0 || !canSuppress(shooter, point, battle)) return 0;
+    var stats = shooter.weapon.stats,
+      p = shooter.root.position,
+      d = dist2(p.x, p.z, point.x, point.z);
+    var spread = clamp(AREA_SPREAD_MIN + d * AREA_SPREAD_PER_M, AREA_SPREAD_MIN, AREA_SPREAD_MAX);
+    var enemies = battle.rosterOf(shooter.faction === 'us' ? 'ge' : 'us'),
+      hold = SUPPRESSION_TIME * (stats.suppressive ? 1.25 : 0.85),
+      hit = 0,
+      covered = [];
+    for (var i = 0; i < enemies.length; i++) {
+      var e = enemies[i];
+      if (!threatDisposition(e).combatThreat) continue;
+      if (dist2(e.root.position.x, e.root.position.z, point.x, point.z) > spread) continue;
+      pin(e, battle, hold);
+      covered.push(e);
+      hit++;
+    }
+    var rounds = discharge(shooter, battle, burstLength(stats, battle, d), function () {});
+    setFireCooldown(shooter, triggerCooldown(stats, rounds, battle, AREA_FIRE_RATE, d));
+    if (PIN_BRIDGE && rounds > 0)
+      for (var c = 0; c < covered.length; c++) pin(covered[c], battle, shooter.fireCooldown + PIN_TAIL);
+    battle.onSuppressiveShot && battle.onSuppressiveShot(shooter, point, hit, rounds);
+    return hit;
+  }
+
+  function resolveFire(shooter, target, battle) {
+    var stats = shooter.weapon.stats,
+      d = dist2(
+        shooter.root.position.x,
+        shooter.root.position.z,
+        target.root.position.x,
+        target.root.position.z
+      );
+    if (d > stats.range) return null;
+    var falloff =
+      d <= stats.falloffStart
+        ? 1
+        : Math.max(0.15, 1 - (d - stats.falloffStart) / Math.max(1, stats.range - stats.falloffStart));
+    var acc = stats.accuracy * falloff * (shooter.squad.accuracyMultiplier || 1);
+    if (target.prone) acc *= 0.34;
+    else if (target.crouching) acc *= 0.6;
+    if (target.suppressedUntil > battle.time) acc *= 0.55;
+    if (isMachineGun(shooter) && shooter.setUp) acc *= 1.25;
+    if (shooter.prone) acc *= 1.12;
+    if (shooter.moving) acc *= 0.82;
+    var targetPosition = root.BattleTacticalPositions && root.BattleTacticalPositions.current(target);
+    if (targetPosition && targetPosition.occupiedAt != null) acc *= 0.46;
+    /* Cover pays off in proportion to how much of the target's silhouette it actually hides. */
+    acc *= coverMultiplierAt(
+      target.root.position.x,
+      target.root.position.z,
+      battle.obstacles,
+      stanceOf(target)
+    );
+    acc = clamp(acc, 0.02, 0.95);
+    var hit = rand(battle) < acc;
+    if (stats.suppressive) pin(target, battle, SUPPRESSION_TIME);
+    if (hit) applyHit(shooter, target, battle, null);
+    battle.onShot && battle.onShot(shooter, target, hit, d);
+    return hit;
+  }
+
+  /* A round struck a man. hit carries where, when the shot model knows ({zone, point, direction,
+     shape, round, delay}); the wound model decides what it does. Without one, flat damage. */
+  function flatDamage(shooter, victim, battle) {
+    victim.hp -= shooter.weapon.stats.damage * (0.85 + rand(battle) * 0.3);
+    if (victim.hp <= 0) battle.killSoldier(victim, shooter);
+    return null;
+  }
+  function applyHit(shooter, victim, battle, hit) {
+    if (!victim || victim.dead) return null;
+    if (root.PhaseCCombatLab && root.PhaseCCombatLab.preventWound(shooter, victim, battle, hit))
+      return { zone: (hit && hit.zone) || 'unknown', outcome: 'lab-absorbed', damage: 0 };
+    return EXT.first('woundModel', flatDamage)(shooter, victim, battle, hit);
+  }
+
+  function createSquad(id, faction, homePoint, objective) {
+    return {
+      id: id,
+      faction: faction,
+      members: [],
+      state: 'advance',
+      home: homePoint,
+      baseHome: { x: homePoint.x, z: homePoint.z },
+      objective: objective,
+      rally: { x: homePoint.x, z: homePoint.z },
+      orderAnchor: { x: homePoint.x, z: homePoint.z },
+      formation: 'wedge',
+      accuracyMultiplier: 1,
+      captainAlive: true,
+      inContact: false,
+      contactCount: 0,
+      contactSince: null,
+      contact: null,
+      suppressorCount: 0,
+      _orderGoal: { x: homePoint.x, z: homePoint.z },
+      _orderVersion: 0
+    };
+  }
+  /* Command belongs to one man, not to a weapon role. `leaderId` names him once a squad has been
+     re-formed; until then the squad is led by its living `sergeant` role, as it was spawned. */
+  function leaderOf(squad) {
+    var a = (squad && squad.members) || [],
+      i;
+    if (squad && squad.leaderId != null) {
+      for (i = 0; i < a.length; i++) if (a[i] && a[i].id === squad.leaderId && !a[i].dead) return a[i];
+      return null;
+    }
+    for (i = 0; i < a.length; i++) if (a[i] && !a[i].dead && a[i].role === 'sergeant') return a[i];
+    return null;
+  }
+  /* Seniority when command has to pass to someone else: a sergeant (a former squad leader), then a
+     rifleman, then a scout; the gunner stays on the gun unless nobody else is left. Ties go to the lowest
+     soldier id, so a replay promotes the same man. Used by succession (16-squad-plan-stability.js) and
+     reconstitution (commander-ai.js). */
+  var SENIORITY = { sergeant: 0, rifleman: 1, scout: 2, gunner: 9 };
+  function seniority(soldier) {
+    return soldier.role in SENIORITY ? SENIORITY[soldier.role] : 3;
+  }
+  function mostSenior(men) {
+    var best = null;
+    for (var i = 0; i < men.length; i++) {
+      var s = men[i];
+      if (!s || s.dead) continue;
+      if (!best || seniority(s) < seniority(best) || (seniority(s) === seniority(best) && s.id < best.id))
+        best = s;
+    }
+    return best;
+  }
+  function isLeader(soldier) {
+    return !!(soldier && soldier.squad && leaderOf(soldier.squad) === soldier);
+  }
+  /* Casualties are measured against the squad's full strength, not its member list: a re-formed squad
+     carries only its living men. */
+  function establishment(squad) {
+    return +squad.establishment || squad.members.length;
+  }
+  /* Where a retreating squad walks: home, or the rally point of the reconstitution brief once its
+     Squad Leader has brought it home safely (`_assembly`, 16-squad-plan-stability.js). */
+  function retreatGoal(squad) {
+    var a = squad._assembly,
+      m = squad._macroMission;
+    if (isExtractionToHome(squad)) return extractionHome(squad);
+    if (squad._moraleRallyPoint) return squad._moraleRallyPoint;
+    /* The opt-in 5 km profile assigns a real rear base (homeBaseId/baseHome).
+       Prepared defense can later rewrite home to a forward sector fallback;
+       the assembly/reconstitution lifecycle still requires the rear base.
+       Retire the ordinary retreat there as well, not just 1-4 man remnants.
+       Existing tactical scenarios have no homeBaseId and keep their fallback. */
+    return a && a.phase === 'to-rally' && m && m.version === a.missionVersion && m.point
+      ? m.point
+      : squad.homeBaseId
+        ? extractionHome(squad)
+        : squad.home;
+  }
+  function formationDirection(squad) {
+    var anchor = squad.orderAnchor || squad.rally,
+      goal = squad.state === 'retreat' ? retreatGoal(squad) : squad.objective || squad.home,
+      dx = goal.x - anchor.x,
+      dz = goal.z - anchor.z,
+      len = Math.hypot(dx, dz);
+    if (len < 0.1 && squad._formationForward) {
+      return squad._formationForward;
+    }
+    var forward = { x: dx / (len || 1), z: dz / (len || 1) };
+    squad._formationForward = forward;
+    return forward;
+  }
+  function formationFor(squad) {
+    var phase = squad.commandPhase || '';
+    if (
+      squad.state === 'retreat' ||
+      phase === 'corner-check' ||
+      phase === 'clear-town' ||
+      phase === 'regroup'
+    )
+      return 'column';
+    if (squad.state === 'engaged' || ['assault', 'capture', 'defend'].indexOf(phase) >= 0) return 'line';
+    var anchor = squad.orderAnchor || squad.rally,
+      goal = squad.objective || squad.home;
+    return dist2(anchor.x, anchor.z, goal.x, goal.z) < 68 ? 'line' : 'wedge';
+  }
+  function slotJitter(soldier, axis) {
+    var n = (soldier.slotIndex * 37 + String(soldier.id).length * 19 + (axis ? 11 : 3)) % 17;
+    return (n - 8) * 0.22;
+  }
+  function formationSlot(squad, soldier, slotIndex) {
+    var f = formationDirection(squad),
+      fx = f.x,
+      fz = f.z,
+      rx = -fz,
+      rz = fx,
+      anchor = squad.orderAnchor || squad.rally,
+      form = squad.formation || formationFor(squad),
+      role = isLeader(soldier)
+        ? 'sergeant'
+        : soldier.slotRole || (soldier.role === 'sergeant' ? 'rifleman' : soldier.role),
+      side = slotIndex % 2 === 0 ? 1 : -1,
+      lateral = slotJitter(soldier, 0),
+      depth = slotJitter(soldier, 1),
+      forward = 0;
+    if (form === 'column') {
+      if (role === 'sergeant') {
+        forward = -1;
+        lateral = 0;
+      } else if (role === 'scout') {
+        forward = 5 + (slotIndex % 2) * 3;
+        lateral = side * 2.4 + lateral;
+      } else if (role === 'gunner') {
+        forward = -5;
+        lateral = 1.5 + lateral;
+      } else {
+        forward = -3 - (slotIndex - 4) * 2.7;
+        lateral = side * (1.8 + (slotIndex % 3) * 0.8) + lateral;
+      }
+    } else if (form === 'line') {
+      if (role === 'sergeant') {
+        forward = -7;
+        lateral = 0;
+      } else if (role === 'gunner') {
+        forward = -9;
+        lateral = 2 + lateral;
+      } else if (role === 'scout') {
+        forward = 2;
+        lateral = side * 14 + lateral;
+      } else {
+        var lane = slotIndex - 6;
+        forward = -2 - (Math.abs(lane) % 2) * 2 + depth;
+        lateral = lane * 5.3 + lateral;
+      }
+    } else {
+      if (role === 'sergeant') {
+        forward = -4;
+        lateral = 0;
+      } else if (role === 'gunner') {
+        forward = -10;
+        lateral = 1.5 + lateral;
+      } else if (role === 'scout') {
+        forward = 9;
+        lateral = side * 10 + lateral;
+      } else {
+        var rank = Math.floor((slotIndex - 4) / 2),
+          wing = slotIndex % 2 === 0 ? 1 : -1;
+        forward = 1 - rank * 4 + depth;
+        lateral = wing * (4 + rank * 4.3) + lateral;
+      }
+    }
+    return { x: anchor.x + fx * forward + rx * lateral, z: anchor.z + fz * forward + rz * lateral };
+  }
+
+  function createSoldier(opts) {
+    var role = ROLES[opts.role];
+    /* Each side carries its own weapon for the kind (Garand or Kar98k, M1919A6 or MG42...). */
+    if (opts.weapon && root.BattleWeapons && root.BattleWeapons.issue)
+      root.BattleWeapons.issue(opts.weapon, opts.faction);
+    if (opts.secondary && root.BattleWeapons && root.BattleWeapons.issue)
+      root.BattleWeapons.issue(opts.secondary, opts.faction);
+    var soldier = Object.assign({}, opts.model, {
+      id: opts.id,
+      faction: opts.faction,
+      role: opts.role,
+      squad: opts.squad,
+      slotIndex: opts.slotIndex,
+      weapon: opts.weapon,
+      secondary: opts.secondary || null,
+      hp: role.hp,
+      maxHp: role.hp,
+      state: 'advance',
+      target: null,
+      destination: { x: opts.model.root.position.x, z: opts.model.root.position.z },
+      orderDestination: null,
+      _destinationCommitUntil: 0,
+      _scanAt: 0,
+      fireCooldown: Math.random() * 0.5,
+      moving: false,
+      prone: false,
+      crawling: false,
+      tacticalCrouch: false,
+      suppressedUntil: 0,
+      setUp: false,
+      setUpSince: 0,
+      speed: role.speed,
+      moveSpeed: 0,
+      voiceCooldown: Math.random() * 2,
+      lastSquadState: 'advance'
+    });
+    /* Derived, never stored: the stance he shows is the one Engagement committed (`prone`, `tacticalCrouch`).
+       It used to be a copy that stepMovement refreshed each frame, so after every AI tick it was a frame
+       behind and the pose read a man raised from prone to crouch as standing. Read-only on purpose: a write
+       is a second owner of stance and throws. (Defined here, not in the literal above: Object.assign would
+       copy the getter's value once as a plain field.) */
+    Object.defineProperty(soldier, 'crouching', {
+      enumerable: true,
+      configurable: true,
+      get: function () {
+        return !this.prone && !!this.tacticalCrouch;
+      }
+    });
+    return soldier;
+  }
+
+  /* Perception owns soldier.target. Other layers that need to end tracking route through this
+     accessor instead of writing the field directly. */
+  function clearTarget(soldier) {
+    if (!soldier) return false;
+    soldier.target = null;
+    return true;
+  }
+  /* A possessed soldier has no AI target: the player aims him. The crosshair point is a presentation
+     input (where the rifle and spine point, `playerAimPoint`), never a lock on an enemy, so nothing
+     snaps his aim or his body onto a man near the reticle. Fire goes down the crosshair ray (playerFireRay). */
+  function playerAim(soldier, aimPoint) {
+    if (!soldier) return false;
+    soldier.target = null;
+    soldier.playerAimPoint =
+      !soldier.dead && soldier.isPlayer && aimPoint && isFinite(+aimPoint.x) && isFinite(+aimPoint.z)
+        ? { x: +aimPoint.x, y: +aimPoint.y || 0, z: +aimPoint.z }
+        : null;
+    return true;
+  }
+  /* Legacy target-based player fire remains for callers that supply a target. */
+  function playerFire(soldier, battle) {
+    if (!soldier || soldier.dead) return false;
+    return tryFire(soldier, battle);
+  }
+  /* The player's trigger on an automatic set to full auto. The gun cycles at its own rate for as long as
+     the trigger is held, with no burst length and no re-lay pause: those are a gunner's trigger
+     discipline, which the AI models and the player supplies. A frame that spans more than one cyclic
+     interval fires the rounds due together, each carrying its offset as a round of an AI burst does.
+     Climb counts the rounds since the trigger was let go (a gap over TRIGGER_HELD_GAP) and stops at the
+     longest AI burst's, so a long press is never wider than the worst round of a burst. */
+  var TRIGGER_HELD_GAP = 0.25,
+    TRIGGER_CATCH_UP = 4;
+  /* Real player trigger: no target lock and no Engagement authorization. The arbitrary crosshair ray
+     goes through the shipping ammunition and ballistics owners, so reloads, jams, impacts, wounds,
+     penetration, terrain and buildings remain authoritative. The fire mode is the player's
+     (BattleWeapons.fireMode): full auto fires per the note above, semi one aimed round per cooldown. */
+  function playerFireRay(soldier, aimPoint, battle) {
+    if (!soldier || soldier.dead || !soldier.isPlayer || !soldier.weapon || !aimPoint || !battle)
+      return false;
+    /* Same lifecycle gate as the sim's own frame: a paused or finished battle takes no shots. */
+    if (battle.paused || battle.winner) return false;
+    if (root.BattleGrenades && root.BattleGrenades.on() && root.BattleGrenades.pendingOf(soldier, battle))
+      return false;
+    if (soldier.fireCooldown > 0) return false;
+    var A = root.BattleAmmunition;
+    if (A && A.available && !A.available(soldier)) {
+      if ((+soldier.weapon.ammo || 0) <= 0 && (+soldier.weapon.reserveAmmo || 0) > 0 && A.startReload)
+        A.startReload(soldier, battle);
+      return false;
+    }
+    var B = root.BattleBallistics;
+    if (!B || typeof B.resolvePlayerRay !== 'function') return false;
+    var stats = soldier.weapon.stats,
+      W = root.BattleWeapons,
+      auto =
+        stats.cyclic > 0 && !!stats.burst && (!W || !W.fireMode || W.fireMode(soldier.weapon) === 'auto'),
+      interval = auto ? 1 / stats.cyclic : 0,
+      late = auto ? battle.time - (+soldier._triggerNext || -Infinity) : Infinity,
+      held = late >= -1e-6 && late <= TRIGGER_HELD_GAP,
+      first = held ? +soldier._triggerRound || 0 : 0,
+      due = held ? Math.min(TRIGGER_CATCH_UP, 1 + Math.floor(Math.max(0, late) / interval)) : 1,
+      climbCap = auto ? Math.max(0, (stats.burst[1] | 0) - 1) : 0,
+      rounds = discharge(soldier, battle, due, function (round, delay) {
+        var shot = B.resolvePlayerRay(
+          soldier,
+          aimPoint,
+          battle,
+          auto ? Math.min(first + round, climbCap) : 0,
+          delay
+        );
+        /* The player HUD consumes only confirmed enemy casualties/wounds from the actual
+           ballistic result, never a guessed screen-space collision or mere trigger pull. */
+        if (shot && shot.victim && shot.victim.faction !== soldier.faction) {
+          soldier._playerConfirmedHits = (soldier._playerConfirmedHits || 0) + 1;
+          /* A surviving man physically hit by a player's free-aim shot knows
+             where the round came from. This does not reveal a missed shot to
+             everyone downrange or create an AI-style target lock for the player. */
+          noteIncomingFire(shot.victim, soldier, battle);
+        }
+        return shot ? undefined : false;
+      });
+    if (!rounds) return false;
+    if (auto) {
+      /* The cadence is the gun's: the next round falls one interval after the last scheduled one. */
+      soldier._triggerNext = (held ? soldier._triggerNext : battle.time) + rounds * interval;
+      soldier._triggerRound = first + rounds;
+      setFireCooldown(soldier, Math.max(0, soldier._triggerNext - battle.time));
+    } else {
+      soldier._triggerNext = 0;
+      soldier._triggerRound = 0;
+      /* One aimed round: the same cooldown a semi-automatic or bolt action has always had here. */
+      setFireCooldown(soldier, triggerCooldown({ rof: stats.rof }, 1, battle, 1, 0));
+    }
+    return true;
+  }
+
+  function setDestination(soldier, next, battle, urgent) {
+    if (!next) return;
+    if (root.BattleMovementResolver)
+      return root.BattleMovementResolver.proposeOrder(soldier, next, battle, urgent, 'squad-orders');
+    soldier.orderDestination = { x: next.x, z: next.z };
+    var current = soldier.destination,
+      atCurrent =
+        current && dist2(soldier.root.position.x, soldier.root.position.z, current.x, current.z) < 1.8,
+      changed = !current || dist2(current.x, current.z, next.x, next.z) > 2.4;
+    if (urgent || atCurrent || (changed && battle.time >= (soldier._destinationCommitUntil || 0))) {
+      soldier.destination = { x: next.x, z: next.z };
+      soldier._destinationCommitUntil = battle.time + DESTINATION_COMMIT + (soldier.slotIndex % 3) * 0.22;
+    }
+  }
+  /* Squad status only: alive count, retreat/engaged/advance state and the Engagement contact report.
+     Orders, fire and movement belong to the squad's command owner (the Squad Leader in
+     16-squad-plan-stability.js), which attaches to the squadCommand slot and runs instead. */
+  function squadStatus(squad, battle) {
+    var alive = 0,
+      anyEngaged = false;
+    for (var i = 0; i < squad.members.length; i++) {
+      if (!squad.members[i].dead) alive++;
+      if (threatDisposition(squad.members[i].target).combatThreat) anyEngaged = true;
+    }
+    squad.aliveCount = alive;
+    if (1 - alive / establishment(squad) >= RETREAT_CASUALTY_FRAC) squad.state = 'retreat';
+    else squad.state = anyEngaged ? 'engaged' : 'advance';
+    if (battle && root.BattleEngagement) root.BattleEngagement.updateSquad(squad, battle);
+  }
+  function updateSquad(squad, battle) {
+    /* The Squad Leader has accepted the road-transport brief. While embarked
+       the vehicle owns travel; the normal formation solver must not issue
+       competing infantry posts. Boarding still allows the Meso mission handoff. */
+    if (squad && squad._transport && squad._transport.phase === 'embarked') return;
+    return EXT.first('squadCommand', squadStatus)(squad, battle);
+  }
+
+  /* Voice never draws from the combat RNG: whether a callout plays depends on the voice modules and
+     the audio manifest, so a random draw here made the same seed simulate a different battle with and
+     without voice audio. The 4-9 s cooldown jitter is deterministic per soldier and callout instead. */
+  function callout(soldier, battle, type) {
+    if (!battle.onCallout || battle.time < (soldier.voiceCooldown || 0)) return;
+    var n = (soldier._calloutCount = (soldier._calloutCount || 0) + 1);
+    soldier.voiceCooldown = battle.time + 4 + (((+soldier.id || 0) * 37 + n * 11) % 50) / 10;
+    battle.onCallout(soldier, type);
+  }
+
+  /* Which contact line to say: front, left or right of the way his squad faces (toward its objective), plain
+     "contact" behind. Voice only: the name of the line changes nothing in the battle. */
+  function contactCall(soldier) {
+    var sq = soldier.squad,
+      t = soldier.target,
+      p = soldier.root.position,
+      from = (sq && (sq.orderAnchor || sq.rally)) || p,
+      goal = sq && (sq.objective || sq.home);
+    if (!t || !goal) return 'contact';
+    var fx = goal.x - from.x,
+      fz = goal.z - from.z,
+      fl = Math.hypot(fx, fz);
+    if (fl < 1) return 'contact';
+    var dx = t.root.position.x - p.x,
+      dz = t.root.position.z - p.z,
+      dl = Math.hypot(dx, dz) || 1,
+      ahead = (dx * fx + dz * fz) / (dl * fl),
+      right = (dx * fz - dz * fx) / (dl * fl);
+    if (ahead >= Math.SQRT1_2) return 'contactFront';
+    if (ahead < -0.35) return 'contact';
+    return right > 0 ? 'contactRight' : 'contactLeft';
+  }
+  /* Perception only. What the soldier does about what he sees is engagement.js's job. */
+  function perceive(soldier, battle) {
+    var heightAt = battle.heightAt,
+      obstacles = battle.obstacles,
+      role = ROLES[soldier.role];
+    if (SOLDIER_BELIEFS_ON) pruneBeliefs(soldier, battle);
+    /* Frozen means dazed, not secretly scanning under the full-body clip. Clear both target and facing
+       input here, before the ordinary tracking/acquisition path can refresh squad contact. */
+    if (reactionState(soldier) === 'freeze') {
+      clearTarget(soldier);
+      return role;
+    }
+    var had = soldier.target;
+    if (had && !stillTracking(soldier, heightAt, obstacles)) soldier.target = null;
+    if (!soldier.target && battle.time >= (soldier._scanAt || 0)) {
+      soldier._scanAt = battle.time + SCAN_INTERVAL + ((+soldier.id || 0) % 5) * 0.04;
+      soldier.target = findTarget(
+        soldier,
+        battle.rosterOf(soldier.faction === 'us' ? 'ge' : 'us'),
+        heightAt,
+        obstacles,
+        battle
+      );
+    }
+    if (soldier.target) {
+      if (SOLDIER_BELIEFS_ON) rememberSeen(soldier, soldier.target, battle, true, 'direct-sight');
+      shareContact(soldier, battle);
+    }
+    squadSenses(soldier.squad, battle);
+    if (SOLDIER_BELIEFS_ON) {
+      applyCalloutBelief(soldier, battle);
+      hearGunfireBelief(soldier, battle);
+      observeKnownNonThreats(soldier, battle);
+    }
+    if (!had && soldier.target) callout(soldier, battle, contactCall(soldier));
+    if (soldier.lastSquadState !== soldier.squad.state) {
+      if (isLeader(soldier))
+        callout(
+          soldier,
+          battle,
+          soldier.squad.state === 'retreat'
+            ? 'retreat'
+            : soldier.squad.state === 'advance'
+              ? 'advance'
+              : 'engage'
+        );
+      soldier.lastSquadState = soldier.squad.state;
+    }
+    return role;
+  }
+
+  var CREW_EYES = !/(?:^|[?&])crewEyes=0(?:&|$)/.test((root.location && root.location.search) || '');
+  function updateSoldier(soldier, battle) {
+    /* Passengers cannot acquire/shoot targets or select foot destinations until
+       Meso atomically hands them back at dismount. The physical carrier moves
+       their actual actors, not cloned vehicles or a fake faster infantry gait. */
+    if (root.BattleSquadTransport && root.BattleSquadTransport.isPassenger(soldier)) {
+      /* The men on the truck still look out. What they see is their own contact, so the squad's
+         contact stops the truck and the transport hands them back (58 step: 'contact'); they never
+         shoot or move from here. `?crewEyes=0` keeps passengers blind (the previous behaviour). */
+      if (CREW_EYES && !soldier.dead && !soldier.isPlayer) perceive(soldier, battle);
+      return;
+    }
+    var resolver = root.BattleMovementResolver;
+    /* isPlayer gates the entire soldier Micro branch. Do not run soldier-mind/sidearm before hooks,
+       Perception, Engagement, or after hooks while possessed; only resolve the player's physical move. */
+    if (soldier && soldier.isPlayer) {
+      if (!soldier.dead && resolver) resolver.resolve(soldier, battle);
+      return;
+    }
+    EXT.run('beforeSoldier', soldier, battle);
+    if (!soldier.dead) {
+      var role = perceive(soldier, battle);
+      if (root.BattleEngagement) root.BattleEngagement.updateSoldier(soldier, battle);
+      else fallbackBehavior(soldier, battle, role);
+      if (resolver) resolver.resolve(soldier, battle);
+    }
+    EXT.run('afterSoldier', soldier, battle);
+  }
+
+  /* Minimal stand-in used only when engagement.js failed to load, so a broken deployment still
+     produces soldiers that shoot instead of soldiers that stand still. */
+  function fallbackBehavior(soldier, battle, role) {
+    if (soldier.squad.state === 'retreat') {
+      if (root.BattleTacticalPositions) root.BattleTacticalPositions.release(soldier, battle, 'retreat');
+      soldier.prone = false;
+      soldier.state = 'retreat';
+      setDestination(
+        soldier,
+        soldier.orderDestination || formationSlot(soldier.squad, soldier, soldier.slotIndex),
+        battle,
+        true
+      );
+      if (
+        soldier.target &&
+        dist2(
+          soldier.root.position.x,
+          soldier.root.position.z,
+          soldier.target.root.position.x,
+          soldier.target.root.position.z
+        ) < 35
+      )
+        tryFire(soldier, battle);
+      soldier.setUp = false;
+      return;
+    }
+    if (threatDisposition(soldier.target).combatThreat) {
+      soldier.state = 'engage';
+      var p = soldier.root.position,
+        t = soldier.target.root.position,
+        d = dist2(p.x, p.z, t.x, t.z);
+      soldier.destination = { x: p.x, z: p.z };
+      soldier.tacticalCrouch = true;
+      soldier.prone =
+        (soldier.role === 'rifleman' || soldier.role === 'gunner') &&
+        (d > 80 || soldier.suppressedUntil > battle.time);
+      if (isMachineGun(soldier)) {
+        if (!soldier.setUpSince) soldier.setUpSince = battle.time;
+        soldier.setUp = battle.time - soldier.setUpSince > GUNNER_SETUP_TIME;
+      }
+      if (d <= engageRange(soldier)) tryFire(soldier, battle);
+      return;
+    }
+    soldier.prone = false;
+    soldier.tacticalCrouch = false;
+    soldier.state = 'advance';
+    soldier.setUp = false;
+    soldier.setUpSince = 0;
+    setDestination(
+      soldier,
+      soldier.orderDestination || formationSlot(soldier.squad, soldier, soldier.slotIndex),
+      battle,
+      false
+    );
+  }
+
+  function shot(shooter, target, battle, round, delay) {
+    return EXT.first('shotModel', resolveFire)(shooter, target, battle, round || 0, delay || 0);
+  }
+  /* How far a man opens aimed fire: as far as the weapon he carries reaches (a US scout's M1 Carbine
+     and a German scout's FG 42 share the role, not the range). A role may still cap it where its
+     job is not the firefight (`engageRange`, the defending engineer). */
+  function engageRange(soldier) {
+    var role = ROLES[soldier.role] || {},
+      range = soldier.weapon && soldier.weapon.stats && soldier.weapon.stats.range,
+      cap = role.engageRange;
+    if (!(range > 0)) return cap;
+    return cap > 0 ? Math.min(cap, range) : range;
+  }
+  function tryFire(soldier, battle) {
+    if (!soldier.weapon) return false;
+    if (root.PhaseCCombatLab && root.PhaseCCombatLab.blockShot(soldier, battle, 'aimed')) return false; // no weapon, no shot (he left it behind)
+    if (!EXT.pass('fireGate', soldier, battle)) return false;
+    if (soldier.fireCooldown > 0) return false;
+    var stats = soldier.weapon.stats,
+      target = soldier.target,
+      playerTarget = !!(soldier.isPlayer && target && !target.dead && target.faction !== soldier.faction);
+    /* AI obeys threat disposition; a possessed player may intentionally shoot any living enemy. */
+    if (!playerTarget && !threatDisposition(target).combatThreat) {
+      clearTarget(soldier);
+      return false;
+    }
+    var p = soldier.root.position,
+      d = dist2(p.x, p.z, target.root.position.x, target.root.position.z);
+    /* The burst stays on the man it was laid on; once he is down the gunner lets go. */
+    var rounds = discharge(soldier, battle, burstLength(stats, battle, d), function (round, delay) {
+      if (!(soldier.isPlayer && target && !target.dead) && !threatDisposition(target).combatThreat)
+        return false;
+      shot(soldier, target, battle, round, delay);
+    });
+    setFireCooldown(soldier, triggerCooldown(stats, rounds, battle, 1, d));
+    /* The man on the receiving end learns the firing origin only after the burst, so the reveal
+       cannot change the burst that produced it. Other aimed-at observers run after the same fact. */
+    if (rounds > 0) {
+      if (PIN_BRIDGE && !target.dead) pin(target, battle, soldier.fireCooldown + PIN_TAIL);
+      noteIncomingFire(target, soldier, battle);
+      EXT.run('aimedAt', target, battle, { from: soldier, rounds: rounds, d: d });
+    }
+    return true;
+  }
+
+  /* Battle lifecycle reset for Perception-owned memory. A restart returns simulated time to zero,
+     so retaining gunfire/contact/belief state would make prior-battle evidence look fresh or even
+     future-dated in the new battle. Keep the reset at the owner; lifecycle modules call this API. */
+  function resetPerceptionBattleState(battle) {
+    if (!battle) return;
+    delete battle._gunfire;
+    delete battle._gunfirePrunedAt;
+    delete battle._soldierBeliefStats;
+    var sides = ['us', 'ge'];
+    for (var fi = 0; fi < sides.length; fi++) {
+      var faction = sides[fi],
+        squads = (battle.factions && battle.factions[faction] && battle.factions[faction].squads) || [],
+        roster = (battle._roster && battle._roster[faction]) || [];
+      for (var qi = 0; qi < squads.length; qi++) {
+        if (!squads[qi]) continue;
+        squads[qi].contact = null;
+        squads[qi]._sensedAt = -Infinity;
+      }
+      for (var si = 0; si < roster.length; si++) {
+        if (!roster[si]) continue;
+        delete roster[si]._beliefs;
+      }
+    }
+  }
+
+  root.BattleExtensionPoints = extensionPoints;
+  root.BattleLeases = Leases;
+  root.SquadAI = {
+    extend: EXT.attach,
+    extensionOrder: EXT.order,
+    ROLES: ROLES,
+    LOADOUTS: LOADOUTS,
+    loadoutFor: loadoutFor,
+    dealLoadout: dealLoadout,
+    rearm: rearm,
+    isMachineGun: isMachineGun,
+    COMPOSITION: COMPOSITION,
+    REMNANT_EXTRACTION_MAX: REMNANT_EXTRACTION_MAX,
+    livingCount: livingCount,
+    isExtractionRemnant: isExtractionRemnant,
+    isReconstitutionMarch: isReconstitutionMarch,
+    isExtractionToHome: isExtractionToHome,
+    extractionHome: extractionHome,
+    createSquad: createSquad,
+    createSoldier: createSoldier,
+    updateSquad: updateSquad,
+    updateSoldier: updateSoldier,
+    perceive: perceive,
+    formationSlot: formationSlot,
+    leaderOf: leaderOf,
+    seniority: seniority,
+    mostSenior: mostSenior,
+    isLeader: isLeader,
+    establishment: establishment,
+    retreatGoal: retreatGoal,
+    formationFor: formationFor,
+    setDestination: setDestination,
+    setFireCooldown: setFireCooldown,
+    extendFireCooldown: extendFireCooldown,
+    tickFireCooldown: tickFireCooldown,
+    clearTarget: clearTarget,
+    playerAim: playerAim,
+    playerFire: playerFire,
+    playerFireRay: playerFireRay,
+    hasLineOfSight: hasLineOfSight,
+    detectionRange: detectionRange,
+    findTarget: findTarget,
+    threatDisposition: threatDisposition,
+    lookYaw: lookYaw,
+    squadSenses: squadSenses,
+    resetPerceptionBattleState: resetPerceptionBattleState,
+    parseSoldierBeliefs: parseSoldierBeliefs,
+    soldierBeliefsOn: function () {
+      return SOLDIER_BELIEFS_ON;
+    },
+    parseIncomingFireReveal: parseIncomingFireReveal,
+    incomingFireRevealOn: function () {
+      return INCOMING_FIRE_REVEAL_ON;
+    },
+    noteIncomingFire: noteIncomingFire,
+    soldierContact: soldierContact,
+    hasKnownNonThreat: hasKnownNonThreat,
+    rememberSeen: rememberSeen,
+    rememberReportedContact: rememberReportedContact,
+    applyCalloutBelief: applyCalloutBelief,
+    hearGunfireBelief: hearGunfireBelief,
+    observeKnownNonThreats: observeKnownNonThreats,
+    beliefSnapshot: beliefSnapshot,
+    beliefTelemetry: beliefTelemetry,
+    secondaryThreatOn: function () {
+      return SECONDARY_THREAT_ON;
+    },
+    PERCEPTION: {
+      FOCUS_HALF: FOCUS_HALF,
+      PERIPHERAL_HALF: PERIPHERAL_HALF,
+      PERIPHERAL_RANGE: PERIPHERAL_RANGE,
+      PERIPHERAL_MOVING: PERIPHERAL_MOVING,
+      BEHIND_RANGE: BEHIND_RANGE,
+      HEAD_TURN: HEAD_TURN,
+      SCAN_SWEEP: SCAN_SWEEP,
+      SCAN_PERIOD: SCAN_PERIOD,
+      HEAR_RANGE: HEAR_RANGE,
+      HEAR_MEMORY: HEAR_MEMORY,
+      RELAY_RANGE: RELAY_RANGE,
+      SOLDIER_BELIEFS_ON: SOLDIER_BELIEFS_ON,
+      INCOMING_FIRE_REVEAL_ON: INCOMING_FIRE_REVEAL_ON,
+      BELIEF_TUNING: BELIEF_TUNING,
+      STANCE_VIS_ON: STANCE_VIS_ON,
+      VISIBILITY: VISIBILITY,
+      MOVING_VISIBILITY_BONUS: MOVING_VISIBILITY_BONUS
+    },
+    engageRange: engageRange,
+    tryFire: tryFire,
+    resolveFire: shot,
+    applyHit: applyHit,
+    areaFire: areaFire,
+    pin: pin,
+    SUPPRESSION_TIME: SUPPRESSION_TIME,
+    canSuppress: canSuppress,
+    shareContact: shareContact,
+    squadContact: squadContact,
+    squadContactsMap: squadContactsMap,
+    firstHandAt: firstHandAt,
+    hasFirstHandMemory: hasFirstHandMemory,
+    seenThreat: seenThreat,
+    CONTACT_MEMORY: CONTACT_MEMORY,
+    CONTACT_REFRESH: CONTACT_REFRESH,
+    coverMultiplierAt: coverMultiplierAt,
+    coverPotentialAt: coverPotentialAt,
+    stanceOf: stanceOf,
+    eyeHeight: eyeHeight,
+    dist2: dist2
+  };
+})(typeof window !== 'undefined' ? window : globalThis);

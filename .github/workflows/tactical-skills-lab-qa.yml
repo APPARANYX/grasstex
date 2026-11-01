@@ -1,0 +1,75 @@
+name: ⭐ Native Tactical Skills Lab QA
+# Every PR commit runs the small range gate, not only changes to lab files.
+# This preflight must pass before spending CI on full-battle benchmarks.
+on:
+  pull_request:
+  workflow_dispatch:
+# Keep only the newest draft-commit preflight and preview build.
+concurrency:
+  group: native-lab-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+jobs:
+  native-skills-lab:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Check exact branch, syntax and install browser
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          php -l battle_sim_local.php
+          node --check battle/skills-lab.js
+          node --check battle/scenario-generator.js
+          node --check scripts/probes/probe_skills_lab.cjs
+          npm install --no-save --no-package-lock playwright@1.58.2
+          npx playwright install --with-deps chromium
+      - name: Start sandbox PHP runtime
+        run: |
+          mkdir -p /tmp/skills-lab-site
+          ln -s "$GITHUB_WORKSPACE" /tmp/skills-lab-site/grasstex
+          PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8765 -t /tmp/skills-lab-site > /tmp/skills-lab-php.log 2>&1 &
+          for i in $(seq 1 35); do
+            if curl -fsS 'http://127.0.0.1:8765/grasstex/battle_sim_local.php?seed=skills-health' >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          tail -100 /tmp/skills-lab-php.log
+          exit 1
+      - name: Live real-BattleSim range smoke
+        run: node scripts/probes/probe_skills_lab.cjs
+      - name: Primary 120m physical-movement acceptance (one native scenario)
+        env:
+          SKILLS_DRILL_SECONDS: '210'
+          SKILLS_DRILL_SEED: 'skills-range-0001'
+          SKILLS_DRILL_REQUIRE_TACTICS: '1'
+          SKILLS_DRILL_PRIMARY_ONLY: '1'
+          SKILLS_DRILL_REQUIRE_GRENADES: '1'
+        run: node scripts/probes/probe_skills_lab_drills.cjs
+      - name: Single-seed live covered-maneuver meeting after lab acceptance
+        run: node scripts/probes/probe_covered_meeting.cjs
+      - if: failure()
+        run: tail -120 /tmp/skills-lab-php.log || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tactical-skills-lab-evidence
+          path: |
+            reports/skills-lab/
+            reports/skills-lab-drills/
+            reports/covered-meeting/
+          if-no-files-found: warn
+          retention-days: 14
+  preview:
+    # On ready-for-review observation QA owns the single hosted upload.
+    if: github.event.action != 'ready_for_review'
+    uses: ./.github/workflows/deploy-50webs-preview.yml
+    with:
+      ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      preview_slug: ${{ github.event.pull_request.number && format('pr-{0}', github.event.pull_request.number) || github.ref_name }}
+    secrets: inherit

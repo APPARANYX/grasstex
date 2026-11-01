@@ -1,0 +1,426 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>WW2FPS AI Lab</title>
+<style>
+html,body{height:100%;margin:0;padding:0;overflow:hidden;background:#0f141c;font-family:Arial,sans-serif}
+#renderCanvas{position:fixed;inset:0;width:100%;height:100%;display:block;outline:none;touch-action:none}
+#hud{position:fixed;top:10px;left:10px;z-index:10;width:min(310px,calc(100vw - 36px));max-height:calc(100vh - 20px);overflow:auto;box-sizing:border-box;padding:10px 12px;background:rgba(14,17,12,.90);border:1px solid rgba(255,255,255,.14);border-radius:8px;color:#e7e7dc;font-size:12px;opacity:.94;transition:transform .22s ease,opacity .15s;box-shadow:0 7px 24px rgba(0,0,0,.22)}
+#hud:hover{opacity:1}#hud.collapsed{transform:translateX(calc(-100% - 22px));pointer-events:none}
+#hudToggle{position:fixed;top:12px;left:12px;z-index:12;display:none;padding:7px 9px;border-radius:6px;border:1px solid #596342;background:rgba(22,27,17,.93);color:#eef0df;font:700 11px Arial,sans-serif;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.25)}
+#hud.collapsed+#hudToggle{display:block}#hudClose{border:0;background:transparent;color:#b9bea7;cursor:pointer;font-size:16px;line-height:1;padding:0 0 0 8px}
+#hud h1{font-size:13px;margin:0 0 8px;letter-spacing:.03em;color:#fff;display:flex;justify-content:space-between;gap:8px;align-items:center}#hudTitle{display:flex;align-items:center;gap:7px}
+#buildVersion{font-size:10px;color:#a8ab8e;font-weight:400;letter-spacing:.08em;white-space:nowrap}
+.side{display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-top:1px solid rgba(255,255,255,.08)}.side:first-of-type{border-top:0}.side .tag{font-weight:700}.tag.us{color:#8fb4e8}.tag.ge{color:#e0c46a}.side .nums{color:#c7c7ba;font-variant-numeric:tabular-nums}
+#hud .row{display:flex;justify-content:space-between;gap:10px;margin-top:8px;color:#a8ab8e}#seedShort{max-width:175px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#c6cbb0}
+#cameraHint{margin-top:7px;color:#7f876f;font-size:10px;text-align:center;letter-spacing:.01em}
+#controls{display:flex;gap:6px;margin-top:10px}#controls button{flex:1;padding:5px 4px;background:#1c2116;border:1px solid #46512f;color:#d9dcc4;font-size:11px;border-radius:5px;cursor:pointer}#controls button.active{background:#3c4a26;color:#fff}#controls button:hover{background:#2a331c}
+#restartBtn{margin-top:8px;width:100%;padding:6px;background:#3a2020;border:1px solid #6b3232;color:#f1d9d9;border-radius:5px;cursor:pointer;font-size:11px}#restartBtn:hover{background:#4a2828}
+#startBtn{margin-top:8px;width:100%;padding:8px;background:#3c4a26;border:1px solid #6b8a44;color:#fff;border-radius:5px;cursor:pointer;font-size:12px;font-weight:700}#startBtn:hover{background:#4a5c2e}#startBtn[hidden]{display:none}
+#debugPanel{margin-top:8px;border-top:1px solid rgba(255,255,255,.1);padding-top:7px}#debugPanel summary{cursor:pointer;color:#b9bea7;font-size:11px;user-select:none;list-style-position:inside}#debugConsole{margin-top:6px;height:145px;overflow:auto;background:#070907;border:1px solid rgba(255,255,255,.12);border-radius:5px;padding:6px;color:#b8c4ad;font:10px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:pre-wrap;word-break:break-word}.debug-warn{color:#d8c57c}.debug-error{color:#e58d8d}
+#animationLab{position:fixed;right:12px;bottom:12px;z-index:14;width:260px;padding:9px;background:rgba(14,17,12,.93);border:1px solid rgba(255,255,255,.14);border-radius:8px;color:#e7e7dc;box-shadow:0 7px 24px rgba(0,0,0,.25);transition:transform .2s ease,opacity .15s}#animationLab[hidden]{display:none}#animationLab h2{margin:0 0 7px;font-size:11px;letter-spacing:.08em;color:#fff;display:flex;justify-content:space-between;align-items:center}#animationLab canvas{display:block;width:100%;height:190px;background:#242b22;border:1px solid rgba(255,255,255,.1);border-radius:5px}#animationLab select{display:block;width:100%;box-sizing:border-box;margin-top:7px;padding:5px;border:1px solid #46512f;border-radius:4px;background:#1c2116;color:#e7e7dc;font-size:11px}#animationLab small{display:block;margin-top:6px;color:#a8ab8e;line-height:1.35}#animationLabClose,#animationLabToggle{border:1px solid #596342;border-radius:5px;background:#1c2116;color:#d9dcc4;cursor:pointer;font-size:11px}#animationLabClose{padding:2px 6px}#animationLabToggle{position:fixed;right:12px;bottom:12px;z-index:13;padding:7px 9px;box-shadow:0 4px 14px rgba(0,0,0,.25)}#animationLabToggle[hidden]{display:none}
+#animationLab .frame-controls{display:flex;align-items:center;gap:7px;margin-top:8px;font-size:11px;color:#c5ccb9}#animationLab .frame-controls button{border:1px solid #596342;border-radius:5px;background:#1c2116;color:#d9dcc4;padding:5px 8px;cursor:pointer}#animationLab .frame-controls input{flex:1;min-width:30px;accent-color:#99b96c}#animationLab .frame-controls output{min-width:54px;text-align:right;font-variant-numeric:tabular-nums}
+#banner{position:fixed;inset:0;z-index:20;display:none;align-items:center;justify-content:center;background:rgba(6,8,6,.55)}#banner .card{background:rgba(18,22,14,.96);border:1px solid rgba(255,255,255,.18);border-radius:10px;padding:26px 34px;text-align:center;color:#fff;font-size:20px;box-shadow:0 10px 40px rgba(0,0,0,.5)}#banner .card small{display:block;margin-top:8px;font-size:12px;color:#b7bba0}#banner button{margin-top:16px;padding:7px 18px;border-radius:6px;border:1px solid #6b8a44;background:#3c4a26;color:#fff;cursor:pointer;font-size:13px}
+#loading{position:fixed;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;background:#0f141c;transition:opacity .45s ease}#loading.done{opacity:0;pointer-events:none}
+#loading .card{width:min(420px,calc(100vw - 32px));box-sizing:border-box;padding:18px 20px;background:rgba(14,17,12,.94);border:1px solid rgba(255,255,255,.14);border-radius:10px;color:#e7e7dc;font-size:12px;box-shadow:0 10px 40px rgba(0,0,0,.45)}
+#loading h2{margin:0 0 12px;font-size:13px;letter-spacing:.06em;color:#fff;display:flex;justify-content:space-between;align-items:baseline}#loadPct{font-size:11px;color:#a8ab8e;font-variant-numeric:tabular-nums;letter-spacing:0}
+#loadBar{height:6px;border-radius:3px;background:#1c2116;border:1px solid #46512f;overflow:hidden}#loadBar i{display:block;height:100%;width:0;background:#8aa85a;transition:width .2s ease}
+#loadPhases{list-style:none;margin:12px 0 0;padding:0}#loadPhases li{display:flex;gap:8px;padding:4px 0;color:#6f7564;border-top:1px solid rgba(255,255,255,.06)}#loadPhases li:first-child{border-top:0}
+#loadPhases li b{width:14px;flex:none;text-align:center;font-weight:400}#loadPhases li span{flex:1}#loadPhases li small{color:#8f967f;font-size:10.5px;font-variant-numeric:tabular-nums;text-align:right}
+#loadPhases li.active{color:#e7e7dc}#loadPhases li.active b{color:#c9d98f}#loadPhases li.ok{color:#a8ab8e}#loadPhases li.ok b{color:#8aa85a}#loadPhases li.fail{color:#f1b4b4}#loadPhases li.fail b{color:#e06a6a}
+#loadError{margin:10px 0 0;color:#f1b4b4;font-size:11px;white-space:pre-wrap}#loadError:empty{display:none}
+@media(max-width:650px){#hud{width:min(300px,calc(100vw - 28px));top:7px;left:7px;max-height:calc(100vh - 14px)}#hudToggle{top:9px;left:9px}}
+</style>
+</head>
+<body>
+<div id="loading" role="status" aria-live="polite"><div class="card"><h2>Loading battle <span id="loadPct">0%</span></h2><div id="loadBar"><i></i></div><ul id="loadPhases"></ul><p id="loadError"></p></div></div>
+<script>
+/* Initial-load bar. Each boot phase reports start/progress/done; the bar is the weighted sum.
+   Presentation only: it never touches the simulation, and reports after finish() are ignored
+   (the Motion Lab's own preload reuses the soldier loader later). */
+window.BattleLoading=(function(){
+  var PHASES=[['scripts','Runtime scripts',12],['scenario','Scenario & engine',3],['terrain','Terrain & sky',8],
+    ['soldiers','Soldiers, weapons & clips',50],['cover','Cover, hedges & buildings',15],['battle','Navigation, squads & objectives',12]];
+  var root=document.getElementById('loading'),list=document.getElementById('loadPhases'),bar=root.querySelector('#loadBar i'),pct=document.getElementById('loadPct'),state={},finished=false,current=null;
+  /* Phase wall times (performance.now() ms) for BattleAssetTimings and the full-fidelity benchmark. */
+  var times={},finishedAt=null;function now(){return performance.now();}function stamp(id,k){var t=times[id]||(times[id]={});if(t[k]==null)t[k]=now();}
+  PHASES.forEach(function(p){var li=document.createElement('li');li.innerHTML='<b>○</b><span></span><small></small>';li.querySelector('span').textContent=p[1];list.appendChild(li);state[p[0]]={li:li,weight:p[2],frac:0,items:{}};});
+  function render(){var sum=0,total=0;PHASES.forEach(function(p){var s=state[p[0]];sum+=s.weight*s.frac;total+=s.weight;});var v=Math.round(100*sum/total);bar.style.width=v+'%';pct.textContent=v+'%';}
+  function mark(id,cls,glyph,detail){var s=state[id];if(!s)return null;s.li.className=cls;s.li.querySelector('b').textContent=glyph;if(detail!=null)s.li.querySelector('small').textContent=detail;return s;}
+  var api={
+    start:function(id,detail){if(finished)return;current=id;if(state[id])stamp(id,'start');mark(id,'active','›',detail||'');render();},
+    /* Named sub-counts (e.g. models/weapons/clips) make the phase fraction and its detail line. */
+    progress:function(id,item,done,total,label){if(finished||!state[id]||state[id].frac===1)return;var s=state[id];if(!s.li.className)api.start(id);s.items[item]={done:done,total:total,label:label||item};stamp(id,'start');
+      var d=0,t=0,parts=[];Object.keys(s.items).forEach(function(k){var it=s.items[k];d+=it.done;t+=it.total||0;parts.push(it.label+' '+it.done+(it.total?'/'+it.total:''));});
+      s.frac=t?Math.min(.99,d/t):s.frac;mark(id,'active','›',parts.join(' · '));render();},
+    note:function(id,detail){if(finished||!state[id])return;mark(id,state[id].li.className||'active',state[id].li.querySelector('b').textContent==='○'?'›':state[id].li.querySelector('b').textContent,detail);},
+    done:function(id,detail){if(finished||!state[id])return;var s=state[id];s.frac=1;stamp(id,'start');stamp(id,'done');
+      if(detail==null&&Object.keys(s.items).length)detail=Object.keys(s.items).map(function(k){var it=s.items[k];return it.label+' '+it.done;}).join(' · ');
+      mark(id,'ok','✓',detail);render();},
+    fail:function(error){var id=current||'scripts';mark(id,'fail','✕');document.getElementById('loadError').textContent=String(error&&(error.stack||error.message)||error);},
+    timings:function(){var out={phases:[],finishedAt:finishedAt==null?null:+finishedAt.toFixed(1)};PHASES.forEach(function(p){var t=times[p[0]]||{};out.phases.push({id:p[0],label:p[1],start:t.start==null?null:+t.start.toFixed(1),done:t.done==null?null:+t.done.toFixed(1),ms:t.start!=null&&t.done!=null?+(t.done-t.start).toFixed(1):null});});return out;},
+    finish:function(){if(finished)return;finishedAt=now();PHASES.forEach(function(p){state[p[0]].frac=1;});render();finished=true;root.classList.add('done');setTimeout(function(){root.hidden=true;},600);},
+    /* Resolve after the browser has had a chance to paint (a timer backs up rAF in background tabs). */
+    frame:function(){return new Promise(function(resolve){var fired=false;function go(){if(!fired){fired=true;setTimeout(resolve,0);}}requestAnimationFrame(go);setTimeout(go,60);});}
+  };
+  /* Runtime scripts: count each <script src> as it loads; the loader publishes the total. */
+  var loaded=0;function onScript(e){var t=e.target;if(!t||t.tagName!=='SCRIPT'||!t.src)return;loaded++;api.progress('scripts','scripts',loaded,window.BATTLE_RUNTIME_SCRIPTS||0,'loaded');}
+  document.addEventListener('load',onScript,true);document.addEventListener('error',onScript,true);
+  api.start('scripts');
+  return api;
+})();
+</script>
+<canvas id="renderCanvas"></canvas>
+<div id="hud">
+  <h1><span id="hudTitle"><span>WW2FPS AI LAB</span><span id="buildVersion">v29</span></span><button id="hudClose" type="button" title="Hide controls">&#10005;</button></h1>
+  <div class="side"><span class="tag us">US</span><span class="nums" id="usNums">50 alive &middot; 0 kills</span></div>
+  <div class="side"><span class="tag ge">GER</span><span class="nums" id="geNums">50 alive &middot; 0 kills</span></div>
+  <div class="row"><span>Squads left</span><span id="squadsLeft">5 / 5</span></div>
+  <div class="row"><span>Objectives</span><span id="objectiveStatus">contested</span></div>
+  <div class="row"><span>Scenario seed</span><span id="seedShort">—</span></div>
+  <div class="row"><span>Time</span><span id="clock">0:00</span></div>
+  <div id="cameraHint">Camera: WASD pan · Shift = faster · mouse orbit/zoom</div>
+  <button id="startBtn" type="button">&#9654; Start battle</button>
+  <div id="controls"><button data-speed="1">1&times;</button><button data-speed="4" class="active">4&times;</button><button data-speed="8">8&times;</button></div>
+  <button id="restartBtn" type="button">End battle</button>
+  <details id="debugPanel"><summary>Console</summary><div id="debugConsole"></div></details>
+</div>
+<button id="hudToggle" type="button">&#9776; AI LAB</button>
+<aside id="animationLab" hidden><h2>Motion Lab <button id="animationLabClose" type="button" title="Close motion lab">&#10005;</button></h2><canvas id="animationLabCanvas"></canvas><select id="animationLabPose" aria-label="Preview soldier pose"><optgroup label="Standing"><option value="idle">Idle</option><option value="aim">Rifle aim</option><option value="fire">Rifle fire</option><option value="reload">Rifle reload</option><option value="walk">Walk</option><option value="walk-aim">Walk + aim (layered)</option><option value="strafe">Walk — strafe right</option><option value="run">Run</option><option value="sprint">Sprint</option></optgroup><optgroup label="Crouched / prone"><option value="crouch">Crouch</option><option value="crouch-aim">Crouch aim</option><option value="crouch-walk">Crouch walk</option><option value="prone">Prone</option><option value="prone-aim">Prone aim</option><option value="prone-crawl">Prone crawl</option></optgroup><optgroup label="Transitions"><option value="stand>prone">Stand → prone</option><option value="prone>stand">Prone → stand</option><option value="stand>crouch">Stand → crouch</option></optgroup><optgroup label="Deaths"><option value="death.front">Death — front</option><option value="death.back">Death — back</option><option value="death.side">Death — side</option></optgroup></select><div class="frame-controls"><button id="animationLabPause" type="button">Pause</button><input id="animationLabFrame" type="range" min="0" max="120" step="1" value="0" aria-label="Animation frame"><output id="animationLabFrameValue">0 / 120</output></div><small id="animationLabSource">Loading imported FBX soldier…</small></aside>
+<button id="animationLabToggle" type="button">Motion Lab</button>
+<div id="banner"><div class="card"><div id="bannerText">—</div><small id="bannerSub"></small><div><button id="bannerRestart" type="button">Run it again</button></div></div></div>
+<script src="https://cdn.jsdelivr.net/npm/babylonjs@9.27.1/babylon.js"></script>
+<script>
+(function(){var originalCreateGround=BABYLON.MeshBuilder.CreateGround;BABYLON.MeshBuilder.CreateGround=function(name,options,scene){if(name==='battleField')options=Object.assign({},options||{},{updatable:true});return originalCreateGround.call(BABYLON.MeshBuilder,name,options,scene);};})();
+</script>
+<script src="core-runtime.js"></script>
+<script src="soldier.js"></script>
+<script src="weapons.js"></script>
+<script src="obstacle-field.js"></script>
+<script src="terrain-features.js"></script>
+<script src="squad-ai.js"></script>
+<script src="movement-resolver.js"></script>
+<script src="engagement.js"></script>
+<script src="battle-sim.js"></script>
+<script>
+/* Extra runtimes are replaced by battle_sim.php with separate local cache-busted script tags. */
+</script>
+<script>
+(async function(){
+  /* Build id: the deploy workflow owns it (highest build-v<N> git tag + 1, published as a tag once
+     the deploy succeeds - see scripts/build_version.py). The loader injects it as
+     BATTLE_BUILD_DEPLOYED before any runtime loads; the literal below is only what an unversioned
+     checkout opened directly shows.
+     It is re-stamped onto BATTLE_BUILD here, after every runtime has loaded, so no runtime can
+     leave a stale version on the HUD or on telemetry - which is how the HUD ended up reading v22
+     while the page was v28. Runtimes read BATTLE_BUILD; nothing but the loader writes DEPLOYED. */
+  var BUILD=window.BATTLE_BUILD_DEPLOYED||'v29-dev';
+  window.BATTLE_BUILD=BUILD;
+  var build=BUILD,ref=window.BATTLE_REF||'direct',buildEl=document.getElementById('buildVersion');buildEl.textContent=build;document.title='WW2FPS AI Lab '+build;
+  var debugConsole=document.getElementById('debugConsole');function stringify(v){if(typeof v==='string')return v;try{return JSON.stringify(v);}catch(_){return String(v);}}function writeDebug(level,args){if(!debugConsole)return;var line=document.createElement('div');if(level==='warn')line.className='debug-warn';else if(level==='error')line.className='debug-error';line.textContent='['+level.toUpperCase()+'] '+Array.prototype.map.call(args,stringify).join(' ');debugConsole.appendChild(line);debugConsole.scrollTop=debugConsole.scrollHeight;}['log','warn','error'].forEach(function(level){var original=console[level];console[level]=function(){writeDebug(level,arguments);return original.apply(console,arguments);};});window.addEventListener('error',function(e){writeDebug('error',[e.message+' @ '+e.filename+':'+e.lineno]);});window.addEventListener('unhandledrejection',function(e){writeDebug('error',['Unhandled promise rejection:',e.reason]);});
+  console.log('Battle Sim',build,'ref='+ref);console.log('pageProtocol='+location.protocol);console.log('assetBase='+(window.BATTLE_ASSET_BASE||'hardcoded/default'));console.log('audioBase='+(window.BATTLE_AUDIO_BASE||'audio/'));
+  var loading=window.BattleLoading;loading.done('scripts');loading.start('scenario');await loading.frame();
+
+  var firstLoad=BattleScenarioGenerator.initialLoadSeed(location.search,window.BATTLE_SCENARIO_SEED),
+      liveSeed=firstLoad.seed,scenario=BattleScenarioGenerator.activate(liveSeed,{mode:'live'});
+  if(scenario.profile==='strategic')document.getElementById('hudTitle').querySelector('span').textContent='WW2FPS STRATEGIC 5 KM';
+  document.getElementById('seedShort').textContent=liveSeed;document.getElementById('seedShort').title=liveSeed;
+  /* Older builds wrote generated live-* seeds to the URL. Remove those stale pins
+     on arrival, so refreshing the cleaned URL makes a new battlefield.
+     Explicit named seeds or ?seed=live-...&pinSeed=1 stay replayable. */
+  if(firstLoad.removeAutoSeed){try{
+    var cleanUrl=new URL(location.href);cleanUrl.searchParams.delete('seed');
+    history.replaceState(null,'',cleanUrl.pathname+cleanUrl.search+cleanUrl.hash);
+  }catch(_){} }
+  console.log('[SCENARIO] live seed='+liveSeed+' id='+scenario.id+' fingerprint='+JSON.stringify(scenario.fingerprint.vector));
+
+  if(window.BattleAudioBackend)await BattleAudioBackend.ready;
+  var canvas=document.getElementById('renderCanvas'),engine=new BABYLON.Engine(canvas,true,{stencil:false,preserveDrawingBuffer:true,audioEngine:!(window.BattleAudioBackend&&BattleAudioBackend.independent)});engine.renderEvenInBackground=true;console.log('legacyAudioEngine='+(window.BattleAudioBackend&&BattleAudioBackend.independent?'disabled for Howler':BABYLON.Engine.audioEngine?'present':'missing')+' · background rendering enabled');
+  var scene=new BABYLON.Scene(engine);scene.skipPointerMovePicking=true;scene.clearColor=new BABYLON.Color4(.55,.62,.68,1);scene.fogMode=BABYLON.Scene.FOGMODE_LINEAR;scene.fogColor=new BABYLON.Color3(.72,.62,.52);scene.fogStart=scenario.profile==='strategic'?2100:850;scene.fogEnd=scenario.profile==='strategic'?8000:2250;
+  var target=new BABYLON.Vector3(scenario.center.x,4,scenario.center.z),camera=new BABYLON.ArcRotateCamera('cam',-Math.PI/2,1.02,720,target,scene);camera.lowerRadiusLimit=90;camera.upperRadiusLimit=scenario.profile==='strategic'?5400:1850;camera.radius=scenario.profile==='strategic'?3200:720;camera.maxZ=scenario.profile==='strategic'?9500:2600;camera.lowerBetaLimit=.28;camera.upperBetaLimit=1.5;camera.wheelPrecision=3;camera.panningSensibility=120;camera.attachControl(canvas,true);
+
+  /* Smooth RTS-style keyboard pan. W/S follow the camera's ground-facing direction; A/D strafe. */
+  var cameraKeys=Object.create(null);function cameraKey(code){return code==='KeyW'||code==='KeyA'||code==='KeyS'||code==='KeyD'||code==='ShiftLeft'||code==='ShiftRight';}
+  window.addEventListener('keydown',function(e){if(!cameraKey(e.code))return;cameraKeys[e.code]=true;if(e.code!=='ShiftLeft'&&e.code!=='ShiftRight')e.preventDefault();},{passive:false});
+  window.addEventListener('keyup',function(e){if(cameraKey(e.code))cameraKeys[e.code]=false;});window.addEventListener('blur',function(){cameraKeys=Object.create(null);});
+  scene.onBeforeRenderObservable.add(function(){var f=(cameraKeys.KeyW?1:0)-(cameraKeys.KeyS?1:0),r=(cameraKeys.KeyD?1:0)-(cameraKeys.KeyA?1:0);if(!f&&!r)return;var fx=camera.target.x-camera.position.x,fz=camera.target.z-camera.position.z,len=Math.hypot(fx,fz)||1;fx/=len;fz/=len;var rx=fz,rz=-fx,dx=fx*f+rx*r,dz=fz*f+rz*r,dlen=Math.hypot(dx,dz)||1;dx/=dlen;dz/=dlen;var dt=Math.min(.05,engine.getDeltaTime()/1000),boost=(cameraKeys.ShiftLeft||cameraKeys.ShiftRight)?2.25:1,speed=Math.max(45,Math.min(300,camera.radius*.52))*boost,halfW=BattleSim.FIELD_W/2-20,halfD=BattleSim.FIELD_D/2-20;camera.target.x=Math.max(-halfW,Math.min(halfW,camera.target.x+dx*speed*dt));camera.target.z=Math.max(-halfD,Math.min(halfD,camera.target.z+dz*speed*dt));camera.target.y=BattleSim.heightAt(camera.target.x,camera.target.z)+4;});
+  console.log('[CAMERA] '+BUILD+' WASD pan enabled');
+
+  loading.done('scenario',liveSeed);loading.start('terrain');await loading.frame();
+  var hemi=new BABYLON.HemisphericLight('hemi',new BABYLON.Vector3(0,1,.2),scene);hemi.intensity=.85;hemi.diffuse=new BABYLON.Color3(.9,.85,.78);hemi.groundColor=new BABYLON.Color3(.32,.27,.20);var sun=new BABYLON.DirectionalLight('sun',new BABYLON.Vector3(-.6,-.5,.35),scene);sun.intensity=1.05;sun.diffuse=new BABYLON.Color3(1,.82,.58);
+  var battleGround=BattleSim.buildTerrain(scene);BattleSim.buildSky(scene);if(battleGround&&battleGround.material&&battleGround.material.diffuseTexture){battleGround.material.diffuseTexture.uScale=BattleSim.FIELD_W/20;battleGround.material.diffuseTexture.vScale=BattleSim.FIELD_D/20;battleGround.material.diffuseTexture.anisotropicFilteringLevel=8;}if(battleGround&&battleGround.refreshBoundingInfo)battleGround.refreshBoundingInfo();if(battleGround&&battleGround.getBoundingInfo){var bb=battleGround.getBoundingInfo().boundingBox;console.log('terrain bounds y='+bb.minimum.y.toFixed(2)+'..'+bb.maximum.y.toFixed(2));}
+  async function initializeBattle(){
+  loading.start('cover');await loading.frame();
+  var features=BattleTerrainFeatures.scatter(scene,BattleSim.heightAt,{fieldW:BattleSim.FIELD_W,fieldD:BattleSim.FIELD_D,scenarioSeed:liveSeed});
+  loading.done('cover',features.obstacles.length+' obstacles');loading.start('battle');await loading.frame();
+  var audioBase=window.BATTLE_AUDIO_BASE||'audio/',battle=BattleSim.start(scene,{timeScale:4,obstacles:features.obstacles,audioBase:audioBase});battle.pause();
+  /* Strategic overview moved to the full-screen reported-contact tactical map.
+     The old always-on spectator radar is removed: no privileged enemy roster. */
+
+  var usNums=document.getElementById('usNums'),geNums=document.getElementById('geNums'),squadsLeft=document.getElementById('squadsLeft'),objectiveStatus=document.getElementById('objectiveStatus'),clock=document.getElementById('clock'),seedShort=document.getElementById('seedShort'),banner=document.getElementById('banner'),bannerText=document.getElementById('bannerText'),bannerSub=document.getElementById('bannerSub');function fmtClock(t){var m=Math.floor(t/60),s=Math.floor(t%60);return m+':'+(s<10?'0':'')+s;}function aliveSquads(faction){return faction.squads.filter(function(sq){return sq.aliveCount>0;}).length;}
+  battle.onUpdate=function(sim){var us=sim.factions.us,ge=sim.factions.ge;usNums.textContent=us.alive+' alive · '+us.kills+' kills';geNums.textContent=ge.alive+' alive · '+ge.kills+' kills';squadsLeft.textContent=aliveSquads(us)+' / '+aliveSquads(ge)+' (US/GER)';clock.textContent=fmtClock(sim.time);var sc=sim.scene.metadata&&sim.scene.metadata.battleScenario;if(sc){seedShort.textContent=sc.seed;seedShort.title=sc.seed;}if(sim.objectiveControl){var c=sim.objectiveControl.counts||{},u=c.us||0,g=c.ge||0,total=sim.objectiveControl.total||Object.keys(sim.objectiveControl.objectives||{}).length;objectiveStatus.textContent=total&&u===total?'US held':total&&g===total?'GER held':u>g?'US '+u+' / '+g:u<g?'GER '+g+' / '+u:'contested '+u+' / '+g;}};
+  battle.onWinner=function(winner,sim){var label=winner==='draw'?'Draw':winner==='us'?'US forces win the field':'German forces win the field';showPostBattle(label,sim);console.log('winner='+winner,'time='+sim.time.toFixed(1));};
+  function showPostBattle(label,sim){bannerText.textContent=label;bannerSub.textContent='US '+sim.factions.us.alive+' alive ('+sim.factions.us.kills+' kills) · GER '+sim.factions.ge.alive+' alive ('+sim.factions.ge.kills+' kills) · '+fmtClock(sim.time);banner.style.display='flex';}
+  /* Both End battle controls use the same BattleControl route, including the
+     post-battle banner and its compact/full diagnostic export buttons. */
+  battle._showPostBattle=showPostBattle;
+  function endBattle(){if(typeof battle.endBattle==='function')battle.endBattle('manual');}
+  function restart(){banner.style.display='none';battle.restart();console.log('battle restarted');}document.getElementById('restartBtn').addEventListener('click',endBattle);document.getElementById('bannerRestart').addEventListener('click',restart);
+  var speedButtons=document.querySelectorAll('#controls button');speedButtons.forEach(function(btn){btn.addEventListener('click',function(){battle.setTimeScale(+btn.dataset.speed);speedButtons.forEach(function(b){b.classList.toggle('active',b===btn);});console.log('speed='+btn.dataset.speed+'x');});});window.__battleRenderLoop__=function(){scene.render();};engine.runRenderLoop(window.__battleRenderLoop__);/* iOS fires resize (and orientationchange) before it reports the rotated size, so the canvas kept its old width; resize again once the rotation settles, and whenever the canvas's own box changes. */var fitCanvas=function(){engine.resize();},settleCanvas=function(){fitCanvas();requestAnimationFrame(function(){fitCanvas();requestAnimationFrame(fitCanvas);});setTimeout(fitCanvas,300);};window.addEventListener('resize',settleCanvas);window.addEventListener('orientationchange',settleCanvas);if(window.visualViewport)window.visualViewport.addEventListener('resize',settleCanvas);if(window.ResizeObserver)new ResizeObserver(fitCanvas).observe(canvas);
+
+  /* A separate, one-soldier scene makes pose inspection deterministic and does not disturb
+     the live battle or trainer. It loads the same FBX soldier and clips as the battle. Movement
+     is passed virtually to the speed-sensitive backend while the visible root stays centered. */
+  (function setupMotionLab(){
+    var panel=document.getElementById('animationLab'),toggle=document.getElementById('animationLabToggle'),close=document.getElementById('animationLabClose'),canvas=document.getElementById('animationLabCanvas'),select=document.getElementById('animationLabPose'),source=document.getElementById('animationLabSource'),pauseButton=document.getElementById('animationLabPause'),frameInput=document.getElementById('animationLabFrame'),frameValue=document.getElementById('animationLabFrameValue');
+    var labEngine=null,labScene=null,labSoldier=null,labPose=select.value,last=0,labClock=0,labellingAt=0,labPaused=false,virtualX=0,virtualZ=0,FRAME_RATE=30;
+    /* pose -> [speed m/s, heading of travel relative to facing (rad)] */
+    var MOTION={walk:[1.5,0],'walk-aim':[1.5,0],strafe:[1.4,Math.PI/2],run:[3.9,0],sprint:[5.3,0],'crouch-walk':[1.4,0],'prone-crawl':[.45,0]};
+    function showFrame(frame){frameInput.value=Math.min(+frameInput.max,Math.max(0,frame));frameValue.textContent=frameInput.value+' / '+frameInput.max;}
+    function makePreview(){
+      if(labSoldier&&labSoldier.root)labSoldier.root.dispose();
+      var pose=labPose,from=pose.indexOf('>')>0?pose.split('>')[0]:pose;
+      labSoldier=BattleSoldierModel.createSoldier(labScene,'us','rifleman',null);labSoldier.root.position.set(0,0,0);labSoldier.root.rotation.y=Math.PI;
+      labSoldier.weapon=BattleWeapons.attachWeapon(labScene,labSoldier.weaponSocket,'rifle');labSoldier.speed=1;labSoldier.moveSpeed=0;labSoldier.target=null;labSoldier.crouching=false;labSoldier.prone=false;labSoldier.crawling=false;labSoldier.reloading=false;labSoldier.dead=false;
+      if(/aim|fire/.test(pose))labSoldier.target={root:{position:new BABYLON.Vector3(0,0,-20)}};
+      if(/^crouch/.test(from))labSoldier.crouching=true;
+      if(/^prone/.test(from)){labSoldier.prone=true;labSoldier.crawling=pose==='prone-crawl';}
+      if(pose==='reload'){labSoldier.reloading=true;BattleSoldierModel.triggerAnimation(labSoldier,BattleSoldierModel.TAGS.reload,{duration:2.6});}
+      if(pose==='fire')BattleSoldierModel.triggerAnimation(labSoldier,BattleSoldierModel.TAGS.fire,{});
+      if(pose.indexOf('death.')===0){labSoldier.dead=true;labSoldier.deathVariant=pose.slice(6);labSoldier.deathSide=1;labSoldier.deathTag=pose;BattleSoldierModel.triggerAnimation(labSoldier,pose,{});}
+      if(labSoldier._fbx)labSoldier._fbx.idleKey='idle';
+      last=performance.now();labClock=0;virtualX=0;virtualZ=0;showFrame(0);
+    }
+    function describe(){
+      var fx=labSoldier&&labSoldier._fbx;if(!fx){source.textContent=window.BattleFbxSoldier?'Procedural fallback rig (FBX soldier unavailable).':'Procedural rig.';return;}
+      var lower=fx.lower.entries[fx.lower.entries.length-1],upper=fx.overlay>.5&&fx.upper.entries[fx.upper.entries.length-1];
+      source.textContent='FBX clip: '+(lower?lower.clip.file:'—')+(upper?' + '+upper.clip.file+' (upper body)':'')+(lower&&lower.rate!==1?' · '+lower.rate.toFixed(2)+'×':'');
+    }
+    function step(dt,allowRestart){
+      labClock+=dt;
+      var pose=labPose,motion=MOTION[pose],root=labSoldier.root;
+      if(pose==='fire'&&labClock>1.1){labClock=0;BattleSoldierModel.triggerAnimation(labSoldier,BattleSoldierModel.TAGS.fire,{});}
+      else if(allowRestart&&((pose==='reload'&&labClock>3.4)||((pose.indexOf('death.')===0||pose.indexOf('>')>0)&&labClock>4.6))){makePreview();return;}
+      if(pose.indexOf('>')>0&&labClock>.7&&!labSoldier._labSwitched){labSoldier._labSwitched=true;var to=pose.split('>')[1];BattleSoldierModel.setProne(labSoldier,to==='prone');BattleSoldierModel.setCrouch(labSoldier,to==='crouch');}
+      if(motion){
+        /* Feed navigation speed to the clip selector without moving the visible model. The FBX
+           backend already strips looping hips travel; only this lab's synthetic root moved. */
+        var heading=root.rotation.y+motion[1];virtualX+=Math.sin(heading)*motion[0]*dt;virtualZ+=Math.cos(heading)*motion[0]*dt;
+        root.position.x=virtualX;root.position.z=virtualZ;
+      }
+      BattleSoldierModel.animateWalk(labSoldier,dt,motion?Math.min(1,motion[0]/5.3):0);
+      root.position.x=0;root.position.z=0;
+      if(allowRestart)showFrame(Math.floor(labClock*FRAME_RATE)% (+frameInput.max+1));
+    }
+    function seekFrame(frame){
+      if(!labSoldier)return;
+      labPaused=true;pauseButton.textContent='Play';
+      frame=Math.min(+frameInput.max,Math.max(0,Math.round(+frame||0)));
+      makePreview();
+      for(var i=0;i<frame;i++)step(1/FRAME_RATE,false);
+      showFrame(frame);describe();labScene.render();
+    }
+    function init(){
+      if(labEngine)return;labEngine=new BABYLON.Engine(canvas,true,{stencil:false,preserveDrawingBuffer:false,audioEngine:false});labScene=new BABYLON.Scene(labEngine);labScene.clearColor=new BABYLON.Color4(.12,.15,.11,1);
+      var camera=new BABYLON.ArcRotateCamera('motionLabCamera',-Math.PI/2,1.08,3.6,new BABYLON.Vector3(0,.82,0),labScene);camera.lowerRadiusLimit=1.6;camera.upperRadiusLimit=7;camera.wheelPrecision=20;camera.attachControl(canvas,true);
+      var hemi=new BABYLON.HemisphericLight('motionLabHemi',new BABYLON.Vector3(.25,1,.1),labScene);hemi.intensity=.95;var sun=new BABYLON.DirectionalLight('motionLabSun',new BABYLON.Vector3(-.4,-1,.25),labScene);sun.intensity=.55;
+      var floor=BABYLON.MeshBuilder.CreateGround('motionLabFloor',{width:5,height:5},labScene),mat=new BABYLON.StandardMaterial('motionLabFloorMat',labScene);mat.diffuseColor=new BABYLON.Color3(.21,.25,.17);mat.specularColor=BABYLON.Color3.Black();floor.material=mat;floor.isPickable=false;
+      Promise.resolve(BattleSoldierModel.preload?BattleSoldierModel.preload(labScene):null).then(makePreview,makePreview);
+      labEngine.runRenderLoop(function(){if(!labScene)return;var now=performance.now(),dt=Math.min(.05,Math.max(.001,(now-last)/1000));last=now;
+        if(labSoldier){if(!labPaused)step(dt,true);if(now-labellingAt>400){labellingAt=now;describe();}}
+        labScene.render();});
+      window.addEventListener('resize',function(){if(labEngine)labEngine.resize();});
+    }
+    function open(value){panel.hidden=!value;toggle.hidden=!!value;if(value){init();labEngine.resize();}}
+    toggle.addEventListener('click',function(){open(true);});close.addEventListener('click',function(){open(false);});select.addEventListener('change',function(){labPose=select.value;if(labScene&&labSoldier)makePreview();});
+    pauseButton.addEventListener('click',function(){labPaused=!labPaused;pauseButton.textContent=labPaused?'Play':'Pause';last=performance.now();});
+    frameInput.addEventListener('input',function(){frameValue.textContent=frameInput.value+' / '+frameInput.max;});
+    frameInput.addEventListener('change',function(){seekFrame(frameInput.value);});
+    window.__battleMotionLab={state:function(){var fx=labSoldier&&labSoldier._fbx,p=labSoldier&&labSoldier.root.position;return{pose:labPose,frame:+frameInput.value,paused:labPaused,rootX:p&&p.x||0,rootZ:p&&p.z||0,twoHand:fx&&fx.twoHand||0,supportErrorCm:fx&&fx.supportErrorCm,clip:source.textContent};}};
+  })();
+  var startBtn=document.getElementById('startBtn');
+  async function unlockAudio(){
+    var ae=window.BattleAudioBackend?BattleAudioBackend.engine():BABYLON.Engine.audioEngine;
+    if(!ae){console.error('[AUDIO] Babylon engine missing');return false;}
+    try{
+      // Babylon 9 unlock() returns void. Start native resume inside the gesture,
+      // then verify the real context before allowing either Start or Skills Play.
+      var ctx=ae.audioContext;
+      if(!ctx){console.error('[AUDIO] Audio context missing');return false;}
+      var resuming=ctx.state!=='running'&&ctx.resume?ctx.resume():Promise.resolve();
+      var unlocking=typeof ae.unlock==='function'?ae.unlock():undefined;
+      await Promise.all([resuming,unlocking]);
+      if(ctx.state==='running'&&typeof ae.unlock==='function')ae.unlock();
+      var ready=ctx.state==='running';
+      console.log('[AUDIO] context='+(ctx&&ctx.state||'unknown')+' unlocked='+ae.unlocked+
+        ' mix='+JSON.stringify(window.BattleAudioMix?BattleAudioMix.get():null));
+      if(!ready)console.warn('[AUDIO] Audio context not running; use a click/tap to enable sound.');
+      if(ready)enableLiveAudioMeter();
+      return ready;
+    }catch(e){console.error('[AUDIO] unlock failed',e);return false;}
+  }
+  window.__battleUnlockAudio__=unlockAudio;
+  // Opt-in continuous master-output trace for real battles (?audioDiag=1).
+  // Audio-only synthetic lab uses the same analyser route, but has no renderer or AI.
+  var liveAudioHistory=[],liveAudioMeter=null,liveAudioMeterTimer=null;
+  var audioContinuity=[],audioEvents=[],audioMarkers=[],lastAudioSample=null,lastAudioState='';
+  var liveAudioData=null,liveMeterNode=null,meterChunks=[];
+  function audioCopy(value){return value==null?null:JSON.parse(JSON.stringify(value));}
+  function liveOutput(){
+    if(!liveAudioMeter)return null;
+    var data=liveAudioData,sum=0,peak=0;
+    liveAudioMeter.getFloatTimeDomainData(data);
+    for(var i=0;i<data.length;i++){sum+=data[i]*data[i];peak=Math.max(peak,Math.abs(data[i]));}
+    return {rms:+Math.sqrt(sum/data.length).toFixed(6),peak:+peak.toFixed(5)};
+  }
+  function audioEvent(kind){
+    audioEvents.push({kind:kind,realMs:performance.now(),simTime:battle.time,
+      speed:battle.timeScale,paused:battle.paused,visibility:document.visibilityState,
+      fullscreen:!!document.fullscreenElement,focused:document.hasFocus()});
+    if(audioEvents.length>240)audioEvents.shift();
+  }
+  window.__battleMarkAudioSilence__=function(){
+    if(!liveAudioMeter)return false;
+    audioEvent('user-heard-silence');
+    audioMarkers.push(audioCopy({event:audioEvents[audioEvents.length-1],
+      preceding:audioContinuity.slice(),history:liveAudioHistory.slice()}));
+    if(audioMarkers.length>3)audioMarkers.shift();
+    return true;
+  };
+  function enableLiveAudioMeter(){
+    if(new URLSearchParams(location.search).get('audioDiag')!=='1'||liveAudioMeter)return;
+    var ae=(window.BattleAudioBackend?BattleAudioBackend.engine():BABYLON.Engine.audioEngine),ctx=ae&&ae.audioContext,master=ae&&ae.masterGain;
+    if(!ctx||!master||!ctx.createAnalyser)return;
+    try{
+      liveAudioMeter=ctx.createAnalyser();liveAudioMeter.fftSize=2048;
+      liveAudioData=new Float32Array(liveAudioMeter.fftSize);
+      var tap=ctx.createGain();tap.gain.value=0;
+      master.connect(liveAudioMeter);liveAudioMeter.connect(tap);tap.connect(ctx.destination);
+      // Audio-thread meter: every ~100 ms of rendered audio is measured, whatever the
+      // main thread is doing. The 2048-sample analyser read above covers only ~43 ms
+      // per timer tick, and timer ticks starve at low frame rates.
+      if(ctx.audioWorklet&&window.AudioWorkletNode&&window.Blob&&window.URL){
+        var meterCode="registerProcessor('grasstex-meter',class extends AudioWorkletProcessor{"+
+          "constructor(){super();this.b=0;this.q=0;this.f=0;this.m=0;}"+
+          "process(inputs){var ch=inputs[0]||[],n=ch.length&&ch[0].length||128,q=0;"+
+          "for(var c=0;c<ch.length;c++)for(var k=0;k<ch[c].length;k++)q+=ch[c][k]*ch[c][k];"+
+          "q/=Math.max(1,ch.length);this.q+=q;this.f+=n;var r=Math.sqrt(q/n);if(r>this.m)this.m=r;"+
+          "if(++this.b>=37){this.port.postMessage({frames:this.f,rms:Math.sqrt(this.q/this.f),peakBlockRms:this.m});"+
+          "this.b=0;this.q=0;this.f=0;this.m=0;}return true;}})";
+        ctx.audioWorklet.addModule(URL.createObjectURL(new Blob([meterCode],{type:'application/javascript'}))).then(function(){
+          liveMeterNode=new AudioWorkletNode(ctx,'grasstex-meter');
+          liveMeterNode.port.onmessage=function(e){meterChunks.push(e.data);if(meterChunks.length>600)meterChunks.shift();};
+          master.connect(liveMeterNode);liveMeterNode.connect(tap);
+        }).catch(function(e){audioEvent('meter-worklet-failed');});
+      }
+      ['visibilitychange','fullscreenchange'].forEach(function(name){document.addEventListener(name,function(){audioEvent(name);});});
+      ['focus','blur'].forEach(function(name){window.addEventListener(name,function(){audioEvent(name);});});
+      ctx.addEventListener('statechange',function(){audioEvent('context:'+ctx.state);});
+      var lastStarts=0,lastInRange=0,lastDetailMs=-Infinity;
+      liveAudioMeterTimer=setInterval(function(){
+        var real=performance.now(),clock=ctx.currentTime,now=liveOutput(),stamp=null;
+        try{stamp=ctx.getOutputTimestamp?ctx.getOutputTimestamp():null;}catch(_){}
+        var sample={realMs:real,simTime:battle.time,speed:battle.timeScale,paused:battle.paused,
+          context:ctx.state,contextTime:clock,outputTimestamp:stamp,output:now,
+          wallDeltaMs:lastAudioSample?real-lastAudioSample.realMs:null,
+          contextDeltaMs:lastAudioSample?(clock-lastAudioSample.contextTime)*1000:null};
+        sample.clockStalled=!!(lastAudioSample&&ctx.state==='running'&&lastAudioSample.context==='running'&&sample.wallDeltaMs>=100&&sample.contextDeltaMs<1);
+        // A running context can render slowly without ever freezing for a whole
+        // sample. Compare clock progress over >=1 wall second as well.
+        var reference=null;
+        for(var j=audioContinuity.length-1;j>=0;j--){
+          if(real-audioContinuity[j].realMs>=1000){reference=audioContinuity[j];break;}
+        }
+        sample.clockProgressRatio=null;sample.clockLagMs=null;sample.outputProgressRatio=null;
+        if(reference&&reference.context==='running'&&ctx.state==='running'){
+          var span=real-reference.realMs,progress=(clock-reference.contextTime)*1000;
+          sample.clockProgressRatio=progress/span;sample.clockLagMs=span-progress;
+          var oldStamp=reference.outputTimestamp;
+          if(stamp&&oldStamp&&stamp.contextTime>0&&oldStamp.contextTime>0)
+            sample.outputProgressRatio=(stamp.contextTime-oldStamp.contextTime)*1000/span;
+        }
+        sample.clockSlow=sample.clockProgressRatio!==null&&sample.clockProgressRatio<0.8;
+
+        audioContinuity.push(sample);if(audioContinuity.length>1200)audioContinuity.shift();
+        lastAudioSample=sample;
+        var state=[battle.timeScale,battle.paused,ctx.state].join(':');
+        if(state!==lastAudioState){audioEvent('playback-state');lastAudioState=state;}
+        if(real-lastDetailMs<1000)return;
+        lastDetailMs=real;
+        var w=battle._weaponAudio&&battle._weaponAudio.summary(),starts=w&&w.playRequests||0,
+          be=window.BattleAudioBackend&&BattleAudioBackend.summary(),inRange=be&&be.inRangeStarts||0;
+        var chunks=meterChunks.splice(0),frames=0,maxRms=0;
+        chunks.forEach(function(c){frames+=c.frames;maxRms=Math.max(maxRms,c.rms);});
+        var record=Object.assign({},sample,{
+          audioWindow:{source:liveMeterNode?'worklet':'none',chunks:chunks.length,
+            audioMs:+(frames/ctx.sampleRate*1000).toFixed(1),maxRms:+maxRms.toFixed(6),
+            chunkRms:chunks.map(function(c){return +c.rms.toFixed(6);})},
+          active:w&&w.active||0,weaponStarts:starts,deltaWeaponStarts:starts-lastStarts,deltaInRangeStarts:inRange-lastInRange,
+          weapon:w,weaponPools:battle._weaponAudio&&battle._weaponAudio.detail(),
+          backend:be,
+          queue:window.BattleAudioScheduler&&BattleAudioScheduler.pressure,
+          scheduler:window.BattleAudioScheduler&&BattleAudioScheduler.stats,
+          voice:window.BattleVoiceScheduler&&BattleVoiceScheduler.summary?BattleVoiceScheduler.summary():null,
+          grenade:battle._grenadeAudio,combat:battle._combatAudio,foley:battle._weaponFoley});
+        lastStarts=starts;lastInRange=inRange;
+        liveAudioHistory.push(audioCopy(record));if(liveAudioHistory.length>240)liveAudioHistory.shift();
+      },100);
+    }catch(err){console.error('[AUDIO] passive output analyser failed',err);}
+  }
+  window.__battleAudioDiagnostics__=function(){
+    var ae=(window.BattleAudioBackend?BattleAudioBackend.engine():BABYLON.Engine.audioEngine),wa=battle._weaponAudio;
+    return {context:ae&&ae.audioContext&&ae.audioContext.state,
+      unlocked:ae&&ae.unlocked,masterGain:ae&&ae.masterGain&&ae.masterGain.gain.value,
+      mix:window.BattleAudioMix&&BattleAudioMix.get(),
+      mixRuntime:window.BattleAudioMix&&{tacticalSafety:BattleAudioMix.tacticalSafety,
+        stats:BattleAudioMix.stats},
+      weapon:wa&&wa.summary(),weaponPools:wa&&wa.detail?wa.detail():null,
+      scheduler:window.BattleAudioScheduler&&BattleAudioScheduler.stats,
+      queue:window.BattleAudioScheduler&&BattleAudioScheduler.queued,
+      acoustics:window.BattleListenerAcoustics&&BattleListenerAcoustics.stats,
+      acousticActive:window.BattleListenerAcoustics&&BattleListenerAcoustics.active,
+      voice:window.BattleVoiceScheduler&&BattleVoiceScheduler.summary?BattleVoiceScheduler.summary():null,
+      grenade:battle._grenadeAudio,combat:battle._combatAudio,foley:battle._weaponFoley,
+      audioFormat:window.BattleAudioFormat&&BattleAudioFormat.state,
+      output:liveOutput(),outputHistory:audioCopy(liveAudioHistory),
+      continuity:audioCopy(audioContinuity),events:audioCopy(audioEvents),silenceMarkers:audioCopy(audioMarkers),
+      diagnosticVersion:4,
+      environment:{userAgent:navigator.userAgent,build:window.BATTLE_BUILD_DEPLOYED||BUILD,
+        ref:window.BATTLE_REF||null,sampleRate:ae&&ae.audioContext&&ae.audioContext.sampleRate,
+        baseLatency:ae&&ae.audioContext&&ae.audioContext.baseLatency,
+        outputLatency:ae&&ae.audioContext&&ae.audioContext.outputLatency,
+        meterPosition:'master-before-device',sampleIntervalMs:100},
+      sceneAudioEnabled:scene.audioEnabled,
+      backend:window.BattleAudioBackend&&BattleAudioBackend.summary(),
+      acousticQuality:window.BattleListenerAcoustics&&BattleListenerAcoustics.quality,
+      mixMode:window.BattleAudioMix?(BattleAudioMix.legacy?'legacy':BattleAudioMix.tacticalSafety?'tactical':'main'):null,
+      paused:battle.paused,time:battle.time};
+  };
+  async function startBattle(){
+    if(!await unlockAudio()){console.warn('[AUDIO] Could not start with sound; click Start battle again.');return;}
+    battle.resume();startBtn.hidden=true;
+    document.removeEventListener('pointerdown',unlockAudio);
+    document.removeEventListener('touchend',unlockAudio);
+    console.log('battle started');
+  }
+  startBtn.addEventListener('click',startBattle);
+  document.addEventListener('pointerdown',unlockAudio,{once:true});
+  document.addEventListener('touchend',unlockAudio,{once:true});
+
+  var hud=document.getElementById('hud'),hudToggle=document.getElementById('hudToggle'),hudClose=document.getElementById('hudClose');function setHudCollapsed(v){hud.classList.toggle('collapsed',!!v);hudToggle.style.display=v?'block':'none';try{localStorage.setItem('battleAiHudCollapsed',v?'1':'0');}catch(_){}}hudClose.addEventListener('click',function(){setHudCollapsed(true);});hudToggle.addEventListener('click',function(){setHudCollapsed(false);});try{setHudCollapsed(localStorage.getItem('battleAiHudCollapsed')==='1');}catch(_){}
+  window.__battle__=battle;window.__scenario__=scenario;console.log('Battle Sim ready; obstacles='+features.obstacles.length+' navWindows='+(BattleNavigation&&BattleNavigation.windowSlots?BattleNavigation.windowSlots.length:0));
+  loading.done('battle');
+  }
+  loading.done('terrain');loading.start('soldiers');await loading.frame();
+  var soldierPreload=BattleSoldierModel&&BattleSoldierModel.preload?BattleSoldierModel.preload(scene):null;
+  if(soldierPreload&&typeof soldierPreload.then==='function')await soldierPreload;
+  if(!window.BattleFbxSoldier)throw new Error('the FBX soldier backend did not load');
+  loading.done('soldiers');
+  await initializeBattle();
+  loading.finish();
+})().catch(function(error){window.BattleLoading.fail(error);console.error('[LOAD] battle failed to initialise',error);});
+</script>
+</body>
+</html>

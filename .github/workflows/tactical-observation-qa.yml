@@ -1,0 +1,133 @@
+name: ⭐ Tactical Observation Browser QA
+on:
+  pull_request:
+    # Heavy checks run when a draft is promoted for review, not on every push.
+    types: [ready_for_review]
+    paths:
+      - battle/engagement.js
+      - battle/modules/13c-tactical-march-provider.js
+      - battle/modules/13d-tactical-contact-skills.js
+      - battle/modules/13e-tactical-covered-maneuver.js
+      - scripts/probes/probe_tactical_contact.cjs
+      - battle/modules/19-engagement-cover-positions.js
+      - battle/modules/19b-engagement-fire-stance.js
+      - battle/squad-ai.js
+      - battle/modules/15j-squad-leader-fire-and-movement.js
+      - battle/modules/15c-squad-leader-scouts-forward.js
+      - battle/modules/15d-squad-leader-leaderless-intent.js
+      - battle/modules/15n-squad-leader-local-plan.js
+      - battle/modules/15o-squad-leader-tactical-postures.js
+      - battle/modules/15l-squad-leader-mission-execution.js
+      - battle/modules/16-squad-plan-stability.js
+      - battle/commander-ai.js
+      - battle/modules/54-tactical-situation.js
+      - battle/modules/54a-urban-operating-picture.js
+      - battle/modules/97-ai-timeline-recorder.js
+      - battle/modules/99-session-diagnostics-export.js
+      - ai_flow_live.html
+      - scripts/probes/probe_tactical_observation.cjs
+      - scripts/probes/probe_structure_execution.cjs
+      - scripts/probes/probe_tactical_postures.cjs
+      - scripts/probes/probe_covered_maneuver.cjs
+      - scripts/probes/probe_effective_fire.cjs
+      - battle/modules/15h-squad-leader-fireteams.js
+      - .github/workflows/tactical-observation-qa.yml
+  workflow_dispatch:
+# A subsequent ready-for-review replaces any incomplete same-PR run.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+jobs:
+  observer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Chromium
+        run: |
+          npm install --no-save playwright@1.58.2
+          npx playwright install --with-deps chromium
+      - name: Probe current-head preview
+        env:
+          TACTICAL_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          TACTICAL_PREVIEW: https://test.ivandpopov.com/grasstex/preview.php?ref=${{ github.head_ref || github.ref_name }}
+        run: node scripts/probes/probe_tactical_observation.cjs
+        # preview.php resolves branches, then the probe checks the staged head SHA.
+
+      - name: Staged autonomous building execution
+        env:
+          TACTICAL_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          TACTICAL_PREVIEW: https://test.ivandpopov.com/grasstex/preview.php?ref=${{ github.head_ref || github.ref_name }}
+        run: node scripts/probes/probe_structure_execution.cjs
+
+      - name: Staged concealed ambush execution
+        env:
+          TACTICAL_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          TACTICAL_PREVIEW: https://test.ivandpopov.com/grasstex/preview.php?ref=${{ github.head_ref || github.ref_name }}
+        run: node scripts/probes/probe_tactical_postures.cjs
+
+      - name: C3 effective firing and queued voice eligibility
+        env:
+          TACTICAL_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          TACTICAL_PREVIEW: https://test.ivandpopov.com/grasstex/preview.php?ref=${{ github.head_ref || github.ref_name }}
+        run: node scripts/probes/probe_effective_fire.cjs
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tactical-observation-evidence
+          path: closeups/tactical-observation/
+
+  covered-bound:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Chromium
+        run: |
+          npm install --no-save playwright@1.58.2
+          npx playwright install --with-deps chromium
+      - name: Real-map covered-bound physical evidence
+        env:
+          TACTICAL_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          TACTICAL_PREVIEW: https://test.ivandpopov.com/grasstex/preview.php?ref=${{ github.head_ref || github.ref_name }}
+        run: node scripts/probes/probe_covered_maneuver.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: covered-bound-evidence
+          path: |
+            closeups/tactical-observation/covered-bound-*.png
+            closeups/tactical-observation/covered-bound-*.json
+
+  contact-preview:
+    uses: ./.github/workflows/deploy-50webs-preview.yml
+    with:
+      ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      preview_slug: ${{ github.event.pull_request.number && format('pr-{0}', github.event.pull_request.number) || github.ref_name }}
+    secrets: inherit
+
+  tactical-contact:
+    needs: contact-preview
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Chromium
+        run: |
+          npm install --no-save playwright@1.58.2
+          npx playwright install --with-deps chromium
+      - name: Flag-on natural census and native contact execution
+        env:
+          TACTICAL_DIRECT_PREVIEW: https://test.ivandpopov.com/grasstex/preview/${{ needs.contact-preview.outputs.preview_slug }}/battle_sim.php
+          TACTICAL_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          TACTICAL_PREVIEW: https://test.ivandpopov.com/grasstex/preview.php?ref=${{ github.head_ref || github.ref_name }}
+        run: node scripts/probes/probe_tactical_contact.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tactical-contact-evidence
+          path: closeups/tactical-contact/

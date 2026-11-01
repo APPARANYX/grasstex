@@ -1,0 +1,440 @@
+name: ⭐ M3C Battle Benchmark Matrix
+
+on:
+  workflow_dispatch:
+    inputs:
+      battles_per_worker:
+        description: Battles requested per worker (30 workers; 10 = 300 total)
+        required: false
+        default: '10'
+      worker_minutes_cutoff:
+        description: Wall-clock minutes per worker before preserving a partial report
+        required: false
+        default: '10'
+      seed:
+        description: Deterministic seed prefix
+        required: false
+        default: 'manual-benchmark'
+  push:
+    tags:
+      - 'benchmark-*'
+
+permissions:
+  contents: read
+
+jobs:
+  validate-source:
+    name: Verify benchmark source is on main
+    runs-on: ubuntu-latest
+    outputs:
+      source_sha: ${{ steps.source.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Validate source commit
+        id: source
+        env:
+          SOURCE_REF: ${{ github.ref }}
+          SOURCE_EVENT: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          if [ "$SOURCE_EVENT" = workflow_dispatch ] && [ "$SOURCE_REF" != refs/heads/main ]; then
+            echo 'Manual benchmarks must be dispatched from main.' >&2
+            exit 1
+          fi
+          git fetch origin main
+          source_sha="$(git rev-parse HEAD)"
+          if ! git merge-base --is-ancestor "$source_sha" origin/main; then
+            echo 'Benchmark tags must point to a commit already merged into main.' >&2
+            exit 1
+          fi
+          echo "sha=$source_sha" >> "$GITHUB_OUTPUT"
+
+  benchmark:
+    name: ${{ matrix.battle_type }} · worker ${{ matrix.shard }}/10
+    needs: validate-source
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        battle_type: [meeting, us-defend, ge-defend]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    env:
+      BATTLE_BENCHMARK_SOURCE_SHA: ${{ needs.validate-source.outputs.source_sha }}
+      BATTLE_BENCHMARK_COUNT: ${{ github.event.inputs.battles_per_worker || '10' }}
+      BATTLE_BENCHMARK_WORKER_MINUTES: ${{ github.event.inputs.worker_minutes_cutoff || '10' }}
+      BATTLE_BENCHMARK_OUTPUT: reports
+      BATTLE_BENCHMARK_TIME_LIMIT: '600'
+      BATTLE_BENCHMARK_STEP: '0.15'
+
+    steps:
+      - name: Checkout verified source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.validate-source.outputs.source_sha }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install browser harness
+        run: |
+          npm install --no-save --no-package-lock playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Start local battle server
+        run: |
+          php -v
+          rm -rf /tmp/battle-www
+          mkdir -p /tmp/battle-www
+          ln -s "$GITHUB_WORKSPACE" /tmp/battle-www/grasstex
+          # Keep concurrent image/asset reads from queueing behind the benchmark page load.
+          PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8765 -t /tmp/battle-www >/tmp/battle-php.log 2>&1 &
+          echo $! > /tmp/battle-php.pid
+          for i in $(seq 1 30); do
+            if curl -fsS "http://127.0.0.1:8765/grasstex/battle_sim_local.php?seed=healthcheck" >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/battle-php.log
+          exit 1
+
+      - name: Run failsafe battle worker
+        env:
+          BASE_SEED: ${{ github.event.inputs.seed || format('benchmark-{0}', github.run_number) }}
+          SHARD: ${{ matrix.shard }}
+          BATTLE_TYPE: ${{ matrix.battle_type }}
+        run: |
+          set -euo pipefail
+          case "$BATTLE_TYPE" in
+            meeting) defender_query='' ;;
+            us-defend) defender_query='?defender=us' ;;
+            ge-defend) defender_query='?defender=ge' ;;
+            *) echo "Unknown battle type: $BATTLE_TYPE" >&2; exit 2 ;;
+          esac
+          export BATTLE_BENCHMARK_URL="http://127.0.0.1:8765/grasstex/battle_sim_local.php${defender_query}"
+          export BATTLE_BENCHMARK_SEED="${BASE_SEED}-${BATTLE_TYPE}-s${SHARD}"
+          echo "Running ${BATTLE_TYPE} worker ${SHARD}: ${BATTLE_BENCHMARK_COUNT} requested battles, ${BATTLE_BENCHMARK_WORKER_MINUTES} minute cap"
+          bash scripts/run_battle_benchmark_worker.sh
+
+      - name: Upload worker report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: battle-benchmark-${{ matrix.battle_type }}-shard-${{ matrix.shard }}-${{ github.run_number }}
+          path: reports/
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Show server log on failure
+        if: failure()
+        run: tail -n 300 /tmp/battle-php.log || true
+
+  merge:
+    name: Merge available benchmark matrix
+    needs: [validate-source, benchmark]
+    if: always() && !cancelled() && needs.validate-source.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      BATTLE_BENCHMARK_SOURCE_SHA: ${{ needs.validate-source.outputs.source_sha }}
+      BENCHMARK_RESULT: ${{ needs.benchmark.result }}
+      BATTLES_PER_WORKER: ${{ github.event.inputs.battles_per_worker || '10' }}
+      WORKER_MINUTES_CUTOFF: ${{ github.event.inputs.worker_minutes_cutoff || '10' }}
+      EXPECTED_SHARDS: '30'
+    permissions:
+      contents: write
+    concurrency:
+      group: battle-benchmark-results-publish
+      cancel-in-progress: false
+    steps:
+      - name: Checkout verified source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.validate-source.outputs.source_sha }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Download available worker reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: battle-benchmark-*-shard-*-${{ github.run_number }}
+          path: shard-reports
+
+      - name: Merge available benchmark reports
+        run: |
+          set -euo pipefail
+          reports="$(find shard-reports -name battle-benchmark.json -type f | wc -l | tr -d ' ')"
+          if [ "$reports" -lt 1 ]; then
+            echo 'No successful worker report is available to merge.' >&2
+            exit 1
+          fi
+          echo "Merging ${reports}/${EXPECTED_SHARDS} scenario/worker reports."
+          node scripts/merge_battle_benchmarks.mjs
+
+      - name: Stamp matrix failsafe profile
+        if: success()
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const p = 'reports/battle-benchmark.json';
+          const r = JSON.parse(fs.readFileSync(p, 'utf8'));
+          const per = Number(process.env.BATTLES_PER_WORKER || 10);
+          const expected = per * Number(process.env.EXPECTED_SHARDS || 30);
+          r.summary = r.summary || {};
+          r.summary.expectedBattles = expected;
+          r.summary.battlesPerWorker = per;
+          r.summary.workerMinutesCutoff = Number(process.env.WORKER_MINUTES_CUTOFF || 10);
+          r.summary.missingBattles = Math.max(0, expected - Number(r.summary.completedBattles || 0));
+          const byType = r.summary.battleTypes || {};
+          const perType = per * 10;
+          r.summary.scenarioCoverage = Object.fromEntries(['meeting','us-defend','ge-defend'].map(type => [
+            type, {
+              expected: perType,
+              completed: Number(byType[type]?.completedBattles || 0),
+              missing: Math.max(0, perType - Number(byType[type]?.completedBattles || 0))
+            }
+          ]));
+          const diag = r.summary.diagnosticAudit;
+          r.summary.validation = {
+            complete: r.summary.completedBattles === expected &&
+              Object.values(r.summary.scenarioCoverage).every(x => x.missing === 0),
+            diagnosticsValid: diag?.ok === true,
+            recordedBattles: r.summary.completedBattles,
+            expectedBattles: expected,
+            issues: diag?.issueCounts || { 'missing-diagnostic-audit': 1 }
+          };
+          fs.writeFileSync(p, JSON.stringify(r, null, 2) + '\n');
+          let md = fs.readFileSync('reports/battle-benchmark.md', 'utf8');
+          md = md.replace(/- Completed: \*\*\d+\/\d+\*\*/, `- Completed: **${r.summary.completedBattles}/${expected} expected**`);
+          md = md.replace(/^(# .*\n)/, `$1\n- Worker settings: **${per} battles/worker** · **${r.summary.workerMinutesCutoff} min cutoff**\n`);
+          fs.writeFileSync('reports/battle-benchmark.md', md);
+          NODE
+
+      - name: Generate automatic diagnostic investigation queue
+        if: success()
+        run: |
+          node scripts/triage_battle_diagnostics.cjs reports/battle-benchmark.json reports
+          cat reports/diagnostic-triage.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Prepare persistent report bundle
+        if: success()
+        run: |
+          set -euo pipefail
+          rm -rf persistent-result
+          mkdir -p persistent-result
+          cp reports/battle-benchmark.md persistent-result/
+          cp reports/battle-benchmark.csv persistent-result/
+          cp reports/diagnostic-triage.md persistent-result/
+          cp reports/diagnostic-triage.json persistent-result/
+          node <<'NODE'
+          const fs = require('fs');
+          const report = JSON.parse(fs.readFileSync('reports/battle-benchmark.json', 'utf8'));
+          const expectedBattles = Number(process.env.BATTLES_PER_WORKER || 10) * Number(process.env.EXPECTED_SHARDS || 30);
+          const completedBattles = Number(report.summary && report.summary.completedBattles || 0);
+          const diag = report.summary?.diagnosticAudit || null;
+          const validation = report.summary?.validation || {};
+          const status = !validation.diagnosticsValid ? 'invalid' :
+            validation.complete ? 'complete' : 'partial';
+          const compact = {
+            status,
+            diagnosticIntegrityOk: validation.diagnosticsValid === true,
+            diagnosticIssueCounts: diag?.issueCounts || {},
+            diagnosticRecords: diag?.totals?.validBattles || 0,
+            diagnosticSamples: diag?.totals?.timelineSamples || 0,
+            diagnosticObserverWindows: diag?.totals?.observerWindows || 0,
+            scenarioCoverage: report.summary?.scenarioCoverage || {},
+            runNumber: Number(process.env.GITHUB_RUN_NUMBER),
+            runId: Number(process.env.GITHUB_RUN_ID),
+            sourceSha: process.env.BATTLE_BENCHMARK_SOURCE_SHA,
+            expectedBattles,
+            completedBattles,
+            missingBattles: Math.max(0, expectedBattles - completedBattles),
+            battlesPerWorker: Number(process.env.BATTLES_PER_WORKER || 10),
+            workerMinutesCutoff: Number(process.env.WORKER_MINUTES_CUTOFF || 10),
+            actionsUrl: `https://github.com/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`,
+            summary: report.summary || {},
+            policy: report.policy ? {
+              source: report.policy.source || null,
+              revision: report.policy.revision ?? null,
+              genomeVersion: report.policy.genome && report.policy.genome.version || null
+            } : null
+          };
+          fs.writeFileSync('persistent-result/battle-benchmark-summary.json', JSON.stringify(compact, null, 2) + '\n');
+          NODE
+
+      - name: Publish benchmark summary
+        if: always()
+        run: |
+          if [ -f reports/battle-benchmark.md ]; then
+            cat reports/battle-benchmark.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo '## Battle benchmark did not produce a merged report' >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload merged benchmark report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: battle-benchmark-merged-${{ github.run_number }}
+          path: reports/
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Publish persistent benchmark result
+        if: success()
+        env:
+          RESULTS_BRANCH: benchmark-results
+        run: |
+          set -euo pipefail
+          bundle="$(mktemp -d)"
+          cp -a persistent-result/. "$bundle/"
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+
+          if git ls-remote --exit-code --heads origin "$RESULTS_BRANCH" >/dev/null 2>&1; then
+            git fetch origin "$RESULTS_BRANCH:refs/remotes/origin/$RESULTS_BRANCH"
+            git switch -C "$RESULTS_BRANCH" "origin/$RESULTS_BRANCH"
+          else
+            git switch --orphan "$RESULTS_BRANCH"
+            git rm -rf . || true
+          fi
+
+          run_dir="benchmarks/results/runs/${GITHUB_RUN_NUMBER}"
+          mkdir -p "$run_dir"
+          cp -a "$bundle/." "$run_dir/"
+
+          existing=0
+          if [ -f benchmarks/results/status.json ]; then
+            existing="$(node -e "try{const x=require('./benchmarks/results/status.json');process.stdout.write(String(Number(x.runNumber)||0))}catch(e){process.stdout.write('0')}")"
+          fi
+
+          if [ "${GITHUB_RUN_NUMBER}" -ge "$existing" ]; then
+            rm -rf benchmarks/results/latest
+            mkdir -p benchmarks/results/latest
+            cp -a "$bundle/." benchmarks/results/latest/
+            node <<'NODE'
+            const fs = require('fs');
+            const compact = JSON.parse(fs.readFileSync('benchmarks/results/latest/battle-benchmark-summary.json', 'utf8'));
+            const s = compact.summary || {}, issues = s.issueCounts || {}, health = s.health || {};
+            const status = {
+              status: compact.status || 'invalid',
+              diagnosticIntegrityOk: compact.diagnosticIntegrityOk === true,
+              diagnosticIssueCounts: compact.diagnosticIssueCounts || {},
+              diagnosticRecords: compact.diagnosticRecords ?? null,
+              diagnosticSamples: compact.diagnosticSamples ?? null,
+              diagnosticObserverWindows: compact.diagnosticObserverWindows ?? null,
+              scenarioCoverage: compact.scenarioCoverage || {},
+              runNumber: compact.runNumber,
+              runId: compact.runId,
+              sourceSha: compact.sourceSha,
+              completedAt: s.generatedAt || new Date().toISOString(),
+              expectedBattles: compact.expectedBattles ?? null,
+              requestedBattles: s.requestedBattles ?? null,
+              completedBattles: s.completedBattles ?? compact.completedBattles ?? null,
+              missingBattles: compact.missingBattles ?? null,
+              battlesPerWorker: compact.battlesPerWorker ?? null,
+              workerMinutesCutoff: compact.workerMinutesCutoff ?? null,
+              usWins: s.winners && s.winners.us || 0,
+              geWins: s.winners && s.winners.ge || 0,
+              healthOverall: health.overall ?? null,
+              battleTypes: s.battleTypes || {},
+              objectivesNeverOwned: s.objectivesNeverOwned ?? null,
+              objectivesNeverOwnedRate: s.objectivesNeverOwnedRate ?? null,
+              avgSquadObjectiveSpread: s.avgSquadObjectiveSpread ?? null,
+              vacantObjectiveStalls: issues.vacantObjectiveStalls ?? s.vacantObjectiveStalls ?? null,
+              routeStalls: issues.routeStalls ?? null,
+              movementStalls: issues.movementStalls ?? s.movementStalls ?? null,
+              targetlessStalls: issues.targetlessStalls ?? null,
+              longRegroups: issues.longRegroups ?? null,
+              writerConflicts: issues.writerConflicts ?? null,
+              loopAlerts: issues.loopAlerts ?? null,
+              runtimeErrors: s.runtimeErrors ?? null,
+              actionsUrl: compact.actionsUrl,
+              markdownPath: 'benchmarks/results/latest/battle-benchmark.md',
+              csvPath: 'benchmarks/results/latest/battle-benchmark.csv',
+              summaryPath: 'benchmarks/results/latest/battle-benchmark-summary.json',
+              historyPath: `benchmarks/results/runs/${compact.runNumber}/`
+            };
+            fs.writeFileSync('benchmarks/results/status.json', JSON.stringify(status, null, 2) + '\n');
+          NODE
+          fi
+
+          git add benchmarks/results
+          if git diff --cached --quiet; then
+            echo 'No benchmark result changes to publish.'
+            exit 0
+          fi
+          git commit -m "Benchmark results #${GITHUB_RUN_NUMBER}"
+          git push origin "HEAD:${RESULTS_BRANCH}"
+ 
+      - name: Enforce diagnostics integrity after preserving reports
+        if: success()
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const r = JSON.parse(fs.readFileSync('reports/battle-benchmark.json', 'utf8'));
+          if (!r.summary?.validation?.diagnosticsValid) {
+            console.error('Matrix diagnostic-integrity validation failed; artifact and persistent evidence were preserved.');
+            console.error(JSON.stringify(r.summary?.diagnosticAudit?.issueCounts || {}));
+            process.exit(1);
+          }
+          console.log('Diagnostic-integrity PASS. Scenario coverage: ' +
+            JSON.stringify(r.summary.scenarioCoverage));
+          NODE
+
+  notify:
+    name: Notify benchmark result
+    needs: [validate-source, benchmark, merge]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send ntfy notification
+        env:
+          VALIDATE_RESULT: ${{ needs.validate-source.result }}
+          BENCHMARK_RESULT: ${{ needs.benchmark.result }}
+          MERGE_RESULT: ${{ needs.merge.result }}
+          SOURCE_SHA: ${{ needs.validate-source.outputs.source_sha }}
+          BATTLES_PER_WORKER: ${{ github.event.inputs.battles_per_worker || '10' }}
+          WORKER_MINUTES_CUTOFF: ${{ github.event.inputs.worker_minutes_cutoff || '10' }}
+          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          if [ "$VALIDATE_RESULT" != success ]; then
+            status="FAILED during source validation"
+            tags="x,warning"
+            priority="high"
+          elif [ "$BENCHMARK_RESULT" != success ] && [ "$MERGE_RESULT" = success ]; then
+            status="PARTIAL · healthy worker data merged"
+            tags="warning,crossed_swords"
+            priority="default"
+          elif [ "$BENCHMARK_RESULT" != success ]; then
+            status="FAILED during battle workers"
+            tags="x,warning"
+            priority="high"
+          elif [ "$MERGE_RESULT" != success ]; then
+            status="FAILED while merging/publishing"
+            tags="x,warning"
+            priority="high"
+          else
+            status="COMPLETE/PARTIAL by coverage · diagnostics validated"
+            tags="white_check_mark,crossed_swords"
+            priority="default"
+          fi
+          short_sha="${SOURCE_SHA:-${GITHUB_SHA}}"
+          short_sha="${short_sha:0:7}"
+          total="$((BATTLES_PER_WORKER * 30))"
+          curl -fsS \
+            -H "Title: WW2 Battle Sim benchmark #${GITHUB_RUN_NUMBER}" \
+            -H "Priority: ${priority}" \
+            -H "Tags: ${tags}" \
+            -H "Click: ${RUN_URL}" \
+            -d "${status} · requested ${total} battles · ${BATTLES_PER_WORKER}/worker · ${WORKER_MINUTES_CUTOFF}m cap · ${short_sha}" \
+            https://ntfy.sh/ww2battlesim

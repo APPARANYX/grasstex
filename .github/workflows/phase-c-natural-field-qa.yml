@@ -1,0 +1,64 @@
+name: ⭐ Phase C Natural Full-Battle Acceptance
+on:
+  pull_request:
+    # Heavy checks run when a draft is promoted for review, not on every push.
+    types: [ready_for_review]
+    paths:
+      - scripts/probes/probe_phase_c_natural.cjs
+      - .github/workflows/phase-c-natural-field-qa.yml
+      - battle/modules/15o-squad-leader-tactical-postures.js
+      - battle/modules/15j-squad-leader-fire-and-movement.js
+      - battle/modules/19-engagement-cover-positions.js
+  workflow_dispatch:
+# A subsequent ready-for-review replaces any incomplete same-PR run.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+jobs:
+  paired-natural:
+    name: Natural ${{ matrix.battle_type }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 28
+    strategy:
+      fail-fast: false
+      matrix:
+        battle_type: [meeting, us-defend, ge-defend]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install browser harness
+        run: |
+          npm install --no-save --no-package-lock playwright@1.58.2
+          npx playwright install --with-deps chromium
+      - name: Start local full-battle server
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/battle-www
+          ln -s "$GITHUB_WORKSPACE" /tmp/battle-www/grasstex
+          PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8765 -t /tmp/battle-www > /tmp/phase-c-field-php.log 2>&1 &
+          for i in $(seq 1 40); do
+            if curl -fsS "http://127.0.0.1:8765/grasstex/battle_sim_local.php?seed=phase-c-health" > /dev/null; then exit 0; fi
+            sleep 1
+          done
+          tail -100 /tmp/phase-c-field-php.log
+          exit 1
+      - name: Unmodified same-seed OFF/ON natural field replay
+        env:
+          C_FIELD_TYPE: ${{ matrix.battle_type }}
+          C_FIELD_COUNT: '3'
+          C_FIELD_SECONDS: '210'
+          C_FIELD_PREFIX: phase-c-natural-20261012
+          C_FIELD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: node scripts/probes/probe_phase_c_natural.cjs
+      - name: Upload paired causal observation
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: phase-c-natural-${{ matrix.battle_type }}
+          path: reports/phase-c-field/*.json
+          retention-days: 30
+      - name: Server diagnostics
+        if: failure()
+        run: tail -100 /tmp/phase-c-field-php.log || true

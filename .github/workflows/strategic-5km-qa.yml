@@ -1,0 +1,93 @@
+name: ⭐ Strategic 5km browser QA
+
+on:
+  pull_request:
+    # Heavy checks run when a draft is promoted for review, not on every push.
+    types: [ready_for_review]
+    paths:
+      - 'battle/scenario-generator.js'
+      - 'battle/battle-sim.js'
+      - 'battle/battle_sim.html'
+      - 'battle/town-objectives.js'
+      - 'battle/terrain-features.js'
+      - 'battle/commander-routes.js'
+      - 'battle/modules/00-battle-sides.js'
+      - 'battle/camera-controls.js'
+      - 'battle/battle-control.js'
+      - 'scripts/check-strategic-5km.cjs'
+      - 'scripts/check-strategic-front-lines.cjs'
+      - 'battle/modules/21b-strategic-front-lines.js'
+      - 'battle/modules/21c-strategic-reinforcements.js'
+      - 'scripts/check-strategic-reinforcements.cjs'
+      - 'battle/modules/59-strategic-truck-visual.js'
+      - 'scripts/check-strategic-truck-visual.cjs'
+      - 'scripts/check-strategic-truck-lite.cjs'
+      - 'scripts/check-strategic-restart-end.cjs'
+      - 'battle/modules/99-session-diagnostics-export.js'
+      - 'docs/reference/german_transport-seats.json'
+      - 'scripts/probe_strategic_5km.cjs'
+      - 'scripts/probe_strategic_truck_visual.cjs'
+      - '.github/workflows/strategic-5km-qa.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: strategic-5km-qa-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  strategic-field:
+    name: Strategic 5km / Chromium
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate browser probe and PHP loader
+        run: |
+          php -l battle_sim_local.php
+          node --check scripts/probe_strategic_5km.cjs
+          node --check scripts/probe_strategic_truck_visual.cjs
+          node scripts/check-strategic-5km.cjs
+          node scripts/check-strategic-front-lines.cjs
+          node scripts/check-strategic-reinforcements.cjs
+          node scripts/check-strategic-truck-visual.cjs
+          node scripts/check-strategic-truck-lite.cjs
+          node scripts/check-strategic-restart-end.cjs
+      - name: Install Playwright Chromium
+        run: |
+          npm install --global playwright@1.56.1
+          playwright install --with-deps chromium
+      - name: Start isolated checkout server
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/strategic-site"
+          ln -s "$GITHUB_WORKSPACE" "$RUNNER_TEMP/strategic-site/grasstex"
+          php -S 127.0.0.1:8765 -t "$RUNNER_TEMP/strategic-site" > "$RUNNER_TEMP/strategic-php.log" 2>&1 &
+          for attempt in {1..20}; do
+            if curl -fsS 'http://127.0.0.1:8765/grasstex/battle_sim_local.php?seed=strategic-smoke' -o /dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/strategic-php.log"
+          exit 1
+      - name: Validate 5km world and record performance
+        env:
+          STRATEGIC_QA_URL: http://127.0.0.1:8765/grasstex/battle_sim_local.php
+          STRATEGIC_QA_OUT: closeups/strategic-5km-ci
+        run: node scripts/probe_strategic_5km.cjs
+      - name: Validate both faction trucks and seated rider preview
+        env:
+          STRATEGIC_QA_URL: http://127.0.0.1:8765/grasstex/battle_sim_local.php
+          STRATEGIC_TRUCK_QA_OUT: closeups/strategic-truck-ci
+        run: node scripts/probe_strategic_truck_visual.cjs
+      - name: Preserve image and runtime evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: strategic-5km-browser-evidence
+          if-no-files-found: warn
+          path: |
+            closeups/strategic-5km-ci/
+            closeups/strategic-truck-ci/
+            ${{ runner.temp }}/strategic-php.log

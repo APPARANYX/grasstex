@@ -1,0 +1,296 @@
+name: ⭐ Deploy Battle Sim Branch Preview
+
+# Publishes an in-progress branch or pull-request preview to its stable URL:
+#   https://test.ivandpopov.com/grasstex/preview/<branch-slug-or-pr-N>/battle_sim.php
+# Reusable PR callers must provide stable preview_slug=pr-<number>; ref remains exact commit SHA.
+# Production (/grasstex/battle_sim.php, build tags, deploy hash state) is never touched. A preview reads
+# production assets, policy and scenario memory, and makes no telemetry, policy or learning writes.
+
+on:
+  # Manually dispatchable or reusable by CI; production is never modified.
+  workflow_call:
+    inputs:
+      ref:
+        required: true
+        type: string
+      preview_slug:
+        required: false
+        type: string
+    outputs:
+      preview_slug:
+        value: ${{ jobs.preview.outputs.slug }}
+    secrets:
+      FTP_HOST:
+        required: true
+      FTP_USER:
+        required: true
+      FTP_PASS:
+        required: true
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch, tag or commit to preview (defaults to the selected branch)
+        required: false
+        default: ''
+      lab_qa:
+        description: Verify the native Combat Lab in hosted Chromium after preview upload
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  # The slug, not SHA, serializes writes to the same remote preview folder.
+  group: deploy-50webs-preview-${{ inputs.preview_slug || inputs.ref || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  preview:
+    name: Upload branch preview
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    outputs:
+      slug: ${{ steps.id.outputs.slug }}
+    steps:
+      - name: Checkout preview ref
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - name: Fetch production comparison tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Compare complete git trees (not mtimes/sizes) even if this branch
+          # diverged or was created before the current main.
+          git fetch --no-tags --depth=1 origin +refs/heads/main:refs/remotes/origin/main
+
+      - name: Resolve preview identity
+        id: id
+        shell: bash
+        env:
+          PREVIEW_REF: ${{ inputs.ref || github.ref_name }}
+          PREVIEW_SLUG: ${{ inputs.preview_slug || '' }}
+        run: |
+          set -euo pipefail
+          sha="$(git rev-parse HEAD)"
+          # No automatic SHA-named directories: caller identifies the PR while
+          # the checked-out commit is still immutable and SHA-verified.
+          if [[ -z "$PREVIEW_SLUG" && "$PREVIEW_REF" =~ ^[0-9a-fA-F]{40}$ ]]; then
+            echo "::error::Commit-pinned uploads must also supply preview_slug (e.g. pr-671)."
+            exit 1
+          fi
+          preview_name="${PREVIEW_SLUG:-$PREVIEW_REF}"
+          slug="$(printf '%s' "$preview_name" | tr '[:upper:]' '[:lower:]' | sed -E 's#^(work|preview)/##; s#[^a-z0-9]+#-#g; s#^-+|-+$##g' | cut -c1-48)"
+          [[ "$slug" =~ ^[a-z0-9][a-z0-9-]{0,47}$ ]] || { echo "::error::Invalid preview slug"; exit 1; }
+          echo "Stable preview identity: $slug; deployed commit: $sha"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "slug=$slug" >> "$GITHUB_OUTPUT"
+          echo "ref=$PREVIEW_REF" >> "$GITHUB_OUTPUT"
+
+      - name: Validate preview runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -l battle_sim_local.php
+          php -l labs/asset-list.php
+          # A loader without preview support would silently serve production scripts and write production logs.
+          grep -q 'BATTLE_PREVIEW' battle_sim_local.php
+          grep -q 'BATTLE_PREVIEW' battle/battle-telemetry.js
+          grep -q 'BATTLE_PREVIEW' battle/ai-policy.js
+          test -s battle/battle_sim.html
+          for f in battle/*.js battle/modules/*.js; do node --check "$f"; done
+
+      - name: Stage preview directory
+        shell: bash
+        env:
+          PREVIEW_REF: ${{ steps.id.outputs.ref }}
+          PREVIEW_SHA: ${{ steps.id.outputs.sha }}
+        run: |
+          set -euo pipefail
+          rm -rf .preview && mkdir -p .preview/battle/modules
+          cp battle_sim_local.php .preview/battle_sim.php
+          # Historical refs predate the shared helper; their loaders do not require it.
+          if [ -f runtime-contract.php ]; then cp runtime-contract.php .preview/; fi
+          cp battle/battle_sim.html battle/*.js .preview/battle/
+          # The AI map viewer of this branch (reads the branch's own battle/*.js; ?a=<url>&b=<url> or ?bench=<run> loads benchmark results).
+          cp ai_flow_live.html .preview/ai_flow_live.html
+          cp battle/modules/*.js .preview/battle/modules/
+          # Git tree diff selects only changed branch assets. A preview-only
+          # .htaccess routes missing files to production's Assets/ tree.
+          python3 scripts/prepare_preview_asset_overlay.py --base-ref origin/main --output .preview
+          mkdir -p .preview/Assets/soldiers
+          cp .preview/asset-overlay.htaccess .preview/Assets/.htaccess
+          # The Motion Lab workbench with its asset inventory + sidecar-save endpoints.
+          if [ -d labs ]; then
+            mkdir -p .preview/labs
+            cp labs/fbx-animation-lab.html labs/fbx-animation-*.js labs/asset-list.php labs/save-calibration.php .preview/labs/
+            if [ -f labs/vehicle-animation-lab.html ]; then cp labs/vehicle-animation-lab.html .preview/labs/; fi
+          fi
+          # A missing lab page previously made a green battle-preview job return a 404
+          # on the lab URL. Verify optional lab payloads when they exist on the branch.
+          if [[ -f labs/vehicle-animation-lab.html ]]; then
+            test -s .preview/labs/vehicle-animation-lab.html
+            grep -q 'Vehicle Animation Lab' .preview/labs/vehicle-animation-lab.html
+          fi
+          python3 - <<'PY'
+          import json, os, datetime
+          json.dump({"ref": os.environ["PREVIEW_REF"], "sha": os.environ["PREVIEW_SHA"],
+                     "deployedAt": datetime.datetime.utcnow().isoformat() + "Z"},
+                    open(".preview/preview.json", "w"))
+          PY
+          find .preview -type f | wc -l
+
+      - name: Upload preview to 50webs
+        shell: bash
+        env:
+          FTP_HOST: ${{ secrets.FTP_HOST }}
+          FTP_USER: ${{ secrets.FTP_USER }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASS }}
+          SLUG: ${{ steps.id.outputs.slug }}
+        run: |
+          set -euo pipefail
+          : "${FTP_HOST:?Missing repository secret FTP_HOST}"
+          : "${FTP_USER:?Missing repository secret FTP_USER}"
+          : "${FTP_PASSWORD:?Missing repository secret FTP_PASS}"
+          sudo apt-get update -qq && sudo apt-get install -y -qq lftp
+          # Runtime remains branch-specific. Assets contains only changed
+          # FBX/GLB/BIN/image overrides; unchanged files fall back to production
+          # via the preview's own .htaccess (uploaded explicitly below).
+          # A stable PR directory is overwritten in place on every push.
+          # --delete applies only to this preview directory; sidecar JSON and
+          # lab calibrations are never deleted. preview.json is uploaded last.
+          contract_upload=''
+          if [[ -f .preview/runtime-contract.php ]]; then contract_upload='put runtime-contract.php'; fi
+          lftp -u "$FTP_USER","$FTP_PASSWORD" "$FTP_HOST" <<LFTP
+          set cmd:fail-exit yes
+          set net:max-retries 2
+          set net:timeout 15
+          set ftp:ssl-allow no
+          set ftp:passive-mode true
+          cd grasstex
+          mkdir -f -p preview/$SLUG
+          cd preview/$SLUG
+          lcd .preview
+          # No unanchored Lab regex for battle/*.js: it removed skills-lab.js
+          # on deployed previews, despite local browser QA passing.
+          mirror -R --delete --verbose=1 --exclude '\.json\$' --exclude '[Ss][Ii][Dd][Ee][Cc][Aa][Rr]' battle battle
+          mirror -R --verbose=1 labs labs
+          mirror -R --delete --verbose=1 --transfer-all --exclude '\.json\$' --exclude '[Ll][Aa][Bb]' --exclude '[Ss][Ii][Dd][Ee][Cc][Aa][Rr]' Assets Assets
+          # lftp mirror omits hidden dotfiles; explicit upload is mandatory.
+          put Assets/.htaccess -o Assets/.htaccess
+          $contract_upload
+          put battle_sim.php
+          put ai_flow_live.html
+          put asset-overlay.json
+          put preview.json
+          bye
+          LFTP
+
+      - name: Verify preview is serving this commit
+        shell: bash
+        env:
+          SLUG: ${{ steps.id.outputs.slug }}
+          SHA: ${{ steps.id.outputs.sha }}
+        run: |
+          set -euo pipefail
+          url="https://test.ivandpopov.com/grasstex/preview/$SLUG/battle_sim.php"
+          body="$(curl -fsS "$url")"
+          grep -q "preview-${SHA:0:7}" <<<"$body"
+          grep -q "/grasstex/preview/$SLUG/battle/commander-ai.js" <<<"$body"
+          # Skills Lab code must be served on the public preview, not only staged.
+          if [[ -f battle/skills-lab.js ]]; then
+            lab_js_url="https://test.ivandpopov.com/grasstex/preview/$SLUG/battle/skills-lab.js"
+            curl --fail --silent --show-error --location "$lab_js_url" -o /tmp/skills-lab-preview.js
+            test "$(wc -c </tmp/skills-lab-preview.js)" -gt 15000
+            grep -Fq 'root.BattleSkillsLab = {' /tmp/skills-lab-preview.js
+            lab_html="$(curl --fail --silent --show-error --location "$url?skillsLab=1&seed=skills-preview-verify&labDistance=70&tacticalController=new")"
+            grep -Fq "window.SKILLS_LAB=true" <<<"$lab_html"
+            grep -Fq "/grasstex/preview/$SLUG/battle/skills-lab.js" <<<"$lab_html"
+            grep -Fq "window.BattleSkillsLab.attachBattle(battle,scene,camera)" <<<"$lab_html"
+            echo "Native Skills Lab JS and bootstrap verified: $lab_js_url"
+          fi
+          # Check actual HTTP serving of an unchanged soldier FBX, not just
+          # inventory metadata; this fails if the rewrite overlay is missing.
+          overlay_test_url="https://test.ivandpopov.com/grasstex/preview/$SLUG/Assets/soldiers/ge-paratrooper.fbx"
+          curl --fail --silent --show-error --location --head "$overlay_test_url" >/dev/null
+          overlay_metadata_url="https://test.ivandpopov.com/grasstex/preview/$SLUG/asset-overlay.json"
+          overlay_metadata="$(curl -fsSL "$overlay_metadata_url")"
+          python3 -c 'import json,sys; d=json.loads(sys.argv[1]); assert d["assetOverlay"] and d["version"]==1' "$overlay_metadata"
+          echo "Preview FBX overlay verified: $overlay_test_url"
+          # The battle page is not enough: check the exact vehicle-lab URL as well.
+          # This is conditional so an unrelated historical branch without the lab
+          # remains previewable using the same generic workflow.
+          if [[ -f labs/vehicle-animation-lab.html ]]; then
+            vehicle_lab_url="https://test.ivandpopov.com/grasstex/preview/$SLUG/labs/vehicle-animation-lab.html"
+            vehicle_lab_html="$(curl -fsSL "$vehicle_lab_url")"
+            grep -q 'Vehicle Animation Lab' <<<"$vehicle_lab_html"
+            inventory_url="https://test.ivandpopov.com/grasstex/preview/$SLUG/labs/asset-list.php"
+            inventory="$(curl -fsSL "$inventory_url")"
+            grep -q 'german_transport.fbx' <<<"$inventory"
+            for clip in 'Truck - Driving.fbx' 'Truck - Sitting 1.fbx' 'Truck - Sitting 2.fbx' 'Truck - Sitting 3.fbx'; do
+              if [[ -f "Assets/animations/$clip" ]]; then
+                grep -Fq "$clip" <<<"$inventory"
+              fi
+            done
+            echo "Vehicle Animation Lab preview and vehicle/animation inventory verified: $vehicle_lab_url"
+          fi
+          if [[ "${{ inputs.lab_qa }}" == "true" ]]; then
+            lab="$(curl -fsSL "$url?combatLab=1")"
+            grep -q 'window.PHASE_C_COMBAT_LAB=true' <<<"$lab"
+            grep -q "/grasstex/preview/$SLUG/battle/phase-c-compact-range.js" <<<"$lab"
+            module_url="https://test.ivandpopov.com/grasstex/preview/$SLUG/battle/phase-c-compact-range.js"
+            curl --fail --silent --show-error --location "$module_url" -o /tmp/phase-c-preview-module.js
+            test "$(wc -c </tmp/phase-c-preview-module.js)" -gt 10000
+            grep -q 'Preview-only Phase C Combat Lab' /tmp/phase-c-preview-module.js
+            grep -q 'window.PhaseCCombatLab.attachBattle(battle,scene,camera)' <<<"$lab"
+          fi
+          {
+            echo "### Battle Sim preview"
+            echo "- Ref: \`${{ steps.id.outputs.ref }}\` @ \`${SHA:0:7}\`"
+            echo "- Meeting: $url"
+            echo "- US defending: $url?defender=us"
+            echo "- German defending: $url?defender=ge"
+            if [[ -f labs/vehicle-animation-lab.html ]]; then
+              echo "- Vehicle Animation Lab: https://test.ivandpopov.com/grasstex/preview/$SLUG/labs/vehicle-animation-lab.html"
+            fi
+            echo "- Asset upload: only branch-changed FBX/GLB/PNG/BIN; unchanged assets served from production."
+            echo "- Production untouched; preview makes no telemetry, policy or learning writes."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  combat-lab-smoke:
+    name: Native Combat Lab Chromium QA
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.lab_qa == true }}
+    needs: preview
+    runs-on: ubuntu-latest
+    timeout-minutes: 16
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+      - name: Resolve preview Combat Lab URL
+        shell: bash
+        env:
+          PREVIEW_REF: ${{ inputs.ref || github.ref_name }}
+        run: |
+          set -euo pipefail
+          slug="$(printf '%s' "$PREVIEW_REF" | tr '[:upper:]' '[:lower:]' | sed -E 's#^(work|preview)/##; s#[^a-z0-9]+#-#g; s#^-+|-+$##g' | cut -c1-48)"
+          test -n "$slug"
+          echo "PHASE_C_LAB_URL=https://test.ivandpopov.com/grasstex/preview/$slug/battle_sim.php" >> "$GITHUB_ENV"
+      - name: Install Chromium harness
+        run: |
+          npm install --no-save --no-package-lock playwright@1.58.2
+          npx playwright install --with-deps chromium
+      - name: Verify native range and isolation in hosted browser
+        run: node scripts/probes/phase_c_combat_lab_smoke.cjs
+      - name: Publish screenshots and diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase-c-native-lab-smoke
+          path: reports/phase-c-lab/
+          if-no-files-found: ignore

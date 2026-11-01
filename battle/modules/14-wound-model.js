@@ -1,0 +1,267 @@
+/* Wounds and incapacitation: what a round that struck a man does to him.
+
+   The ballistic ray says where it struck (head, chest, abdomen, arm or leg, from where it met the
+   body volume); this module owns what follows. Soldiers are taken out of the fight the way the
+   wound-ballistics literature describes, not by an even hit-point count:
+
+     head     a rifle, MG or pistol round to the head drops a man outright;
+     chest    heart, lungs and spine: most full-power rifle hits drop him at once, and a man who
+              stays up is bleeding hard and goes down within seconds to a minute;
+     abdomen  seldom drops him at once, bleeds steadily;
+     arm      rarely stops him, but his shooting falls apart;
+     leg      takes a few hits, or one and a long bleed; each one slows him.
+
+   A casualty is a man out of the fight, dead or incapacitated alike: both go through killSoldier.
+   The zone's drop chance scales with the cartridge (`power` on the weapon: .30-06 and 7.92 mm 1.0,
+   .30 Carbine ~.6, pistol-calibre SMG and sidearm ~.5). A round that went through one man first
+   (14-z-ballistic-raycast over-penetration) reports what it has left: hit.energy scales the wound
+   and hit.power the drop chance. Bleeding eases off as the man gets pressure
+   on it (BLEED_TAU), and a man who loses enough collapses before his hit points reach zero.
+
+   Owner: the SquadAI `woundModel` slot. Draws two combat-RNG numbers per hit (severity and drop)
+   and none per frame. */
+(function (root) {
+  'use strict';
+  if (!root.SquadAI || !root.BattleModules || root.BattleWounds) return;
+
+  /* damage: multiple of the weapon's torso wound severity; drop: chance a full-power round drops him
+     at once; bleed: hp/s while it bleeds; speed / sigma: movement and shot-group multipliers. */
+  var ZONES = {
+    head: { damage: 4, drop: 0.95, bleed: 0 },
+    chest: { damage: 1.5, drop: 0.55, bleed: 1.2, sigma: 1.15 },
+    abdomen: { damage: 1.1, drop: 0.25, bleed: 0.7, speed: 0.85, sigma: 1.1 },
+    arm: { damage: 0.35, drop: 0.03, bleed: 0.15, sigma: 1.4 },
+    leg: { damage: 0.4, drop: 0.1, bleed: 0.3, speed: 0.6 }
+  };
+  /* Share of hits per zone on a standing man, for shots that do not report where they struck. */
+  var ZONE_ODDS = [
+    ['leg', 0.42],
+    ['abdomen', 0.14],
+    ['chest', 0.26],
+    ['arm', 0.14],
+    ['head', 0.04]
+  ];
+  var BLEED_TAU = 30,
+    BLEED_STOP = 0.02,
+    COLLAPSE_HP = 10,
+    SHOCK = 1.2,
+    MIN_SPEED = 0.35,
+    MAX_SIGMA = 2.2;
+
+  /* Medic effect (interim, until there are medics): the men of a squad that retreated, is home at base and is out of contact
+     slowly regain health, MEDIC_HP_PER_S each, while they are not bleeding. Healing lowers the share of health lost, which
+     is what Soldier Mind's wound floor is made of, so a hurt squad's stress can drain below the rally line and it can
+     return to the fight through the ordinary morale rally. A man who broke for good (`fledId`) is not treated. At full health his
+     wound slowing and shot spread are cleared. `?medic=0` is the old battle: nothing heals. */
+  function parseMedic(search) {
+    return !/[?&]medic=(?:0|off|false)(?:&|#|$)/i.test(search || '');
+  }
+  var MEDIC_ON = parseMedic(typeof location !== 'undefined' ? location.search || '' : ''),
+    MEDIC_HP_PER_S = 0.3,
+    MEDIC_EVERY = 1;
+  var clamp = root.GTMath.clamp;
+  function rand(b) {
+    return b && typeof b.random === 'function' ? b.random() : Math.random();
+  }
+  function fresh() {
+    var z = {};
+    Object.keys(ZONES).forEach(function (k) {
+      z[k] = { hits: 0, dropped: 0, killed: 0, bledOut: 0 };
+    });
+    return { hits: 0, wounded: 0, dropped: 0, killed: 0, bledOut: 0, healed: 0, byZone: z };
+  }
+  function state(battle) {
+    return battle._wounds || (battle._wounds = { stats: fresh(), bleeding: [] });
+  }
+  function rollZone(battle) {
+    var r = rand(battle);
+    for (var i = 0; i < ZONE_ODDS.length; i++) if ((r -= ZONE_ODDS[i][1]) < 0) return ZONE_ODDS[i][0];
+    return 'chest';
+  }
+  function casualty(battle, s, zone, cause, by) {
+    var st = state(battle).stats;
+    st[cause]++;
+    if (st.byZone[zone]) st.byZone[zone][cause]++;
+    s.casualty = { zone: zone, cause: cause, at: +battle.time || 0, by: by ? by.id : null };
+    var lastWound = s.wounds && s.wounds[s.wounds.length - 1];
+    if (lastWound && lastWound.source === 'grenade') {
+      s.casualty.source = 'grenade';
+      st.grenadeCasualties = (st.grenadeCasualties || 0) + 1;
+      if (by && by.faction === s.faction)
+        st.grenadeFriendlyCasualties = (st.grenadeFriendlyCasualties || 0) + 1;
+    }
+    // Grenade friendly/self casualties retain their cause without earning an enemy kill.
+    // Preserve the existing ordinary-round credit path in the flag-OFF control.
+    var credit =
+      lastWound && lastWound.source === 'grenade' && by && by.faction === s.faction ? null : by || null;
+    battle.killSoldier(s, credit);
+    if (root.BattleEngagement && root.BattleEngagement.noteKill) root.BattleEngagement.noteKill(credit);
+    /* The man who put him down is told (nothing is queued unless a layer reads `kill`). */
+    if (by && by.faction !== s.faction && root.BattleSoldierEvents)
+      root.BattleSoldierEvents.post(by, battle, 'kill', { victim: s.id, zone: zone });
+  }
+
+  function wound(shooter, victim, battle, hit) {
+    /* Grenade fragments call this model directly, rather than via SquadAI.applyHit. */
+    if (root.PhaseCCombatLab && root.PhaseCCombatLab.preventWound(shooter, victim, battle, hit))
+      return { zone: (hit && hit.zone) || 'unknown', outcome: 'lab-absorbed', damage: 0 };
+    /* Fragment severity belongs to the released explosive, independent of the thrower's gun
+       (which can be abandoned before the fuse expires). A round in flight carries its own weapon stats, since
+       the shooter may have lost his gun by the time it lands. Ordinary rounds keep their existing rolls. */
+    var blast = !!(hit && hit.blast),
+      stats = blast ? { damage: hit.severity, power: hit.power } : (hit && hit.stats) || shooter.weapon.stats,
+      zone = (hit && ZONES[hit.zone] && hit.zone) || rollZone(battle),
+      z = ZONES[zone],
+      /* A round that already went through a man arrives with only part of its energy (hit.energy). */
+      energy = hit && isFinite(+hit.energy) ? clamp(+hit.energy, 0, 1) : 1,
+      injury = blast ? energy : 1,
+      power = hit && isFinite(+hit.power) ? +hit.power : isFinite(+stats.power) ? +stats.power : 1,
+      scale = 0.5 + 0.5 * power,
+      damage = stats.damage * z.damage * energy * (0.85 + rand(battle) * 0.3),
+      /* A man in the first seconds of a berserk charge (Engagement `rage`) takes a fraction of the hit: of the damage, of
+         the chance it drops him and of the bleed. The rolls are the same two draws either way. */
+      guard =
+        root.BattleEngagement && root.BattleEngagement.guardOnHit
+          ? root.BattleEngagement.guardOnHit(victim, battle, damage)
+          : 1,
+      dropped = rand(battle) < z.drop * scale * guard * injury,
+      st = state(battle);
+    damage *= guard;
+    st.stats.hits++;
+    st.stats.byZone[zone].hits++;
+    victim.hp -= damage;
+    var woundRecord = { zone: zone, at: +battle.time || 0, by: shooter.id };
+    if (blast) woundRecord.source = 'grenade';
+    (victim.wounds || (victim.wounds = [])).push(woundRecord);
+    victim._lastHitBy = shooter;
+    if (victim.hp <= COLLAPSE_HP || dropped) {
+      casualty(battle, victim, zone, victim.hp <= 0 ? 'killed' : 'dropped', shooter);
+      return { zone: zone, outcome: victim.casualty.cause, damage: damage };
+    }
+    st.stats.wounded++;
+    if (z.bleed > 0) {
+      if (!(victim.bleedRate > 0)) st.bleeding.push(victim);
+      victim.bleedRate = (victim.bleedRate || 0) + z.bleed * scale * guard * injury;
+    }
+    if (z.speed)
+      victim.woundSpeed = Math.max(
+        MIN_SPEED,
+        (victim.woundSpeed || 1) * (blast ? 1 - (1 - z.speed) * injury : z.speed)
+      );
+    if (z.sigma)
+      victim.woundSigma = Math.min(
+        MAX_SIGMA,
+        (victim.woundSigma || 1) * (blast ? 1 + (z.sigma - 1) * injury : z.sigma)
+      );
+    /* Being hit and staying up still puts a man down behind whatever he has for a moment. */
+    root.SquadAI.pin(victim, battle, SHOCK);
+    if (root.BattleSoldierEvents) root.BattleSoldierEvents.post(victim, battle, 'wound', { count: 1 });
+    return { zone: zone, outcome: 'wounded', damage: damage };
+  }
+
+  function bleed(sim, dt) {
+    var st = sim && sim._wounds;
+    if (!st || !st.bleeding.length || !(dt > 0)) return;
+    var ease = Math.exp(-dt / BLEED_TAU);
+    for (var i = st.bleeding.length - 1; i >= 0; i--) {
+      var s = st.bleeding[i];
+      if (s.dead) {
+        st.bleeding.splice(i, 1);
+        continue;
+      }
+      s.hp -= s.bleedRate * dt;
+      s.bleedRate *= ease;
+      if (s.hp <= COLLAPSE_HP) {
+        st.bleeding.splice(i, 1);
+        var last = s.wounds && s.wounds[s.wounds.length - 1];
+        casualty(sim, s, last ? last.zone : 'chest', 'bledOut', s._lastHitBy);
+      } else if (s.bleedRate < BLEED_STOP) {
+        s.bleedRate = 0;
+        st.bleeding.splice(i, 1);
+      }
+    }
+  }
+  function medic(sim, dt) {
+    if (!MEDIC_ON || !sim || !sim.factions || !(dt > 0)) return;
+    sim._medicClock = (sim._medicClock || 0) + dt;
+    if (sim._medicClock < MEDIC_EVERY) return;
+    var step = sim._medicClock;
+    sim._medicClock = 0;
+    var st = state(sim);
+    ['us', 'ge'].forEach(function (f) {
+      var squads = (sim.factions[f] && sim.factions[f].squads) || [];
+      for (var i = 0; i < squads.length; i++) {
+        var sq = squads[i];
+        if (
+          !sq ||
+          sq.state !== 'retreat' ||
+          sq.fledId != null ||
+          sq.inContact ||
+          !sq._assembly ||
+          sq._assembly.phase !== 'at-base'
+        )
+          continue;
+        var men = sq.members || [];
+        for (var j = 0; j < men.length; j++) {
+          var s = men[j];
+          if (!s || s.dead || !(s.maxHp > 0) || !(s.hp < s.maxHp) || s.bleedRate > 0) continue;
+          var add = Math.min(MEDIC_HP_PER_S * step, s.maxHp - s.hp);
+          s.hp += add;
+          st.stats.healed += add;
+          if (s.hp >= s.maxHp) {
+            s.woundSpeed = 1;
+            s.woundSigma = 1;
+          }
+        }
+      }
+    });
+  }
+  /* A berserk trance is over (Engagement, `?rageTrance=1`) and the damage its guard held back comes due at once. True
+     when it takes him to the collapse line: he dies of his wounds (no roll: the debt is what he was owed). */
+  function succumb(s, battle, hp) {
+    if (!s || s.dead || !(hp > 0)) return false;
+    s.hp -= hp;
+    if (s.hp > COLLAPSE_HP) return false;
+    var last = s.wounds && s.wounds[s.wounds.length - 1];
+    casualty(battle, s, last ? last.zone : 'chest', 'bledOut', s._lastHitBy);
+    return true;
+  }
+  function reset(sim) {
+    sim._wounds = { stats: fresh(), bleeding: [] };
+    sim._medicClock = 0;
+  }
+  function summary(sim) {
+    var st = sim && sim._wounds;
+    return st ? JSON.parse(JSON.stringify(st.stats)) : fresh();
+  }
+
+  root.SquadAI.extend('woundModel', 'wounds', wound);
+  root.BattleModules.registerSystem('wound-model', {
+    version: '1.0',
+    onBattleStart: reset,
+    onBattleRestart: reset,
+    onSimulationStep: function (sim, payload) {
+      bleed(sim, payload && +payload.dt);
+      medic(sim, payload && +payload.dt);
+    },
+    onCommanderTick: function (sim) {
+      if (sim._coordinationHealth) sim._coordinationHealth.wounds = summary(sim);
+    }
+  });
+  root.BattleWounds = {
+    version: '1.0',
+    ZONES: ZONES,
+    COLLAPSE_HP: COLLAPSE_HP,
+    BLEED_TAU: BLEED_TAU,
+    wound: wound,
+    bleed: bleed,
+    medic: medic,
+    medicOn: function () {
+      return MEDIC_ON;
+    },
+    succumb: succumb,
+    reset: reset,
+    summary: summary
+  };
+  if (typeof console !== 'undefined') root.GTLog('[WOUNDS] hit-zone incapacitation + bleeding active');
+})(typeof window !== 'undefined' ? window : globalThis);

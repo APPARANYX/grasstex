@@ -1,0 +1,70 @@
+name: ⭐ Tactical map browser QA
+on:
+  pull_request:
+    paths:
+      - battle/modules/55-reported-contact-tactical-map.js
+      - battle/modules/59-strategic-aerial-recon.js
+      - battle/battle_sim.html
+      - battle/camera-controls.js
+      - scripts/probes/probe_tactical_map_ui.cjs
+      - scripts/probes/probe_tactical_map_layout.cjs
+      - .github/workflows/tactical-map-browser-qa.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: tactical-map-qa-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  tactical-map:
+    name: Tactical map / Chromium
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check source
+        run: |
+          node --check battle/modules/55-reported-contact-tactical-map.js
+          node --check scripts/probes/probe_tactical_map_ui.cjs
+          php -l battle_sim_local.php
+      - name: Install Playwright Chromium and WebKit
+        run: |
+          npm install --global playwright@1.56.1
+          playwright install --with-deps chromium webkit
+      - name: Check map layout and touch gestures in Chromium and WebKit
+        run: |
+          node scripts/probes/probe_tactical_map_layout.cjs
+          MAP_LAYOUT_BROWSER=webkit node scripts/probes/probe_tactical_map_layout.cjs
+      - name: Serve branch checkout with PHP module graph
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/tactical-site"
+          ln -s "$GITHUB_WORKSPACE" "$RUNNER_TEMP/tactical-site/grasstex"
+          php -S 127.0.0.1:8765 -t "$RUNNER_TEMP/tactical-site" > "$RUNNER_TEMP/tactical-map-php.log" 2>&1 &
+          for attempt in {1..35}; do
+            if curl -fsS 'http://127.0.0.1:8765/grasstex/battle_sim_local.php?seed=cartography-qa' -o /dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/tactical-map-php.log"
+          exit 1
+      - name: Exercise map and capture evidence
+        env:
+          TACTICAL_MAP_URL: http://127.0.0.1:8765/grasstex/battle_sim_local.php
+          TACTICAL_MAP_OUT: closeups/tactical-map-ui
+        run: node scripts/probes/probe_tactical_map_ui.cjs
+      - name: Exercise 5km full map and manual aerial reconnaissance
+        env:
+          TACTICAL_MAP_URL: http://127.0.0.1:8765/grasstex/battle_sim_local.php
+          TACTICAL_MAP_MODE: strategic
+          TACTICAL_MAP_OUT: closeups/strategic-tactical-map-air
+        run: node scripts/probes/probe_tactical_map_ui.cjs
+      - name: Upload desktop/mobile visual evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tactical-map-ui-evidence
+          if-no-files-found: warn
+          path: |
+            closeups/tactical-map-ui/
+            closeups/strategic-tactical-map-air/
+            ${{ runner.temp }}/tactical-map-php.log

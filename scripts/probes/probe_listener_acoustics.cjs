@@ -1,0 +1,102 @@
+#!/usr/bin/env node
+'use strict';
+/* Live Babylon-9 compatibility smoke: one local listener, a synthetic spatial source,
+   AudioV2 filter hookup and same-page restart reuse.
+   Run against a hosted branch preview (not the localhost shader fallback).
+   AUDIO_PREVIEW_URL overrides the default deployed game URL. The quality-off
+   mode is covered by tools/ai-sim-harness/listener-acoustics-check.js.
+   The probe makes its own buffer; licensed audio clips are not needed. */
+const assert = require('node:assert/strict');
+const { chromium } = require('playwright');
+
+const BASE = process.env.AUDIO_PREVIEW_URL ||
+  'https://test.ivandpopov.com/grasstex/battle_sim.php?seed=acoustic-browser-qa';
+
+async function initialize(page) {
+  await page.goto(BASE, { waitUntil: 'domcontentloaded', timeout: 90000 });
+  await page.waitForFunction(() => window.__battle__ && window.BattleListenerAcoustics,
+    null, { timeout: 120000 });
+  await page.getByText('Start battle').first().click({ timeout: 4000 }).catch(() => {});
+  await page.evaluate(() => window.__battle__.pause());
+}
+async function run() {
+  const browser = await chromium.launch({
+    headless: true,
+    args: ['--autoplay-policy=no-user-gesture-required', '--use-gl=angle',
+      '--use-angle=swiftshader', '--enable-webgl', '--ignore-certificate-errors']
+  });
+  try {
+    const page = await browser.newPage({
+      ignoreHTTPSErrors: true, viewport: { width: 900, height: 650 }
+    });
+    const pageErrors = [];
+    page.on('pageerror', err => pageErrors.push(String(err)));
+    await initialize(page);
+    const result = await page.evaluate(async () => {
+      const a = window.BattleListenerAcoustics;
+      const scene = window.__battle__.scene;
+      const engine = window.BABYLON.Engine.audioEngine;
+      if (!engine || !engine.audioContext) {
+        return { ok: false, reason: 'Babylon Web Audio context unavailable' };
+      }
+      const ctx = engine.audioContext;
+      if (ctx.state === 'suspended') await ctx.resume();
+      const buffer = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * 3.0), ctx.sampleRate);
+      const samples = buffer.getChannelData(0);
+      for (let i = 0; i < samples.length; i++)
+        samples[i] = Math.sin(i * 2 * Math.PI * 240 / ctx.sampleRate) *
+          (1 - i / samples.length) * 0.14;
+      const snd = new window.BABYLON.Sound('acoustic-browser-probe', buffer, scene,
+        null, { spatialSound: true, autoplay: false, volume: 0.18 });
+      const cam = scene.activeCamera;
+      const c = cam.globalPosition || cam.position;
+      const src = { x: c.x + 14, y: c.y, z: c.z + 3 };
+      snd.setPosition(new window.BABYLON.Vector3(src.x, src.y, src.z));
+      const accepted = a.prepare(snd, src, 'gun', 0.18, scene);
+      snd.play();
+      const probeStart = performance.now();
+      while (performance.now() - probeStart < 9000) {
+        if (snd.getSoundGain?.() && snd._battleAcousticFilter) break;
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      const filtered = !!snd._battleAcousticFilter;
+      const gain = snd.getSoundGain?.();
+      const original = snd._battleAcousticFilter;
+      a.reset();
+      a.prepare(snd, src, 'gun', 0.18, scene);
+      const reused = snd._battleAcousticFilter === original;
+      const snapshot = {
+        ok: true,
+        quality: a.quality, accepted, filtered, reused,
+        hasGain: !!gain, isAudioV2: !!snd._soundV2,
+        active: a.active, sampled: a.stats.sampled,
+        graphNode: snd._battleAcousticFilter?.type || null,
+        soundReady: snd.isReady?.(), sceneTrack: !!scene.mainSoundTrack?._outputAudioNode,
+        outputNode: !!snd._soundV2?._outNode,
+        audioState: ctx.state, elapsedWait: +(performance.now()-probeStart).toFixed(0)
+      };
+      snd.stop();
+      a.reset();
+      snd.dispose();
+      return snapshot;
+    });
+    console.log('Standard acoustic graph:', JSON.stringify(result));
+    assert.equal(result.ok, true, result.reason || 'could not construct acoustic sound');
+    assert.equal(result.quality, 'standard');
+    assert.equal(result.accepted, true);
+    assert.equal(result.hasGain, true);
+    assert.equal(result.isAudioV2, true);
+    assert.equal(result.filtered, true, 'real Babylon AudioV2 graph did not connect its lowpass');
+    assert.equal(result.reused, true, 'filter was duplicated on restart');
+
+    // Quality-off is covered by listener-acoustics-check.js's hermetic
+    // test. Avoid loading a second 3D game instance on constrained CI GPUs:
+    // a staged second-page timeout is not evidence of an audio-graph defect.
+    if (pageErrors.length) throw new Error('Page JavaScript errors: ' + pageErrors.join('; '));
+    await page.close();
+    console.log('PASS: real Babylon AudioV2 filtering and restart reuse (dry/off covered by the Node harness)');
+  } finally {
+    await browser.close();
+  }
+}
+run().catch(err => { console.error('AUDIO PREVIEW PROBE FAILED:', err?.stack || err); process.exit(1); });

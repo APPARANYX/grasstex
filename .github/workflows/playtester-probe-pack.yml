@@ -1,0 +1,179 @@
+name: ⭐ Playtester Probe Pack
+
+# Paired full battles with the observe-only probes attached, off arm against on arm, same seeds. One table for
+# outcomes (`outcome`: winner, living, kills, objectives held), causes (`playtest` and the per-behaviour probes: pins,
+# suppressors, bounds, fire control, stalls, flicker) and broken behaviour (`causal-inaction`: men who hold a target
+# and do not fire, or hold an order and do not move). The standard benchmark stays the merge gate. Probes never change a battle (see scripts/run_probe.cjs).
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/playtester-probe-pack.yml'
+  workflow_dispatch:
+    inputs:
+      seed:
+        description: 'Seed prefix; battle seeds are <prefix>-<type>-NNNN'
+        required: true
+        default: 'pack-1'
+      seeds:
+        description: 'Paired seeds per scenario'
+        required: false
+        default: '40'
+      map:
+        description: 'tactical = 2 km map (strategicInterception=0 pinned in both arms), strategic = the 5 km default map'
+        required: false
+        default: 'tactical'
+        type: choice
+        options: [tactical, strategic]
+      sim_seconds:
+        description: 'Simulation seconds per battle (blank: 600 tactical, 1800 strategic)'
+        required: false
+        default: ''
+      query_off:
+        description: 'Query flags for the off arm (strategicInterception=0 is added to both arms if absent)'
+        required: true
+        default: 'strategicInterception=0'
+      query_on:
+        description: 'Query flags for the on arm'
+        required: true
+        default: 'strategicInterception=0'
+      probes:
+        description: 'Comma-separated probes from scripts/probes'
+        required: false
+        default: 'outcome,playtest,causal-inaction,move-stalls,contact-flicker,bound-episodes,squad-idle,retreat-episodes,fire-gates,clear-contact'
+      origin_agent:
+        description: 'Who dispatched this (for the run title)'
+        required: false
+        default: ''
+      purpose:
+        description: 'What the pair tests'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+run-name: Probe pack ${{ github.event.inputs.seed || 'pr-smoke' }} ${{ github.event.inputs.purpose }}
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      shards: ${{ steps.plan.outputs.shards }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check the pack code
+        run: |
+          node --check scripts/probes/playtest.js
+          node --check scripts/merge_probe_pack.cjs
+          node tools/ai-sim-harness/probe-pack-check.js
+      - id: plan
+        env:
+          SEEDS: ${{ github.event.inputs.seeds || '2' }}
+        run: echo "shards=$(node scripts/plan_benchmark_shards.cjs "$SEEDS" 10)" >> "$GITHUB_OUTPUT"
+
+  run:
+    name: ${{ matrix.battle_type }} · shard ${{ matrix.shard.shard }}
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        battle_type: [meeting, us-defend, ge-defend]
+        shard: ${{ fromJSON(needs.plan.outputs.shards) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install browser harness
+        run: |
+          npm install --no-save --no-package-lock playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Start local battle server
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/battle-www
+          ln -s "$GITHUB_WORKSPACE" /tmp/battle-www/grasstex
+          PHP_CLI_SERVER_WORKERS=4 php -S 127.0.0.1:8765 -t /tmp/battle-www >/tmp/battle-php.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS 'http://127.0.0.1:8765/grasstex/battle_sim_local.php?seed=healthcheck' >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/battle-php.log
+          exit 1
+      - name: Play both arms
+        env:
+          TYPE: ${{ matrix.battle_type }}
+          PREFIX: ${{ github.event.inputs.seed || 'pack-pr' }}
+          FIRST: ${{ matrix.shard.first }}
+          COUNT: ${{ matrix.shard.count }}
+          MAP: ${{ github.event.inputs.map || 'tactical' }}
+          QUERY_OFF: ${{ github.event.inputs.query_off || 'strategicInterception=0' }}
+          QUERY_ON: ${{ github.event.inputs.query_on || 'strategicInterception=0' }}
+          PROBE: ${{ github.event.inputs.probes || 'outcome,playtest,causal-inaction,move-stalls,contact-flicker,bound-episodes,squad-idle,retreat-episodes,fire-gates,clear-contact' }}
+          PROBE_SECONDS: ${{ github.event.inputs.sim_seconds || (github.event_name == 'pull_request' && '240') || (github.event.inputs.map == 'strategic' && '1800') || '600' }}
+        run: |
+          set -uo pipefail
+          mkdir -p reports/off reports/on
+          battles=""
+          for i in $(seq 1 "$COUNT"); do
+            n=$(printf '%04d' $((FIRST + i)))
+            battles="${battles:+$battles,}${TYPE}:${PREFIX}-${TYPE}-${n}"
+          done
+          rc=0
+          for arm in off on; do
+            if [ "$arm" = off ]; then q="$QUERY_OFF"; else q="$QUERY_ON"; fi
+            # Since #591 the default battle is the strategic 5 km map; the tactical map needs it pinned off in both arms.
+            if [ "$MAP" = tactical ]; then
+              case "&$q&" in *"&strategicInterception="*) ;; *) q="strategicInterception=0${q:+&$q}" ;; esac
+            fi
+            PROBE_BATTLES="$battles" \
+            PROBE_URL="http://127.0.0.1:8765/grasstex/battle_sim_local.php?${q}" \
+            PROBE_OUTPUT="reports/${arm}/${TYPE}-${{ matrix.shard.shard }}.json" \
+            node scripts/run_probe.cjs >/dev/null || rc=1
+          done
+          exit $rc
+      - name: Save evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: probe-pack-${{ matrix.battle_type }}-${{ matrix.shard.shard }}
+          path: reports/
+          if-no-files-found: warn
+          retention-days: 14
+
+  merge:
+    needs: run
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: probe-pack-*
+          path: evidence
+      - name: Compare arms
+        run: |
+          mkdir -p result
+          off=$(find evidence -path '*/off/*.json' | tr '\n' ' ')
+          on=$(find evidence -path '*/on/*.json' | tr '\n' ' ')
+          node scripts/merge_probe_pack.cjs --off $off --on $on --json result/probe-pack.json --md result/probe-pack.md
+          # Also print the table to the job log, where agents without artifact access read it.
+          tee -a "$GITHUB_STEP_SUMMARY" < result/probe-pack.md
+          for t in meeting us-defend ge-defend; do
+            o=$(find evidence -path "*/off/${t}-*.json" | tr '\n' ' ')
+            n=$(find evidence -path "*/on/${t}-*.json" | tr '\n' ' ')
+            [ -n "$o" ] && [ -n "$n" ] && node scripts/merge_probe_pack.cjs --off $o --on $n --json "result/probe-pack-${t}.json" --md "result/probe-pack-${t}.md" >/dev/null || true
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: probe-pack-result
+          path: result/
+          retention-days: 30

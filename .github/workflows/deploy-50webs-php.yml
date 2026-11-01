@@ -1,0 +1,500 @@
+name: ⭐ Deploy Battle Runtime to 50webs
+
+# PR CI runs once. A push to main resolves the PR that produced the current main
+# commit, verifies that PR's exact head passed CI, then independently validates
+# and publishes the resulting main commit. This supports merge, squash and rebase merges.
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+  pull-requests: read
+
+concurrency:
+  group: deploy-50webs-battle-runtime
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    name: Verify tested merge before deploy
+    runs-on: ubuntu-latest
+    outputs:
+      should_deploy: ${{ steps.resolve.outputs.should_deploy }}
+      target_sha: ${{ steps.resolve.outputs.target_sha }}
+      reason: ${{ steps.resolve.outputs.reason }}
+    steps:
+      - name: Checkout current main with merge parents
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 2
+      - name: Verify current main and merged PR CI
+        id: resolve
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_SHA: ${{ github.sha }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          current_sha="$(git rev-parse HEAD)"
+          echo "should_deploy=false" >> "$GITHUB_OUTPUT"
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            echo "should_deploy=true" >> "$GITHUB_OUTPUT"
+            echo "target_sha=$current_sha" >> "$GITHUB_OUTPUT"
+            echo "reason=explicit manual dispatch" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [[ "$EVENT_SHA" != "$current_sha" ]]; then
+            echo "Skipping stale push: $EVENT_SHA versus $current_sha"
+            exit 0
+          fi
+          # Resolve the PR that produced this exact main commit instead of inferring it
+          # from commit topology. Squash and rebase merges are one-parent commits, while a
+          # traditional merge has two parents; GitHub records all three on the PR itself.
+          prs="$(gh api "repos/$GH_REPO/commits/$current_sha/pulls" -H 'Accept: application/vnd.github+json')"
+          matches="$(jq -c --arg sha "$current_sha" '[.[] | select(.merged_at != null and .merge_commit_sha == $sha and .base.ref == "main")]' <<< "$prs")"
+          match_count="$(jq 'length' <<< "$matches")"
+          if [[ "$match_count" -ne 1 ]]; then
+            echo "::error::Expected exactly one merged PR whose merge commit is current main $current_sha; found $match_count. Manual review and dispatch required."
+            exit 1
+          fi
+          pr_head="$(jq -r '.[0].head.sha' <<< "$matches")"
+          pr_number="$(jq -r '.[0].number' <<< "$matches")"
+          if [[ -z "$pr_head" || "$pr_head" == "null" ]]; then
+            echo "::error::Merged PR #$pr_number has no resolvable head SHA."
+            exit 1
+          fi
+          runs="$(gh api "repos/$GH_REPO/actions/workflows/ci.yml/runs?head_sha=$pr_head&event=pull_request&per_page=100")"
+          if ! jq -e --arg head "$pr_head" '[.workflow_runs[] | select(.head_sha == $head and .status == "completed" and .conclusion == "success")] | length > 0' <<< "$runs" >/dev/null; then
+            echo "::error::No successful completed PR CI on exact merged head $pr_head"
+            exit 1
+          fi
+          echo "should_deploy=true" >> "$GITHUB_OUTPUT"
+          echo "target_sha=$current_sha" >> "$GITHUB_OUTPUT"
+          echo "reason=merged PR #$pr_number head $pr_head passed CI" >> "$GITHUB_OUTPUT"
+          echo "Deploying current main $current_sha from PR #$pr_number; PR head $pr_head passed CI"
+
+  deploy:
+    name: Upload Battle Sim AI lab
+    needs:
+      - gate
+    if: needs.gate.outputs.should_deploy == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+
+    steps:
+      - name: Checkout verified merge commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.gate.outputs.target_sha }}
+          # Full history and tags: the build number is derived from the highest build-v<N> tag.
+          fetch-depth: 0
+
+      - name: Confirm exact deploy source
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="${{ needs.gate.outputs.target_sha }}"
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "$expected"
+          echo "Deploy source pinned to verified merge commit: $actual"
+
+      # No audio clip is in this public repo: check out the private APPARANYX/grasstex-audio at the
+      # commit Assets/audio/private-audio.lock.json pins, with a private-audio deploy key, and overlay it
+      # onto Assets/audio/ (scripts/fetch_private_audio.sh).
+      - name: Pinned private audio commit
+        id: private-audio
+        run: echo "commit=$(python3 -c 'import json;print(json.load(open("Assets/audio/private-audio.lock.json"))["commit"])')" >> "$GITHUB_OUTPUT"
+
+      - name: Check out the private audio
+        uses: actions/checkout@v4
+        with:
+          repository: APPARANYX/grasstex-audio
+          ref: ${{ steps.private-audio.outputs.commit }}
+          ssh-key: ${{ secrets.PRIVATE_AUDIO_READ_KEY || secrets.AUDIO_PRIVATE_WRITE_KEY }}
+          path: .runtime/private-audio
+          persist-credentials: false
+
+      - name: Overlay the private audio
+        run: bash scripts/fetch_private_audio.sh .runtime/private-audio
+
+      - name: Resolve and stamp build version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --tags --force --quiet origin
+          echo "Published build versions: $(git tag --list 'build-v*' | tr '\n' ' ' )"
+          echo "Currently live: $(python3 scripts/build_version.py show)"
+          python3 scripts/build_version.py stamp \
+            --run-id "${{ github.run_id }}" \
+            --github-output "$GITHUB_OUTPUT"
+          test -s battle/build-version.json
+          echo "This run will publish: $(python3 -c 'import json;print(json.load(open("battle/build-version.json"))["version"])')"
+
+      - name: Validate deployment files
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -l battle_sim_local.php
+          php -l battle_log.php
+          php -l battle_log_stats.php
+          php -l battle_policy.php
+          php -l battle_learning.php
+          php -l battle_metrics.php
+          test -s battle/battle_sim.html
+          node scripts/check_clip_pack.cjs
+
+          for f in \
+            battle/soldier.js \
+            battle/weapons.js \
+            battle/obstacle-field.js \
+            battle/terrain-features.js \
+            battle/squad-ai.js \
+            battle/engagement.js \
+            battle/battle-sim.js \
+            battle/camera-controls.js \
+            battle/acoustics.js \
+            battle/scenario-generator.js \
+            battle/battle-navigation.js \
+            battle/town-objectives.js \
+            battle/module-registry.js \
+            battle/ai-policy.js \
+            battle/objective-system.js \
+            battle/battle-telemetry.js \
+            battle/commander-doctrine.js \
+            battle/commander-routes.js \
+            battle/commander-ai.js \
+            battle/tactical-capability-contract.js \
+            battle/ai-trainer.js \
+            battle/battle-control.js; do
+            test -s "$f"
+            node --check "$f"
+          done
+
+          # Three lists have to agree: the page's script tags, the loader's runtime lists and the
+          # deploy plan. When they drift the deployed loader just 404s.
+          python3 scripts/check_deploy_coverage.py
+
+          # The AI decision stack has to still behave before it is published. The suite is
+          # deterministic per seed, so sweep a handful of battles: a check that only holds on one
+          # set of dice is a check that will block a deploy at random, which is exactly what
+          # happened once already.
+          for seed in 12345 1 2 3 5 8 13 21; do
+            HARNESS_SEED="$seed" node tools/ai-sim-harness/run.js
+          done
+
+          # The defects the 100-battle benchmark found, as assertions: no permanent traversal
+          # deadlock against a building, no scenario where every squad is sent to one objective,
+          # and capture progress that survives an interrupted hold. Runs on the worst seeds from
+          # the stored benchmark reports, so a regression is caught here rather than 100 battles
+          # later.
+          node tools/ai-sim-harness/objective-nav-check.js
+          node tools/ai-sim-harness/map-pipeline-check.js
+          node tools/ai-sim-harness/impact-fx-check.js
+          node tools/ai-sim-harness/tactical-positions-check.js
+          node tools/ai-sim-harness/cover-positions-check.js
+          node tools/ai-sim-harness/personal-space-check.js
+          node tools/ai-sim-harness/world-debug-check.js
+
+          test -d battle/modules
+          find battle/modules -maxdepth 1 -type f -name '*.js' -print0 | sort -z | while IFS= read -r -d '' f; do
+            test -s "$f"
+            node --check "$f"
+            echo "Validated module: $f"
+          done
+
+          python3 -m json.tool Assets/audio/manifest.json >/dev/null
+          python3 scripts/validate_voice_manifest.py Assets/audio/manifest.json Assets/audio
+          python3 -m py_compile scripts/prepare_incremental_deploy.py
+          python3 -m py_compile scripts/build_version.py
+          echo "Deploying commit: $(git rev-parse HEAD) as build ${{ steps.version.outputs.version }}"
+
+      - name: Install FTP tools
+        shell: bash
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq lftp
+
+      - name: Fetch deployed hash state
+        shell: bash
+        env:
+          FTP_HOST: ${{ secrets.FTP_HOST }}
+          FTP_USER: ${{ secrets.FTP_USER }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASS }}
+        run: |
+          set -u
+          : "${FTP_HOST:?Missing repository secret FTP_HOST}"
+          : "${FTP_USER:?Missing repository secret FTP_USER}"
+          : "${FTP_PASSWORD:?Missing repository secret FTP_PASS}"
+          rm -f .deploy-remote.sha256.tsv .audio-remote-tracker.json
+
+          # The audio tracker the last successful deploy left (scripts/audio_tracker.py); absent on a
+          # host that predates it, which counts as changed.
+          lftp -u "$FTP_USER","$FTP_PASSWORD" "$FTP_HOST" <<LFTP || rm -f .audio-remote-tracker.json
+          set cmd:fail-exit yes
+          set net:max-retries 2
+          set net:timeout 15
+          set ftp:ssl-allow no
+          set ftp:passive-mode true
+          cd grasstex
+          get .battle-audio-tracker.json -o "$GITHUB_WORKSPACE/.audio-remote-tracker.json"
+          bye
+          LFTP
+
+          if lftp -u "$FTP_USER","$FTP_PASSWORD" "$FTP_HOST" <<LFTP
+          set cmd:fail-exit yes
+          set net:max-retries 2
+          set net:timeout 15
+          set ftp:ssl-allow no
+          set ftp:passive-mode true
+          cd grasstex
+          get .battle-deploy.sha256.tsv -o "$GITHUB_WORKSPACE/.deploy-remote.sha256.tsv"
+          bye
+          LFTP
+          then
+            echo "Remote deployment hash state loaded: $(wc -l < .deploy-remote.sha256.tsv) managed entries"
+          else
+            rm -f .deploy-remote.sha256.tsv
+            echo "No usable remote deployment hash state. This run will bootstrap it with one full managed-runtime upload."
+          fi
+
+      # First of the audio steps: has any audio input (Assets/audio, the audio scripts, this file)
+      # changed since the audio that is live? If not, ffmpeg, the voice inventory, the pitch
+      # variants and the voice upload are all skipped: every file they would make is on the host.
+      - name: Has the audio changed since the last deploy?
+        id: audio
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/audio_tracker.py snapshot > .audio-tracker.json
+          if [[ -f .deploy-remote.sha256.tsv ]]; then
+            python3 scripts/audio_tracker.py compare .audio-remote-tracker.json --github-output "$GITHUB_OUTPUT"
+          else
+            echo "No remote hash state: a full upload, audio included."
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install audio tools
+        if: steps.audio.outputs.changed == 'true'
+        shell: bash
+        run: sudo apt-get install -y -qq ffmpeg
+
+      # The hash state records what was uploaded, not what is still there: re-upload any soldier,
+      # animation or weapon FBX that was removed from the host (e.g. a folder dropped to clean it).
+      # A missing directory lists as empty; __LISTED__ is printed only once the listing ran.
+      - name: Re-upload FBX assets missing on the server
+        shell: bash
+        env:
+          FTP_HOST: ${{ secrets.FTP_HOST }}
+          FTP_USER: ${{ secrets.FTP_USER }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASS }}
+        run: |
+          set -u
+          [[ -f .deploy-remote.sha256.tsv ]] || { echo "No remote state: this run uploads everything anyway."; exit 0; }
+          lftp -u "$FTP_USER","$FTP_PASSWORD" "$FTP_HOST" <<'LFTP' > .fbx-remote-files.txt || true
+          set cmd:fail-exit yes
+          set net:max-retries 2
+          set net:timeout 15
+          set ftp:ssl-allow no
+          set ftp:passive-mode true
+          cd grasstex/Assets
+          set cmd:fail-exit no
+          find soldiers
+          find animations
+          find weapons
+          echo __LISTED__
+          bye
+          LFTP
+          python3 scripts/prune_missing_remote_assets.py .deploy-remote.sha256.tsv .fbx-remote-files.txt
+
+      - name: Inventory deployed voice files
+        if: steps.audio.outputs.changed == 'true'
+        shell: bash
+        env:
+          FTP_HOST: ${{ secrets.FTP_HOST }}
+          FTP_USER: ${{ secrets.FTP_USER }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASS }}
+        run: |
+          set -u
+          : "${FTP_HOST:?Missing repository secret FTP_HOST}"
+          : "${FTP_USER:?Missing repository secret FTP_USER}"
+          : "${FTP_PASSWORD:?Missing repository secret FTP_PASS}"
+          rm -f .audio-remote-files.txt .audio-remote-files.raw
+
+          if lftp -u "$FTP_USER","$FTP_PASSWORD" "$FTP_HOST" <<'LFTP' > .audio-remote-files.raw
+          set cmd:fail-exit yes
+          set net:max-retries 2
+          set net:timeout 15
+          set ftp:ssl-allow no
+          set ftp:passive-mode true
+          cd grasstex/Assets/audio
+          find voices
+          bye
+          LFTP
+          then
+            sed -e 's#^\./##' -e 's#/$##' .audio-remote-files.raw \
+              | grep '^voices/' \
+              | sort -u > .audio-remote-files.txt || true
+            echo "Remote voice entries indexed: $(wc -l < .audio-remote-files.txt)"
+            echo "Remote MP3s: $(grep -c '\.mp3$' .audio-remote-files.txt || true)"
+            echo "Existing pitch variants: $(grep -c '\.pitch-.*\.mp3$' .audio-remote-files.txt || true)"
+          else
+            echo "Remote voice inventory failed; deploy will safely rebuild/upload staged voice files."
+            rm -f .audio-remote-files.txt
+          fi
+
+      - name: Build only missing pitch-preserving voice variants
+        if: steps.audio.outputs.changed == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/build_voice_pitch_variants.sh Assets/audio/manifest.json Assets/audio .audio-deploy .audio-remote-files.txt
+          test -s .audio-deploy/manifest.json
+          test -d .audio-deploy/voices/us
+          test -d .audio-deploy/voices/ge
+          echo "Voice files staged: $(find .audio-deploy/voices -type f -name '*.mp3' | wc -l)"
+          echo "New pitch variants staged: $(find .audio-deploy/voices -type f -name '*.pitch-*.mp3' | wc -l)"
+
+      - name: Prepare missing-only voice upload
+        if: steps.audio.outputs.changed == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          : > .audio-upload.lftp
+          inventory_available=0
+          [[ -f .audio-remote-files.txt ]] && inventory_available=1
+          upload_count=0
+          skip_count=0
+
+          while IFS= read -r -d '' src; do
+            rel="${src#.audio-deploy/}"
+            if [[ "$inventory_available" -eq 1 ]] && grep -Fqx "$rel" .audio-remote-files.txt; then
+              skip_count=$((skip_count+1))
+              continue
+            fi
+            printf 'put "%s" -o "%s"\n' "$src" "$rel" >> .audio-upload.lftp
+            upload_count=$((upload_count+1))
+          done < <(find .audio-deploy/voices -type f \( -name '*.mp3' -o -name '*.caf' -o -name '*.ogg' \) -print0 | sort -z)
+
+          echo "Voice files (MP3, CAF, Ogg) already remote / skipped: $skip_count"
+          echo "Voice files (MP3, CAF, Ogg) missing / queued for upload: $upload_count"
+          if [[ "$inventory_available" -eq 0 ]]; then
+            echo "Remote inventory unavailable: all staged MP3s queued as safe fallback."
+          fi
+
+      # The staged manifest is a plain copy of Assets/audio/manifest.json (build_voice_pitch_variants.sh),
+      # and with the audio unchanged there is no voice file to upload.
+      - name: Audio unchanged - stage the manifest only
+        if: steps.audio.outputs.changed != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .audio-deploy
+          cp Assets/audio/manifest.json .audio-deploy/manifest.json
+          : > .audio-upload.lftp
+          echo "Audio unchanged since the last deploy: no ffmpeg, no voice inventory, no pitch variants, no voice upload."
+
+      - name: Prepare content-hash deployment plan
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Refuse to deploy if the planner could delete or overwrite sidecar JSON, lab or other
+          # unmanaged server files, or wipe many modules at once.
+          python3 scripts/check_deploy_safety.py
+          python3 scripts/prepare_incremental_deploy.py \
+            --remote-manifest .deploy-remote.sha256.tsv \
+            --audio-manifest .audio-deploy/manifest.json \
+            --output .deploy-plan
+          cat .deploy-plan/summary.json
+
+      - name: Upload changed runtime to 50webs
+        shell: bash
+        env:
+          FTP_HOST: ${{ secrets.FTP_HOST }}
+          FTP_USER: ${{ secrets.FTP_USER }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASS }}
+        run: |
+          set -euo pipefail
+          : "${FTP_HOST:?Missing repository secret FTP_HOST}"
+          : "${FTP_USER:?Missing repository secret FTP_USER}"
+          : "${FTP_PASSWORD:?Missing repository secret FTP_PASS}"
+
+          lftp -u "$FTP_USER","$FTP_PASSWORD" "$FTP_HOST" <<LFTP
+          set cmd:fail-exit yes
+          set net:max-retries 2
+          set net:timeout 15
+          set ftp:ssl-allow no
+          set ftp:passive-mode true
+          cd grasstex
+
+          source "$GITHUB_WORKSPACE/.deploy-plan/deletes.lftp"
+          source "$GITHUB_WORKSPACE/.deploy-plan/uploads.lftp"
+
+          cd Assets/audio
+          source "$GITHUB_WORKSPACE/.audio-upload.lftp"
+          cd ../..
+
+          source "$GITHUB_WORKSPACE/.deploy-plan/post-uploads.lftp"
+
+          # Publish state last so a failed partial deployment is retried next run.
+          put "$GITHUB_WORKSPACE/.deploy-plan/current.sha256.tsv" -o ".battle-deploy.sha256.tsv"
+          # The audio tracker last of all: it says the audio above is live.
+          put "$GITHUB_WORKSPACE/.audio-tracker.json" -o ".battle-audio-tracker.json"
+
+          cd battle
+          cls -l scenario-generator.js
+          cls -l battle-navigation.js
+          cls -l ai-trainer.js
+          cls -l battle-control.js
+          cls -l modules
+          bye
+          LFTP
+
+      - name: Publish build version tag
+        shell: bash
+        env:
+          GIT_AUTHOR_NAME: github-actions[bot]
+          GIT_AUTHOR_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+          GIT_COMMITTER_NAME: github-actions[bot]
+          GIT_COMMITTER_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+        run: |
+          set -euo pipefail
+          # Only reached when every upload step above succeeded, so the tag means "this is live".
+          # A failed or cancelled run skips a version number rather than reusing one.
+          python3 scripts/build_version.py tag \
+            --message "Battle runtime ${{ steps.version.outputs.version }} deployed from $(git rev-parse HEAD) (run ${{ github.run_id }})"
+          echo "Published tag: build-${{ steps.version.outputs.version }}"
+
+      - name: Deployment summary
+        shell: bash
+        run: |
+          set -euo pipefail
+          runtime_uploads="$(python3 -c 'import json; print(json.load(open(".deploy-plan/summary.json"))["runtimeUploads"])')"
+          post_uploads="$(python3 -c 'import json; print(json.load(open(".deploy-plan/summary.json"))["postUploads"])')"
+          unchanged="$(python3 -c 'import json; print(json.load(open(".deploy-plan/summary.json"))["unchanged"])')"
+          deletes="$(python3 -c 'import json; print(json.load(open(".deploy-plan/summary.json"))["deletes"])')"
+          {
+            echo "### 50webs Battle Sim AI lab deployment"
+            echo ""
+            echo "- Build: **${{ steps.version.outputs.version }}** (tag \`build-${{ steps.version.outputs.version }}\`, cache epoch \`${{ steps.version.outputs.cacheEpoch }}\`)"
+            echo "- Source: \`main@$(git rev-parse --short HEAD)\`"
+            echo "- Battle: \`/grasstex/battle_sim.php\`"
+            echo "- Review: \`/grasstex/battle_metrics.php\`"
+            echo "- Runtime uploads: **$runtime_uploads**"
+            echo "- Post-runtime uploads: **$post_uploads**"
+            echo "- Unchanged managed files skipped: **$unchanged**"
+            echo "- Managed stale files deleted: **$deletes**"
+            echo "- Runtime deploy comparison: SHA-256 content hash, not timestamps"
+            echo "- Voice MP3 upload: existence-based; already-deployed MP3s are never re-uploaded"
+            echo "- Audio changed since the last deploy: **${{ steps.audio.outputs.changed }}** (audio steps skipped when false)"
+            echo "- Deployment state: \`/grasstex/.battle-deploy.sha256.tsv\` published last"
+            echo "- Trigger: every push to \`main\` plus manual dispatch"
+            echo "- Build number: highest \`build-v<N>\` tag + 1 at start; the tag is pushed only after a successful deploy"
+          } >> "$GITHUB_STEP_SUMMARY"

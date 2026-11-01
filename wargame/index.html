@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><meta http-equiv="Cache-Control" content="no-cache, must-revalidate"><meta name="referrer" content="no-referrer">
+<title>GRASSTEX | Commander Ideation Exchange</title>
+<style>
+:root{color-scheme:dark;--bg:#0b111b;--panel:#162234;--muted:#a6b5cc;--line:#2b4059;--gold:#e5c889;--light:#f2f6fd;--red:#ed9b95;--blue:#91b9ed}
+*{box-sizing:border-box}body{margin:0;color:var(--light);background:var(--bg);font:15px/1.5 system-ui,-apple-system,Segoe UI,Arial,sans-serif}
+header{border-bottom:1px solid var(--line);padding:27px max(24px,calc((100vw - 1100px)/2));background:linear-gradient(120deg,#182b42,#0c1421)}
+header small{letter-spacing:.17em;color:var(--gold);font-weight:700}h1{font-size:clamp(25px,4vw,38px);margin:4px 0}h2{font-size:19px;margin:0 0 12px}h3{font-size:16px;margin:16px 0 7px}
+main{max-width:1120px;padding:24px;margin:auto}.intro{color:var(--muted);max-width:790px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px;margin-bottom:18px}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.grid3{display:grid;grid-template-columns:1.3fr 1fr 1.3fr;gap:12px}
+label{font-size:13px;color:var(--muted);font-weight:600;display:block;margin:10px 0 5px}
+input,textarea,select,button{font:inherit}input,textarea,select{display:block;width:100%;background:#0c1624;border:1px solid #46607c;color:var(--light);border-radius:7px;padding:10px 12px}
+textarea{min-height:105px;resize:vertical;font:13px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace}
+textarea.tall{min-height:210px}
+button{border:1px solid #57708a;background:#233d56;color:white;padding:10px 17px;border-radius:8px;cursor:pointer;margin-top:12px}
+button.primary{background:#d2b474;color:#16202c;border-color:#d2b474;font-weight:700}button:hover{filter:brightness(1.15)}
+button:disabled{opacity:.5;cursor:not-allowed}button.inline{margin-top:0}
+p{margin:8px 0 14px}small,.muted{color:var(--muted)}.quiet{font-size:13px;color:var(--muted)}
+pre{padding:14px;border:1px solid var(--line);border-radius:8px;background:#0b1626;white-space:pre-wrap;overflow-wrap:anywhere;max-height:420px;overflow:auto;font:12px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace}
+p.notice{padding:11px 13px;border-left:3px solid var(--gold);background:#262c32;color:#f5e2b8}
+#message{min-height:25px;font-size:14px}#message.error{color:var(--red)}#message.good{color:#a6ddb5}
+.badge{display:inline-block;padding:4px 10px;border-radius:20px;border:1px solid #55708d;margin-left:8px;font-size:12px;color:var(--muted)}
+details{margin:10px 0}summary{cursor:pointer;color:var(--gold);font-weight:600}
+.hidden{display:none!important}.key{color:#f0d1a5}hr{border:0;border-top:1px solid var(--line);margin:18px 0}
+.replayTools{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}.replayTools button{margin-top:0;padding:8px 11px;font-size:13px}
+footer{padding:16px 24px 35px;text-align:center;color:var(--muted);font-size:12px}
+@media(max-width:700px){.grid,.grid3{grid-template-columns:1fr}.panel{padding:16px}main{padding:15px}}
+
+.tacticalPanel{padding:0;overflow:hidden;background:#192520;border-color:#5d6d61}
+.tacticalHeader{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 17px;border-bottom:1px solid #576c61;background:#17221f}
+.tacticalHeader h2{font-size:19px;letter-spacing:.12em;margin:3px 0;color:#f4e8c9}
+.tacticalHeader small{font-size:10px;letter-spacing:.14em;color:#dfd4b1}
+.tacticalHeader button{margin:0;white-space:nowrap}
+.tacticalLayout{display:grid;grid-template-columns:minmax(0,1.8fr) minmax(245px,.9fr)}
+.tacticalCanvas{min-width:0;padding:12px;background:#1e2c26}
+.tacticalSidebar{min-width:0;padding:14px;border-left:1px solid #536b60;background:#19221f}
+.tacticalSidebar h3{color:#ebdec0;letter-spacing:.08em;font-size:12px;margin:10px 0}
+.tacticalSidebar .quiet,.tacticalCanvas .quiet{color:#c0cabc}
+.tacticalSidebar pre{max-height:180px;background:#121d1a;border-color:#43594c}
+.fieldCard{padding:12px;border:1px solid #677d64;border-radius:8px;background:#233128;color:#f1ead6}
+.fieldCard p{font-size:12px;color:#cdd9ca}
+.fieldStats{display:grid;grid-template-columns:1fr 1fr;gap:4px 10px;font-size:12px;margin:8px 0}
+.fieldStats dt{color:#aebfb0}.fieldStats dd{margin:0;font-weight:650;text-align:right}
+.fieldCard small{font-size:11px;color:#b7c9b7}
+.tacticalPanel #mapBoard svg{max-height:min(78vh,800px)}
+.tacticalPanel.expanded{position:fixed;z-index:1000;inset:0;margin:0;border-radius:0;overflow:auto}
+.tacticalPanel.expanded .tacticalLayout{grid-template-columns:minmax(0,1fr) minmax(250px,.36fr)}
+.tacticalPanel.expanded #mapBoard svg{max-height:calc(100dvh - 140px)}
+@media(max-width:700px){.tacticalLayout,.tacticalPanel.expanded .tacticalLayout{grid-template-columns:1fr}.tacticalSidebar{border-left:0;border-top:1px solid #536b60}.tacticalPanel.expanded #mapBoard svg{max-height:70dvh}.tacticalHeader h2{font-size:15px}}
+</style></head><body>
+<header><small>GRASSTEX / RESEARCH TOOLS · WARGAME v1.4.0</small><h1>Commander Ideation Exchange</h1>
+<p class="intro">Two commanders. One sealed turn each. One deterministic referee. Site-hosted strategy wargames for discovering missing game-command capabilities—without running the soldier simulator or using paid AI APIs.</p></header>
+<main>
+<div class="panel">
+  <h2>Open a match <span class="badge" id="phase">No match loaded</span></h2>
+  <div class="grid3">
+    <div><label for="match">Match ID</label><input id="match" autocomplete="off" spellcheck="false" placeholder="24-character match ID"></div>
+    <div><label for="role">View as</label><select id="role"><option value="public">Public spectator</option><option value="us">US commander</option><option value="ge">German commander</option><option value="admin">Protected observer (all forces)</option></select></div>
+    <div><label for="key">One unlock field · commander key or administrator password</label><input id="key" type="password" autocomplete="off" placeholder="Enter key for selected role"></div>
+  </div>
+  <button class="primary" id="load">Load / refresh match</button>
+  <label style="display:inline-flex;align-items:center;gap:8px;margin:12px 8px 8px 0"><input id="rememberAdmin" type="checkbox" style="width:auto">Remember administrator password on this device</label>
+  <button type="button" id="clearAdmin">Forget saved password</button>
+  <p class="quiet">Optional: browser storage keeps the administrator password on this device, unencrypted. Use only on a private, trusted browser. Commander keys remain separate and are never saved automatically.</p>
+  <div id="liveStatus" class="quiet" role="status" aria-live="polite">Load a match to begin live updates.</div>
+  <button id="copyPacket">Copy briefing for your AI chat</button>
+  <p id="message" role="status" aria-live="polite"></p>
+  <p id="buildDiagnostic" class="quiet">Browser v1.3.0 · API not yet checked</p>
+  <div class="quiet">Public spectator needs no key; Protected observer requires your administrator password. The match and map check for updates every 2 seconds while this tab is visible; the page itself does not reload. Chat sessions do not automatically wake up to take turns.</div>
+</div>
+
+<div class="panel hidden tacticalPanel" id="mapPanel">
+  <div class="tacticalHeader">
+    <div><small>AREA OF OPERATIONS / COMMANDER INTELLIGENCE</small><h2>TACTICAL MAP <span class="badge">5 × 5 km</span></h2></div>
+    <button type="button" id="mapExpand" aria-pressed="false">Expand map</button>
+  </div>
+  <div class="tacticalLayout">
+    <div class="tacticalCanvas">
+      <div id="mapBoard" aria-live="polite"></div>
+      <p id="mapLegend" class="quiet"></p>
+      <p id="replaySource" class="quiet"></p>
+      <p class="quiet">Stylized GRASSTEX tactical cartography. Field parcels and hedgerows are illustrative; the wargame does not import the simulator's terrain or line-of-sight data.</p>
+    </div>
+    <div class="tacticalSidebar">
+      <h3>MAP LEGEND</h3>
+      <p class="quiet">🔷 US formation · 🔶 German formation · ◇ Capture objective · ◌ Contested objective · ▪ Truck</p>
+      <p class="quiet">Full force positions require Protected observer. Commanders see only authorized intelligence.</p>
+      <h3>FIELD CONTACTS</h3>
+      <pre id="fieldContacts" class="quiet">No field contacts yet.</pre>
+      <div id="fieldDetails" class="fieldCard" aria-live="polite">Tap a field marker for stats.</div>
+      <h3 id="replayLabel">Current board</h3>
+      <label for="replayTurn">Turn replay — 0 = current board</label>
+      <input type="range" id="replayTurn" min="0" max="0" step="1" value="0">
+      <div class="replayTools">
+        <button type="button" id="mapBack" aria-label="Previous turn">◀ Back</button>
+        <button type="button" id="mapPlay" class="primary" aria-pressed="true">❚❚ Pause</button>
+        <button type="button" id="mapForward" aria-label="Next turn">Forward ▶</button>
+        <button type="button" id="mapLive">● Live</button>
+        <button type="button" id="mapSound" aria-pressed="false">Sound off</button>
+      </div>
+      <p class="quiet">Playback follows resolved rounds automatically. Back/forward pauses; Play resumes. Tap Sound once to unlock audio; your preference is remembered. Movement trails remain visible after animation.</p>
+      <h3>Resolution / point ledger</h3><pre id="replayEvents"></pre>
+      <h3>Authorized orders</h3><pre id="replayOrders"></pre>
+      <p class="quiet">Public: objectives only. Each commander: its own exact squad positions. Protected observer: both forces and turn-by-turn paths.</p>
+    </div>
+  </div>
+</div>
+<div class="panel hidden" id="seriesPanel">
+  <h2 id="seriesTitle">Best of three</h2>
+  <p id="seriesScore" class="notice"></p>
+  <p id="seriesPlayers" class="quiet"></p>
+  <p id="seriesResults" class="quiet"></p>
+  <div id="seriesArchives" class="quiet"></div>
+  <div id="rematchControls" class="hidden">
+    <p>Match finished. Start the next game on this same match ID. Commanders swap factions but keep their original personal keys. Completed games are archived for replay.</p>
+    <div class="grid">
+      <div><label for="seriesPlayerA">Original US commander (player A)</label>
+      <input id="seriesPlayerA" autocomplete="off" maxlength="60" value="Sol"></div>
+      <div><label for="seriesPlayerB">Original German commander (player B)</label>
+      <input id="seriesPlayerB" autocomplete="off" maxlength="60" value="Opus"></div>
+    </div>
+    <p class="quiet">Rematch uses your saved administrator unlock or the password in the top field.</p>
+    <button id="rematchButton" class="primary" type="button">Rematch · switch sides</button>
+    <p id="rematchHelp" class="quiet">First to two decisive game wins; a draw replays the same game number.</p>
+  </div>
+  <div id="rematchIssued" class="hidden">
+    <p class="notice">No new keys are issued. Each commander uses their original key under the opposite faction; the existing match link remains valid.</p>
+    <pre id="rematchKeys"></pre>
+    <button id="rematchOpen" type="button" class="primary">Open current game</button>
+  </div>
+  <div id="seriesNext" class="hidden">
+    <button id="seriesNextButton" type="button">Open next game</button>
+  </div>
+</div>
+<div class="panel hidden" id="endMatchPanel">
+  <h2>Referee · Finish match early</h2>
+  <p class="quiet">Administrator only. This permanently ends the current attempt without simulating another round. Resolved turns, tactical snapshots, capability proposals, existing debriefs, and any currently sealed orders are preserved. Both commanders will be asked for a final match debrief.</p>
+  <div class="grid">
+    <div><label for="endMatchKind">How should this game end?</label>
+      <select id="endMatchKind">
+        <option value="cancelled">Cancel match — no winner or series point</option>
+        <option id="endMatchScore" value="early_scored">End early — score the last resolved objective state</option>
+      </select></div>
+    <div><label for="endMatchReason">Reason (optional, visible to match viewers)</label>
+      <input id="endMatchReason" maxlength="400" placeholder="e.g. Session ended, commander unavailable"></div>
+  </div>
+  <button type="button" id="endMatchButton">Finish this match early…</button>
+</div>
+<div class="panel hidden" id="dashboard">
+  <h2 id="matchTitle">Match</h2>
+  <p id="refereeDebriefNotice" class="notice hidden" role="status" aria-live="polite"></p>
+  <div id="meta" class="quiet"></div>
+  <p id="terminationSummary" class="notice hidden" role="status"></p>
+  <p id="effectiveRules" class="notice" role="status" aria-live="polite"></p>
+  <div class="grid">
+    <div><h3>Current public briefing</h3><pre id="publicBrief"></pre></div>
+    <div><h3 id="privateTitle">Faction-private briefing</h3><pre id="privateBrief"></pre></div>
+  </div>
+  <details><summary>Full rules and starting scenario (site-hosted)</summary><h3>Rules</h3><pre id="rules"></pre><h3>Scenario</h3><pre id="scenario"></pre></details>
+  <h3>Current orders</h3><div id="orderStatus" class="quiet"></div><pre id="currentOrders"></pre>
+  <details><summary>Completed round history</summary><pre id="history"></pre></details>
+  <details id="pendingSealedPanel" class="hidden"><summary>Administrator: sealed orders from unfinished final round (not adjudicated)</summary><pre id="pendingSealedOrders"></pre></details>
+</div>
+
+<div class="panel hidden" id="debriefPanel">
+  <h2>AI commander debrief · What did you learn?</h2>
+  <p class="quiet">At match completion the referee requests a final debrief (round 0), including for canceled games with no resolved rounds. You can also document individual resolved rounds. This site cannot read AI chat transcripts automatically. Copy the reflection prompt into the commander's chat, paste its JSON response below, and submit using that commander's existing key. Notes are private to that commander and the administrator.</p>
+  <div id="debriefCommander">
+    <div class="grid">
+      <div><label for="debriefTurn">Debrief: round 0 = full match; 1+ = resolved round</label><input id="debriefTurn" type="number" min="0" value="1"></div>
+      <div><label>Reflection prompt</label><button type="button" id="copyDebriefPrompt">Copy “What did you learn?” prompt</button></div>
+    </div>
+    <label for="debriefInput">Paste the AI chat's JSON debrief</label>
+    <textarea id="debriefInput" class="tall" maxlength="18000" spellcheck="false" placeholder='{"learned":"What changed my understanding","worked":"Successful decisions","failed":"What went wrong","capability_gaps":"Missing game commands","next_time":"What I would change"}'></textarea>
+    <button type="button" id="submitDebrief" class="primary">Save commander debrief</button>
+    <button type="button" id="viewDebriefs">View my saved debriefs</button>
+  </div>
+  <div id="debriefAdmin" class="hidden">
+    <p class="quiet">Administrator export includes both commanders' submitted reflections for the current game and all archived rematches. No passwords, hidden chain-of-thought, or unsent chat content are included.</p>
+    <button type="button" class="primary" id="exportDebriefs">Download series debriefs (.json)</button>
+    <button type="button" id="copyDebriefs">Copy series debriefs JSON</button>
+  </div>
+  <p id="debriefStatus" role="status" aria-live="polite" class="quiet"></p>
+  <pre id="debriefOutput" class="hidden"></pre>
+</div>
+
+<div class="panel hidden" id="commander">
+  <h2>Submit sealed orders</h2>
+  <p class="quiet">One structured JSON order per side per turn. It cannot be edited afterward. When the second order is received, the site automatically resolves both and publishes the result. Keep your role key private.</p>
+  <label for="orders">Structured JSON order — move / transport / hold / reserve; propose missing actions separately</label>
+  <textarea id="orders" class="tall" maxlength="15000" placeholder='{"turn":1,"side":"us","intent":"Secure the junction","actions":[{"squad":"US-1","type":"move","target":"central"}],"support":"none","proposals":[{"name":"Conditional reserve","reason":"Need objective-triggered commitment"}]}'></textarea>
+  <button class="primary" id="submit">Seal my orders</button>
+</div>
+
+<details class="panel" id="createDetails"><summary>Create a new match (administrator)</summary>
+  <p class="quiet">A reusable ruleset and starter scenario are served from this 50web installation. Edit them for your new match; this creates a private match record on the host.</p>
+  <p class="quiet">Creating a match uses the administrator password from the top unlock field (or your remembered administrator password).</p>
+  <label for="newTitle">Match title</label><input id="newTitle" value="Junction Corridor — ChatGPT vs Claude">
+  <div class="grid"><div><label for="newLimit">Turn limit (2–15)</label><input id="newLimit" type="number" min="2" max="15" value="8"></div>
+  <div><label for="newMode">Mode</label><select id="newMode"><option value="discovery">Discovery (hypothetical actions allowed)</option><option value="native_only">Native only (proposals logged)</option></select></div></div>
+  <label for="newRules">Rules</label><textarea id="newRules" class="tall"></textarea>
+  <label for="newScenario">Scenario and victory conditions</label><textarea id="newScenario" class="tall"></textarea>
+  <label for="newPublic">Initial public briefing</label><textarea id="newPublic"></textarea>
+  <div class="grid"><div><label for="newUS">Initial US-only briefing</label><textarea id="newUS"></textarea></div>
+  <div><label for="newGE">Initial German-only briefing</label><textarea id="newGE"></textarea></div></div>
+  <button class="primary" id="create">Create match + generate two faction keys</button>
+  <div id="created" class="hidden"><p class="notice">Copy and save these keys now. They cannot be retrieved later. Never paste one side's key into the other side's chat.</p><pre id="createdOutput" class="key"></pre></div>
+</details>
+</main><footer>GRASSTEX Commander Ideation Lab · Qualitative design exercise, not a runtime battle benchmark</footer>
+<script src="./map.js?v=204f618f944c"></script>
+<script src="./app.js?v=2b920a7223df"></script></body></html>

@@ -1,0 +1,102 @@
+name: Experimental full battlefield audio mix 683
+on:
+  pull_request:
+    types: [synchronize]
+    paths:
+      - battle/modules/00-audio-backend.js
+      - battle/modules/00-audio-format.js
+      - battle/audio-lab.js
+      - battle/audio_lab.html
+      - battle/full-audio-stress.js
+      - battle/modules/00a-audio-mix.js
+      - battle/modules/11-voice-variation.js
+      - battle/modules/12a-listener-acoustics.js
+      - battle/modules/15-combat-audio.js
+      - battle/modules/15-weapon-foley-audio.js
+      - battle/modules/24a-grenade-audio.js
+      - scripts/probes/probe_audio_lab.cjs
+      - scripts/lib/audio-test-delivery.cjs
+      - .github/workflows/full-mix-audio-683.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: full-mix-audio-683
+  cancel-in-progress: true
+
+jobs:
+  full-mix:
+    if: github.event.pull_request.number == 683
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install real Chromium playback runner
+        run: |
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Stage exact draft PR head
+        shell: bash
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          curl -fSL --retry 2 --max-time 120 \
+            'https://test.ivandpopov.com/grasstex/preview.php?ref=683' \
+            -o /tmp/staged-full-mix.html
+          curl -fSL --retry 2 --max-time 40 \
+            "https://test.ivandpopov.com/grasstex/preview/ref-${HEAD_SHA:0:12}/battle/full-audio-stress.js" \
+            -o /tmp/staged-full-mix-owner.js
+          test -s /tmp/staged-full-mix-owner.js
+      - name: Required Howler full-mix acoustics
+        id: howler
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          AUDIO_LAB_TIMEOUT_MS: '200000'
+          AUDIO_LAB_FETCH_CONCURRENCY: '4'
+        run: |
+          set -euo pipefail
+          required_status=0
+          for variant in howler-off howler-standard howler-high; do
+            backend="${variant%%-*}"
+            quality="${variant#*-}"
+            export AUDIO_LAB_REPORT="reports/full-mix-audio-683/${variant}.json"
+            export AUDIO_LAB_URL="https://test.ivandpopov.com/grasstex/preview/ref-${HEAD_SHA:0:12}/battle/audio_lab.html?fullMix=1&tacticalController=new&duration=145&speed=4&squads=5&occlusion=mixed&audioBackend=${backend}&acoustics=${quality}"
+            node scripts/probes/probe_audio_lab.cjs || required_status=1
+          done
+          exit "$required_status"
+      - name: Informational Babylon full-mix comparison
+        id: babylon
+        continue-on-error: true
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          AUDIO_LAB_TIMEOUT_MS: '200000'
+          AUDIO_LAB_FETCH_CONCURRENCY: '4'
+          AUDIO_LAB_REPORT: reports/full-mix-audio-683/babylon-standard.json
+        run: |
+          export AUDIO_LAB_URL="https://test.ivandpopov.com/grasstex/preview/ref-${HEAD_SHA:0:12}/battle/audio_lab.html?fullMix=1&tacticalController=new&duration=145&speed=4&squads=5&occlusion=mixed&audioBackend=babylon&acoustics=standard"
+          node scripts/probes/probe_audio_lab.cjs
+      - name: Upload actual output/owner diagnostic history
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: full-mix-audio-683
+          path: reports/full-mix-audio-683/
+          if-no-files-found: warn
+      - name: Report backend outcomes
+        if: always()
+        env:
+          HOWLER_OUTCOME: ${{ steps.howler.outcome }}
+          BABYLON_OUTCOME: ${{ steps.babylon.outcome }}
+        run: |
+          echo "Required Howler off/standard/high: $HOWLER_OUTCOME" >> "$GITHUB_STEP_SUMMARY"
+          echo "Informational Babylon standard: $BABYLON_OUTCOME" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$BABYLON_OUTCOME" = failure ]; then
+            echo "::warning::Babylon comparison failed; inspect its retained report. Required Howler acceptance is unchanged."
+          fi

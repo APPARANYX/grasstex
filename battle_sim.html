@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>WW2FPS AI Lab</title>
+</head>
+<body style="margin:0;display:grid;min-height:100vh;place-items:center;background:#0f141c;color:#eef0df;font:16px Arial,sans-serif">
+  <p id="message">Opening WW2FPS AI Lab…</p>
+  <script>
+    (function(){
+      if(location.protocol==='file:'){document.getElementById('message').textContent='Serve this project through PHP, then open battle_sim.php.';return;}
+      location.replace('battle_sim.php'+location.search+location.hash);
+    })();
+  </script>
+</body>
+</html>

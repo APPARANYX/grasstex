@@ -1,0 +1,340 @@
+'use strict';
+// Run against any checkout with GRASSTEX_SOURCE_ROOT to preserve the same negative-control probe.
+const fs=require('fs'),path=require('path'),vm=require('vm'),assert=require('assert');
+const repo=process.env.GRASSTEX_SOURCE_ROOT||path.resolve(__dirname,'..');
+let failed=0,passed=0;
+function test(name,fn){try{fn();passed++;console.log('PASS '+name);}catch(e){failed++;console.error('FAIL '+name+': '+e.message);}}
+// The real lease primitive from squad-ai.js; the rest of SquadAI is stubbed.
+const REAL=require(path.join(repo,'tools/ai-sim-harness/harness')).bootstrap({modules:false}),LEASES=REAL.BattleLeases;
+function fixture(search){
+  const events=[],systems={},r={console:{log(){},warn(){}},Math,JSON,isFinite,location:{search:search||'?scoutsForward=0'}};r.window=r;
+  r.BattleLeases=LEASES;r.BattleSim={start(){}};r.SquadAI={updateSquad(){},extend(stage,id,fn){if(stage==='squadCommand')this.updateSquad=fn;},formationSlot(){return null;},formationFor(){return'wedge';},leaderOf:REAL.SquadAI.leaderOf,isLeader:REAL.SquadAI.isLeader,establishment:REAL.SquadAI.establishment,retreatGoal:REAL.SquadAI.retreatGoal,isMachineGun:REAL.SquadAI.isMachineGun,engageRange:REAL.SquadAI.engageRange};
+  r.BattleTelemetry={record(type,data){events.push({type,data});}};
+  r.BattleModules={registerSystem(id,h){systems[id]=h;},unitsFor(sim){return sim._roster.us.concat(sim._roster.ge);},runHook(name,sim,payload){for(const h of Object.values(systems))if(h[name])h[name](sim,payload);}};
+  r.BattleObjectiveSystem={get(sim,id){return sim._objectives.find(o=>o.id===id);},status(sim,id){return this.get(sim,id)?.state||{};},tick(){}};
+  vm.createContext(r);for(const file of ['battle/core-runtime.js','battle/commander-doctrine.js','battle/commander-routes.js','battle/commander-ai.js','battle/modules/22-commander-reconstitution.js','battle/modules/22a-commander-strategic-recovery.js','battle/modules/15-vacant-objective-assault.js','battle/modules/15a-squad-leader-fire-control.js','battle/modules/15b-squad-leader-buddy-pairs.js','battle/modules/15c-squad-leader-scouts-forward.js','battle/modules/15d-squad-leader-leaderless-intent.js','battle/modules/15e-squad-leader-morale-coa.js','battle/modules/15f-squad-leader-retreat-anchor.js','battle/modules/15g-squad-leader-formation.js','battle/modules/15h-squad-leader-fireteams.js','battle/modules/15i-squad-leader-clear-contact.js','battle/modules/15j-squad-leader-fire-and-movement.js','battle/modules/15k-squad-leader-reconstitution.js','battle/modules/15l-squad-leader-mission-execution.js','battle/modules/15m-squad-leader-cohesion-regroup.js','battle/modules/16-squad-plan-stability.js'])vm.runInContext(fs.readFileSync(path.join(repo,file),'utf8'),r,{filename:file});
+  let decisions=0,action='assault';
+  r.BattleAIPolicy={genomeFor(){return{parameters:r.BattleCommanderDoctrine.FALLBACK,doctrine:r.BattleCommanderDoctrine.FALLBACK_DOCTRINE};},decide(){decisions++;return{id:'probe',action,when:[]};}};
+  const soldier={id:'sergeant',role:'sergeant',dead:false,faction:'us',root:{position:{x:0,z:0}}};
+  const sq={id:'us-0',faction:'us',state:'advance',commandRole:'center',commandPhase:'assault',targetObjective:'a',objective:{x:100,z:0},rally:{x:0,z:0},home:{x:0,z:0},route:[{x:0,z:0},{x:50,z:0}],routeIndex:1,members:[soldier],aliveCount:1};
+  const sim={time:0,factions:{us:{squads:[sq]},ge:{squads:[]}},_roster:{us:[soldier],ge:[]},_objectives:[{id:'a',def:{x:100,z:0,radius:20,value:1},state:{owner:'neutral'}},{id:'b',def:{x:200,z:0,radius:20,value:1},state:{owner:'neutral'}}],objectiveControl:{counts:{us:0,ge:0}},objectiveHold:{us:0,ge:0}};
+  const town={center:{x:50,z:0},radius:80};
+  function tick(){sim.time+=.45;r.BattleCommanderAI.update(sim,town,.45);} // Squad Leader executes from its own onCommanderTick hook
+  return{r,sq,sim,town,events,tick,systems,get decisions(){return decisions;},set action(v){action=v;}};
+}
+test('genome absent and action doctrine off: fixed baseline issues a normal assault without any rule',()=>{
+  const f=fixture();delete f.r.BattleAIPolicy;f.sq.targetObjective=null;f.sq.routeIndex=0;
+  for(let i=0;i<5;i++){const m={id:'r'+i,role:'rifleman',dead:false,faction:'us',root:{position:{x:0,z:0}}};f.sq.members.push(m);f.sim._roster.us.push(m);}
+  f.tick();
+  assert.strictEqual(f.r.BattleCommanderDoctrine.actionDoctrineEnabled,false);
+  assert.equal(f.events.filter(e=>e.type==='decision-doctrine').length,0,'no fallback rule ran');
+  assert.equal(f.sq._macroMission.action,'assault');
+  assert.equal(f.sq._macroMission.intent,'capture');
+  assert.strictEqual(f.sq._lastDoctrineRule,null,'ordinary brief records no selected rule');
+});
+test('accepted objective survives local doctrine/contact noise without strategic reevaluation',()=>{
+  const f=fixture();f.tick();const point=JSON.stringify(f.sq.objective),decisions=f.decisions;f.action='hold';
+  for(let i=0;i<30;i++){f.sq.inContact=!!(i%2);f.tick();}
+  assert.equal(f.decisions,decisions,'doctrine ran again during unchanged active mission');assert.equal(JSON.stringify(f.sq.objective),point);
+  assert.equal(f.sq._macroMission.status,'executing');
+});
+test('Squad Leader follows initial route while Macro sleeps, including Macro OFF',()=>{
+  const f=fixture();f.sq.targetObjective=null;f.sq.routeIndex=0;f.tick();
+  assert.ok(f.sq._macroMission?.objectiveId,'Macro must brief the final objective before route execution');
+  const version=f.sq._macroMission.version,decisions=f.decisions;f.sim.macroCommandEnabled=false;
+  f.sq.members[0].root.position.x=50;for(let i=0;i<6;i++)f.tick(); // includes the Squad Leader's own corner-check pause
+  assert.equal(f.sq._macroMission.version,version);assert.equal(f.decisions,decisions);assert.equal(f.sq.objective.x,100,'Squad Leader did not finish approach route autonomously');
+});
+test('owned defense is an ongoing mission, not completion every commander tick',()=>{
+  const f=fixture();f.sim._objectives[0].state.owner='us';f.sq._preparedDefenseRequest={objectiveId:'a',point:{x:100,z:0}};f.tick();
+  const mission=f.sq._macroMission;assert.ok(mission);for(let i=0;i<30;i++)f.tick();assert.strictEqual(f.sq._macroMission,mission);assert.equal(mission.intent,'defend');assert.equal(mission.status,'executing');
+});
+test('capture completes exactly once and selects a remaining objective',()=>{
+  const f=fixture();f.tick();const old=f.sq._macroMission;assert.ok(old);f.sim._objectives[0].state.owner='us';f.tick();
+  assert.equal(old.status,'completed');assert.equal(f.sq._macroMission.objectiveId,'b');const next=f.sq._macroMission;f.tick();assert.strictEqual(f.sq._macroMission,next);
+});
+test('removed objective invalidates the mission without resurrecting its route',()=>{
+  const f=fixture();f.tick();const old=f.sq._macroMission;assert.ok(old);f.sim._objectives.shift();f.tick();assert.equal(old.status,'invalid');assert.equal(f.sq._macroMission.objectiveId,'b');assert.equal(f.sq.objective.x,200);
+});
+test('one stall episode escalates once at 120/180/240/300 seconds and never loops every sample',()=>{
+  const f=fixture();f.tick();f.sim._coordinationHealth={lastObjectiveProgressAt:0,sides:{us:{objectiveStallSeconds:121}}};f.sim.time=121;f.tick();
+  const stages=()=>f.events.filter(e=>e.type==='decision-strategic-recovery').map(e=>e.data.stage);
+  assert.deepEqual(stages(),['reconcile']);
+  for(let i=0;i<10;i++)f.tick();assert.deepEqual(stages(),['reconcile'],'120 s stage repeated every commander sample');
+  for(const age of [181,241,301]){f.sim._coordinationHealth.sides.us.objectiveStallSeconds=age;f.sim.time=age;f.tick();}
+  assert.deepEqual(stages(),['reconcile','release','main-effort','reset']);
+  for(let i=0;i<30;i++)f.tick();
+  assert.deepEqual(stages(),['reconcile','release','main-effort','reset'],'300 s reset oscillated after completion');
+  const st=f.r.BattleCommanderAI.missionState(f.sim).stallRecovery.us;assert.equal(st.completed,4);assert.equal(st.history.length,4);
+});
+test('the strategic-stall wake reads the stall seconds, never the replanDue flag',()=>{
+  const f=fixture();f.tick();
+  const wakes=()=>f.events.filter(e=>e.type==='decision-macro-replan'&&e.data.reason==='strategic-stall').length;
+  f.sim._coordinationHealth={lastObjectiveProgressAt:0,sides:{us:{objectiveStallSeconds:60,replanDue:true,replanReasons:['objective-stalled']}}};f.sim.time=60;f.tick();
+  assert.equal(wakes(),0,'a replan flag at 60 s of stall wakes nobody');
+  f.sim._coordinationHealth={lastObjectiveProgressAt:0,sides:{us:{objectiveStallSeconds:121,replanDue:false}}};f.sim.time=121;f.tick();
+  assert.equal(wakes(),1,'121 s of stall wakes the General whatever the flag says');
+});
+test('120 s reconcile leaves a recently progressing capture brief alone',()=>{
+  const f=fixture();f.tick();
+  f.sim._coordinationHealth={lastObjectiveProgressAt:0,sides:{us:{objectiveStallSeconds:100}}};f.sim.time=99.55;f.tick();
+  const mission=f.sq._macroMission;
+  f.sq.members[0].root.position.x=10;f.sim._coordinationHealth.sides.us.objectiveStallSeconds=110;f.sim.time=109.55;f.tick();
+  f.sim._coordinationHealth.sides.us.objectiveStallSeconds=121;f.sim.time=120.55;f.tick();
+  assert.strictEqual(f.sq._macroMission,mission,'progressing squad was unnecessarily replanned');
+  assert.equal(f.events.filter(e=>e.type==='decision-macro-replan'&&e.data.reason==='strategic-stall').length,0,'progressing squad emitted a strategic-stall wake');
+});
+test('120 s reconcile does not replan a capture brief whose squad is still physically executing it',()=>{
+  const f=fixture();f.tick();
+  f.sim._coordinationHealth={lastObjectiveProgressAt:0,sides:{us:{objectiveStallSeconds:100}}};f.sim.time=99.55;f.tick();
+  const mission=f.sq._macroMission;
+  f.sq.members[0].root.position.z=10; // lateral travel: execution without straight-line mission progress
+  f.sim._coordinationHealth.sides.us.objectiveStallSeconds=110;f.sim.time=109.55;f.tick();
+  const rec=f.r.BattleCommanderAI.missionState(f.sim).stallRecovery.us.progress[f.sq.id];
+  assert.equal(rec.lastProgressAt,null,'lateral travel accidentally counted as objective progress');
+  assert.ok(rec.lastExecutionAt!=null,'physical mission execution was not observed');
+  f.sim._coordinationHealth.sides.us.objectiveStallSeconds=121;f.sim.time=120.55;f.tick();
+  assert.strictEqual(f.sq._macroMission,mission,'actively executing squad was unnecessarily replanned');
+  assert.equal(f.events.filter(e=>e.type==='decision-macro-replan'&&e.data.reason==='strategic-stall').length,0,'active execution emitted a strategic-stall wake');
+});
+test('120 s reconcile repairs missing Macro projections without replacing a young valid brief',()=>{
+  const f=fixture();f.sim.time=100;f.tick();const mission=f.sq._macroMission;
+  f.sq.commandRole=null;f.sq.targetObjective=null;
+  f.sim._coordinationHealth={lastObjectiveProgressAt:0,sides:{us:{objectiveStallSeconds:121}}};f.sim.time=121;f.tick();
+  assert.strictEqual(f.sq._macroMission,mission);assert.equal(f.sq.commandRole,mission.role);assert.equal(f.sq.targetObjective,mission.objectiveId);
+  assert.equal(f.events.filter(e=>e.type==='decision-macro-replan'&&e.data.reason==='strategic-stall-reconcile').length,1);
+});
+test('180 s release can recover an inherited stale hold and support assignment without action doctrine',()=>{
+  const f=fixture();f.tick();
+  // Model an in-flight legacy HOLD created before doctrine was disabled; no new policy can create it.
+  f.sq._macroMission.intent='hold';f.sq._macroMission.action='hold';f.sq._macroMission.key='legacy-hold-brief';
+  f.sim._coordinationHealth={lastObjectiveProgressAt:0,sides:{us:{objectiveStallSeconds:121}}};f.sim.time=121;f.tick();
+  assert.equal(f.sq._macroMission.action,'hold');
+  f.sim._coordinationHealth.sides.us.objectiveStallSeconds=181;f.sim.time=181;f.tick();
+  assert.equal(f.sq._macroMission.action,'assault','stale hold survived the release stage');
+  assert.equal(f.sq._macroMission.reason,'strategic-stall-release');
+
+  const g=fixture();g.sq.commandRole='support';g.tick();
+  g.sim._coordinationHealth={lastObjectiveProgressAt:0,sides:{us:{objectiveStallSeconds:121}}};g.sim.time=121;g.tick();
+  g.sim._coordinationHealth.sides.us.objectiveStallSeconds=181;g.sim.time=181;g.tick();
+  assert.equal(g.sq.commandRole,'center','stale support role was not released');assert.equal(g.sq._macroMission.role,'center');
+});
+test('240 s main effort masses a majority of available offensive squads on one reachable objective',()=>{
+  const f=fixture();
+  function mate(id,x){const m={id:id+'-s',role:'sergeant',dead:false,faction:'us',root:{position:{x,z:0}}};const q={id,faction:'us',state:'advance',commandRole:'center',commandPhase:'assault',targetObjective:null,objective:{x:100,z:0},rally:{x,z:0},home:{x,z:0},route:[{x,z:0},{x:50,z:0}],routeIndex:1,members:[m],aliveCount:1};m.squad=q;f.sim.factions.us.squads.push(q);f.sim._roster.us.push(m);return q;}
+  mate('us-1',-10);mate('us-2',10);f.tick();
+  f.sim._coordinationHealth={lastObjectiveProgressAt:0,sides:{us:{objectiveStallSeconds:121}}};f.sim.time=121;f.tick();
+  f.sim._coordinationHealth.sides.us.objectiveStallSeconds=181;f.sim.time=181;f.tick();
+  f.sim._coordinationHealth.sides.us.objectiveStallSeconds=241;f.sim.time=241;f.tick();
+  const rec=f.r.BattleCommanderAI.missionState(f.sim).stallRecovery.us,target=rec.mainEffort;
+  assert.ok(target,'no main effort was selected');
+  const committed=f.sim.factions.us.squads.filter(q=>q.targetObjective===target&&q._macroMission?.intent==='capture').length;
+  assert.ok(committed>=2,'only '+committed+'/3 squads were given the main effort');
+  assert.equal(f.events.filter(e=>e.type==='decision-strategic-recovery'&&e.data.stage==='main-effort').length,1);
+});
+test('300 s reset leaves an owned defender and a recently progressing squad alone, and resets the stalled squad once',()=>{
+  const f=fixture();
+  function mate(id,x){const m={id:id+'-s',role:'sergeant',dead:false,faction:'us',root:{position:{x,z:0}}};const q={id,faction:'us',state:'advance',commandRole:'center',commandPhase:'assault',targetObjective:null,objective:{x:100,z:0},rally:{x,z:0},home:{x,z:0},route:[{x,z:0},{x:50,z:0}],routeIndex:1,members:[m],aliveCount:1};m.squad=q;f.sim.factions.us.squads.push(q);f.sim._roster.us.push(m);return q;}
+  const moving=mate('us-1',0),defender=mate('us-2',0);f.tick();
+  f.sim._objectives[0].state.owner='us';defender._preparedDefenseRequest={objectiveId:'a',point:{x:100,z:0}};f.tick();
+  assert.equal(defender._macroMission.intent,'defend');
+  f.sim._coordinationHealth={lastObjectiveProgressAt:{us:0},sides:{us:{objectiveStallSeconds:121}}};f.sim.time=121;f.tick();
+  f.sim._coordinationHealth.sides.us.objectiveStallSeconds=181;f.sim.time=181;f.tick();
+  f.sim._coordinationHealth.sides.us.objectiveStallSeconds=241;f.sim.time=241;f.tick();
+  const main=f.r.BattleCommanderAI.missionState(f.sim).stallRecovery.us.mainEffort;assert.ok(main);
+  const progressSquad=[f.sq,moving].find(q=>q.targetObjective===main)||moving;
+  const stalledSquad=progressSquad===f.sq?moving:f.sq;
+  progressSquad.members[0].root.position.x+=10;
+  f.sim._coordinationHealth.sides.us.objectiveStallSeconds=250;f.sim.time=250;f.tick();
+  const beforeProgress=progressSquad._macroMission,beforeDefense=defender._macroMission,beforeStalled=stalledSquad._macroMission;
+  f.sim._coordinationHealth.sides.us.objectiveStallSeconds=301;f.sim.time=301;f.tick();
+  const resetIds=f.events.filter(e=>e.type==='decision-macro-replan'&&e.data.reason==='strategic-reset').map(e=>e.data.squad);
+  assert.ok(resetIds.includes(stalledSquad.id),'stalled squad was not reset');
+  assert.ok(!resetIds.includes(progressSquad.id),'recently progressing squad was reset');
+  assert.ok(!resetIds.includes(defender.id),'useful defender was reset');
+  assert.strictEqual(progressSquad._macroMission,beforeProgress);assert.strictEqual(defender._macroMission,beforeDefense);
+  f.tick(); // the reset's re-assessment settles on the Squad Leader's next look; no oscillation follows
+  const n=resetIds.length;for(let i=0;i<20;i++)f.tick();
+  assert.equal(f.events.filter(e=>e.type==='decision-macro-replan'&&e.data.reason==='strategic-reset').length,n,'reset repeated every sample');
+});
+test('objective progress starts a fresh recovery episode',()=>{
+  const f=fixture();f.tick();f.sim._coordinationHealth={lastObjectiveProgressAt:{us:0},sides:{us:{objectiveStallSeconds:241}}};f.sim.time=241;f.tick();
+  const g=f.r.BattleCommanderAI.generalFor(f.sim,'us');
+  assert.equal(f.r.BattleCommanderAI.missionState(f.sim).stallRecovery.us.completed,1);
+  assert.ok(g.lastAdoptionHold&&g.lastAdoptionHold.stage==='release','later stages hold on the previous stage\'s unaccepted brief in the same tick');
+  f.sim._coordinationHealth={lastObjectiveProgressAt:{us:250},sides:{us:{objectiveStallSeconds:10}}};f.sim.time=260;f.tick();
+  const r=f.r.BattleCommanderAI.missionState(f.sim).stallRecovery.us;assert.equal(r.completed,0);assert.equal(r.episode,'250');
+  f.sim._coordinationHealth.sides.us.objectiveStallSeconds=121;f.sim.time=371;f.tick();
+  assert.equal(f.events.filter(e=>e.type==='decision-strategic-recovery'&&e.data.stage==='reconcile').length,2,'new stall episode did not get a new first-stage wake');
+});
+test('reserve commitment is one strategic event and does not revive reserve status',()=>{
+  const f=fixture();f.sq.commandRole='reserve';f.sq.targetObjective=null;f.tick();assert.equal(f.sq._macroMission?.intent,'reserve');
+  f.sim.objectiveControl.counts.ge=1;f.tick();assert.equal(f.sq._lastMacroMission.status,'completed');assert.notEqual(f.sq._macroMission.intent,'reserve');const version=f.sq._macroMission.version;
+  for(let i=0;i<10;i++)f.tick();assert.equal(f.sq._macroMission.version,version);assert.equal(f.events.filter(e=>e.type==='decision-reserve-commit').length,1);
+});
+test('a persistent request is accepted once and its removal is explicit reassessment',()=>{
+  const f=fixture();f.tick();f.sq._captureZoneDefenseRequest={objectiveId:'a',point:{x:100,z:0}};f.tick();const mission=f.sq._macroMission;assert.equal(mission?.intent,'defend');
+  f.sq._captureZoneDefenseRequest={objectiveId:'a',point:{x:100,z:0},requestedAt:1};f.tick();assert.strictEqual(f.sq._macroMission,mission);
+  f.sq._captureZoneDefenseRequest=null;f.tick();assert.notStrictEqual(f.sq._macroMission,mission);assert.equal(mission.status,'superseded');
+});
+test('vacant-objective extension never rewrites another squad on a global wake',()=>{
+  const f=fixture();f.sim._objectives[0].state={owner:'ge',vacantOwner:true};f.tick();
+  // Commander may register required post-roster initialization, never a squad-state tick.
+  const lifecycle=f.systems['commander-lifecycle'];
+  if(lifecycle){
+    assert.deepEqual(Object.keys(lifecycle).sort(),['afterBattleRosterReset','requiredHooks']);
+    assert.deepEqual(Array.from(lifecycle.requiredHooks),['afterBattleRosterReset']);
+    assert.equal(typeof lifecycle.afterBattleRosterReset,'function');
+  }
+  assert.deepEqual(Object.keys(f.systems).filter(id=>id!=='squad-command'&&id!=='commander-lifecycle'),[],'a module besides the Squad Leader still registers a squad-state hook');
+  f.sq.objective={x:71,z:0};f.sq.commandPhase='regroup';f.tick();
+  assert.equal(f.sq.objective.x,100,'Squad Leader did not restore the vacant objective mission');assert.equal(f.sq._macroMission.action,'assault');
+});
+test('a fixed-policy brief goes straight to its objective and never runs an action doctrine rule',()=>{
+  const f=fixture();f.sq.targetObjective=null;f.sq.routeIndex=0;f.tick();
+  const mission=f.sq._macroMission;assert.equal(mission.action,'assault');assert.equal(f.decisions,0);assert.equal(f.sq.objective.x,100);
+  assert.strictEqual(f.sq._lastDoctrineRule,null);
+  for(let i=0;i<20;i++){f.sq.inContact=!!(i%3);f.tick();}
+  assert.strictEqual(f.sq._macroMission,mission);assert.equal(f.decisions,0,'an unchanged mission triggered action doctrine');
+});
+test('Squad Leader regroup is Meso-owned: no General wake, no restore writes, mission resumes',()=>{
+  const f=fixture();const extra=[];
+  for(let i=0;i<5;i++){const m={id:'r'+i,role:'rifleman',dead:false,faction:'us',root:{position:{x:0,z:0}}};extra.push(m);f.sq.members.push(m);f.sim._roster.us.push(m);}
+  f.tick();const mission=f.sq._macroMission,wakes=f.r.BattleCommanderAI.missionState(f.sim).wakeCount,phase=f.sq.commandPhase;
+  assert.equal(f.sq.objective.x,100);
+  extra[0].root.position.x=-60;extra[1].root.position.x=60;extra[2].root.position.z=70; // genuinely dispersed, including outrunners
+  let regroupTicks=0,phaseWrites=0,lastPhase=f.sq.commandPhase;
+  for(let i=0;i<12;i++){f.tick();if(f.sq.commandPhase==='regroup')regroupTicks++;if(f.sq.commandPhase!==lastPhase){phaseWrites++;lastPhase=f.sq.commandPhase;}}
+  assert.ok(regroupTicks>0,'Squad Leader never regrouped a dispersed squad');assert.equal(phaseWrites,1,'regroup entered more than once or flapped');
+  for(const m of extra)m.root.position={x:0,z:0};
+  for(let i=0;i<12;i++)f.tick();
+  assert.equal(f.sq.commandPhase,phase);assert.equal(f.sq.objective.x,100);assert.strictEqual(f.sq._macroMission,mission);
+  assert.equal(f.r.BattleCommanderAI.missionState(f.sim).wakeCount,wakes,'General woke for a Squad Leader regroup');
+});
+test('the disabled doctrine cannot inject a HOLD or request doctrine-review from an unchanged assault',()=>{
+  const f=fixture();f.action='hold';f.tick();
+  const mission=f.sq._macroMission;assert.equal(mission.action,'assault');assert.equal(f.sq.commandPhase,'assault');
+  for(let i=0;i<40;i++)f.tick();
+  assert.strictEqual(f.sq._macroMission,mission);
+  assert.equal(f.decisions,0,'disabled doctrine still evaluated rule decisions');
+  assert.equal(f.events.filter(e=>e.type==='decision-macro-replan'&&e.data.reason==='doctrine-review').length,0);
+});
+test('contact freezes Squad Leader leg and phase under the same mission',()=>{
+  const f=fixture();f.tick();assert.equal(f.sq.commandPhase,'assault');
+  f.sq.inContact=true;f.tick();assert.ok(f.sq._engagementPlan&&f.sq._engagementPlan.status==='active');
+  const index=f.sq.routeIndex,phase=f.sq.commandPhase,objective=JSON.stringify(f.sq.objective);
+  f.sq.members[0].root.position.x=100;for(let i=0;i<10;i++)f.tick(); // inside the zone: no assault->capture rewrite mid-firefight
+  assert.equal(f.sq.routeIndex,index);assert.equal(f.sq.commandPhase,phase);assert.equal(JSON.stringify(f.sq.objective),objective);
+});
+test('the 120 s reconcile does not retask a young mission, but later escalation may',()=>{
+  const f=fixture();f.sim.time=100;f.tick();const mission=f.sq._macroMission;
+  f.sim._coordinationHealth={lastObjectiveProgressAt:0,sides:{us:{objectiveStallSeconds:121,replanDue:true}}};f.sim.time=121;f.tick();
+  const stalls=()=>f.events.filter(e=>e.type==='decision-macro-replan'&&e.data.reason==='strategic-stall').length;
+  assert.strictEqual(f.sq._macroMission,mission);assert.equal(stalls(),0,'a 21 s old mission was treated as a failed 120 s effort');
+  f.sim._coordinationHealth.sides.us.objectiveStallSeconds=241;f.sim.time=241;f.tick();
+  assert.deepEqual(f.events.filter(e=>e.type==='decision-strategic-recovery').map(e=>e.data.stage),['reconcile','release','main-effort']);
+});
+test('the first stall stage moves an old failed effort, and the stall cost is still only a score',()=>{
+  const f=fixture();f.tick();assert.equal(f.sq._macroMission.objectiveId,'a','the nearer objective is the first effort');
+  f.sim._coordinationHealth={lastObjectiveProgressAt:0,sides:{us:{objectiveStallSeconds:121,replanDue:true}}};f.sim.time=121;f.tick();
+  assert.equal(f.sq._macroMission.objectiveId,'b','the 120 s wake re-picked the objective the side just failed to take');
+  const out=f.r.BattleCommanderAI.missionState(f.sim).stallOutcomes;assert.deepEqual([out.wakes,out.switches,out.repeats],[1,1,0]);
+  const g=fixture();g.sim._objectives.pop();g.tick();
+  g.sim._coordinationHealth={lastObjectiveProgressAt:0,sides:{us:{objectiveStallSeconds:121,replanDue:true}}};g.sim.time=121;g.tick();
+  assert.equal(g.sq._macroMission.objectiveId,'a','with no alternative the stalled objective remains legal');
+});
+test('a stall closes the stalled efforts, so the frontage limit does not hold the side on them',()=>{
+  const f=fixture(),D=f.r.BattleCommanderDoctrine;f.sim._objectives.push({id:'c',def:{x:400,z:0,radius:20,value:1},state:{owner:'neutral'}});
+  const mate=(id,target)=>{const s={id:id+'-s',role:'sergeant',dead:false,faction:'us',root:{position:{x:0,z:0}}};const q={id,faction:'us',state:'advance',targetObjective:target,members:[s],aliveCount:1};f.sim.factions.us.squads.push(q);return q;};
+  f.sq.targetObjective='a';mate('us-1','a');mate('us-2','b');
+  assert.equal(D.openEfforts(f.sim,f.sq).count,2,'a and b are the side\'s two open efforts');
+  const pick=D.chooseObjective(f.sim,f.sq,false,{a:true,b:true});
+  assert.equal(pick.instance.id,'c','the frontage cost of the only unstalled objective kept the squad on a stalled effort');
+  assert.equal(pick.frontagePenalty,0,'stalled efforts must not count against the frontage');
+  assert.equal(D.chooseObjective(f.sim,f.sq,false).instance.id,'a','without a stall the frontage limit still masses on open efforts');
+});
+test('pressure flicker on an objective already being defended is not a new brief',()=>{
+  const f=fixture();f.sim._objectives.forEach(o=>o.state.owner='us');f.tick();const mission=f.sq._macroMission;assert.equal(mission.intent,'defend');
+  for(let i=0;i<10;i++){f.sq._captureZoneDefenseRequest=i%2?{objectiveId:'a',point:{x:100,z:0}}:null;f.tick();}
+  assert.strictEqual(f.sq._macroMission,mission);
+  assert.equal(f.events.filter(e=>e.type==='decision-macro-replan'&&e.data.reason==='request-changed').length,0);
+});
+test('Macro OFF from the start: no brief, the Squad Leader walks the assigned approach route',()=>{
+  const f=fixture();f.sim.macroCommandEnabled=false;f.town.radius=20;f.sq.targetObjective=null;f.sq.routeIndex=0;f.sq.route=[{x:0,z:0},{x:20,z:30},{x:50,z:0}];
+  f.tick();assert.equal(f.sq._macroMission,undefined);assert.equal(f.sq.objective.x,20);
+  f.sq.members[0].root.position={x:20,z:30};for(let i=0;i<4;i++)f.tick();
+  assert.equal(f.sq.objective.x,50);assert.equal(f.decisions,0);assert.equal(f.r.BattleCommanderAI.missionState(f.sim).wakeCount,0);
+});
+// A live forward screen has no objectiveId by design; a faction-wide stall must not re-brief it as
+// targetless and abort its truck mid-road (?screenStallHold=0 restores the old re-brief).
+function screenBrief(f){const v=(f.sq._macroMission&&f.sq._macroMission.version||0)+1;f.sq._macroMission={version:v,owner:'force-command',intent:'screen',action:'screen',status:'executing',objectiveId:null,point:{x:300,z:0},route:[{x:100,z:0}],role:'recon',issuedAt:f.sim.time,acceptedAt:f.sim.time,screen:{orderedAt:f.sim.time,securedObjectiveId:'a',standoffMetres:25}};f.sq.targetObjective=null;f.sq.commandRole='recon';return f.sq._macroMission;}
+test('stall stages leave a live forward-screen brief alone through 120/180/240/300 s',()=>{
+  const f=fixture();f.tick();const m=screenBrief(f);
+  for(const at of [121,181,241,301]){f.sim._coordinationHealth={lastObjectiveProgressAt:0,sides:{us:{objectiveStallSeconds:at}}};f.sim.time=at;f.tick();}
+  assert.strictEqual(f.sq._macroMission,m,'stall recovery replaced the live screen brief');assert.equal(m.status,'executing');
+  assert.equal(f.events.filter(e=>e.type==='decision-macro-replan'&&e.data.squad===f.sq.id&&/^strategic-/.test(e.data.reason)).length,0);
+});
+test('?screenStallHold=0 restores the old stall re-brief of a targetless screen',()=>{
+  const f=fixture('?scoutsForward=0&screenStallHold=0');f.tick();const m=screenBrief(f);
+  f.sim._coordinationHealth={lastObjectiveProgressAt:0,sides:{us:{objectiveStallSeconds:121}}};f.sim.time=121;f.tick();
+  assert.notStrictEqual(f.sq._macroMission,m,'flag-off control kept the screen brief');
+});
+// While embarked the carrier moves the squad, so the Squad Leader never advanced past the legs the truck
+// drove; after the arrival dismount the screen walked back toward the secured objective.
+function dismountedScreen(search){
+  const f=fixture(search);f.tick();const m=screenBrief(f);f.sq.route=null;f.sq._missionExecution=null;
+  for(const s of f.sq.members)s.root.position={x:280,z:0};
+  f.sq._transport={phase:'dismounted',endReason:'arrival',missionVersion:m.version,vehicleId:'us-base-0-truck-1',travelled:900};
+  f.tick();return{f,m};
+}
+test('an arrival dismount hands the screen its post leg and stamps it on post',()=>{
+  const {f}=dismountedScreen();
+  assert.equal(f.sq.routeIndex,1,'Squad Leader kept the leg behind the dismount point');
+  assert.equal(f.sq.objective.x,300);assert.ok(f.sq._missionExecution.screenOnPostAt,'screen never stamped on post');
+  assert.equal(f.events.filter(e=>e.type==='decision-route-transport-handoff').length,1);
+  f.tick();f.tick();assert.equal(f.events.filter(e=>e.type==='decision-route-transport-handoff').length,1,'handoff repeated');
+});
+test('?transportHandoff=0 restores the old route index after a dismount',()=>{
+  const {f}=dismountedScreen('?scoutsForward=0&transportHandoff=0');
+  assert.equal(f.sq.routeIndex,0);assert.equal(f.sq.objective.x,100,'flag-off control did not walk back to the secured objective');
+  assert.ok(!f.sq._missionExecution.screenOnPostAt);
+});
+test('front lines: a capture brief on a line that is no longer attackable is replaced once',()=>{
+  const f=fixture();let open=['a','b'];f.r.BattleFrontLines={attackable:(sim,faction,id)=>open.includes(id)};
+  f.tick();const old=f.sq._macroMission;assert.equal(old.objectiveId,'a');
+  open=['b'];f.tick();
+  assert.equal(f.sq._macroMission.objectiveId,'b','the General re-tasks onto the attackable line');
+  assert.ok(f.events.some(e=>e.type==='decision-macro-wake'?e.data&&e.data.reason==='front-line-moved':JSON.stringify(e.data||{}).includes('front-line-moved')),'wake recorded with its reason');
+  const next=f.sq._macroMission;for(let i=0;i<10;i++)f.tick();assert.strictEqual(f.sq._macroMission,next,'no churn once the brief is legal');
+});
+test('front lines: without the rules module the old brief is kept',()=>{
+  const f=fixture();f.tick();const old=f.sq._macroMission;for(let i=0;i<5;i++)f.tick();assert.strictEqual(f.sq._macroMission,old);
+});
+test('front lines: a lone garrison squad at an ambush post is recalled once its line may be attacked',()=>{
+  const f=fixture();let open=false;f.r.BattleFrontLines={attackable:(sim,faction,id)=>id==='a'?open:true};
+  f.sim._objectives[0].state.owner='us';f.sq._preparedDefenseRequest={objectiveId:'a',point:{x:100,z:0}};f.tick();
+  assert.equal(f.sq._macroMission.intent,'defend');
+  const v=f.sq._macroMission.version;
+  f.sq._macroMission={...f.sq._macroMission,version:v+1,intent:'intercept',action:'intercept',objectiveId:null,status:'executing',key:'ambush',intercept:{garrisonObjectiveId:'a',loneGarrison:true,expiresAt:9999}};
+  const out=f.sq._macroMission;for(let i=0;i<5;i++)f.tick();
+  assert.strictEqual(f.sq._macroMission,out,'the post is held while the line is safe');
+  open=true;f.tick();
+  assert.equal(f.sq._macroMission.intent,'defend','back to its garrison');assert.equal(f.sq._macroMission.objectiveId,'a');
+  const kept=fixture();kept.r.BattleFrontLines={attackable:()=>true};kept.sim._objectives[0].state.owner='us';kept.sq._preparedDefenseRequest={objectiveId:'a',point:{x:100,z:0}};kept.tick();
+  kept.sq._macroMission={...kept.sq._macroMission,intent:'intercept',action:'intercept',objectiveId:null,status:'executing',key:'ambush',intercept:{garrisonObjectiveId:'a',loneGarrison:false,expiresAt:9999}};
+  const held=kept.sq._macroMission;kept.tick();assert.strictEqual(kept.sq._macroMission,held,'a squad whose line kept a garrison holds its post');
+});
+test('General considers nearby transport on an unchanged accepted foot mission',()=>{
+  const f=fixture();f.tick();const m=f.sq._macroMission;let calls=0;
+  f.r.BattleSquadTransport={considerMission(sim,sq,mission){assert.strictEqual(mission,m);assert.equal(mission.status,'executing');calls++;return false;}};
+  f.tick();f.tick();assert.equal(calls,2,'a walking mission never reconsidered the trucks it passed');
+  assert.strictEqual(f.sq._macroMission,m,'transport availability must not churn the mission');
+});
+test('a threatened front-line garrison survives the short capture-security timer, then releases',()=>{
+  const f=fixture();f.sim._objectives[0].state.owner='us';
+  let exposed=true;f.r.BattleFrontLines={attackable:()=>true,garrisonFor:()=>exposed?{objectiveId:'a',point:{x:100,z:0}}:null};
+  f.tick();assert.equal(f.sq._macroMission.intent,'defend');assert.match(f.sq._macroMission.requestKey,/front-line-defense/);
+  const m=f.sq._macroMission;f.sim.time=45;f.tick();assert.strictEqual(f.sq._macroMission,m,'the exposed guard was sent away on a timer');
+  exposed=false;f.tick();assert.notStrictEqual(f.sq._macroMission,m,'guard was not released when the front advanced');
+});
+console.log(`macro-mission-command: ${passed} passed, ${failed} failed`);if(failed)process.exitCode=1;

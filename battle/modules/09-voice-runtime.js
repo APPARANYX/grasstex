@@ -1,0 +1,188 @@
+/* Baseline spatial voice runtime.
+   11-voice-variation.js normally replaces this with the pitch-profile implementation. Keep the
+   baseline API compatible: separate social/tactical throttle lanes and return a playback handle
+   whose onEnded callback is driven by Babylon's real Sound completion event. */
+(function (root) {
+  'use strict';
+  if (typeof BABYLON === 'undefined' || typeof window === 'undefined') return;
+  var cache = {},
+    failed = {},
+    socialLast = 0,
+    tacticalLast = 0,
+    socialSquad = {},
+    tacticalSquad = {},
+    SOCIAL = { idleQuip: 1, idleStory: 1, idleLaugh: 1, idleGroan: 1 };
+  function cameraPos(cam) {
+    return (cam && (cam.globalPosition || cam.position)) || null;
+  }
+  function distance(a, b) {
+    if (!a || !b) return 0;
+    var dx = a.x - b.x,
+      dy = a.y - b.y,
+      dz = a.z - b.z;
+    return Math.sqrt(dx * dx + dy * dy + dz * dz);
+  }
+  function finish(req) {
+    if (!req || req.handle.ended) return;
+    req.handle.ended = true;
+    if (req.opts && typeof req.opts.onEnded === 'function')
+      try {
+        req.opts.onEnded(req.handle);
+      } catch (e) {
+        console.error('[VOICE] onEnded failed: ' + ((e && e.message) || e));
+      }
+  }
+  /* See 11-voice-variation.js: attachToMesh tracks the soldier every frame instead of a
+     one-time setPosition snapshot, so the emitter doesn't get left behind mid-line. */
+  function playAt(entry, req) {
+    var ae = root.BattleAudioBackend
+        ? root.BattleAudioBackend.engine()
+        : root.BABYLON && root.BABYLON.Engine && root.BABYLON.Engine.audioEngine,
+      ctx = ae && ae.audioContext,
+      scene = req.soldier && req.soldier.root && req.soldier.root.getScene && req.soldier.root.getScene();
+    if (
+      (scene && scene.audioEnabled === false) ||
+      (ctx ? ctx.state !== 'running' : ae && ae.unlocked === false)
+    ) {
+      finish(req);
+      return req.handle;
+    }
+    if (entry.sound && entry.sound.isPlaying === true) {
+      finish(req);
+      return req.handle;
+    }
+    if (
+      !root.BattleVoiceEligibility.allows(req.soldier, req.handle.type) ||
+      req.soldier.squad !== req.squad ||
+      (req.squad && req.squad.disbanded)
+    ) {
+      finish(req);
+      return req.handle;
+    }
+    try {
+      var soldier = req.soldier,
+        mesh = soldier.root,
+        s = entry.sound,
+        o = s.onEndedObservable;
+      if (typeof s.detachFromMesh === 'function') s.detachFromMesh();
+      if (mesh && typeof s.attachToMesh === 'function') s.attachToMesh(mesh);
+      else {
+        var p = mesh.position.clone ? mesh.position.clone() : mesh.position;
+        s.setPosition(p);
+      }
+      if (o && o.addOnce)
+        o.addOnce(function () {
+          try {
+            if (typeof s.detachFromMesh === 'function') s.detachFromMesh();
+          } catch (_) {}
+          finish(req);
+        });
+      var mix = root.BattleAudioMix;
+      var voiceGain = mix ? mix.gain('voice', 0.24, mesh && mesh.getScene && mesh.getScene()) : 0.24;
+      if (s.setVolume) s.setVolume(voiceGain);
+      var acoustics = root.BattleListenerAcoustics;
+      if (acoustics && mesh && mesh.position)
+        acoustics.prepare(
+          s,
+          function () {
+            return typeof mesh.getAbsolutePosition === 'function'
+              ? mesh.getAbsolutePosition()
+              : mesh.position;
+          },
+          'voice',
+          voiceGain,
+          mesh.getScene()
+        );
+      if (s.play() === false) {
+        finish(req);
+        return req.handle;
+      }
+      req.handle.started = true;
+      root.GTLog('[VOICE] play ' + entry.file + ' lane=' + req.lane);
+    } catch (e) {
+      console.error('[VOICE] play failed ' + entry.file + ': ' + ((e && e.message) || e));
+      finish(req);
+    }
+    return req.handle;
+  }
+  function enqueue(soldier, type, cam, opts) {
+    if (!root.BattleVoiceEligibility.allows(soldier, type)) return false;
+    opts = opts || {};
+    var m = window.BATTLE_AUDIO_MANIFEST;
+    if (!m || !m.callouts || !m.callouts[soldier.faction]) return false;
+    var files = (m.callouts[soldier.faction].events || {})[type];
+    if (!files || !files.length) return false;
+    var rules = (m.rules && m.rules.voice) || {},
+      now = performance.now(),
+      lane = opts.priority || (SOCIAL[type] ? 'social' : 'tactical'),
+      social = lane === 'social',
+      sid = (soldier.squad && soldier.squad.id) || soldier.faction,
+      cp = cameraPos(cam),
+      drop = rules.dropBeyondDistance || 120;
+    if (cp && distance(cp, soldier.root.position) > drop) return false;
+    if (social) {
+      if (
+        now - socialLast < 700 ||
+        now - (socialSquad[sid] || 0) < (rules.perSquadCooldownSeconds || 2.5) * 1000
+      )
+        return false;
+    } else if (now - tacticalLast < 220 || now - (tacticalSquad[sid] || 0) < 480) return false;
+    var file = files[Math.floor(Math.random() * files.length)];
+    if (failed[file]) return false;
+    if (social) {
+      socialLast = now;
+      socialSquad[sid] = now;
+    } else {
+      tacticalLast = now;
+      tacticalSquad[sid] = now;
+    }
+    var handle = {
+        accepted: true,
+        started: false,
+        ended: false,
+        soldierId: soldier.id,
+        type: type,
+        file: file,
+        priority: lane
+      },
+      req = { soldier: soldier, squad: soldier.squad, opts: opts, handle: handle, lane: lane },
+      entry = cache[file];
+    if (entry) {
+      if (entry.ready) return playAt(entry, req);
+      entry.pending.push(req);
+      return handle;
+    }
+    var base = window.BATTLE_AUDIO_BASE || 'https://test.ivandpopov.com/grasstex/Assets/audio/',
+      url = window.BattleAudioFormat ? window.BattleAudioFormat.url(base + file) : base + file;
+    entry = cache[file] = { file: file, sound: null, ready: false, pending: [req] };
+    try {
+      var scene = soldier.root.getScene();
+      entry.sound = new (root.BattleAudioBackend ? root.BattleAudioBackend.Sound : BABYLON.Sound)(
+        'voice-' + file,
+        url,
+        scene,
+        function () {
+          entry.ready = true;
+          var q = entry.pending.splice(0);
+          for (var i = 0; i < q.length; i++) playAt(entry, q[i]);
+        },
+        {
+          spatialSound: true,
+          distanceModel: 'linear',
+          maxDistance: (m.runtime && m.runtime.voiceMaxDistance) || 95,
+          rolloffFactor: 1.7,
+          volume: 0.24,
+          autoplay: false
+        }
+      );
+    } catch (e) {
+      failed[file] = true;
+      delete cache[file];
+      finish(req);
+      return false;
+    }
+    return handle;
+  }
+  root.BattleVoiceScheduler = { enqueue: enqueue };
+  root.GTLog('[VOICE] baseline playback-aware runtime active');
+})(typeof window !== 'undefined' ? window : globalThis);

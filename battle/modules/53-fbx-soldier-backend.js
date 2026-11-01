@@ -1,0 +1,2086 @@
+/* Imported FBX soldier backend.
+   Soldiers render as the rigged FBX character (Assets/soldiers) driven by the shared Mixamo rifle
+   clips (Assets/animations). Both are read with Babylon's FBX loader, the same import path as the
+   FBX Motion Lab. Clip channels bind to canonical bone names. Models whose imported rest pose
+   differs from the source animation rig are retargeted once per model at page load; matching rigs
+   reuse the converted clip data directly.
+
+   Conversion (convertClip) runs offline into the prepared clip pack, and at load only for a clip
+   the pack lacks (see "prepared clips" below): each clip keeps only channels for bones
+   the model has (the loader's `__fbx_inheritScale` helper nodes duplicate their parent and are
+   dropped), is resampled at 30 fps, and looping clips have their horizontal hips travel removed so
+   navigation stays the sole owner of world position. The removed travel becomes the clip's natural
+   ground speed, which sets playback rate so feet do not skate.
+
+   Gameplay still owns *why* (stance, movement, target, reload, fire, death arrive as the usual
+   soldier fields and animation tags). This backend owns *how*: a lower layer plays the stance and
+   locomotion clip for the whole body, and an upper overlay (spine, arms, head) plays aim, fire or
+   reload on top. Both cross-fade. Clip clocks advance on simulation time in update(); poses are
+   written once per rendered frame, so a paused or headless sim pays nothing for them.
+
+   In the game every soldier wears his FBX model on a bare body (BattleSoldierModel.createBody), and
+   the page waits for the assets or reports a load failure. The procedural rig in soldier.js is only
+   the body used while imported animation is disabled (trainer and headless benchmark matches). */
+(function (root) {
+  'use strict';
+  if (
+    typeof BABYLON === 'undefined' ||
+    !root.BattleSoldierModel ||
+    !root.BattleFbxClips ||
+    !root.BattleFbxRigCanon ||
+    !root.BattleFbxWeaponCalibration ||
+    !root.BattleFbxRetargetQuat ||
+    !root.BattleFbxRetargetRest ||
+    !root.BattleFbxMeshLod ||
+    !root.BattleFbxRenderLod ||
+    !root.BattleFbxSurfaceDamage ||
+    !root.BattleFbxClipMixer ||
+    !root.BattleFbxPreparedPack ||
+    !root.BattleFbxModelRetarget ||
+    !root.BattleFbxClipConverter ||
+    !root.BattleFbxAssetImport ||
+    !root.BattleFbxLibraryLifecycle ||
+    !root.BattleFbxAnimationState ||
+    !root.BattleFbxRenderPose ||
+    root.BattleFbxSoldier
+  )
+    return;
+
+  var M = root.BattleSoldierModel,
+    TAGS = M.TAGS,
+    Q = BABYLON.Quaternion,
+    V3 = BABYLON.Vector3,
+    MX = BABYLON.Matrix;
+  var BACKEND = 'fbx-skeletal-v1',
+    FPS = 30;
+  /* Models per faction and role; `default` covers the roles with no model of their own (riflemen,
+   and any role whose model is not made yet). `?soldiers=rifleman` shows the earlier riflemen. */
+  var MODEL_SETS = {
+    paratrooper: {
+      us: {
+        default: 'us-paratrooper.fbx',
+        sergeant: 'us-captain.fbx',
+        scout: 'us-scout.fbx',
+        engineer: 'us-engineer.fbx',
+        gunner: 'us-gunner.fbx'
+      },
+      ge: {
+        default: 'ge-paratrooper.fbx',
+        sergeant: 'ge-captain.fbx',
+        scout: 'ge-scout.fbx',
+        engineer: 'ge-engineer.fbx',
+        gunner: 'ge-gunner.fbx'
+      }
+    },
+    rifleman: { us: { default: 'us-rifleman-rigged.fbx' }, ge: { default: 'ge-rifleman-rigged.fbx' } }
+  };
+  var MODEL_SET =
+    typeof location !== 'undefined' && /[?&]soldiers=rifleman\b/.test(location.search || '')
+      ? 'rifleman'
+      : 'paratrooper';
+  var MODELS = MODEL_SETS[MODEL_SET];
+  /* Faction weapons (Assets/weapons, prepared by tools/prepare-weapon-model.py) replace the box
+   weapons. The model is the one whose numbers the soldier fires with: BattleWeapons.PROFILES
+   names it per side and kind (`model`, the FBX basename), so what he carries and how it shoots
+   cannot disagree. The prepared layout puts the butt plate WEAPON_BUTT metres behind the grip
+   origin (pistols: the back of the frame, PISTOL_BUTT), barrel along +Z, so the hand calibration holds. */
+  var WEAPON_BUTT = 0.4,
+    PISTOL_BUTT = 0.06;
+  function weaponProfiles() {
+    return (root.BattleWeapons && root.BattleWeapons.PROFILES) || {};
+  }
+  function weaponFiles(f, kind) {
+    var p = weaponProfiles()[f],
+      m = p && p[kind] && p[kind].model;
+    return m ? [m + '.fbx'] : [];
+  }
+  /* Machine guns also come with the bipod deployed; that copy replaces the folded one while the gunner
+   is settled prone. Same layout (grip, fore-end, muzzle), only the legs differ. */
+  var WEAPON_BIPOD = { 'm1919a6.fbx': 'm1919a6-bipod.fbx', 'mg42.fbx': 'mg42-bipod.fbx' };
+
+  /* key -> [clip file, loops(, 'turn')]: the clip table lives in 53-fbx-clip-table.js, shared with
+   the Motion Lab so it can list exactly the clips the game plays. */
+  var CLIPS = root.BattleFbxClips.clips;
+  var IDLE_VARIANTS = ['idle', 'idleLook', 'idleTwoHand', 'idleFidget'],
+    FLINCH_RATE = 1.6;
+  /* Source-clip release times at the forward hand-velocity peak, measured by
+     scripts/probe_grenade_presentation.cjs. Sync that frame to core's releaseAt. */
+  var THROW_RELEASE = { throw: 2, throwCrouch: 56 / 30, throwProne: 58 / 30 };
+  /* Presentation-only rates and cross-fades for Engagement's stress reactions. Rage keeps the
+   ordinary locomotion and firing layers because he is still fighting. The other three replace the
+   full-body lower layer and leave the weapon beside the man while their reaction owns him. */
+  var REACTION_ANIM = {
+    fade: 0.32,
+    cowerEnterRate: 3,
+    cowerExitRate: 3,
+    freezeEnterRate: 5,
+    fleeEnterRate: 1,
+    dropSide: 0.88,
+    dropBack: 0.08,
+    dropLift: 0.055,
+    dropYaw: 0.35,
+    holds: ['reactionFreezeStanding', 'reactionFreezeSitting', 'reactionFreezeFallen']
+  };
+  var DEATH_POOLS = {
+    front: ['deathFront', 'deathBackHeadKnees', 'deathBackOneKnee', 'deathChestKnees'],
+    back: ['deathBack', 'deathHitGround', 'deathHeadKnees', 'deathFrontHeadKnees'],
+    side: ['deathSide', 'deathChestKnees'],
+    crouch: ['deathCrouch', 'deathCrouched'],
+    prone: ['deathProne'],
+    running: ['deathRunning']
+  };
+
+  /* Shared sidecar/seat calibration installs lexically before this backend. Keep all asset
+   timing, model preparation, matrix solving and socket ownership local to the backend. */
+  var CALIB = root.BattleFbxWeaponCalibration,
+    WEAPON_POINTS = CALIB.WEAPON_POINTS,
+    SIDE_MODEL_POINTS = CALIB.SIDE_MODEL_POINTS,
+    SIDE_CONTACTS = CALIB.SIDE_CONTACTS,
+    SIDE_ARM = CALIB.SIDE_ARM,
+    SIDE_WRISTR = CALIB.SIDE_WRISTR,
+    SIDE_LEFT_GRIP = CALIB.SIDE_LEFT_GRIP,
+    applySidecarData = CALIB.applySidecarData,
+    applyDefaultSeats = CALIB.applyDefaultSeats,
+    pointsFor = CALIB.pointsFor,
+    armDegFor = CALIB.armDegFor,
+    wristRFor = CALIB.wristRFor,
+    leftGripFor = CALIB.leftGripFor;
+  function loadSidecars(base, files) {
+    if (typeof fetch === 'undefined') return Promise.resolve();
+    return Promise.all(
+      (files || []).map(function (file) {
+        var t0 = ASSET.on ? perfNow() : 0;
+        return fetch(base + 'soldiers/' + encodeURIComponent(file) + '.json', { cache: 'no-store' })
+          .then(function (res) {
+            if (!res.ok) return;
+            return res
+              .json()
+              .then(function (data) {
+                applySidecarData(file, data);
+              })
+              .catch(function () {});
+          })
+          .catch(function () {})
+          .then(function () {
+            applyDefaultSeats(file);
+            assetAdd('model', file, 'sidecar', perfNow() - t0);
+          });
+      })
+    ).then(function () {});
+  }
+  /* Measured per-model hand contacts, in hand-bone local import units: the same space
+   palmAnchors() derives. Generated by the Motion Lab workbench (labs/fbx-animation-lab.html
+   section 4, "Copy backend snippet"); an entry here wins over the derived web / centroid
+   anchors for that model file. Empty until a lineup proves a model needs stored contacts. */
+  var SOLDIER_CONTACTS = {};
+  var SMOOTH_NORMALS = !(typeof location !== 'undefined' && /[?&]smooth=0\b/.test(location.search || ''));
+
+  /* ---- performance instrumentation (observe only) --------------------------------------------
+   Timers for the runtime/animation audit (AGENTS.md, open issues). They read performance.now()
+   and fields this backend already keeps; they never write soldier or simulation state and never
+   draw a random number. Two switches, both read once at install:
+     startup timing (BattleAssetTimings): on by default, a few hundred clock reads per page load;
+       `?perfTimings=0` or window.BATTLE_PERF_TIMINGS=false turns it off.
+     pose timing (BattlePoseTimings): off by default and then measures nothing; `?perfTimings=1`,
+       window.BATTLE_PERF_TIMINGS=true or BattlePoseTimings.enable() turns it on. */
+  var PERF_FLAG = (function () {
+    var m = typeof location !== 'undefined' && /[?&]perfTimings=([01])\b/.exec(location.search || '');
+    if (m) return m[1] === '1';
+    var g = root.BATTLE_PERF_TIMINGS;
+    return g == null ? null : !!g;
+  })();
+  function perfNow() {
+    return root.performance && root.performance.now ? root.performance.now() : Date.now();
+  }
+  function perfStats(arr, n) {
+    n = Math.min(n, arr.length);
+    if (!n) return { n: 0, mean: null, p50: null, p95: null, p99: null, max: null };
+    var a = Array.prototype.slice.call(arr, 0, n).sort(function (x, y) {
+        return x - y;
+      }),
+      sum = 0;
+    for (var i = 0; i < n; i++) sum += a[i];
+    var q = function (p) {
+      return +a[Math.min(n - 1, Math.floor(p * (n - 1) + 0.5))].toFixed(4);
+    };
+    return {
+      n: n,
+      mean: +(sum / n).toFixed(4),
+      p50: q(0.5),
+      p95: q(0.95),
+      p99: q(0.99),
+      max: +a[n - 1].toFixed(4)
+    };
+  }
+  function perfRound(v, d) {
+    return v == null ? null : +(+v).toFixed(d == null ? 2 : d);
+  }
+
+  /* Startup: per FBX file download (Resource Timing), Babylon parse/import (the FBX plugin parses and
+   builds synchronously inside loadAssetContainerAsync, so timing that call is its CPU time), the
+   queue wait between them, then this backend's own work per file: model prepare (materials,
+   normals, palm anchors), weapon prepare, clip conversion (canonicalise, filter, 30 Hz resample,
+   root travel/turn removal), retarget per model, grip solve, sidecar fetch; and per soldier bind. */
+  var ASSET = {
+    on: PERF_FLAG !== false,
+    files: {},
+    parse: {},
+    marks: {},
+    binds: { count: 0, ms: 0, bodyMs: 0, max: 0, first: null, last: null }
+  };
+  if (ASSET.on && root.performance && root.performance.setResourceTimingBufferSize) {
+    try {
+      root.performance.setResourceTimingBufferSize(4000);
+    } catch (_) {}
+  }
+  function assetMark(name) {
+    if (ASSET.on && ASSET.marks[name] == null) ASSET.marks[name] = perfNow();
+  }
+  function assetEntry(kind, file) {
+    var k = kind + ':' + file;
+    return ASSET.files[k] || (ASSET.files[k] = { kind: kind, file: file });
+  }
+  function assetAdd(kind, file, field, ms) {
+    if (!ASSET.on) return;
+    var e = assetEntry(kind, file);
+    e[field] = (e[field] || 0) + ms;
+  }
+  function assetBaseName(s) {
+    s = String(s || '');
+    try {
+      s = decodeURIComponent(s);
+    } catch (_) {}
+    s = s.split('?')[0];
+    return s.slice(s.lastIndexOf('/') + 1);
+  }
+  function assetResource(url) {
+    try {
+      var list = root.performance.getEntriesByName(new URL(url, document.baseURI).href);
+      return list.length ? list[list.length - 1] : null;
+    } catch (_) {
+      return null;
+    }
+  }
+  function wrapFbxParse() {
+    var L = BABYLON.FBXFileLoader,
+      p = L && L.prototype;
+    if (!ASSET.on || !p || !p.loadAssetContainerAsync || p._battleTimed) return;
+    var orig = p.loadAssetContainerAsync;
+    p._battleTimed = true;
+    p.loadAssetContainerAsync = function (scene, data, rootUrl, onProgress, fileName) {
+      var t0 = perfNow();
+      try {
+        return orig.apply(this, arguments);
+      } finally {
+        ASSET.parse[assetBaseName(String(rootUrl || '') + (typeof fileName === 'string' ? fileName : ''))] = {
+          at: t0,
+          ms: perfNow() - t0,
+          bytes: (data && data.byteLength) || null
+        };
+      }
+    };
+  }
+  function assetLoaded(kind, file, url, t0) {
+    var t1 = perfNow(),
+      e = assetEntry(kind, file),
+      parse = ASSET.parse[assetBaseName(url)],
+      res = assetResource(url);
+    e.requestAt = t0;
+    e.loadedAt = t1;
+    e.loadMs = t1 - t0;
+    if (res) {
+      /* stall: queued in the browser (connection limit) before the request went out; transfer: request to last byte. */
+      e.download = res.responseEnd - res.startTime;
+      e.bytes = res.encodedBodySize || res.transferSize || null;
+      if (res.requestStart > 0) {
+        e.stall = res.requestStart - res.startTime;
+        e.transfer = res.responseEnd - res.requestStart;
+      }
+    }
+    if (parse) {
+      e.parse = parse.ms;
+      if (!e.bytes) e.bytes = parse.bytes;
+      if (res) e.wait = Math.max(0, parse.at - res.responseEnd);
+    }
+    e.downloadSource = res ? 'resource-timing' : 'derived';
+    if (e.download == null) e.download = Math.max(0, e.loadMs - (e.parse || 0));
+  }
+  var ASSET_WORK = ['parse', 'prepare', 'convert', 'retarget', 'grips'];
+  function assetSnapshot() {
+    var files = Object.keys(ASSET.files).map(function (k) {
+        return ASSET.files[k];
+      }),
+      totals = { files: files.length, bytes: 0 },
+      byKind = {};
+    var fields = [
+      'download',
+      'stall',
+      'transfer',
+      'wait',
+      'parse',
+      'prepare',
+      'normals',
+      'palms',
+      'convert',
+      'dispose',
+      'retarget',
+      'grips',
+      'sidecar'
+    ];
+    fields.forEach(function (f) {
+      totals[f] = 0;
+    });
+    var rows = files.map(function (e) {
+      var row = {
+        kind: e.kind,
+        file: e.file,
+        bytes: e.bytes || null,
+        downloadSource: e.downloadSource || null
+      };
+      fields.forEach(function (f) {
+        if (e[f] != null) {
+          row[f] = perfRound(e[f]);
+          totals[f] += e[f];
+        }
+      });
+      row.workMs = perfRound(
+        ASSET_WORK.reduce(function (s, f) {
+          return s + (e[f] || 0);
+        }, 0)
+      );
+      row.totalMs = perfRound((e.download || 0) + (e.wait || 0) + row.workMs);
+      if (e.requestAt != null) row.requestAt = perfRound(e.requestAt, 1);
+      if (e.loadedAt != null) row.loadedAt = perfRound(e.loadedAt, 1);
+      totals.bytes += e.bytes || 0;
+      var k = byKind[e.kind] || (byKind[e.kind] = { files: 0, bytes: 0 });
+      k.files++;
+      k.bytes += e.bytes || 0;
+      fields.concat(['workMs']).forEach(function (f) {
+        if (row[f] != null) k[f] = perfRound((k[f] || 0) + row[f]);
+      });
+      return row;
+    });
+    fields.forEach(function (f) {
+      totals[f] = perfRound(totals[f]);
+    });
+    var L = root.BattleLoading,
+      marks = {};
+    Object.keys(ASSET.marks).forEach(function (k) {
+      marks[k] = perfRound(ASSET.marks[k], 1);
+    });
+    var b = ASSET.binds;
+    return {
+      enabled: ASSET.on,
+      clock: 'performance.now() ms since navigation start',
+      page: L && L.timings ? L.timings() : null,
+      library: {
+        marks: marks,
+        wallMs:
+          ASSET.marks.ready != null && ASSET.marks.start != null
+            ? perfRound(ASSET.marks.ready - ASSET.marks.start)
+            : null,
+        loaderScriptMs: perfRound(ASSET.loaderScriptMs),
+        bindClipsMs: perfRound(ASSET.bindClipsMs)
+      },
+      binds: {
+        count: b.count,
+        totalMs: perfRound(b.ms),
+        bodyMs: perfRound(b.bodyMs),
+        meanMs: b.count ? perfRound(b.ms / b.count, 3) : null,
+        maxMs: perfRound(b.max, 3),
+        firstAt: perfRound(b.first, 1),
+        lastAt: perfRound(b.last, 1)
+      },
+      totals: totals,
+      byKind: byKind,
+      slowest: rows
+        .slice()
+        .sort(function (a, c) {
+          return c.totalMs - a.totalMs;
+        })
+        .slice(0, 10),
+      files: rows
+    };
+  }
+
+  /* Pose: applyPose per soldier per rendered frame, split into its layers, plus how often each
+   expensive layer's inputs actually changed since that layer last ran (exactly, and at the clip's
+   own 30 Hz sample rate). Only while POSE.on; the render hook reads the flag once per frame. */
+  var POSE_LAYERS = ['setup', 'base', 'overlay', 'dials', 'weapon', 'aim', 'support'],
+    POSE_RING = 1 << 16,
+    POSE_SOLDIER_RING = 1 << 19;
+  var POSE = { on: false, gen: 0, holdSupport: 0, seen: 0 },
+    POSE_BIT = {};
+  POSE_LAYERS.forEach(function (k, i) {
+    POSE_BIT[k] = 1 << i;
+  });
+  function poseCounter() {
+    return { recomputed: 0, changed: 0, changedAtClipRate: 0, layerInputsChanged: 0 };
+  }
+  function poseReset() {
+    POSE.gen++;
+    POSE.frames = 0;
+    POSE.samples = 0;
+    POSE.startedAt = perfNow();
+    POSE.frameMs = new Float64Array(POSE_RING);
+    POSE.framePosed = new Uint16Array(POSE_RING);
+    POSE.soldierMs = new Float32Array(POSE_SOLDIER_RING);
+    POSE.layerMs = {};
+    POSE.layerRuns = {};
+    POSE.layerFrame = {};
+    POSE.layerCur = {};
+    POSE_LAYERS.forEach(function (k) {
+      POSE.layerMs[k] = 0;
+      POSE.layerRuns[k] = 0;
+      POSE.layerFrame[k] = new Float32Array(POSE_RING);
+      POSE.layerCur[k] = 0;
+    });
+    POSE.inputs = { base: poseCounter(), aim: poseCounter(), weapon: poseCounter(), support: poseCounter() };
+    POSE.dead = 0;
+    POSE.offscreen = 0;
+    POSE.frustumKnown = 0;
+    POSE.dist = [0, 0, 0, 0];
+    POSE.lod = { posed: 0, static: 0, offscreen: 0, interval: 0, shadowKept: 0, culled: 0 };
+  }
+  /* A layer may be timed in more than one segment of one applyPose; `runs` counts soldier-frames. */
+  function poseLayer(k, ms) {
+    POSE.layerMs[k] += ms;
+    POSE.layerCur[k] += ms;
+    if (!(POSE.seen & POSE_BIT[k])) {
+      POSE.seen |= POSE_BIT[k];
+      POSE.layerRuns[k]++;
+    }
+  }
+  var poseClipSeq = 0,
+    poseStrSeq = {};
+  function poseMix(h, v) {
+    return (Math.imul(h, 31) + (v | 0)) | 0;
+  }
+  function poseStr(s) {
+    s = String(s);
+    return poseStrSeq[s] || (poseStrSeq[s] = Object.keys(poseStrSeq).length + 1);
+  }
+  /* The base pose: every clip entry that contributes (clip, time, weight) plus the overlay weight.
+   `rate` quantises clip time to the clip's 30 Hz frames and weights to 1/32. */
+  function poseClipSig(fx, rate) {
+    var h = 17,
+      layers = fx.overlay > 0.001 ? [fx.lower, fx.upper] : [fx.lower];
+    for (var l = 0; l < layers.length; l++) {
+      var es = layers[l].entries;
+      h = poseMix(h, es.length);
+      for (var i = 0; i < es.length; i++) {
+        var e = es[i],
+          c = e.clip;
+        h = poseMix(h, c._perfId || (c._perfId = ++poseClipSeq));
+        h = poseMix(h, rate ? Math.floor(e.t * FPS) : Math.round(e.t * 1e4));
+        h = poseMix(h, rate ? Math.round(e.w * 32) : Math.round(e.w * 1e4));
+      }
+    }
+    return poseMix(h, rate ? Math.round(fx.overlay * 32) : Math.round(fx.overlay * 1e4));
+  }
+  function poseRootSig(fx) {
+    var h = 3,
+      r = fx.root,
+      p = r.position,
+      pr = fx.holder.parent;
+    h = poseMix(h, Math.round(p.x * 1e3));
+    h = poseMix(h, Math.round(p.y * 1e3));
+    h = poseMix(h, Math.round(p.z * 1e3));
+    h = poseMix(h, Math.round((r.rotation.y || 0) * 1e4));
+    if (pr) {
+      h = poseMix(h, Math.round(pr.position.x * 1e3));
+      h = poseMix(h, Math.round(pr.position.y * 1e3));
+      h = poseMix(h, Math.round(pr.position.z * 1e3));
+      h = poseMix(h, Math.round(pr.rotation.x * 1e4));
+      h = poseMix(h, Math.round(pr.rotation.z * 1e4));
+    }
+    return h;
+  }
+  function poseWeaponSig(fx) {
+    var h = poseMix(5, poseStr(fx.weaponModel || fx.weaponKind));
+    return poseMix(
+      poseMix(poseMix(poseMix(h, fx.bipod ? 1 : 0), fx.supportReleased ? 1 : 0), fx.death ? 1 : 0),
+      fx.transition ? 1 : 0
+    );
+  }
+  function poseCount(c, prev, key, sig, sigQ, layerSig) {
+    var p = prev[key];
+    c.recomputed++;
+    if (!p || p[0] !== sig) c.changed++;
+    if (!p || p[1] !== sigQ) c.changedAtClipRate++;
+    if (!p || p[2] !== layerSig) c.layerInputsChanged++;
+    if (p) {
+      p[0] = sig;
+      p[1] = sigQ;
+      p[2] = layerSig;
+    } else prev[key] = [sig, sigQ, layerSig];
+  }
+  /* Called after applyPose with what ran. Aim and support read the base pose (the hand chains), so
+   their inputs are the base pose plus their own: aim weight, target and the root transform (aim is
+   solved in world space); weapon and hold-release flags; the pistol cup's release weight. */
+  function poseInputs(fx, ran) {
+    var prev = fx._perfPrev;
+    if (!prev || prev.gen !== POSE.gen) prev = fx._perfPrev = { gen: POSE.gen };
+    var clip = poseClipSig(fx, false),
+      clipQ = poseClipSig(fx, true),
+      I = POSE.inputs;
+    poseCount(I.base, prev, 'base', clip, clipQ, 0);
+    if (!ran.weapon) return;
+    var w = poseWeaponSig(fx);
+    poseCount(I.weapon, prev, 'weapon', poseMix(clip, w), poseMix(clipQ, w), w);
+    if (ran.aim) {
+      var a = poseRootSig(fx),
+        t = fx.aimAt;
+      a = poseMix(a, Math.round(fx.aim * 1e4));
+      if (t) {
+        a = poseMix(a, Math.round(t.x * 100));
+        a = poseMix(a, Math.round((t.y || 0) * 100));
+        a = poseMix(a, Math.round(t.z * 100));
+      }
+      poseCount(I.aim, prev, 'aim', poseMix(clip, a), poseMix(clipQ, a), a);
+    }
+    if (ran.support) {
+      var s = poseMix(
+        poseMix(w, Math.round((fx.cupW == null ? 1 : fx.cupW) * 1e3)),
+        fx.cupClipKey ? poseStr(fx.cupClipKey) : 0
+      );
+      if (ran.aim) s = poseMix(s, Math.round(fx.aim * 1e4));
+      poseCount(I.support, prev, 'support', poseMix(clip, s), poseMix(clipQ, s), s);
+    }
+  }
+  var poseEye = new V3();
+  function poseSoldier(fx, ms, scene) {
+    POSE.soldierMs[POSE.samples++ % POSE_SOLDIER_RING] = ms;
+    if (fx.death) POSE.dead++;
+    var cam = scene.activeCamera,
+      p = fx.root.position;
+    if (cam) {
+      cam.globalPosition ? poseEye.copyFrom(cam.globalPosition) : poseEye.copyFrom(cam.position);
+      var d = Math.sqrt(
+        (poseEye.x - p.x) * (poseEye.x - p.x) +
+          (poseEye.y - p.y) * (poseEye.y - p.y) +
+          (poseEye.z - p.z) * (poseEye.z - p.z)
+      );
+      POSE.dist[d < 25 ? 0 : d < 60 ? 1 : d < 150 ? 2 : 3]++;
+    }
+    var planes = scene.frustumPlanes;
+    if (planes && planes.length) {
+      POSE.frustumKnown++;
+      for (var i = 0; i < planes.length; i++) {
+        var pl = planes[i];
+        if (pl.normal.x * p.x + pl.normal.y * (p.y + 0.9) + pl.normal.z * p.z + pl.d < -1.2) {
+          POSE.offscreen++;
+          break;
+        }
+      }
+    }
+  }
+  function poseFrame(ms, posed) {
+    var i = POSE.frames % POSE_RING;
+    POSE.frameMs[i] = ms;
+    POSE.framePosed[i] = posed;
+    for (var k = 0; k < POSE_LAYERS.length; k++) {
+      var L = POSE_LAYERS[k];
+      POSE.layerFrame[L][i] = POSE.layerCur[L];
+      POSE.layerCur[L] = 0;
+    }
+    POSE.frames++;
+  }
+  function poseTimerResolution() {
+    var min = Infinity,
+      last = perfNow();
+    for (var i = 0; i < 20000 && min > 1e-6; i++) {
+      var t = perfNow();
+      if (t > last) {
+        min = Math.min(min, t - last);
+        last = t;
+      }
+    }
+    return isFinite(min) ? perfRound(min * 1000, 3) : null;
+  }
+  function poseSnapshot() {
+    if (!POSE.frameMs) return { enabled: POSE.on, frames: 0 };
+    var frames = Math.min(POSE.frames, POSE_RING),
+      samples = Math.min(POSE.samples, POSE_SOLDIER_RING),
+      total = 0,
+      posedSum = 0,
+      layers = {},
+      inputs = {};
+    for (var i = 0; i < frames; i++) posedSum += POSE.framePosed[i];
+    POSE_LAYERS.forEach(function (k) {
+      total += POSE.layerMs[k];
+    });
+    POSE_LAYERS.forEach(function (k) {
+      var ms = POSE.layerMs[k],
+        runs = POSE.layerRuns[k],
+        pf = perfStats(POSE.layerFrame[k], frames);
+      layers[k] = {
+        totalMs: perfRound(ms),
+        runs: runs,
+        usPerRun: runs ? perfRound((ms * 1000) / runs, 2) : null,
+        usPerSoldierFrame: POSE.samples ? perfRound((ms * 1000) / POSE.samples, 2) : null,
+        share: total ? perfRound(ms / total, 4) : null,
+        msPerFrame: { mean: pf.mean, p95: pf.p95 }
+      };
+    });
+    Object.keys(POSE.inputs).forEach(function (k) {
+      var c = POSE.inputs[k],
+        r = c.recomputed || 0;
+      inputs[k] = {
+        recomputed: r,
+        changed: c.changed,
+        unchangedShare: r ? perfRound(1 - c.changed / r, 4) : null,
+        changedAtClipRate: c.changedAtClipRate,
+        unchangedShareAtClipRate: r ? perfRound(1 - c.changedAtClipRate / r, 4) : null,
+        layerInputsChanged: c.layerInputsChanged,
+        layerInputsUnchangedShare: r ? perfRound(1 - c.layerInputsChanged / r, 4) : null
+      };
+    });
+    var perSoldier = perfStats(POSE.soldierMs, samples);
+    ['mean', 'p50', 'p95', 'p99', 'max'].forEach(function (k) {
+      if (perSoldier[k] != null) perSoldier[k] = perfRound(perSoldier[k] * 1000, 2);
+    });
+    var n = POSE.samples || 1;
+    var L = POSE.lod,
+      lt = L.posed + L.static + L.offscreen + L.interval;
+    return {
+      enabled: POSE.on,
+      frames: POSE.frames,
+      soldierFrames: POSE.samples,
+      lod: {
+        enabled: LOD.on,
+        near: LOD.near,
+        mid: LOD.mid,
+        screenScale: perfRound(LOD.screenScale || 1, 4),
+        effectiveNear: perfRound(LOD.near * (LOD.screenScale || 1), 2),
+        effectiveMid: perfRound(LOD.mid * (LOD.screenScale || 1), 2),
+        midHz: LOD.midHz,
+        farHz: LOD.farHz,
+        offscreen: LOD.offscreen,
+        posedShare: lt ? perfRound(L.posed / lt, 4) : null,
+        shadowKept: L.shadowKept,
+        culled: L.culled,
+        cull: CULL.on,
+        heldStatic: L.static,
+        heldOffscreen: L.offscreen,
+        heldInterval: L.interval,
+        posed: L.posed
+      },
+      wallMs: perfRound(perfNow() - POSE.startedAt, 0),
+      timerResolutionUs: POSE.resolutionUs,
+      posedPerFrame: {
+        mean: frames ? perfRound(posedSum / frames, 2) : null,
+        stats: perfStats(POSE.framePosed, frames)
+      },
+      frameMs: perfStats(POSE.frameMs, frames),
+      perSoldierUs: perSoldier,
+      layers: layers,
+      inputs: inputs,
+      posed: {
+        deadShare: perfRound(POSE.dead / n, 4),
+        offscreenShare: POSE.frustumKnown ? perfRound(POSE.offscreen / POSE.frustumKnown, 4) : null,
+        cameraDistance: {
+          under25m: perfRound(POSE.dist[0] / n, 4),
+          m25to60: perfRound(POSE.dist[1] / n, 4),
+          m60to150: perfRound(POSE.dist[2] / n, 4),
+          over150m: perfRound(POSE.dist[3] / n, 4)
+        }
+      }
+    };
+  }
+  function poseEnable(on) {
+    on = on !== false;
+    if (on && !POSE.on) {
+      poseReset();
+      POSE.resolutionUs = poseTimerResolution();
+    }
+    POSE.on = on;
+    return POSE.on;
+  }
+  if (PERF_FLAG === true) poseEnable(true);
+
+  /* R3: canonical bone naming and upper-body masks are pure shared helpers.
+     The lightweight module loads immediately before this backend. */
+  var RIG = root.BattleFbxRigCanon,
+    rigScheme = RIG.rigScheme,
+    canon = RIG.canon,
+    BONE = RIG.BONE,
+    isUpper = RIG.isUpper;
+  var scenes = typeof WeakMap !== 'undefined' ? new WeakMap() : null;
+  function sceneState(scene) {
+    var st = scenes ? scenes.get(scene) : scene._battleFbxSoldier;
+    if (!st) {
+      st = {
+        enabled: true,
+        libs: {},
+        clips: null,
+        bones: null,
+        loading: null,
+        ready: false,
+        active: [],
+        error: null,
+        surfaceBlank: null
+      };
+      if (scenes) scenes.set(scene, st);
+      else scene._battleFbxSoldier = st;
+    }
+    return st;
+  }
+  /* All imported soldier materials are frozen after load. A material can only switch to a mesh-owned
+   decal texture later if its shader was compiled with the decal path from the start, so every
+   soldier mesh initially points at this one shared transparent pixel. It costs no per-soldier RTT;
+   a private 512² UV map replaces it only on that mesh's first wound. */
+  function surfaceBlankMap(scene) {
+    var st = sceneState(scene);
+    if (st.surfaceBlank) return st.surfaceBlank.map;
+    var tex = BABYLON.RawTexture.CreateRGBATexture(
+      new Uint8Array([0, 0, 0, 0]),
+      1,
+      1,
+      scene,
+      false,
+      false,
+      BABYLON.Texture.NEAREST_SAMPLINGMODE
+    );
+    tex.hasAlpha = true;
+    tex.gammaSpace = false;
+    if (BABYLON.Texture.CLAMP_ADDRESSMODE != null) tex.wrapU = tex.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+    var map = {
+      texture: tex,
+      isReady: function () {
+        return true;
+      }
+    };
+    st.surfaceBlank = { texture: tex, map: map };
+    scene.onDisposeObservable.addOnce(function () {
+      try {
+        tex.dispose();
+      } catch (_) {}
+      st.surfaceBlank = null;
+    });
+    return map;
+  }
+  /* ---- import + conversion ------------------------------------------------------------------ */
+
+  /* Hand anchors are fixed in their hand bone's space. The right grip lands in the web between
+   thumb and index bases. The left fore-end rests at the palm side of the index finger's second
+   knuckle, forward of the wrist: use the second index joint blended a little toward the web.
+   This is a stable virtual socket even when the fingers animate. Rigs without those joints
+   fall back to the centroid of hand-skinned vertices. */
+  function palmAnchors(meshes, nodes, scheme) {
+    var out = {};
+    [BONE.rightHand, BONE.leftHand].forEach(function (name) {
+      var sum = new V3(),
+        count = 0,
+        node = nodes[name],
+        web = null;
+      var thumb = node && nodes[name + 'thumb1'],
+        index = node && nodes[name + 'index1'],
+        index2 = node && nodes[name + 'index2'];
+      if (node && thumb && index) {
+        /* Fresh vectors only (V3.Lerp): getAbsolutePosition may hand back internal state,
+         so never chain mutating arithmetic onto it. */
+        var webMid = V3.Lerp(thumb.getAbsolutePosition(), index.getAbsolutePosition(), 0.5);
+        if (name === BONE.leftHand && index2) {
+          webMid = V3.Lerp(webMid, index2.getAbsolutePosition(), 0.8);
+          out[name + 'Source'] = 'index-pip';
+        } else out[name + 'Source'] = 'web';
+        web = V3.TransformCoordinates(webMid, node.getWorldMatrix().clone().invert());
+      }
+      meshes.forEach(function (mesh) {
+        var sk = mesh.skeleton;
+        if (!sk || !node) return;
+        var handBones = {};
+        for (var b = 0; b < sk.bones.length; b++) {
+          var boneName = canon(sk.bones[b].name, scheme);
+          if (boneName === name || new RegExp('^' + name + '(thumb|index|middle|ring|pinky)').test(boneName))
+            handBones[b] = 1;
+        }
+        if (!Object.keys(handBones).length) return;
+        var VB = BABYLON.VertexBuffer,
+          pos = mesh.getVerticesData(VB.PositionKind),
+          ix = [
+            mesh.getVerticesData(VB.MatricesIndicesKind),
+            mesh.getVerticesData(VB.MatricesIndicesExtraKind)
+          ],
+          wt = [
+            mesh.getVerticesData(VB.MatricesWeightsKind),
+            mesh.getVerticesData(VB.MatricesWeightsExtraKind)
+          ],
+          world = mesh.getWorldMatrix(),
+          p = new V3();
+        for (var v = 0; v < pos.length / 3; v++) {
+          var w = 0;
+          for (var set = 0; set < 2; set++) {
+            if (!ix[set] || !wt[set]) continue;
+            for (var j = 0; j < 4; j++) if (handBones[ix[set][v * 4 + j]]) w += wt[set][v * 4 + j];
+          }
+          if (w < 0.5) continue;
+          V3.TransformCoordinatesFromFloatsToRef(pos[v * 3], pos[v * 3 + 1], pos[v * 3 + 2], world, p);
+          sum.addInPlace(p);
+          count++;
+        }
+      });
+      var centroid =
+        count && node
+          ? V3.TransformCoordinates(sum.scale(1 / count), node.getWorldMatrix().clone().invert())
+          : V3.Zero();
+      out[name] = web || centroid;
+      if (!web) out[name + 'Source'] = 'centroid';
+      out[name + 'Centroid'] = centroid;
+      out[name + 'Vertices'] = count;
+    });
+    return out;
+  }
+  /* On a phone the soldier albedo is halved: each model embeds a 2048² JPEG, ten of them 22 MB of GPU
+   memory apiece with mipmaps (223 MB), and iOS reloads the tab when its memory runs out. Once the
+   embedded texture is up, a 1024² copy (mipmapped, same wrap and filtering) replaces it on the
+   shared material and the original is freed. `?soldierTex=2048` keeps the full size, `=1024` forces
+   the copy; a phone is a coarse primary pointer. */
+  var SOLDIER_TEXTURE_MAX = (function () {
+    var q = root.location && /[?&]soldierTex=(\d+)/.exec(root.location.search || '');
+    if (q) return +q[1] >= 2048 ? 0 : Math.max(256, +q[1]);
+    return root.matchMedia && root.matchMedia('(pointer:coarse)').matches ? 1024 : 0;
+  })();
+  function shrinkSoldierTexture(m) {
+    var t = m.diffuseTexture,
+      TT = BABYLON.TextureTools;
+    if (!SOLDIER_TEXTURE_MAX || !t || !TT || !TT.CreateResizedCopy) return;
+    function go() {
+      var s = t.getSize(),
+        k = Math.min(1, SOLDIER_TEXTURE_MAX / Math.max(s.width, s.height));
+      if (!(k < 1) || m.diffuseTexture !== t) return;
+      var scene = t.getScene(),
+        copy;
+      try {
+        copy = TT.CreateResizedCopy(t, Math.round(s.width * k), Math.round(s.height * k), true);
+      } catch (e) {
+        console.warn('[ANIM] soldier texture copy failed; keeping ' + s.width + '²', e);
+        return;
+      }
+      copy.name = t.name + '@' + Math.round(s.width * k);
+      copy.gammaSpace = t.gammaSpace;
+      copy.hasAlpha = t.hasAlpha;
+      /* The copy draws once its pass shader compiles; swap only then, so no frame binds an empty texture. */
+      var obs = scene.onBeforeRenderObservable.add(function () {
+        var it = copy.getInternalTexture();
+        if (!it || !it.isReady) return;
+        scene.onBeforeRenderObservable.remove(obs);
+        if (m.diffuseTexture !== t) {
+          copy.dispose();
+          return;
+        }
+        var frozen = m.isFrozen;
+        if (frozen && m.unfreeze) m.unfreeze();
+        m.diffuseTexture = copy;
+        if (frozen && m.freeze) m.freeze();
+        t.dispose();
+      });
+    }
+    if (t.isReady()) go();
+    else t.onLoadObservable.addOnce(go);
+  }
+  function prepareModel(container) {
+    var top = container.transformNodes.filter(function (n) {
+      return !n.parent;
+    })[0];
+    var skeleton = container.skeletons[0];
+    if (!top || !skeleton) throw new Error('model FBX has no skinned skeleton');
+    var meshes = container.meshes.filter(function (m) {
+        return m.getTotalVertices() > 0;
+      }),
+      lo = Infinity,
+      hi = -Infinity;
+    top.computeWorldMatrix(true);
+    top.getDescendants(false).forEach(function (n) {
+      if (n.computeWorldMatrix) n.computeWorldMatrix(true);
+    });
+    meshes.forEach(function (m) {
+      var b = m.getBoundingInfo().boundingBox;
+      lo = Math.min(lo, b.minimumWorld.y);
+      hi = Math.max(hi, b.maximumWorld.y);
+    });
+    if (!(hi > lo)) throw new Error('model FBX has no measurable height');
+    var all = top.getDescendants(false),
+      scheme = rigScheme(
+        all.map(function (n) {
+          return n.name;
+        })
+      ),
+      nodes = {};
+    all.forEach(function (n) {
+      nodes[canon(n.name, scheme)] = n;
+    });
+    container.materials.forEach(function (m) {
+      if (m.specularColor) m.specularColor.set(0.06, 0.06, 0.06);
+      /* The atlas is hundreds of small islands; keep it crisp at glancing angles. */
+      if (m.diffuseTexture) m.diffuseTexture.anisotropicFilteringLevel = 8;
+      shrinkSoldierTexture(m);
+      /* The auto-rig's weights fold the thin smock over itself at the shoulders and back once the
+       soldier is posed, turning those triangles away from the camera. Culled, they read as holes;
+       draw both sides, lit from whichever side faces the viewer. */
+      m.backFaceCulling = false;
+      if ('twoSidedLighting' in m) m.twoSidedLighting = true;
+      /* Surface damage is mesh-owned (mesh.decalMap), while this material remains shared by every
+       clone of the model. Babylon implements decal maps as a material plugin, and that plugin must
+       exist before the material's first render. Enable the capability now, before freeze; no per-
+       soldier render target is allocated until that particular mesh is actually wounded. */
+      try {
+        if (m.decalMap) {
+          m.decalMap.isEnabled = true;
+          m.decalMap.smoothAlpha = true;
+        }
+      } catch (_) {}
+      /* Imported soldier materials never change after preparation. Freeze shader/material dirty
+       checks once the import-time adjustments above are complete. */
+      if (m.freeze) m.freeze();
+    });
+    var tn = ASSET.on ? perfNow() : 0;
+    if (SMOOTH_NORMALS) meshes.forEach(smoothNormals);
+    var tp = ASSET.on ? perfNow() : 0,
+      palms = palmAnchors(meshes, nodes, scheme);
+    if (ASSET.on && container._battleFile) {
+      assetAdd('model', container._battleFile, 'normals', tp - tn);
+      assetAdd('model', container._battleFile, 'palms', perfNow() - tp);
+    }
+    var scale = ((M.BODY && M.BODY.heightM) || 1.7) / (hi - lo);
+    if (!nodes.hips) throw new Error('model FBX has no hips bone');
+    return {
+      container: container,
+      top: top,
+      nodes: nodes,
+      height: hi - lo,
+      scale: scale,
+      scheme: scheme,
+      hipsHeight: (nodes.hips.getAbsolutePosition().y - lo) * scale,
+      palms: palms,
+      grips: null,
+      clips: null
+    };
+  }
+
+  /* Optional look (on by default, `?smooth=0` turns it off): the models ship flat-shaded, so the
+   low-poly body reads as facets. Each corner instead averages the normals of the faces that meet at
+   its position (welded across UV seams) and point within 60 degrees of its own face. The limit
+   matters: the smock hem, straps and cuffs are thin shells whose two sides share positions, and
+   averaging across them flips the normal and shades those faces black. */
+  function smoothNormals(mesh) {
+    var pos = mesh.getVerticesData(BABYLON.VertexBuffer.PositionKind),
+      idx = mesh.getIndices();
+    if (!pos || !idx) return;
+    var n = pos.length / 3,
+      key = {},
+      group = new Int32Array(n),
+      count = 0,
+      i,
+      j;
+    for (i = 0; i < n; i++) {
+      var k = pos[i * 3].toFixed(4) + ',' + pos[i * 3 + 1].toFixed(4) + ',' + pos[i * 3 + 2].toFixed(4);
+      if (key[k] == null) key[k] = count++;
+      group[i] = key[k];
+    }
+    var tris = idx.length / 3,
+      face = new Float64Array(tris * 3),
+      own = new Float64Array(n * 3),
+      members = [];
+    for (i = 0; i < count; i++) members.push([]);
+    for (var t = 0; t < tris; t++) {
+      var a = idx[t * 3] * 3,
+        b = idx[t * 3 + 1] * 3,
+        c = idx[t * 3 + 2] * 3,
+        ux = pos[b] - pos[a],
+        uy = pos[b + 1] - pos[a + 1],
+        uz = pos[b + 2] - pos[a + 2],
+        vx = pos[c] - pos[a],
+        vy = pos[c + 1] - pos[a + 1],
+        vz = pos[c + 2] - pos[a + 2];
+      /* Area-weighted face normal (cross product length is twice the area). */
+      face[t * 3] = uy * vz - uz * vy;
+      face[t * 3 + 1] = uz * vx - ux * vz;
+      face[t * 3 + 2] = ux * vy - uy * vx;
+      for (j = 0; j < 3; j++) {
+        var v = idx[t * 3 + j];
+        own[v * 3] += face[t * 3];
+        own[v * 3 + 1] += face[t * 3 + 1];
+        own[v * 3 + 2] += face[t * 3 + 2];
+        members[group[v]].push(t);
+      }
+    }
+    var old = mesh.getVerticesData(BABYLON.VertexBuffer.NormalKind),
+      out = new Float32Array(n * 3),
+      agree = 0,
+      cos = Math.cos(Math.PI / 3);
+    for (i = 0; i < n; i++) {
+      var ox = own[i * 3],
+        oy = own[i * 3 + 1],
+        oz = own[i * 3 + 2],
+        ol = Math.sqrt(ox * ox + oy * oy + oz * oz) || 1,
+        x = 0,
+        y = 0,
+        z = 0,
+        list = members[group[i]];
+      for (j = 0; j < list.length; j++) {
+        var f = list[j] * 3,
+          fx = face[f],
+          fy = face[f + 1],
+          fz = face[f + 2],
+          fl = Math.sqrt(fx * fx + fy * fy + fz * fz) || 1;
+        if ((fx * ox + fy * oy + fz * oz) / (fl * ol) >= cos) {
+          x += fx;
+          y += fy;
+          z += fz;
+        }
+      }
+      var l = Math.sqrt(x * x + y * y + z * z);
+      if (!l) {
+        x = ox;
+        y = oy;
+        z = oz;
+        l = ol;
+      }
+      out[i * 3] = x / l;
+      out[i * 3 + 1] = y / l;
+      out[i * 3 + 2] = z / l;
+      if (old)
+        agree +=
+          out[i * 3] * old[i * 3] + out[i * 3 + 1] * old[i * 3 + 1] + out[i * 3 + 2] * old[i * 3 + 2] > 0
+            ? 1
+            : -1;
+    }
+    /* Keep the outward sense the file's own normals have overall (the loader mirrors handedness). */
+    if (agree < 0) for (i = 0; i < out.length; i++) out[i] = -out[i];
+    mesh.setVerticesData(BABYLON.VertexBuffer.NormalKind, out, false);
+  }
+  /* The clips' own skeleton: bone names (helper nodes excluded) and their rest local transforms.
+   Every clip file carries the same one, so it is read once from the first clip loaded. */
+  /* Original FBX converter lives in the lexical R3 module. Exact function source
+     bytes are still hashed against the prepared-clips.bin converter fingerprint. */
+  var FBX_CONVERTER = root.BattleFbxClipConverter.create({
+      Q: Q,
+      V3: V3,
+      FPS: FPS,
+      rigScheme: rigScheme,
+      canon: canon
+    }),
+    sourceRig = FBX_CONVERTER.sourceRig,
+    convertClip = FBX_CONVERTER.convertClip;
+
+  /* ---- prepared clips ----------------------------------------------------------------------- */
+  /* Assets/animations/prepared-clips.bin holds every CLIPS entry already through sourceRig and
+   convertClip, so a page load reads one file instead of parsing ~90 clip FBX. It is written by
+   scripts/build_clip_pack.cjs, which runs these same functions in a browser; CI
+   (scripts/check_clip_pack.cjs) fails when a clip FBX, CLIPS or the conversion code changes
+   without it. The runtime takes each clip whose spec still matches CLIPS; a missing or changed
+   one, or every clip if the format differs, loads from its FBX as before. `?clipPack=0` loads
+   every clip from FBX. Layout: 'GCP1', uint32 header length, the JSON header padded to 4 bytes,
+   then the Float32 channel data the header indexes ([bone, rot offset, pos offset], -1 = none). */
+  var CLIP_PACK_FILE = 'prepared-clips.bin',
+    CLIP_PACK_FORMAT = 1;
+  var CLIP_PACK_ON = !(typeof location !== 'undefined' && /[?&]clipPack=0\b/.test(location.search || ''));
+  function encodeClipPack(src, clips, extra) {
+    var rest = {},
+      total = 0,
+      list = [];
+    src.bones.forEach(function (b) {
+      var r = src.rest[b];
+      rest[b] = { q: [r.q.x, r.q.y, r.q.z, r.q.w], p: [r.p.x, r.p.y, r.p.z] };
+    });
+    clips.forEach(function (c) {
+      c.channels.forEach(function (ch) {
+        if (ch) total += (ch.rot ? ch.rot.length : 0) + (ch.pos ? ch.pos.length : 0);
+      });
+    });
+    var data = new Float32Array(total),
+      at = 0,
+      put = function (a) {
+        if (!a) return -1;
+        data.set(a, at);
+        at += a.length;
+        return at - a.length;
+      };
+    clips.forEach(function (c) {
+      var channels = [];
+      c.channels.forEach(function (ch, i) {
+        if (ch) channels.push([i, put(ch.rot), put(ch.pos)]);
+      });
+      list.push({
+        key: c.key,
+        spec: CLIPS[c.key],
+        loop: c.loop,
+        frames: c.frames,
+        duration: c.duration,
+        travel: c.travel,
+        turnRate: c.turnRate,
+        channels: channels
+      });
+    });
+    var head = {
+      format: CLIP_PACK_FORMAT,
+      fps: FPS,
+      src: { scheme: src.scheme, bones: src.bones, rest: rest },
+      clips: list
+    };
+    Object.keys(extra || {}).forEach(function (k) {
+      head[k] = extra[k];
+    });
+    var json = new TextEncoder().encode(JSON.stringify(head)),
+      pad = (4 - (json.length % 4)) % 4,
+      out = new Uint8Array(8 + json.length + pad + data.byteLength);
+    out.set([71, 67, 80, 49]);
+    new DataView(out.buffer).setUint32(4, json.length + pad, true);
+    out.set(json, 8);
+    out.fill(32, 8 + json.length, 8 + json.length + pad);
+    out.set(new Uint8Array(data.buffer), 8 + json.length + pad);
+    return out;
+  }
+  /* R3: one import owner caches the Babylon loader and owns FBX parse/clip fallback.
+     Construct after the source converter so the same function references are captured. */
+  var FBX_IMPORT = root.BattleFbxAssetImport.create({
+      BABYLON: BABYLON,
+      ASSET: ASSET,
+      perfNow: perfNow,
+      assetLoaded: assetLoaded,
+      assetAdd: assetAdd,
+      CLIPS: CLIPS,
+      sourceRig: sourceRig,
+      convertClip: convertClip
+    }),
+    assetBase = FBX_IMPORT.assetBase,
+    ensureLoader = FBX_IMPORT.ensureLoader,
+    loadContainer = FBX_IMPORT.loadContainer,
+    loadClipFiles = FBX_IMPORT.loadClipFiles;
+
+  /* For scripts/build_clip_pack.cjs: every CLIPS entry converted from its FBX, encoded as a pack.
+   Runs on its own state, so a live battle's library is untouched. */
+  /* R3: prepared clip decode/fetch and offline build ownership stays in the pure
+     pack module; FBX conversion/encoding remain unchanged to preserve the pack hash. */
+  var PACK_OWNER = root.BattleFbxPreparedPack.create({
+      Q: Q,
+      V3: V3,
+      FPS: FPS,
+      CLIP_PACK_FORMAT: CLIP_PACK_FORMAT,
+      CLIP_PACK_FILE: CLIP_PACK_FILE,
+      CLIP_PACK_ON: CLIP_PACK_ON,
+      CLIPS: CLIPS,
+      ASSET: ASSET,
+      perfNow: perfNow,
+      assetLoaded: assetLoaded,
+      assetAdd: assetAdd,
+      assetEntry: assetEntry,
+      ensureLoader: ensureLoader,
+      loadClipFiles: loadClipFiles,
+      assetBase: assetBase,
+      encodeClipPack: encodeClipPack
+    }),
+    decodeClipPack = PACK_OWNER.decodeClipPack,
+    fetchClipPack = PACK_OWNER.fetchClipPack,
+    clipsByFile = PACK_OWNER.clipsByFile,
+    buildClipPack = PACK_OWNER.buildClipPack;
+
+  /* Clips are authored on one skeleton; a model may share its bone names and hierarchy but not its
+   rest orientations or units (the paratroopers differ by up to ~180 degrees per bone and use
+   metres, not centimetres). Retarget each clip onto the model once: for every bone, the clip's
+   rotation away from its own rest pose is taken in world (armature) space, reapplied to the model's
+   rest pose, and turned back into a local rotation under the model's already-retargeted parent.
+   The hips position is rescaled by the ratio of the two rest hip heights. Models whose rest pose
+   already matches keep the clips as they are. */
+  /* The source converter now owns its +Z axis; model retargeting remains independent. */
+  var MODEL_RETARGET = root.BattleFbxModelRetarget.create({
+      Q: Q,
+      V3: V3,
+      MX: MX,
+      FPS: FPS,
+      canon: canon,
+      BONE: BONE
+    }),
+    retargetClips = MODEL_RETARGET.retargetClips;
+
+  /* Solve each weapon from this model's posed hand webs. The physical grip point must land on
+   the right web in both the rigid pose and the two-hand hold. */
+  function solveGrips(lib, aim, bones, kinds) {
+    var nodes = lib.nodes,
+      saved = [];
+    bones.forEach(function (name, i) {
+      var n = nodes[name],
+        ch = aim.channels[i];
+      if (!n || !ch) return;
+      saved.push([n, n.position.clone(), n.rotationQuaternion ? n.rotationQuaternion.clone() : null]);
+      if (ch.rot) {
+        if (!n.rotationQuaternion) n.rotationQuaternion = new Q();
+        n.rotationQuaternion.set(ch.rot[0], ch.rot[1], ch.rot[2], ch.rot[3]);
+      }
+      if (ch.pos) n.position.set(ch.pos[0], ch.pos[1], ch.pos[2]);
+    });
+    lib.top.computeWorldMatrix(true);
+    lib.top.getDescendants(false).forEach(function (n) {
+      if (n.computeWorldMatrix) n.computeWorldMatrix(true);
+    });
+    var hand = nodes[BONE.rightHand].getWorldMatrix().clone(),
+      left = nodes[BONE.leftHand].getWorldMatrix();
+    var rightPalm = V3.TransformCoordinates(lib.palms[BONE.rightHand], hand),
+      leftPalm = V3.TransformCoordinates(lib.palms[BONE.leftHand], left);
+    /* The rifle's aim pose defines a fixed right-hand socket: its barrel follows the support-hand
+     line. A pistol keeps the model-forward axis because its free hand does not define its barrel. */
+    var hands = leftPalm.subtract(rightPalm),
+      z = kinds[0] === 'pistol' ? new V3(0, 0, 1) : hands.clone(),
+      up = V3.Up();
+    if (z.lengthSquared() < 1e-8) z.set(0, 0, 1);
+    else z.normalize();
+    var y = up.subtract(z.scale(V3.Dot(up, z)));
+    if (y.lengthSquared() < 1e-8) y = new V3(0, 1, 0);
+    else y.normalize();
+    var x = V3.Cross(y, z).normalize(),
+      rotation = Q.RotationQuaternionFromAxis(x, y, z),
+      basis = new MX(),
+      inv = hand.clone().invert(),
+      grips = {};
+    rotation.toRotationMatrix(basis);
+    kinds.forEach(function (kind) {
+      var pts = pointsFor(lib.file, kind),
+        g = pts.grip.slice();
+      var offset = V3.TransformNormal(new V3(g[0], g[1], g[2]).scale(1 / lib.scale), basis);
+      var origin = rightPalm.subtract(offset),
+        s = 1 / lib.scale;
+      grips[kind] = MX.Compose(new V3(s, s, s), rotation, origin).multiply(inv);
+    });
+    saved.forEach(function (e) {
+      e[0].position.copyFrom(e[1]);
+      if (e[2]) e[0].rotationQuaternion.copyFrom(e[2]);
+    });
+    lib.top.getDescendants(false).forEach(function (n) {
+      if (n.computeWorldMatrix) n.computeWorldMatrix(true);
+    });
+    Object.keys(grips).forEach(function (k) {
+      lib.grips[k] = grips[k];
+    });
+    /* Diagnostic: how far the support hand sits from the barrel line in the calibration pose. */
+    if (kinds[0] !== 'pistol')
+      lib.supportHand = {
+        along: +(V3.Dot(hands, z) * lib.scale).toFixed(3),
+        off: +(hands.subtract(z.scale(V3.Dot(hands, z))).length() * lib.scale).toFixed(3)
+      };
+  }
+
+  /* The model a soldier of this faction and role wears. */
+  function modelFor(st, faction, role) {
+    var set = MODELS[faction === 'ge' ? 'ge' : 'us'] || {};
+    return st.libs[set[role] || set.default] || null;
+  }
+  function prepareWeapon(container, name, butt) {
+    var mesh = container.meshes.filter(function (m) {
+      return m.getTotalVertices() > 0;
+    })[0];
+    if (!mesh) throw new Error('weapon FBX has no mesh');
+    /* Bake the loader's root (handedness + units) into the vertices, then normalise units from the
+     known butt position; Babylon flips the winding when the baked transform mirrors. */
+    mesh.bakeCurrentTransformIntoVertices();
+    mesh.parent = null;
+    var pos = mesh.getVerticesData(BABYLON.VertexBuffer.PositionKind),
+      zmin = Infinity,
+      zmax = -Infinity,
+      i;
+    for (i = 2; i < pos.length; i += 3) {
+      zmin = Math.min(zmin, pos[i]);
+      zmax = Math.max(zmax, pos[i]);
+    }
+    var k = -butt / zmin;
+    if (isFinite(k) && Math.abs(k - 1) > 1e-3) mesh.bakeTransformIntoVertices(MX.Scaling(k, k, k));
+    /* Muzzle: the foremost geometry at barrel height (folded bipod legs can reach further forward). */
+    pos = mesh.getVerticesData(BABYLON.VertexBuffer.PositionKind);
+    zmax = -Infinity;
+    for (i = 0; i < pos.length; i += 3) if (pos[i + 1] > -0.04) zmax = Math.max(zmax, pos[i + 2]);
+    var ys = 0,
+      n = 0;
+    for (i = 0; i < pos.length; i += 3)
+      if (pos[i + 1] > -0.04 && pos[i + 2] > zmax - 0.03) {
+        ys += pos[i + 1];
+        n++;
+      }
+    var mat = mesh.material;
+    if (mat) {
+      if (mat.specularColor) mat.specularColor.set(0.08, 0.08, 0.08);
+      if (mat.diffuseTexture) mat.diffuseTexture.anisotropicFilteringLevel = 4;
+    }
+    mesh.isPickable = false;
+    mesh.refreshBoundingInfo();
+    return { name: name, mesh: mesh, muzzle: [0, n ? ys / n : 0, zmax] };
+  }
+  /* Per-file progress for the page's load bar (BattleLoading in battle_sim.html). Presentation only;
+   absent in the trainer, benchmark and Motion Lab. */
+  function loadProgress(item, done, total, label) {
+    var L = root.BattleLoading;
+    if (L && L.progress) L.progress('soldiers', item, done, total, label);
+  }
+  function loadWeapons(scene, st, base) {
+    st.weapons = {};
+    var files = {};
+    var P = weaponProfiles();
+    Object.keys(P).forEach(function (f) {
+      Object.keys(P[f]).forEach(function (kind) {
+        weaponFiles(f, kind).forEach(function (file) {
+          files[file] = kind === 'pistol' ? PISTOL_BUTT : WEAPON_BUTT;
+          if (WEAPON_BIPOD[file]) files[WEAPON_BIPOD[file]] = WEAPON_BUTT;
+        });
+      });
+    });
+    var total = Object.keys(files).length,
+      done = 0;
+    loadProgress('weapons', 0, total, 'weapons');
+    return Promise.all(
+      Object.keys(files).map(function (file) {
+        return loadContainer(scene, base + 'weapons/' + file, 'weapon', file)
+          .then(function (c) {
+            var t0 = ASSET.on ? perfNow() : 0;
+            st.weapons[file] = prepareWeapon(c, file, files[file]);
+            assetAdd('weapon', file, 'prepare', perfNow() - t0);
+          })
+          .catch(function (e) {
+            console.warn('[ANIM] weapon model ' + file + ' unavailable; box weapon stays', e);
+          })
+          .then(function () {
+            loadProgress('weapons', ++done, total, 'weapons');
+          });
+      })
+    );
+  }
+  /* R3: meshoptimizer, geometry simplification and runtime far-list changes
+     are presentation-only responsibilities of the lexical 52 module. */
+  var MESH_API = root.BattleFbxMeshLod.create({
+      BABYLON: BABYLON,
+      ASSET: ASSET,
+      perfNow: perfNow,
+      assetAdd: assetAdd
+    }),
+    MESH_LOD = MESH_API.MESH_LOD,
+    meshoptReady = MESH_API.meshoptReady,
+    meshLodBind = MESH_API.meshLodBind,
+    meshLodInstall = MESH_API.meshLodInstall,
+    meshLodApply = MESH_API.meshLodApply;
+
+  /* Scene-level asynchronous FBX asset lifecycle (one promise per scene), assembled
+     after low-level importers and model/weapon preparation are installed. */
+  var FBX_LIFECYCLE = root.BattleFbxLibraryLifecycle.create({
+      sceneState: sceneState,
+      assetBase: assetBase,
+      assetMark: assetMark,
+      meshoptReady: meshoptReady,
+      fetchClipPack: fetchClipPack,
+      MODELS: MODELS,
+      loadSidecars: loadSidecars,
+      loadProgress: loadProgress,
+      ensureLoader: ensureLoader,
+      ASSET: ASSET,
+      wrapFbxParse: wrapFbxParse,
+      loadContainer: loadContainer,
+      perfNow: perfNow,
+      prepareModel: prepareModel,
+      assetAdd: assetAdd,
+      loadWeapons: loadWeapons,
+      CLIPS: CLIPS,
+      CLIP_PACK_ON: CLIP_PACK_ON,
+      clipsByFile: clipsByFile,
+      loadClipFiles: loadClipFiles,
+      retargetClips: retargetClips,
+      BONE: BONE,
+      isUpper: isUpper,
+      SIDE_CONTACTS: SIDE_CONTACTS,
+      SOLDIER_CONTACTS: SOLDIER_CONTACTS,
+      V3: V3,
+      weaponFiles: weaponFiles,
+      WEAPON_POINTS: WEAPON_POINTS,
+      solveGrips: solveGrips,
+      hookRender: function (scene, st) {
+        return hookRender(scene, st);
+      },
+      meshLodInstall: meshLodInstall,
+      MODEL_SET: MODEL_SET,
+      SMOOTH_NORMALS: SMOOTH_NORMALS
+    }),
+    loadLibrary = FBX_LIFECYCLE.loadLibrary;
+
+  /* ---- binding a soldier -------------------------------------------------------------------- */
+
+  /* Bone matrices go to the GPU as shader uniforms, not a float texture per skeleton: on the iPhone
+   the per-frame texture updates of ~20 re-posed soldiers stalled the GPU (landscape combat, 1x:
+   frames in one refresh 77.6% -> 96.0%; close-ups match within rounding). Uniforms need
+   4 x (bones + 1) vertex uniform vectors, and Babylon moves skinning to the CPU when they do not
+   fit, so a device keeps bone textures unless it has that plus 128 to spare (66 bones: 396; most
+   GPUs have 1024+, some older phones 256). `?boneTextures=1` always uses textures, `=0` always
+   uniforms. Decided before a soldier first renders, so his shader is compiled for it. */
+  var BONE_MODE = (function () {
+    var m = typeof location !== 'undefined' && /[?&]boneTextures=([01])\b/.exec(location.search || '');
+    return m ? (m[1] === '0' ? 'uniforms' : 'textures') : 'auto';
+  })();
+  var BONES = { mode: BONE_MODE, maxVertexUniformVectors: null, uniforms: 0, textures: 0 };
+  function boneUniforms(scene, k) {
+    var v = scene.getEngine().getCaps().maxVertexUniformVectors || 0;
+    BONES.maxVertexUniformVectors = v;
+    var use = BONE_MODE === 'uniforms' || (BONE_MODE === 'auto' && v >= 4 * (k.bones.length + 1) + 128);
+    if (use) BONES.uniforms++;
+    else BONES.textures++;
+    return use;
+  }
+  /* Babylon's Mesh clone refreshes a skinned mesh's bounding box by skinning every vertex through its
+   bones (~22k vertices, ~14 ms a soldier, nearly all of a bind). Nothing reads a soldier mesh's
+   bounds: bind makes them always active and never re-syncs them, and the animation and mesh LODs
+   use the soldier's own sphere. So while the model is cloned (synchronously), a clone that already
+   has bounds keeps its geometry's bind-pose box. `?cloneBounds=1` clones as Babylon does. */
+  var CLONE_BOUNDS = typeof location !== 'undefined' && /[?&]cloneBounds=1\b/.test(location.search || '');
+  function cloneModel(lib) {
+    var clone = function () {
+      return lib.container.instantiateModelsToScene(
+        function (name) {
+          return name;
+        },
+        false,
+        { doNotInstantiate: true }
+      );
+    };
+    if (CLONE_BOUNDS) return clone();
+    var P = BABYLON.Mesh.prototype,
+      own = Object.prototype.hasOwnProperty.call(P, 'refreshBoundingInfo'),
+      refresh = P.refreshBoundingInfo;
+    P.refreshBoundingInfo = function () {
+      return this.hasBoundingInfo ? this : refresh.apply(this, arguments);
+    };
+    try {
+      return clone();
+    } finally {
+      if (own) P.refreshBoundingInfo = refresh;
+      else delete P.refreshBoundingInfo;
+    }
+  }
+  function bind(soldier, scene, st, lib, faction) {
+    var inst = cloneModel(lib);
+    var holder = new BABYLON.TransformNode('fbxSoldier', scene);
+    holder.parent = soldier.poseRoot;
+    holder.scaling.setAll(lib.scale);
+    inst.rootNodes.forEach(function (n) {
+      n.parent = holder;
+    });
+    inst.animationGroups.forEach(function (g) {
+      g.stop();
+      g.dispose();
+    });
+    var byName = {},
+      meshes = [];
+    holder.getDescendants(false).forEach(function (n) {
+      byName[canon(n.name, lib.scheme)] = n;
+      if (n.getTotalVertices && n.getTotalVertices() > 0) {
+        n.isPickable = false;
+        n.alwaysSelectAsActiveMesh = true;
+        /* These skinned body meshes are presentation-only: gameplay collision/LOS uses the
+         authoritative obstacle/soldier data, and body picking is disabled. Because they are
+         always active, synchronizing bounding info every frame cannot affect visibility either. */
+        n.doNotSyncBoundingInfo = true;
+        /* Compile the shared/frozen material in decal-capable mode with a shared transparent pixel.
+         surfaceDamageMap() swaps only this mesh to a private RTT when it is first wounded. */
+        try {
+          n.decalMap = surfaceBlankMap(scene);
+        } catch (_) {}
+        meshes.push(n);
+      }
+    });
+    holder.onDisposeObservable.add(function () {
+      /* Reaction animation temporarily detaches held weapons, and a fled man can abandon one
+       permanently. Detached meshes are no longer descendants of the soldier root, so restart
+       teardown must dispose the ones this soldier still owns explicitly. */
+      ((fx && fx.detachedWeaponMeshes) || []).slice().forEach(function (mesh) {
+        if (!mesh || (mesh.isDisposed && mesh.isDisposed())) return;
+        try {
+          mesh.dispose();
+        } catch (_) {}
+      });
+      if (fx) fx.detachedWeaponMeshes = [];
+      /* A wounded mesh lazily owns its UV-space damage renderer. It is not part of the shared
+       material, so dispose it with this soldier only. */
+      meshes.forEach(function (m) {
+        var d = m._battleSurfaceDamage;
+        if (!d) return;
+        try {
+          if (d.renderer) d.renderer.dispose();
+        } catch (_) {}
+        try {
+          m.decalMap = null;
+        } catch (_) {}
+        m._battleSurfaceDamage = null;
+      });
+      inst.skeletons.forEach(function (k) {
+        k.dispose();
+      });
+    });
+    /* Babylon's Skeleton.prepare copies every linked bone node into its bone each frame, which marks
+     the bones dirty and rebuilds and re-uploads all bone matrices even when nothing moved. Our bone
+     nodes only change when applyPose runs, so a soldier's skeletons prepare once per pose (poseSerial,
+     bumped by the render hook) and otherwise keep the matrices of the pose on screen: the animation
+     LOD's held soldiers (far, off-screen, static) cost no skeleton work. `lod.skeletons=false` or
+     `?animLod=0` prepares every frame as before; `prepare(true)` (a forced prepare) always runs. */
+    var fxRef = { serial: 1 };
+    inst.skeletons.forEach(function (k) {
+      if (boneUniforms(scene, k)) k.useTextureToStoreBoneMatrices = false;
+      k._fbxPrepared = 0;
+      k.prepare = function (force) {
+        if (!force && LOD.on && LOD.skeletons && k._fbxPrepared === fxRef.serial) return;
+        k._fbxPrepared = fxRef.serial;
+        return BABYLON.Skeleton.prototype.prepare.apply(this, arguments);
+      };
+    });
+
+    /* The weapon socket follows the hand but stays parented to the soldier root, so it inherits
+     neither model scale nor handedness. */
+    var socket = soldier.weaponSocket;
+    socket.parent = soldier.root;
+    if (!socket.rotationQuaternion) socket.rotationQuaternion = new Q();
+    socket._fbxFaction = faction;
+
+    /* Soldier root -> each hand. The render pass composes these chains itself (see handChain);
+     the left chain exists so the support hold can read the left web each frame. */
+    var hand = byName[BONE.rightHand],
+      path = [];
+    for (var n = hand; n; n = n.parent) path.unshift(n);
+    var pathL = [];
+    for (n = byName[BONE.leftHand]; n; n = n.parent) pathL.unshift(n);
+    var nodes = st.bones.map(function (name) {
+      var node = byName[name] || null;
+      if (node && !node.rotationQuaternion) node.rotationQuaternion = new Q();
+      return node;
+    });
+    var fx = {
+      lib: lib,
+      st: st,
+      nodes: nodes,
+      holder: holder,
+      meshes: meshes,
+      root: soldier.root,
+      soldier: soldier,
+      socket: socket,
+      hand: hand,
+      path: path,
+      chain: path.map(function () {
+        return new MX();
+      }),
+      spineAt: path.indexOf(byName[BONE.spine2]),
+      pathL: pathL,
+      chainL: pathL.map(function () {
+        return new MX();
+      }),
+      spineAtL: pathL.indexOf(byName[BONE.spine2]),
+      poseRef: fxRef,
+      weaponModel: null,
+      twoHand: 0,
+      yawRate: 0,
+      lastYaw: null,
+      turning: false,
+      weaponKind: 'rifle',
+      lower: { entries: [] },
+      upper: { entries: [] },
+      overlay: 0,
+      overlayTarget: 0,
+      stance: null,
+      transition: null,
+      sector: 0,
+      family: null,
+      moving: false,
+      vx: 0,
+      vz: 0,
+      speed: 0,
+      lastX: null,
+      lastZ: null,
+      aim: 0,
+      aimWanted: false,
+      aimAt: null,
+      spine: byName[BONE.spine2] || null,
+      fireHold: 0,
+      fireShot: 0,
+      fireSeen: 0,
+      reloadShot: 0,
+      reloadSeen: 0,
+      reloadDuration: 2.5,
+      death: null,
+      reaction: null,
+      reactionPhase: null,
+      reactionHold: null,
+      cowerExit: false,
+      reactionWeapon: null,
+      detachedWeaponMeshes: []
+    };
+    soldier._fbx = fx;
+    soldier.animationBinding = { backend: BACKEND, tags: TAGS, play: play, update: update };
+    fx.meshLod = meshLodBind(meshes);
+    st.active.push(fx);
+    return fx;
+  }
+
+  /* ---- clip layers -------------------------------------------------------------------------- */
+
+  /* Shared, stateless clip clocks and bone-channel blending. Simulation still owns when/why. */
+  var MIXER = root.BattleFbxClipMixer.create(FPS),
+    setClip = MIXER.setClip,
+    advanceLayer = MIXER.advanceLayer,
+    topEntry = MIXER.topEntry,
+    sampleLayer = MIXER.sampleLayer;
+
+  /* The simulation decides animation tags and desired clips, never render pose IK. */
+  var ANIM_STATE = root.BattleFbxAnimationState.create({
+      Q: Q,
+      TAGS: TAGS,
+      THROW_RELEASE: THROW_RELEASE,
+      REACTION_ANIM: REACTION_ANIM,
+      DEATH_POOLS: DEATH_POOLS,
+      IDLE_VARIANTS: IDLE_VARIANTS,
+      FLINCH_RATE: FLINCH_RATE,
+      setClip: setClip,
+      advanceLayer: advanceLayer,
+      topEntry: topEntry
+    }),
+    play = ANIM_STATE.play,
+    update = ANIM_STATE.update;
+
+  /* Render pose scratch and IK are owned by a private per-backend instance. */
+  var RENDER_POSE = root.BattleFbxRenderPose.create({
+      Q: Q,
+      V3: V3,
+      MX: MX,
+      BONE: BONE,
+      FPS: FPS,
+      POSE: POSE,
+      perfNow: perfNow,
+      poseLayer: poseLayer,
+      poseInputs: poseInputs,
+      sampleLayer: sampleLayer,
+      armDegFor: armDegFor,
+      leftGripFor: leftGripFor,
+      wristRFor: wristRFor,
+      pointsFor: pointsFor,
+      WEAPON_POINTS: WEAPON_POINTS,
+      lodOn: function () {
+        return LOD.on;
+      }
+    }),
+    applyPose = RENDER_POSE.applyPose;
+
+  /* R3: render cadence, shadows, camera frustum and visual mesh culling
+     are created after the authoritative simulation/pose functions are defined. */
+  var RENDER_LOD = root.BattleFbxRenderLod.create({
+      BABYLON: BABYLON,
+      MX: MX,
+      V3: V3,
+      MESH_LOD: MESH_LOD,
+      meshLodApply: meshLodApply,
+      perfNow: perfNow,
+      POSE: POSE,
+      poseMix: poseMix,
+      poseClipSig: poseClipSig,
+      poseWeaponSig: poseWeaponSig,
+      topEntry: topEntry,
+      applyPose: applyPose,
+      poseSoldier: poseSoldier,
+      poseFrame: poseFrame
+    }),
+    LOD = RENDER_LOD.LOD,
+    CULL = RENDER_LOD.CULL,
+    hookRender = RENDER_LOD.hookRender;
+
+  /* ---- BattleSoldierModel integration ------------------------------------------------------- */
+
+  var Weapons = root.BattleWeapons,
+    oldAttach = Weapons && Weapons.attachWeapon;
+  /* Weapons are GPU instances of one hidden source mesh per weapon model and scene, so every soldier's
+   rifle of one model draws in one call (a clone per soldier was ~50 draw calls a frame on the device
+   benchmark). Nothing edits a weapon apart from its model: callers read its world matrix (muzzle,
+   flash, grip) and toggle it for the bipod swap, both of which instances support. The source stays
+   enabled but invisible: Babylon renders instances through it. `?weaponInstances=0` clones as before. */
+  var WEAPON_INSTANCES = !(
+    typeof location !== 'undefined' && /[?&]weaponInstances=0\b/.test(location.search || '')
+  );
+  function weaponMesh(scene, model, name, socket) {
+    var m;
+    if (WEAPON_INSTANCES) {
+      var src = model._instanceSource;
+      if (!src || src.isDisposed() || src.getScene() !== scene) {
+        src = model._instanceSource = model.mesh.clone('weapon-source.' + model.name, null);
+        src.isVisible = false;
+        src.isPickable = false;
+        src.position.set(0, 0, 0);
+        src.alwaysSelectAsActiveMesh = false;
+      }
+      m = src.createInstance(name);
+      m.parent = socket;
+    } else m = model.mesh.clone(name, socket);
+    m.position.set(0, 0, 0);
+    m.isPickable = false;
+    return m;
+  }
+  if (oldAttach)
+    Weapons.attachWeapon = function (scene, socket, kind) {
+      var weapon = oldAttach.apply(this, arguments),
+        faction = socket && socket._fbxFaction,
+        st = faction && sceneState(scene);
+      var files = faction ? weaponFiles(faction, kind) : [],
+        file = null,
+        model = null;
+      if (files.length && st.weapons) {
+        var turn = st.weaponTurn || (st.weaponTurn = {}),
+          n = turn[faction + kind] || 0;
+        turn[faction + kind] = n + 1;
+        file = files[n % files.length];
+        model = st.weapons[file];
+      }
+      if (model) {
+        var mesh = weaponMesh(scene, model, 'weapon.' + faction, socket);
+        weapon.mesh.dispose();
+        weapon.mesh = mesh;
+        weapon.muzzleLocal = model.muzzle.slice();
+        weapon.model = model.name;
+        var bipod = WEAPON_BIPOD[file] && st.weapons[WEAPON_BIPOD[file]];
+        if (bipod) {
+          weapon.bipodMesh = weaponMesh(scene, bipod, 'weapon.' + faction + '.bipod', socket);
+          weapon.bipodMesh.setEnabled(false);
+        }
+      }
+      return weapon;
+    };
+  var oldCreate = M.createSoldier,
+    oldPreload = M.preload,
+    oldSetEnabled = M.setImportedEnabled;
+  /* With the library loaded, a soldier is a bare body (no procedural meshes) wearing his FBX model;
+   a failed bind is a bug and throws. With imported animation disabled (trainer, headless
+   benchmark) he keeps the procedural rig. */
+  M.createSoldier = function (scene, faction, role, parent) {
+    var st = sceneState(scene),
+      lib = st.ready && st.enabled && modelFor(st, faction, role);
+    if (!lib || !M.createBody) return oldCreate.apply(this, arguments);
+    var t0 = ASSET.on ? perfNow() : 0,
+      soldier = M.createBody(scene, faction, role, parent),
+      tb = ASSET.on ? perfNow() : 0;
+    bind(soldier, scene, st, lib, faction === 'ge' ? 'ge' : 'us');
+    if (ASSET.on) {
+      var t1 = perfNow(),
+        b = ASSET.binds;
+      b.count++;
+      b.ms += t1 - tb;
+      b.bodyMs += tb - t0;
+      b.max = Math.max(b.max, t1 - tb);
+      if (b.first == null) b.first = t0;
+      b.last = t1;
+    }
+    return soldier;
+  };
+  /* Normal gameplay waits for its soldiers however long the assets take; a failed load rejects, so
+   the page reports it (BattleLoading.fail) instead of swapping in procedural soldiers. */
+  M.preload = function (scene) {
+    var before = oldPreload ? Promise.resolve(oldPreload.apply(this, arguments)) : Promise.resolve(true);
+    return before
+      .then(function () {
+        return loadLibrary(scene);
+      })
+      .then(function (ok) {
+        if (!ok) {
+          var e = sceneState(scene).error;
+          throw e instanceof Error ? e : new Error('FBX soldiers failed to load: ' + (e || 'unknown'));
+        }
+        return true;
+      });
+  };
+  M.setImportedEnabled = function (scene, enabled) {
+    if (oldSetEnabled) oldSetEnabled.apply(this, arguments);
+    if (scene) sceneState(scene).enabled = !!enabled;
+  };
+
+  /* R3: skinning and per-soldier UV damage have a single presentation owner.
+     Pose sampling is provided at initialization; gameplay hit calculations remain unchanged. */
+  var SURFACE = root.BattleFbxSurfaceDamage.create({
+      BABYLON: BABYLON,
+      V3: V3,
+      applyPose: applyPose
+    }),
+    skinAnchor = SURFACE.skinAnchor,
+    skinSample = SURFACE.skinSample,
+    paintSurfaceWound = SURFACE.paintSurfaceWound,
+    clearSurfaceDamage = SURFACE.clearSurfaceDamage,
+    SURFACE_DAMAGE_SIZE = SURFACE.surfaceDamageResolution;
+
+  /* Strategic truck seating uses the ACTUAL scene-bound soldier meshes. Prewarm
+     the four Truck FBX clips ONCE per scene and retarget them to each already
+     loaded role model using the same converter/retargeter as on-foot motion.
+     No soldier FBX instances, Babylon AnimationGroups or replacement rigs are
+     allocated when a passenger boards. Import each clip serially to avoid
+     stalling the renderer with simultaneous expensive FBX parses. */
+  var VEHICLE_POSE_FILES = {
+    'Truck - Driving.fbx': 'truckDriving',
+    'Truck - Sitting 1.fbx': 'truckSitting1',
+    'Truck - Sitting 2.fbx': 'truckSitting2',
+    'Truck - Sitting 3.fbx': 'truckSitting3'
+  };
+  function prepareVehicleClips(scene) {
+    var st = sceneState(scene);
+    if (st.vehicleClipsReady) return Promise.resolve(st.vehicleClipsReady);
+    if (st.vehicleClipsLoading) return st.vehicleClipsLoading;
+    st.vehicleClipsLoading = Promise.resolve(loadLibrary(scene))
+      .then(async function () {
+        if (!st.ready || !st.src || !st.bones || !st.libs) throw new Error('FBX scene library is not ready');
+        var source = {},
+          clipRigs = {},
+          originals = Object.keys(VEHICLE_POSE_FILES),
+          sourceRigBones = st.bones;
+        for (var k = 0; k < originals.length; k++) {
+          var filename = originals[k],
+            key = VEHICLE_POSE_FILES[filename];
+          var container = await loadContainer(
+            scene,
+            assetBase() + 'animations/' + encodeURIComponent(filename),
+            'clip',
+            filename
+          );
+          try {
+            var imported = sourceRig(container);
+            if (
+              !imported ||
+              !imported.rest ||
+              !sourceRigBones.every(function (name) {
+                return imported.rest[name] && st.src.rest[name];
+              })
+            )
+              throw new Error('Truck clip rig differs from prepared battle animation rig: ' + filename);
+            clipRigs[key] = imported;
+            source[key] = convertClip(container, key, [filename.slice(0, -4), 1, 'inplace'], sourceRigBones);
+          } finally {
+            container.dispose();
+          }
+        }
+        var models = {};
+        Object.keys(st.libs).forEach(function (file) {
+          var original = st.libs[file],
+            privateLib = Object.assign({}, original);
+          models[file] = {};
+          // Imported sitting clips may have a different rest pose from the
+          // battle's original rifle clips. Retarget each pose against its OWN
+          // source rig, not the unrelated prepared rifle-clip rest pose.
+          Object.keys(source).forEach(function (key) {
+            var oneClip = {};
+            oneClip[key] = source[key];
+            var targetLib = Object.assign({}, privateLib);
+            var mapped = retargetClips(targetLib, clipRigs[key], oneClip, sourceRigBones);
+            models[file][key] = mapped[key];
+          });
+        });
+        st.vehicleClipsReady = models;
+        return models;
+      })
+      .catch(function (error) {
+        st.vehicleClipsLoading = null;
+        throw error;
+      });
+    return st.vehicleClipsLoading;
+  }
+  root.BattleFbxSoldier = {
+    version: '1.5-uv-surface-damage',
+    backend: BACKEND,
+    clips: CLIPS,
+    models: MODELS,
+    modelSet: MODEL_SET,
+    prepareVehicleClips: prepareVehicleClips,
+    vehiclePoseClip: function (soldier, seatFile) {
+      var fx = soldier && soldier._fbx;
+      if (!fx) return null;
+      var ready = sceneState(fx.holder.getScene()).vehicleClipsReady;
+      return (ready && ready[fx.lib.file] && ready[fx.lib.file][VEHICLE_POSE_FILES[seatFile]]) || null;
+    },
+    load: loadLibrary,
+    /* Read-only: the soldier's bone node by canonical name ('head', 'spine2', 'leftupleg'...), for
+     presentation that rides the body (wound decals). Null on the procedural rig. */
+    boneNode: function (soldier, name) {
+      var fx = soldier && soldier._fbx,
+        i = fx && fx.st && fx.st.bones ? fx.st.bones.indexOf(name) : -1;
+      return (i >= 0 && fx.nodes[i]) || null;
+    },
+    skinAnchor: skinAnchor,
+    skinSample: skinSample,
+    paintSurfaceWound: paintSurfaceWound,
+    clearSurfaceDamage: clearSurfaceDamage,
+    surfaceDamageResolution: SURFACE_DAMAGE_SIZE,
+    sidecars: function () {
+      return {
+        contacts: Object.keys(SIDE_CONTACTS),
+        points: Object.keys(SIDE_MODEL_POINTS),
+        arms: Object.keys(SIDE_ARM),
+        wrists: Object.keys(SIDE_WRISTR),
+        leftGrips: Object.keys(SIDE_LEFT_GRIP)
+      };
+    },
+    status: function (scene) {
+      var st = sceneState(scene),
+        sockets = {};
+      Object.keys(st.libs || {}).forEach(function (f) {
+        var lib = st.libs[f],
+          p = lib.palms || {};
+        sockets[f] = {
+          right: p[BONE.rightHand + 'Source'] || null,
+          left: p[BONE.leftHand + 'Source'] || null,
+          aimHandSpacingM: (lib.supportHand && lib.supportHand.along) || 0,
+          sidecar: !!SIDE_CONTACTS[f],
+          sideWeapons: SIDE_MODEL_POINTS[f] ? Object.keys(SIDE_MODEL_POINTS[f]) : [],
+          sideArms: SIDE_ARM[f] ? Object.keys(SIDE_ARM[f]) : [],
+          sideWrists: SIDE_WRISTR[f] ? Object.keys(SIDE_WRISTR[f]) : [],
+          sideLeftGrips: SIDE_LEFT_GRIP[f] ? Object.keys(SIDE_LEFT_GRIP[f]) : []
+        };
+      });
+      return {
+        ready: st.ready,
+        enabled: st.enabled,
+        error: st.error ? String(st.error.message || st.error) : null,
+        active: st.active.length,
+        clips: st.clips ? Object.keys(st.clips).length : 0,
+        bones: st.bones ? st.bones.length : 0,
+        sockets: sockets,
+        sidecars: Object.keys(SIDE_CONTACTS)
+      };
+    },
+    clip: function (scene, key) {
+      var st = sceneState(scene);
+      return (st.clips && st.clips[key]) || null;
+    },
+    /* Read-only: a model's retargeted clip ('us-paratrooper.fbx', 'aim'), and its solved grips. */
+    modelClip: function (scene, file, key) {
+      var lib = sceneState(scene).libs[file];
+      return (lib && lib.clips && lib.clips[key]) || null;
+    },
+    grips: function (scene, file) {
+      var lib = sceneState(scene).libs[file];
+      return (lib && lib.grips) || null;
+    },
+    /* Read-only: how bone matrices reach the GPU (mode, the device's vertex uniform vectors, and how
+     many skeletons use uniforms vs textures). */
+    bones: function () {
+      return {
+        mode: BONES.mode,
+        maxVertexUniformVectors: BONES.maxVertexUniformVectors,
+        uniforms: BONES.uniforms,
+        textures: BONES.textures
+      };
+    },
+    /* Prepared clips: format/file, what this load took from the pack (`state`), the builder
+     scripts/build_clip_pack.cjs calls, and the decoder its checks use. */
+    clipPack: {
+      format: CLIP_PACK_FORMAT,
+      file: CLIP_PACK_FILE,
+      build: buildClipPack,
+      decode: decodeClipPack,
+      state: function (scene) {
+        return sceneState(scene).clipPack || null;
+      },
+      /* Read-only: a hash per clip of its metadata and every sample's bits, for the converted clips
+       and each model's retargeted ones (scripts/probe_clip_pack.cjs compares pack vs FBX loads). */
+      digest: function (scene) {
+        var st = sceneState(scene);
+        if (!st.ready) return null;
+        var hash = function (c) {
+          var h = 0x811c9dc5,
+            mix = function (v) {
+              h = Math.imul(h ^ v, 16777619) >>> 0;
+            },
+            num = function (x) {
+              var f = new Float64Array([x]),
+                u = new Uint32Array(f.buffer);
+              mix(u[0]);
+              mix(u[1]);
+            };
+          [
+            c.frames,
+            c.duration,
+            c.travel,
+            c.turnRate,
+            c.speed,
+            c.stride == null ? -1 : c.stride,
+            c.loop ? 1 : 0
+          ].forEach(num);
+          c.channels.forEach(function (ch, i) {
+            if (!ch) return;
+            mix(i);
+            [ch.rot, ch.pos].forEach(function (a, k) {
+              mix(a ? a.length + k : k - 9);
+              if (a) {
+                var u = new Uint32Array(a.buffer, a.byteOffset, a.length);
+                for (var j = 0; j < u.length; j++) mix(u[j]);
+              }
+            });
+          });
+          return h.toString(16);
+        };
+        var out = { bones: st.bones.join(','), clips: {}, models: {} };
+        Object.keys(st.clips).forEach(function (k) {
+          out.clips[k] = hash(st.clips[k]);
+        });
+        Object.keys(st.libs).forEach(function (f) {
+          var m = (out.models[f] = {});
+          Object.keys(st.libs[f].clips || {}).forEach(function (k) {
+            m[k] = hash(st.libs[f].clips[k]);
+          });
+        });
+        return out;
+      }
+    },
+    /* Per-model clip timing: natural speed (m/s), stride estimate, duration, loop. */
+    speeds: function (scene, file) {
+      var st = sceneState(scene),
+        lib = st.libs[file] || st.libs[Object.keys(st.libs)[0]],
+        out = {};
+      if (!lib || !lib.clips) return out;
+      Object.keys(lib.clips).forEach(function (k) {
+        var c = lib.clips[k];
+        out[k] = {
+          turnRate: +(c.turnRate || 0).toFixed(2),
+          speed: +(c.speed || 0).toFixed(2),
+          stride: c.stride != null ? +c.stride.toFixed(2) : null,
+          travel: +((c.travel || 0) * lib.speedScale).toFixed(2),
+          duration: +c.duration.toFixed(2),
+          loop: c.loop
+        };
+      });
+      return out;
+    }
+  };
+  /* Read-only diagnostics for the runtime/animation audit (see the instrumentation block above). */
+  root.BattleAssetTimings = { enabled: ASSET.on, snapshot: assetSnapshot };
+  /* Animation LOD reference thresholds, live-tunable for visual checks
+   (BattleFbxSoldier.lod.farHz=5, .on=false...). .screenScale is the current resolution/FOV multiplier. */
+  root.BattleFbxSoldier.lod = LOD;
+  /* Off-screen soldier culling, live-tunable (`.on`, `.radius` m); `lodState(s).culled` per soldier. */
+  root.BattleFbxSoldier.cull = CULL;
+  /* Soldier mesh LOD: live-tunable (`.far` reference metres, `.on`); `.screenScale` converts the
+   reference distance to the current render size/FOV. `.models` lists full/far triangle and vertex
+   counts, and `.failed` says why meshoptimizer is off if it never loaded. */
+  root.BattleFbxSoldier.meshLod = MESH_LOD;
+  root.BattleFbxSoldier.meshLodState = function (soldier) {
+    var fx = soldier && soldier._fbx;
+    return fx ? { far: !!fx._meshFar, meshes: fx.meshLod ? fx.meshLod.length : 0 } : null;
+  };
+  /* Read-only: this soldier's last LOD decision (null = posed), and whether his shadow kept him scheduled. */
+  root.BattleFbxSoldier.lodState = function (soldier) {
+    var fx = soldier && soldier._fbx;
+    return fx
+      ? {
+          hold: fx._lodHold || null,
+          shadowKept: !!fx._lodShadowKept,
+          culled: !!fx._culled,
+          lastPoseAt: fx._lodAt == null ? null : fx._lodAt
+        }
+      : null;
+  };
+  root.BattlePoseTimings = {
+    enable: poseEnable,
+    disable: function () {
+      POSE.on = false;
+      return false;
+    },
+    reset: function () {
+      if (POSE.on) poseReset();
+    },
+    enabled: function () {
+      return POSE.on;
+    },
+    snapshot: poseSnapshot,
+    layers: POSE_LAYERS.slice()
+  };
+  root.GTLog('[ANIM] FBX soldier backend installed (models + clips load with the battle)');
+})(typeof window !== 'undefined' ? window : globalThis);

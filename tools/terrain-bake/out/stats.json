@@ -1,0 +1,345 @@
+{
+  "world": {
+    "size": 600,
+    "res": 0.25,
+    "grid": 2400
+  },
+  "base": {
+    "quantStepM": 0.2357,
+    "quantErrRmsMm": 59.7,
+    "bandingPlainRmsMm": 24.79,
+    "bandingDitherRmsMm": 4.8
+  },
+  "heightRange": {
+    "min": -28.83,
+    "max": 31.54,
+    "u16StepMm": 0.921
+  },
+  "junctions": [
+    {
+      "road": "r1",
+      "host": "r0",
+      "end": 0,
+      "s": 18,
+      "snap": 0,
+      "x": 0,
+      "y": 478
+    },
+    {
+      "road": "r1",
+      "host": "r0",
+      "end": 1,
+      "s": 272,
+      "snap": 0,
+      "x": 0,
+      "y": 224
+    },
+    {
+      "road": "r2",
+      "host": "r1",
+      "end": 0,
+      "s": 159.00413187631932,
+      "snap": 0,
+      "x": 40,
+      "y": 334.57
+    }
+  ],
+  "grade": [
+    {
+      "road": "r0",
+      "len": 1144.9,
+      "maxGrade": 2.74,
+      "pinDrift": 0,
+      "meanCut": 0.14,
+      "meanFill": 0.14
+    },
+    {
+      "road": "r1",
+      "len": 300.2,
+      "maxGrade": 6.29,
+      "pinDrift": 0,
+      "meanCut": 0.22,
+      "meanFill": 0.42
+    },
+    {
+      "road": "r2",
+      "len": 690.6,
+      "maxGrade": 7.32,
+      "pinDrift": 0,
+      "meanCut": 0.27,
+      "meanFill": 0.18
+    }
+  ],
+  "junctions_": {
+    "cells": 48676,
+    "p999": 2.72,
+    "mean": 0.1711
+  },
+  "daylight": {
+    "samples": 1049,
+    "min": 0.02,
+    "median": 1.11,
+    "p95": 4.37,
+    "max": 8.47,
+    "cappedCells": 0,
+    "cappedPct": 0,
+    "capM": 35
+  },
+  "sharpness": {
+    "road": {
+      "slopeP50": 0.07,
+      "slopeP999": 0.667,
+      "curvP999": 3.076
+    },
+    "offRoad": {
+      "slopeP50": 0.103,
+      "slopeP999": 0.874,
+      "curvP999": 0.189
+    }
+  },
+  "bytes": {
+    "uniformU16": 11520000,
+    "splatPng": 107640
+  },
+  "tiling": {
+    "uniformMB": 10.99,
+    "coarseRes": 1,
+    "fineRes": 0.25,
+    "prismMargin": 3,
+    "sweep": [
+      {
+        "TILE": 8,
+        "fineTiles": 770,
+        "totalTiles": 5625,
+        "finePct": 13.7,
+        "bytes": 2399462,
+        "MB": 2.29,
+        "seam": {
+          "samples": 222555,
+          "maxMismatch": 0.0000011046314596363516
+        },
+        "errOnPrismMm": {
+          "p50": 0,
+          "p99": 19,
+          "max": 40
+        },
+        "errOffPrismMm": {
+          "p50": 1,
+          "p99": 7,
+          "max": 58
+        }
+      },
+      {
+        "TILE": 16,
+        "fineTiles": 270,
+        "totalTiles": 1444,
+        "finePct": 18.7,
+        "bytes": 3023262,
+        "MB": 2.88,
+        "seam": {
+          "samples": 106666,
+          "maxMismatch": 0.0000013004440297947895
+        },
+        "errOnPrismMm": {
+          "p50": 0,
+          "p99": 19,
+          "max": 40
+        },
+        "errOffPrismMm": {
+          "p50": 1,
+          "p99": 7,
+          "max": 47
+        }
+      },
+      {
+        "TILE": 32,
+        "fineTiles": 103,
+        "totalTiles": 361,
+        "finePct": 28.5,
+        "bytes": 4169808,
+        "MB": 3.98,
+        "seam": {
+          "samples": 46516,
+          "maxMismatch": 0.0000014812791402363246
+        },
+        "errOnPrismMm": {
+          "p50": 0,
+          "p99": 20,
+          "max": 42
+        },
+        "errOffPrismMm": {
+          "p50": 0,
+          "p99": 7,
+          "max": 39
+        }
+      },
+      {
+        "TILE": 64,
+        "fineTiles": 45,
+        "totalTiles": 81,
+        "finePct": 55.6,
+        "bytes": 6766172,
+        "MB": 6.45,
+        "seam": {
+          "samples": 19649,
+          "maxMismatch": 0.0000018116904589859928
+        },
+        "errOnPrismMm": {
+          "p50": 0,
+          "p99": 21,
+          "max": 97
+        },
+        "errOffPrismMm": {
+          "p50": 0,
+          "p99": 7,
+          "max": 83
+        }
+      }
+    ]
+  },
+  "meshLod": {
+    "chunk": 32,
+    "range": 300,
+    "contentFloor": true,
+    "levels": [
+      0.25,
+      0.5,
+      1,
+      2,
+      4
+    ],
+    "bands": [
+      30,
+      60,
+      120,
+      240
+    ],
+    "cam": [
+      0,
+      156
+    ],
+    "chunks": 128,
+    "vertices": 125632,
+    "triangles": 239872,
+    "edgeSnaps": 1104,
+    "perLevel": {
+      "L2 @1m": {
+        "chunks": 20,
+        "verts": 21780
+      },
+      "L3 @2m": {
+        "chunks": 59,
+        "verts": 17051
+      },
+      "L4 @4m": {
+        "chunks": 38,
+        "verts": 3078
+      },
+      "L1 @0.5m": {
+        "chunks": 8,
+        "verts": 33800
+      },
+      "L0 @0.25m": {
+        "chunks": 3,
+        "verts": 49923
+      }
+    },
+    "uniformVertices": 5764801,
+    "shippedTodayVertices": 69133,
+    "crack": {
+      "samples": 16254,
+      "maxMismatchM": 8.91e-7
+    },
+    "grassClear": 6.75,
+    "onRoadSkipped": 19620,
+    "agreement": [
+      {
+        "band": "0-30 m",
+        "n": 1468,
+        "p99mm": 0.5,
+        "maxMm": 1.3,
+        "p99px": 0.028,
+        "maxPx": 0.092
+      },
+      {
+        "band": "30-60 m",
+        "n": 5084,
+        "p99mm": 3,
+        "maxMm": 44.1,
+        "p99px": 0.077,
+        "maxPx": 1.079
+      },
+      {
+        "band": "60-120 m",
+        "n": 20968,
+        "p99mm": 20.5,
+        "maxMm": 143.9,
+        "p99px": 0.232,
+        "maxPx": 1.944
+      },
+      {
+        "band": "120-240 m",
+        "n": 71370,
+        "p99mm": 43.2,
+        "maxMm": 352.9,
+        "p99px": 0.26,
+        "maxPx": 2.705
+      },
+      {
+        "band": "240-300 m",
+        "n": 44764,
+        "p99mm": 142.6,
+        "maxMm": 493.5,
+        "p99px": 0.537,
+        "maxPx": 1.869
+      }
+    ]
+  },
+  "asset": {
+    "tile": 8,
+    "binBytes": 2399462,
+    "splatBytes": 107640,
+    "totalMB": 2.39,
+    "quantStepMm": 0.921,
+    "roundTripMaxErrM": 0.000458,
+    "fineTiles": 770
+  },
+  "streaming": {
+    "steps": 4000,
+    "speedMps": 1.5,
+    "fps": 60,
+    "stepM": 0.025,
+    "jitterM": 0.8,
+    "chunk": 32,
+    "budgetChunksPerTick": 4,
+    "hystM": 6,
+    "equivalence": {
+      "levelMismatches": 0,
+      "missingChunks": 0,
+      "maxGridDiffM": 0,
+      "note": "hyst 0 vs cold lod.build at the final camera position"
+    },
+    "cracksAfterWalk": {
+      "max": 9.94e-7,
+      "samples": 11256
+    },
+    "hysteresis": {
+      "walkNoHyst": 1087,
+      "walkHyst6": 81,
+      "standStillJitterNoHyst": 162,
+      "standStillJitterHyst6": 0
+    },
+    "work": {
+      "ticksWithWork": 632,
+      "ticksIdle": 3367,
+      "chunksRebuiltSteady": 1645,
+      "vertsRebuiltSteady": 650893,
+      "vertsIfFullRebuildEachTick": 502528000,
+      "saving": 772,
+      "coldStartQueue": 154,
+      "ticksToCameraChunk": 1,
+      "maxSteadyQueue": 6,
+      "maxLatencyTicks": 2
+    }
+  }
+}

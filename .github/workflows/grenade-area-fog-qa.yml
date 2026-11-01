@@ -1,0 +1,28 @@
+name: ⭐ Grenade Area Fog Browser QA
+on:
+  pull_request:
+    paths:
+      - battle/modules/24-grenade-fx.js
+      - scripts/probes/probe_grenade_area_fog.cjs
+      - .github/workflows/grenade-area-fog-qa.yml
+  workflow_dispatch:
+    inputs:
+      preview_ref:
+        description: 'Head ref to render'
+        required: false
+        default: main
+        type: string
+jobs:
+  webgl:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install browser
+        run: |
+          npm install --no-save playwright@1.58.2
+          npx playwright install --with-deps chromium
+      - name: Render instant area smoke in real WebGL
+        env:
+          GRENADE_FOG_PREVIEW: https://test.ivandpopov.com/grasstex/preview.php?ref=${{ inputs.preview_ref || github.head_ref || github.ref_name }}
+        run: node scripts/probes/probe_grenade_area_fog.cjs

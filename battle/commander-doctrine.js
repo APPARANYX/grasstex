@@ -1,0 +1,617 @@
+/* Commander doctrine: Policy Genome v2 access, force accounting and objective selection.
+
+   Split out of commander-ai.js. This file answers "what is worth doing and with what force", using
+   only plain scenario/objective data plus the genome. It holds no phase state and issues no orders,
+   which makes every function here directly testable and reusable by future unit modules (armor,
+   engineers) that need the same strength ratios and objective scores. */
+(function (root) {
+  'use strict';
+
+  var FALLBACK = {
+    cohesionRadius: 34,
+    captainlessCohesion: 26,
+    regroupHold: 0.4,
+    cornerHold: 0.8,
+    cornerNoCaptainExtra: 0.35,
+    supportDelay: 20,
+    sectorNeutralNeed: 75,
+    sectorEnemyNeed: 110,
+    sectorActiveBonus: 18,
+    sectorDistanceWeight: 0.55,
+    routeArrivalRadius: 8,
+    finalRouteRadius: 14,
+    captureCommitRatio: 0.82,
+    contactDistance: 28,
+    townBoundary: 58,
+    engagedRallyAdvance: 0.16,
+    pressObjectiveMinDistance: 7,
+    pressEnemyClearance: 35,
+    scoutLead: 4,
+    gunnerTrail: 3,
+    decisionSnapshotSeconds: 5
+  };
+  var FALLBACK_DOCTRINE = {
+    reserveFraction: 0.16,
+    localSuperiority: 1.15,
+    flankPreference: 0.42,
+    defenseCommitment: 0.34,
+    riskTolerance: 0.56,
+    objectiveStrategy: 'balanced'
+  };
+
+  /* Architecture audit #360: deterministic doctrine *action overrides* are disabled in the
+     shipping baseline, just like Genome v2 training. The General still needs stable allocation,
+     objective scoring, and reachability parameters; those are NOT tactical action rules.
+     Keep the original table below for a separately reviewed future re-enable, but never apply
+     it to missions while this switch is false (regardless of genome stash state). */
+  var ACTION_DOCTRINE_ON = false;
+
+  /* The rules Force Command decides a brief by (which action a squad's situation calls for, checked against the
+     conditions buildContext reports). They are the same four rules as ai-policy.js's DEFAULT_RULES; genome-gate-check
+     holds the two copies equal. */
+  var FALLBACK_RULES = [
+    { id: 'press-neutral', when: ['objectiveNeutral', 'notOutnumbered'], action: 'assault', weight: 0.78 },
+    { id: 'defend-pressure', when: ['objectiveOwned', 'underPressure'], action: 'defend', weight: 0.74 },
+    { id: 'flank-strongpoint', when: ['objectiveEnemy', 'outnumbered'], action: 'flank', weight: 0.69 },
+    { id: 'regroup-leaderless', when: ['outnumbered', 'captainDead'], action: 'regroup', weight: 0.64 }
+  ];
+
+  /* The genome is off when its module is absent (the Node harness never loads it) or stashed (BattleAIPolicy.stashed:
+     the AI Graph and the genome wait for the UI pass). Off, the code defaults above are the whole policy: the numbers,
+     the doctrine and the rules, read from this file whatever ai-policy.js, the server or a match's own genome holds. */
+  function genomeOff() {
+    return !root.BattleAIPolicy || !!root.BattleAIPolicy.stashed;
+  }
+  function genome(sim, faction) {
+    return genomeOff()
+      ? { version: 2, parameters: FALLBACK, doctrine: FALLBACK_DOCTRINE, rules: FALLBACK_RULES }
+      : root.BattleAIPolicy.genomeFor(sim, faction);
+  }
+  /* The highest-weight rule whose conditions all hold (the first of equals), or null. Same reading of a condition as
+     ai-policy.js's decide: `notOutnumbered` is the negation of `outnumbered`, anything else is the context's flag. */
+  function decideRule(rules, context) {
+    var best = null;
+    for (var i = 0; i < rules.length; i++) {
+      var r = rules[i],
+        ok = true;
+      for (var j = 0; j < r.when.length; j++) {
+        var c = r.when[j];
+        if (c === 'notOutnumbered' ? context.outnumbered : !context[c]) {
+          ok = false;
+          break;
+        }
+      }
+      if (ok && (!best || r.weight > best.weight)) best = r;
+    }
+    return best ? { id: best.id, when: best.when.slice(), action: best.action, weight: best.weight } : null;
+  }
+  function ruleFor(sim, faction, context) {
+    if (!ACTION_DOCTRINE_ON) return null;
+    return genomeOff()
+      ? decideRule(FALLBACK_RULES, context)
+      : root.BattleAIPolicy.decide(genome(sim, faction), context);
+  }
+  function policy(sim, faction) {
+    var g = genome(sim, faction);
+    return g.parameters || FALLBACK;
+  }
+  function doctrine(sim, faction) {
+    var g = genome(sim, faction);
+    return g.doctrine || FALLBACK_DOCTRINE;
+  }
+
+  var dist = root.GTMath.dist4;
+  function enemyFaction(f) {
+    return f === 'us' ? 'ge' : 'us';
+  }
+  function aliveMembers(sq) {
+    return sq.members.filter(function (s) {
+      return !s.dead;
+    });
+  }
+  function avgPos(sq) {
+    var a = aliveMembers(sq),
+      x = 0,
+      z = 0;
+    if (!a.length) return { x: sq.rally.x, z: sq.rally.z };
+    for (var i = 0; i < a.length; i++) {
+      x += a[i].root.position.x;
+      z += a[i].root.position.z;
+    }
+    return { x: x / a.length, z: z / a.length };
+  }
+  function maxSpread(sq, p) {
+    var a = aliveMembers(sq),
+      m = 0;
+    for (var i = 0; i < a.length; i++)
+      m = Math.max(m, dist(a[i].root.position.x, a[i].root.position.z, p.x, p.z));
+    return m;
+  }
+  function leader(sq) {
+    return root.SquadAI.leaderOf(sq);
+  }
+
+  /* Capability-oriented force accounting: modules register units, so nothing here knows about
+     concrete unit ids. A man who has fled is out of the fight: Engagement marks him
+     countsForElimination=false at the break and restores him only when a retreating squad takes
+     him in, so he does not count toward his side's elimination or the time-limit force score while
+     he runs, waits at his refuge or walks home alone. Default on; ?fledElimination=0 restores the
+     old counting (fled men still count) for paired validation. */
+  function parseFledElimination(search) {
+    return !/[?&]fledElimination=(?:0|off|false)(?:&|#|$)/i.test(search || '');
+  }
+  var FLED_ELIMINATION_ON = parseFledElimination(typeof location !== 'undefined' ? location.search : '');
+  function forceUnits(sim, faction) {
+    if (root.BattleModules)
+      return root.BattleModules.unitsFor(sim).filter(function (u) {
+        return (
+          u &&
+          u.faction === faction &&
+          !u.dead &&
+          (FLED_ELIMINATION_ON ? u.countsForElimination !== false : true)
+        );
+      });
+    return (sim._roster[faction] || []).filter(function (u) {
+      return !u.dead && (FLED_ELIMINATION_ON ? u.countsForElimination !== false : true);
+    });
+  }
+  /* Macro enemy-intel boundary. Default-on: the General may know its own force exactly, but hostile
+     locations/strength enter only through reports held by its own squads. ?generalIntel=0 restores
+     the pre-isolation truth-reading control for paired validation. */
+  function parseGeneralIntel(search) {
+    return !/[?&]generalIntel=(?:0|off|false)(?:&|#|$)/i.test(search || '');
+  }
+  var GENERAL_INTEL_ON = parseGeneralIntel(typeof location !== 'undefined' ? location.search : '');
+  /* Reported contacts older than this are stale and do not count toward reportedEnemyStrengthNear
+     or buildContext.underPressure. A contact still being shot at is re-reported every few seconds
+     via squadSenses/shareContact, so live contacts stay counted; this only filters sightings that
+     have gone quiet. */
+  var CONTACT_STALE_SECS = 30;
+  function forceScore(sim, faction) {
+    var units = forceUnits(sim, faction),
+      score = 0;
+    for (var i = 0; i < units.length; i++) score += units[i].scoreValue == null ? 1 : +units[i].scoreValue;
+    return score;
+  }
+  function nearbyStrength(sim, faction, p, radius) {
+    var n = 0,
+      all = forceUnits(sim, faction);
+    for (var i = 0; i < all.length; i++) {
+      var u = all[i];
+      if (u.root && dist(p.x, p.z, u.root.position.x, u.root.position.z) <= radius)
+        n += u.scoreValue == null ? 1 : +u.scoreValue;
+    }
+    return n;
+  }
+  function truthNearestEnemyToSquad(sim, sq) {
+    var p = avgPos(sq),
+      enemy = forceUnits(sim, enemyFaction(sq.faction)),
+      best = null,
+      bd = Infinity;
+    for (var i = 0; i < enemy.length; i++) {
+      var e = enemy[i],
+        d = dist(p.x, p.z, e.root.position.x, e.root.position.z);
+      if (d < bd) {
+        bd = d;
+        best = e;
+      }
+    }
+    return { unit: best, distance: bd, source: 'truth' };
+  }
+  /* Snapshot only what an own-side squad has actually reported. Never pass the live enemy object up
+     to Macro: even a first-hand squad contact becomes an id + last reported point/time here. */
+  function reportedContacts(sim, faction) {
+    var A = root.SquadAI,
+      squads = (sim && sim.factions && sim.factions[faction] && sim.factions[faction].squads) || [],
+      byKey = {},
+      rows = [];
+    if (!A || typeof A.squadContact !== 'function') return rows;
+    for (var i = 0; i < squads.length; i++) {
+      var sq = squads[i];
+      if (!sq || !aliveMembers(sq).length) continue;
+      var c = A.squadContact(sq, sim);
+      if (!c || !isFinite(+c.x) || !isFinite(+c.z)) continue;
+      var id = c.knownUnitId != null ? c.knownUnitId : c.unit && c.unit.id != null ? c.unit.id : null,
+        key = id != null ? 'unit:' + id : 'sector:' + Math.round(+c.x / 20) + ':' + Math.round(+c.z / 20),
+        row = {
+          key: key,
+          targetId: id,
+          x: +c.x,
+          z: +c.z,
+          at: isFinite(+c.at) ? +c.at : +sim.time || 0,
+          sourceSquad: sq.id
+        },
+        old = byKey[key];
+      if (!old || row.at >= old.at) byKey[key] = row;
+    }
+    Object.keys(byKey)
+      .sort()
+      .forEach(function (k) {
+        rows.push(byKey[k]);
+      });
+    return rows;
+  }
+  function reportedNearestEnemyToSquad(sim, sq) {
+    var p = avgPos(sq),
+      rows = reportedContacts(sim, sq.faction),
+      best = null,
+      bd = Infinity;
+    for (var i = 0; i < rows.length; i++) {
+      var d = dist(p.x, p.z, rows[i].x, rows[i].z);
+      if (d < bd) {
+        bd = d;
+        best = rows[i];
+      }
+    }
+    return { unit: null, contact: best, distance: bd, source: 'reports' };
+  }
+  function reportedEnemyStrengthNear(sim, faction, p, radius) {
+    var rows = reportedContacts(sim, faction),
+      n = 0,
+      now = +sim.time || 0;
+    /* A contact reported five minutes ago is not "strength near this objective" - it is a ghost.
+       Without this filter, Force Command masses against stale sightings and triggers false defend
+       doctrines. CONTACT_STALE_SECS matches the typical re-report interval: a contact still being
+       shot at is re-reported far more often than this, so live contacts stay counted. */
+    var maxAge = CONTACT_STALE_SECS;
+    for (var i = 0; i < rows.length; i++)
+      if (dist(p.x, p.z, rows[i].x, rows[i].z) <= radius && now - (+rows[i].at || 0) <= maxAge) n++;
+    return n;
+  }
+  function nearestEnemyToSquad(sim, sq) {
+    return GENERAL_INTEL_ON ? reportedNearestEnemyToSquad(sim, sq) : truthNearestEnemyToSquad(sim, sq);
+  }
+
+  function objectivePoint(instance, sim, sq) {
+    if (instance && instance.handler && typeof instance.handler.commandPoint === 'function')
+      return instance.handler.commandPoint(instance, sim, sq);
+    var d = (instance && instance.def) || {};
+    return { x: +d.x || 0, z: +d.z || 0 };
+  }
+  function objectiveStatus(sim, obj) {
+    return root.BattleObjectiveSystem ? root.BattleObjectiveSystem.status(sim, obj.id) : obj.state || {};
+  }
+  function objectiveValueScore(sim, faction) {
+    var total = 0;
+    (sim._objectives || []).forEach(function (o) {
+      var s = objectiveStatus(sim, o);
+      if (s && s.owner === faction) total += +o.def.value || 1;
+    });
+    return total;
+  }
+  function ownerPressure(status, faction) {
+    if (!status) return 0;
+    var enemy = enemyFaction(faction);
+    return +(status[enemy] || 0) - +(status[faction] || 0);
+  }
+
+  /* Objective saturation.
+     Every non-reserve route ends at the same point - the settlement centre - so every squad on a
+     side used to score the objectives from the same position and pick the same winner. The central
+     strongpoint sits at distance zero and carries the highest value, so it out-scored the next
+     objective by ~80 points for all five squads of both sides at once. Both forces piled onto one
+     zone, the outer objectives were never assigned to anybody, and a 600 s battle ended with about
+     a third of the map still neutral. Force Command decides WHAT, so the deconfliction belongs
+     here, in the score, rather than in anything that writes positions.
+     A neutral, unoccupied zone only needs one squad to walk onto it; a contested or enemy-held one
+     is worth committing a second. Past that, each further squad pays SATURATION_COST, which is
+     enough to make the next objective the better answer without ever making an objective
+     unchoosable - when there is nothing else left, the crowded one still wins. */
+  var SATURATION_COST = 55;
+  function saturationAllowance(status, owner) {
+    return owner === 'neutral' && !status.active ? 1 : 2;
+  }
+  function squadsTargeting(sim, sq, id) {
+    var squads = (sim && sim.factions && sim.factions[sq.faction] && sim.factions[sq.faction].squads) || [],
+      n = 0;
+    for (var i = 0; i < squads.length; i++) {
+      var other = squads[i];
+      if (!other || other === sq || other.state === 'retreat') continue;
+      if ((other.aliveCount != null ? +other.aliveCount : aliveMembers(other).length) <= 0) continue;
+      if (String(other.targetObjective || '') === String(id)) n++;
+    }
+    return n;
+  }
+
+  /* Concentration of effort.
+     Saturation alone spreads a side as wide as the map allows: five squads worked ~2.8 of ~4.5
+     objectives at once, and in the 2026-09-24 standard benchmark a side spread over more than three
+     won 38% (n=26) against 55% (n=84) at two to three. A General picks a main effort and masses on
+     it, so a side attacks at most MAX_EFFORTS objectives it does not already hold at the same time.
+     Opening another costs FRONTAGE_COST, more than joining an effort already open usually costs in
+     saturation, so the next squad reinforces an effort instead of opening a new one. An effort
+     closes when its objective is taken, which frees the frontage for the next objective, so no
+     objective is left unassigned for good. Defending what the side holds is economy of force and does
+     not count. Like saturation it is a score, never a veto: with nothing else left a squad still
+     opens a new effort. */
+  var MAX_EFFORTS = 2,
+    FRONTAGE_COST = 140;
+  function openEfforts(sim, sq, stalled) {
+    var squads = (sim && sim.factions && sim.factions[sq.faction] && sim.factions[sq.faction].squads) || [],
+      open = {},
+      n = 0;
+    for (var i = 0; i < squads.length; i++) {
+      var other = squads[i],
+        id = other && other.targetObjective;
+      if (!id || other === sq || other.state === 'retreat' || open[id] || (stalled && stalled[id])) continue;
+      if ((other.aliveCount != null ? +other.aliveCount : aliveMembers(other).length) <= 0) continue;
+      var obj = root.BattleObjectiveSystem && root.BattleObjectiveSystem.get(sim, id),
+        status = obj ? objectiveStatus(sim, obj) || {} : {};
+      if (status.owner === sq.faction) continue;
+      open[id] = true;
+      n++;
+    }
+    return { ids: open, count: n };
+  }
+
+  /* Stalled efforts.
+     The General's strategic-stall wake (commander-ai.js) used to re-pick the objective the side had
+     just spent 120 s failing to take: the squad sits beside it, so distance alone keeps it the best
+     score (seed 1 replay: 5 stall wakes, 5 repeats). The wake passes the objectives its stalled
+     capture briefs were attacking; each costs STALL_COST, enough to move the effort to another
+     objective the side does not hold. A stall wake closes those efforts, so they no longer fill the
+     frontage (openEfforts): the side masses again on at most MAX_EFFORTS new objectives instead of
+     paying FRONTAGE_COST to leave a stalled one. Like saturation it is a score, never a veto: when
+     every remaining objective is stalled, the relative order is unchanged and the squad keeps its
+     effort. */
+  var STALL_COST = 150;
+  /* The objective as this squad could take it, or null when this call does not consider it (an attack
+     never looks at what the side already holds unless its doctrine commits to defence, a defence only at
+     what it holds). One place for the filter: the score and the squad-fit terms both read the pool. */
+  function candidate(sim, sq, obj, index, wantOwned, doc) {
+    var status = objectiveStatus(sim, obj) || {},
+      owner = status.owner || 'neutral',
+      point = objectivePoint(obj, sim, sq);
+    if (wantOwned && owner !== sq.faction) return null;
+    if (!wantOwned && owner === sq.faction && doc.defenseCommitment < 0.58) return null;
+    // Front-lines layout: only the side's next line may be attacked (21b-strategic-front-lines.js).
+    if (
+      !wantOwned &&
+      owner !== sq.faction &&
+      root.BattleFrontLines &&
+      !root.BattleFrontLines.attackable(sim, sq.faction, obj.id)
+    )
+      return null;
+    return { obj: obj, index: index, status: status, owner: owner, point: point };
+  }
+  /* Squad fit.
+     What a squad is good at pulls it toward the objective that suits it. The squad's mean stats
+     (BattleSoldierStats.profile: composites ranked against the side's own living squads, since the mean of
+     ten men barely moves off 0.5 and only the ranking says "really fast") supply numbers; the General decides
+     what they are worth. Above the median only, and only for an attack:
+       pace     (PHY, AGI)  the first objective: the candidate nearest the squad's home, seized before the enemy
+       grit     (FOR)       the furthest: the candidate furthest from home, the deepest and most exposed
+       support  (TEC, MKM)  the safest: near home, far from the nearest enemy, not held by the enemy, the ground
+                            forward squads fall back on
+     At the top of the side a composite is worth SQUAD_FIT points; the median and below get nothing and the score
+     decides. Like saturation it is a score, never a veto, and it sits below SATURATION_COST, so deconfliction
+     and the main effort still win. The soldier-level uses of awareness (recognition, sight) have no Macro
+     counterpart yet: the flank side is chosen by role and squad id, which no stat improves. */
+  var SQUAD_FIT = 30;
+  function spreadOf(xs) {
+    var lo = Math.min.apply(null, xs),
+      hi = Math.max.apply(null, xs);
+    return function (x) {
+      return hi - lo < 1 ? 0.5 : (x - lo) / (hi - lo);
+    };
+  }
+  function squadFit(sim, sq, pool) {
+    var stats = root.BattleSoldierStats,
+      profile = stats && stats.profile ? stats.profile(sim, sq) : null;
+    if (!profile || pool.length < 2) return null;
+    function above(rank) {
+      return Math.max(0, 2 * (rank - 0.5));
+    }
+    var pace = above(profile.pace),
+      grit = above(profile.grit),
+      support = above(profile.support);
+    if (!pace && !grit && !support) return null;
+    var home = sq.home || avgPos(sq),
+      foes = GENERAL_INTEL_ON
+        ? reportedContacts(sim, sq.faction)
+        : forceUnits(sim, enemyFaction(sq.faction)).map(function (u) {
+            return { x: u.root.position.x, z: u.root.position.z };
+          }),
+      away = pool.map(function (c) {
+        return dist(home.x, home.z, c.point.x, c.point.z);
+      }),
+      threat = pool.map(function (c) {
+        var d = Infinity;
+        for (var i = 0; i < foes.length; i++)
+          d = Math.min(d, dist(foes[i].x, foes[i].z, c.point.x, c.point.z));
+        return d;
+      }),
+      out = {},
+      far = spreadOf(away),
+      apart = spreadOf(
+        threat.map(function (d) {
+          return isFinite(d) ? d : 0;
+        })
+      );
+    pool.forEach(function (c, i) {
+      var remote = far(away[i]),
+        safe =
+          (1 -
+            remote +
+            apart(isFinite(threat[i]) ? threat[i] : 0) +
+            (c.owner === sq.faction ? 1 : c.owner === 'neutral' ? 0.5 : 0)) /
+          3;
+      out[c.obj.id] = SQUAD_FIT * (pace * (1 - remote) + grit * remote + support * safe);
+    });
+    return out;
+  }
+  function chooseObjective(sim, sq, wantOwned, stalled, allowed) {
+    var objectives = sim._objectives || [],
+      p = avgPos(sq),
+      cfg = policy(sim, sq.faction),
+      doc = doctrine(sim, sq.faction),
+      best = null,
+      bestScore = -Infinity,
+      efforts = wantOwned ? null : openEfforts(sim, sq, stalled);
+    var ordered = objectives.slice();
+    if (doc.objectiveStrategy === 'sequential' && sq.faction === 'ge') ordered.reverse();
+    var pool = [];
+    for (var k = 0; k < ordered.length; k++) {
+      if (allowed && !allowed[String(ordered[k].id)]) continue;
+      var c = candidate(sim, sq, ordered[k], k, wantOwned, doc);
+      if (c) pool.push(c);
+    }
+    var fit = wantOwned ? null : squadFit(sim, sq, pool);
+    for (var j = 0; j < pool.length; j++) {
+      var obj = pool[j].obj,
+        i = pool[j].index,
+        status = pool[j].status,
+        owner = pool[j].owner,
+        point = pool[j].point,
+        d = dist(p.x, p.z, point.x, point.z),
+        value = +obj.def.value || 1;
+      var need = owner === sq.faction ? 0 : owner === 'neutral' ? cfg.sectorNeutralNeed : cfg.sectorEnemyNeed,
+        active = status.active === sq.faction ? cfg.sectorActiveBonus : 0,
+        score = (need + active) * value - d * cfg.sectorDistanceWeight;
+      if (doc.objectiveStrategy === 'nearest') score = -d + value * 15;
+      else if (doc.objectiveStrategy === 'highest-value') score = value * 150 - d * 0.18;
+      else if (doc.objectiveStrategy === 'weakest-pressure') {
+        var pressure = GENERAL_INTEL_ON
+          ? reportedEnemyStrengthNear(sim, sq.faction, point, (+obj.def.radius || 30) * 1.5)
+          : ownerPressure(status, sq.faction);
+        score = 90 - pressure * 18 - d * 0.25 + (owner === sq.faction ? -30 : 30);
+      } else if (doc.objectiveStrategy === 'sequential')
+        score = 200 - i * 35 - d * 0.1 + (owner === sq.faction ? -150 : 0);
+      if (obj.handler && typeof obj.handler.commandScore === 'function')
+        score = obj.handler.commandScore(obj, sim, sq, score, cfg);
+      if (fit) score += fit[obj.id] || 0;
+      var assigned = squadsTargeting(sim, sq, obj.id),
+        crowd = Math.max(0, assigned - (saturationAllowance(status, owner) - 1));
+      score -= crowd * SATURATION_COST;
+      var stall = stalled && stalled[obj.id] ? STALL_COST : 0;
+      score -= stall;
+      var frontage =
+        efforts && owner !== sq.faction && !efforts.ids[obj.id] && efforts.count >= MAX_EFFORTS
+          ? FRONTAGE_COST
+          : 0;
+      score -= frontage;
+      if (score > bestScore) {
+        bestScore = score;
+        best = {
+          instance: obj,
+          point: point,
+          status: status,
+          score: score,
+          assignedSquads: assigned,
+          crowdPenalty: crowd * SATURATION_COST,
+          stallPenalty: stall,
+          frontagePenalty: frontage,
+          squadFit: fit ? fit[obj.id] || 0 : 0,
+          openEfforts: efforts ? efforts.count : null
+        };
+      }
+    }
+    return best;
+  }
+
+  /* Condition booleans the genome's constrained rules are evaluated against, plus the plain
+     numbers the telemetry wants. Keeping them in one object is fine; keeping them in one object
+     with a typo'd key was the bug this replaced. */
+  function buildContext(sim, sq, chosen, enemy, p) {
+    var doc = doctrine(sim, sq.faction),
+      status = (chosen && chosen.status) || {},
+      owner = status.owner || 'neutral';
+    var friendly = nearbyStrength(sim, sq.faction, p, 90),
+      hostile = GENERAL_INTEL_ON
+        ? reportedEnemyStrengthNear(sim, sq.faction, p, 90)
+        : nearbyStrength(sim, enemyFaction(sq.faction), p, 90),
+      ratio = friendly / Math.max(1, hostile);
+    return {
+      objectiveNeutral: owner === 'neutral',
+      objectiveEnemy: owner === enemyFaction(sq.faction),
+      objectiveOwned: owner === sq.faction,
+      enemyNear: enemy.distance < policy(sim, sq.faction).contactDistance * 1.4,
+      outnumbered: ratio < doc.localSuperiority,
+      notOutnumbered: ratio >= doc.localSuperiority,
+      captainDead: !leader(sq),
+      supportRole: sq.commandRole === 'support' || sq.commandRole === 'reserve',
+      insideObjective: !!(
+        chosen && dist(p.x, p.z, chosen.point.x, chosen.point.z) < (+chosen.instance.def.radius || 30)
+      ),
+      underPressure:
+        owner === sq.faction &&
+        (GENERAL_INTEL_ON
+          ? reportedEnemyStrengthNear(sim, sq.faction, chosen && chosen.point ? chosen.point : p, 60) > 0
+          : ownerPressure(status, sq.faction) > 0),
+      localRatio: ratio,
+      friendlyStrength: friendly,
+      enemyStrength: hostile
+    };
+  }
+  function flankPoint(sq, chosen, town) {
+    var p = chosen.point,
+      c = (town && town.center) || { x: 0, z: 0 },
+      vx = p.x - c.x,
+      vz = p.z - c.z,
+      len = Math.hypot(vx, vz) || 1;
+    /* Role decides the side. The id-length parity this used alone is constant for the real squad ids
+       (us-0..us-4 are all four characters), so every squad, 'right' included, flanked the same way. */
+    var side =
+        sq.commandRole === 'left'
+          ? -1
+          : sq.commandRole === 'right'
+            ? 1
+            : String(sq.id).length % 2 === 0
+              ? -1
+              : 1,
+      off = Math.min(80, Math.max(35, (+chosen.instance.def.radius || 30) * 1.7));
+    return { x: p.x + (-vz / len) * off * side, z: p.z + (vx / len) * off * side };
+  }
+
+  root.BattleCommanderDoctrine = {
+    tuning: {
+      SATURATION_COST: SATURATION_COST,
+      MAX_EFFORTS: MAX_EFFORTS,
+      FRONTAGE_COST: FRONTAGE_COST,
+      STALL_COST: STALL_COST,
+      SQUAD_FIT: SQUAD_FIT,
+      CONTACT_STALE_SECS: CONTACT_STALE_SECS
+    },
+    FALLBACK: FALLBACK,
+    FALLBACK_DOCTRINE: FALLBACK_DOCTRINE,
+    FALLBACK_RULES: FALLBACK_RULES,
+    actionDoctrineEnabled: ACTION_DOCTRINE_ON,
+    genomeOff: genomeOff,
+    decideRule: decideRule,
+    ruleFor: ruleFor,
+    genomeFor: genome,
+    policyFor: policy,
+    doctrineFor: doctrine,
+    dist: dist,
+    enemyFaction: enemyFaction,
+    aliveMembers: aliveMembers,
+    avgPos: avgPos,
+    maxSpread: maxSpread,
+    leader: leader,
+    forceUnits: forceUnits,
+    forceScore: forceScore,
+    nearbyStrength: nearbyStrength,
+    nearestEnemyToSquad: nearestEnemyToSquad,
+    truthNearestEnemyToSquad: truthNearestEnemyToSquad,
+    reportedContacts: reportedContacts,
+    reportedEnemyStrengthNear: reportedEnemyStrengthNear,
+    generalIntelEnabled: function () {
+      return GENERAL_INTEL_ON;
+    },
+    parseGeneralIntel: parseGeneralIntel,
+    objectivePoint: objectivePoint,
+    objectiveStatus: objectiveStatus,
+    objectiveValueScore: objectiveValueScore,
+    ownerPressure: ownerPressure,
+    chooseObjective: chooseObjective,
+    buildContext: buildContext,
+    flankPoint: flankPoint,
+    squadsTargeting: squadsTargeting,
+    saturationCost: SATURATION_COST,
+    stallCost: STALL_COST,
+    openEfforts: openEfforts,
+    maxEfforts: MAX_EFFORTS,
+    frontageCost: FRONTAGE_COST
+  };
+  root.GTLog('[COMMAND] doctrine + objective scoring loaded');
+})(typeof window !== 'undefined' ? window : globalThis);

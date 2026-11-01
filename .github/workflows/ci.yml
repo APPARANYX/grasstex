@@ -1,0 +1,361 @@
+name: ⭐ CI
+
+# The single gate for pull requests; production deployment validates merged main separately. Before this nothing ran on a PR at all: syntax errors,
+# a manifest naming a clip that does not exist, and audio committed off the mastering
+# standard all reached main unchallenged.
+#
+# This also absorbs two workflows that were not doing their jobs. validate-simplify.yml ran
+# the AI sim regression suite only on a branch named simplify-v134, which does not exist, so
+# that suite had been running nowhere. normalize-audio.yml re-mastered and committed to main,
+# which is how 284 pointlessly re-encoded mp3s landed there, and its unfiltered push trigger
+# let any branch publish itself to main. The mastering standard is asserted here instead, so
+# a pull request has to arrive already correct rather than be silently rewritten afterwards.
+#
+# Deliberately not absorbed: the deploy workflows, which publish rather than check, and the
+# tag-triggered battle benchmarks, which run hundreds of battles across parallel workers and
+# have no business on a pull request.
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A force-push or a quick second push should not leave two runs racing on the same ref.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    name: Detect audio and deploy-plan changes
+    runs-on: ubuntu-latest
+    outputs:
+      audio: ${{ steps.diff.outputs.changed }}
+      plan: ${{ steps.diff.outputs.plan }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Diff against PR base
+        id: diff
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT_NAME" != "pull_request" || -z "$BASE_SHA" ]]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "plan=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          python3 scripts/audio_tracker.py diff "$BASE_SHA" --github-output "$GITHUB_OUTPUT"
+          if git diff --name-only "$BASE_SHA" HEAD | grep -Eq '^(runtime-contract[.]php$|Assets/audio/|scripts/(recipes/|audio_tracker\\.py|normalize_audio\\.sh|build_voice_pitch_variants\\.sh|validate_voice_manifest\\.py|check_audio_manifest\\.py|check_weapon_clips\\.py|fetch_private_audio\\.sh|slice_weapon_shots\\.py|prepare_incremental_deploy\\.py|check_deploy_coverage\\.py|check_deploy_safety\\.py|build_version\\.py)|\\.github/workflows/(ci|deploy-50webs-php)\\.yml|battle/(battle_sim\\.html|module-registry\\.js))'; then
+            echo "plan=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "plan=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  static:
+    name: Syntax
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: JavaScript
+        run: |
+          set -euo pipefail
+          count=0
+          while IFS= read -r file; do
+            node --check "$file"
+            count=$((count+1))
+          done < <(git ls-files '*.js' '*.cjs' '*.mjs')
+          echo "Parsed $count JavaScript files."
+
+      - name: PHP
+        run: |
+          set -euo pipefail
+          count=0
+          while IFS= read -r file; do
+            php -l "$file" > /dev/null
+            count=$((count+1))
+          done < <(git ls-files '*.php')
+          echo "Linted $count PHP files."
+
+      - name: Preview launcher
+        run: python3 scripts/check-preview-launcher.py
+
+      - name: Python
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(git ls-files '*.py')
+          python3 -m py_compile "${files[@]}"
+          echo "Compiled ${#files[@]} Python files."
+
+      - name: Benchmark housekeeping safety tests
+        run: python3 -m unittest discover -s scripts -p 'test_housekeeping_benchmark_launches.py'
+
+      - name: Housekeeping embedded Python syntax
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          s = Path("scripts/housekeeping-actions-runs.sh").read_text()
+          lines = s.splitlines()
+          first = lines.index("python3 - <<'PY'") + 1
+          last = lines.index("PY", first)
+          code = chr(10).join(lines[first:last])
+          compile(code, "scripts/housekeeping-actions-runs.sh", "exec")
+          PY
+
+      - name: Shell
+        run: |
+          set -euo pipefail
+          count=0
+          while IFS= read -r file; do
+            bash -n "$file"
+            count=$((count+1))
+          done < <(git ls-files '*.sh')
+          echo "Parsed $count shell scripts."
+
+      - name: JSON
+        run: |
+          set -euo pipefail
+          count=0
+          while IFS= read -r file; do
+            python3 -m json.tool "$file" > /dev/null
+            count=$((count+1))
+          done < <(git ls-files '*.json')
+          echo "Parsed $count JSON files."
+
+      - name: Temporary Phase C Prettier diff
+        run: |
+          npx --yes prettier@3.3.3 --write battle/modules/15o-squad-leader-tactical-postures.js tools/ai-sim-harness/tactical-postures-check.js
+          echo C_FIELD_PRETTIER_DIFF_BEGIN
+          git diff -- battle/modules/15o-squad-leader-tactical-postures.js tools/ai-sim-harness/tactical-postures-check.js
+          echo C_FIELD_PRETTIER_DIFF_END
+
+      # Prettier ratchet: the repo's .prettierrc.json was dead config - most tracked JS never
+      # complied. A full one-shot reformat would break every in-flight branch, so instead every
+      # JS file a pull request touches must be on-standard. Legacy files stay as they are and
+      # converge as they get edited; nothing that was ever cleaned may regress.
+      - name: Prettier ratchet
+        run: |
+          set -euo pipefail
+          if [[ -z "$BASE_SHA" ]]; then
+            echo "No pull-request base: the ratchet runs on pull requests only."
+            exit 0
+          fi
+          mapfile -t files < <(git diff --name-only "$BASE_SHA" HEAD -- '*.js' | while IFS= read -r f; do [[ -f "$f" ]] && printf '%s\n' "$f"; done)
+          if [[ ${#files[@]} -eq 0 ]]; then
+            echo "No JavaScript files changed."
+            exit 0
+          fi
+          echo "Checking ${#files[@]} changed JavaScript file(s) against .prettierrc.json."
+          npx --yes prettier@3.3.3 --check "${files[@]}"
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+
+  audio:
+    name: Audio library
+    needs: changes
+    if: needs.changes.outputs.audio == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      # No audio clip is in this public repo: check out the private APPARANYX/grasstex-audio at the
+      # commit Assets/audio/private-audio.lock.json pins, with a private-audio deploy key, and overlay it
+      # onto Assets/audio/ (scripts/fetch_private_audio.sh).
+      - name: Pinned private audio commit
+        id: private-audio
+        run: echo "commit=$(python3 -c 'import json;print(json.load(open("Assets/audio/private-audio.lock.json"))["commit"])')" >> "$GITHUB_OUTPUT"
+
+      - name: Check out the private audio
+        uses: actions/checkout@v4
+        with:
+          repository: APPARANYX/grasstex-audio
+          ref: ${{ steps.private-audio.outputs.commit }}
+          ssh-key: ${{ secrets.PRIVATE_AUDIO_READ_KEY || secrets.AUDIO_PRIVATE_WRITE_KEY }}
+          path: .runtime/private-audio
+          persist-credentials: false
+
+      - name: Overlay the private audio
+        run: bash scripts/fetch_private_audio.sh .runtime/private-audio
+
+      - name: Voice manifest
+        run: python3 scripts/validate_voice_manifest.py
+
+      - name: Clip references
+        run: python3 scripts/check_audio_manifest.py
+
+      - name: Slice recipes
+        run: |
+          set -euo pipefail
+          for recipe in scripts/recipes/*.json; do
+            python3 scripts/slice_weapon_shots.py "$recipe" --check-only
+          done
+
+      # A category with no mastering target is not an error anyone sees: the pass skips the
+      # file and moves on, so it ships unmastered. grenades/pin, throw and bounce sat in the
+      # manifest in exactly that state. Ask the script itself what each declared path would
+      # be mastered as, so its tables stay the single source of truth.
+      - name: Every declared category has a mastering target
+        run: |
+          set -euo pipefail
+          python3 -c "
+          import json
+          m = json.load(open('Assets/audio/manifest.json'))
+          paths = {p for g in m['categories'].values() for v in g.values() for p in v}
+          print('\n'.join('Assets/audio/' + p for p in sorted(paths)))
+          " > "$RUNNER_TEMP/paths.txt"
+          xargs -a "$RUNNER_TEMP/paths.txt" bash scripts/normalize_audio.sh --explain \
+            | awk '{print $1}' | sort | uniq -c
+          echo "A run with no UNCOVERED rows means every declared category is mastered."
+
+      # The check that matters most. Mastering is hash-skipped, so on a tree whose audio is
+      # already on standard this re-encodes nothing and cannot produce a diff - which makes
+      # it independent of the runner's FFmpeg build. A diff here means either audio was
+      # committed without running the mastering pass, or .mastering-state.tsv no longer
+      # describes the files beside it. Both are how the library silently drifts off spec.
+      - name: Mastering is current
+        run: |
+          set -euo pipefail
+          bash scripts/normalize_audio.sh Assets/audio
+          if ! git diff --quiet -- Assets/audio; then
+            echo "::error::Committed audio is not on the mastering standard."
+            echo "Run 'bash scripts/normalize_audio.sh Assets/audio' and commit the result."
+            echo "Files the mastering pass changed:"
+            git diff --name-only -- Assets/audio
+            exit 1
+          fi
+          echo "Audio is on standard; the mastering pass changed nothing."
+
+  harness:
+    name: Sim regressions
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      # Lifted from .github/workflows/validate-simplify.yml, which triggered only on a branch
+      # named simplify-v134. No such branch exists, so this suite ran nowhere at all. It
+      # passes on main and the whole thing takes seconds, so it belongs on every PR.
+      - name: Harness syntax
+        run: |
+          set -euo pipefail
+          for file in tools/ai-sim-harness/*.js; do node --check "$file"; done
+          echo "Parsed $(ls tools/ai-sim-harness/*.js | wc -l) harness files."
+
+      - name: Regression checks
+        run: |
+          set -euo pipefail
+          # Every check in tools/ai-sim-harness, not just the seven the old workflow named:
+          # macro-command-toggle, map-pipeline, movement-recovery and movement-state were
+          # never wired to anything.
+          for check in tools/ai-sim-harness/*-check.js; do
+            echo "--- $(basename "$check")"
+            node "$check"
+          done
+          # Standalone architecture-bound regressions outside the canonical harness glob.
+          # Keep formation-frame stability explicit: publishing the same Meso commitment must not
+          # jitter/reissue destinations. Macro mission command also exercises its VM fixture here.
+          # #361: real command/recon/physical-movement chain in nine deterministic
+          # ridge variants, including 3/4/5-person squads and legitimate holds.
+          node scripts/run_command_lifecycle_audit.cjs
+          node scripts/check-meso-formation-frame-stability.cjs
+          node scripts/check-macro-mission-command.cjs
+          # Three more standalone checks that existed but were never wired to anything (the
+          # complexity audit found them passing yet unreachable): movement-order ownership
+          # (committed Meso formation order survives resolve calls), meso-micro movement
+          # ownership (a defensive mission does not issue offensive bounds) and physical
+          # waypoint refill (rolling queues refill in place, no full physical replan).
+          node scripts/check-movement-order-ownership.cjs
+          node scripts/check-meso-micro-movement-ownership.cjs
+          node scripts/check-physical-waypoint-refill.cjs
+          node scripts/check-purposeful-contact-gait.cjs
+          node scripts/check-autonomous-contact-mobility.cjs
+          node scripts/check-building-interior-ingress.cjs
+          node scripts/check-strategic-5km.cjs
+          node scripts/check-strategic-front-lines.cjs
+          node scripts/check-strategic-reinforcements.cjs
+          node scripts/check_vehicle_lab.cjs
+          node scripts/check-strategic-truck-visual.cjs
+          node scripts/check-strategic-truck-lite.cjs
+          node scripts/check-strategic-restart-end.cjs
+          # Use the real audio scheduler in a deterministic 50v50-scale overload fixture.
+          node scripts/check-audio-scheduler-queue.cjs
+          node scripts/check-audio-lab-contract.cjs
+
+      - name: Engagement harness seeds
+        run: |
+          set -euo pipefail
+          for seed in 12345 1 2 3 5 8 13 21; do
+            HARNESS_SEED="$seed" node tools/ai-sim-harness/run.js > /dev/null
+          done
+          echo "Engagement harness clean across 8 seeds."
+
+  deploy-plan:
+    name: Deploy plan
+    needs: changes
+    if: needs.changes.outputs.plan == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      # build_version.py reads build-v<N> tags to work out the next version.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # No audio clip is in this public repo: check out the private APPARANYX/grasstex-audio at the
+      # commit Assets/audio/private-audio.lock.json pins, with a private-audio deploy key, and overlay it
+      # onto Assets/audio/ (scripts/fetch_private_audio.sh).
+      - name: Pinned private audio commit
+        id: private-audio
+        run: echo "commit=$(python3 -c 'import json;print(json.load(open("Assets/audio/private-audio.lock.json"))["commit"])')" >> "$GITHUB_OUTPUT"
+
+      - name: Check out the private audio
+        uses: actions/checkout@v4
+        with:
+          repository: APPARANYX/grasstex-audio
+          ref: ${{ steps.private-audio.outputs.commit }}
+          ssh-key: ${{ secrets.PRIVATE_AUDIO_READ_KEY || secrets.AUDIO_PRIVATE_WRITE_KEY }}
+          path: .runtime/private-audio
+          persist-credentials: false
+
+      - name: Overlay the private audio
+        run: bash scripts/fetch_private_audio.sh .runtime/private-audio
+
+      - name: Every runtime the page loads is covered
+        run: python3 scripts/check_deploy_coverage.py
+
+      # The runtime loads clips from this pack; it must match the clip FBX, CLIPS and the converter.
+      - name: Prepared clips match their sources
+        run: node scripts/check_clip_pack.cjs
+
+      # prepare_incremental_deploy.py fails on any managed file that is missing or empty,
+      # so building the plan is itself the check: it proves a real deploy would find
+      # everything it intends to upload, including the audio the manifest points at.
+      - name: Plan builds against a bare remote
+        run: |
+          set -euo pipefail
+          python3 scripts/build_version.py stamp
+          python3 scripts/prepare_incremental_deploy.py \
+            --remote-manifest /dev/null \
+            --audio-manifest Assets/audio/manifest.json \
+            --output "$RUNNER_TEMP/deploy-plan"
+          cat "$RUNNER_TEMP/deploy-plan/summary.json"
+
+      # Sidecar JSON, the FBX soldier-animation lab and anything else the repo does not manage live
+      # only on the server; a deploy must never delete or overwrite them. Needs the stamp above.
+      - name: Deploy never touches unmanaged server files
+        run: python3 scripts/check_deploy_safety.py

@@ -1,0 +1,115 @@
+name: ⭐ Player settings browser QA
+
+# Verify the desktop/player settings UI on the PR's real PHP/module graph.
+on:
+  pull_request:
+    paths:
+      - 'battle/camera-controls.js'
+      - 'battle/scenario-generator.js'
+      - 'battle/battle-sim.js'
+      - 'battle/commander-routes.js'
+      - 'battle/town-objectives.js'
+      - 'scripts/check-strategic-5km.cjs'
+      - 'scripts/probe_strategic_5km.cjs'
+      - 'battle/modules/52-fbx-animation-state.js'
+      - 'battle/modules/52-fbx-render-pose.js'
+      - 'tools/ai-sim-harness/fbx-render-pose-check.js'
+      - 'tools/ai-sim-harness/fbx-animation-state-check.js'
+      - 'tools/ai-sim-harness/stress-reaction-animation-check.js'
+      - 'battle/modules/52-fbx-library-lifecycle.js'
+      - 'tools/ai-sim-harness/fbx-library-lifecycle-check.js'
+      - 'battle/modules/52-fbx-asset-import.js'
+      - 'tools/ai-sim-harness/fbx-asset-import-check.js'
+      - 'battle/modules/52-fbx-clip-converter.js'
+      - 'tools/ai-sim-harness/fbx-clip-converter-check.js'
+      - 'scripts/lib/clip-pack-sources.cjs'
+      - 'battle/modules/52-fbx-clip-mixer.js'
+      - 'tools/ai-sim-harness/fbx-clip-mixer-check.js'
+      - 'battle/modules/52-fbx-prepared-pack.js'
+      - 'tools/ai-sim-harness/fbx-prepared-pack-check.js'
+      - 'battle/modules/52-fbx-model-retarget.js'
+      - 'tools/ai-sim-harness/fbx-model-retarget-check.js'
+      - 'battle/modules/52-fbx-rig-canon.js'
+      - 'battle/modules/52-fbx-surface-damage.js'
+      - 'tools/ai-sim-harness/fbx-surface-damage-check.js'
+      - 'battle/modules/52-fbx-mesh-lod.js'
+      - 'battle/modules/52-fbx-render-lod.js'
+      - 'tools/ai-sim-harness/fbx-presentation-lod-check.js'
+      - 'battle/modules/52-fbx-retarget-rest.js'
+      - 'battle/modules/52-fbx-weapon-calibration.js'
+      - 'tools/ai-sim-harness/fbx-weapon-calibration-check.js'
+      - 'battle/modules/53-fbx-soldier-backend.js'
+      - 'tools/ai-sim-harness/fbx-rig-canon-check.js'
+      - 'scripts/probe_camera_menu.cjs'
+      - 'scripts/probe_camera_touch_gamepad.cjs'
+      - 'scripts/probe_camera_soak.cjs'
+      - '.github/workflows/player-settings-browser-qa.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: player-settings-qa-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  player-menu:
+    name: Player settings / Chromium
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate PHP and probe
+        run: |
+          php -l battle_sim_local.php
+          node --check scripts/probe_camera_menu.cjs
+          node --check scripts/probe_camera_soak.cjs
+      - name: Install Playwright Chromium
+        run: |
+          npm install --global playwright@1.56.1
+          playwright install --with-deps chromium
+      - name: Serve this checkout rather than deployed main
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/qa-site"
+          ln -s "$GITHUB_WORKSPACE" "$RUNNER_TEMP/qa-site/grasstex"
+          php -S 127.0.0.1:8765 -t "$RUNNER_TEMP/qa-site" > "$RUNNER_TEMP/player-settings-php.log" 2>&1 &
+          for attempt in {1..20}; do
+            if curl -fsS 'http://127.0.0.1:8765/grasstex/battle_sim_local.php?seed=camera-menu-qa' -o /dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/player-settings-php.log"
+          exit 1
+      - name: Exercise desktop player/settings menu
+        env:
+          CAMERA_MENU_URL: http://127.0.0.1:8765/grasstex/battle_sim_local.php
+          CAMERA_MENU_OUT: closeups/camera-menu-ci
+        run: node scripts/probe_camera_menu.cjs
+      - name: Exercise touch-gamepad lifecycle and same-page restarts
+        env:
+          CAMERA_MENU_URL: http://127.0.0.1:8765/grasstex/battle_sim_local.php
+          CAMERA_TOUCH_OUT: closeups/camera-touch-ci
+        run: node scripts/probe_camera_touch_gamepad.cjs
+      - name: Exercise live possession and restart heap/FPS soak
+        env:
+          CAMERA_SOAK_URL: http://127.0.0.1:8765/grasstex/battle_sim_local.php
+          CAMERA_SOAK_OUT: closeups/camera-soak-ci
+        run: node scripts/probe_camera_soak.cjs
+      - name: Verify strategic 5km terrain and spawn topology in Chromium
+        env:
+          STRATEGIC_QA_URL: http://127.0.0.1:8765/grasstex/battle_sim_local.php
+          STRATEGIC_QA_OUT: closeups/strategic-5km-ci
+        run: node scripts/probe_strategic_5km.cjs
+      - name: Preserve browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: player-settings-browser-evidence
+          if-no-files-found: warn
+          path: |
+            closeups/camera-menu-ci/
+            closeups/camera-touch-ci/
+            closeups/camera-soak-ci/
+            closeups/strategic-5km-ci/
+            ${{ runner.temp }}/player-settings-php.log

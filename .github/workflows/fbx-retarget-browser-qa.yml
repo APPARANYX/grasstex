@@ -1,0 +1,120 @@
+name: ⭐ FBX retarget browser QA
+
+# The pure quaternion kernel must still agree with Babylon's independent matrix retarget
+# on every actual imported model and clip in a checked-out PHP battle.
+on:
+  pull_request:
+    paths:
+      - 'battle/modules/52-fbx-animation-state.js'
+      - 'battle/modules/52-fbx-render-pose.js'
+      - 'tools/ai-sim-harness/fbx-render-pose-check.js'
+      - 'tools/ai-sim-harness/fbx-animation-state-check.js'
+      - 'tools/ai-sim-harness/stress-reaction-animation-check.js'
+      - 'battle/modules/52-fbx-library-lifecycle.js'
+      - 'tools/ai-sim-harness/fbx-library-lifecycle-check.js'
+      - 'battle/modules/52-fbx-asset-import.js'
+      - 'tools/ai-sim-harness/fbx-asset-import-check.js'
+      - 'battle/modules/52-fbx-clip-converter.js'
+      - 'tools/ai-sim-harness/fbx-clip-converter-check.js'
+      - 'scripts/lib/clip-pack-sources.cjs'
+      - 'battle/modules/52-fbx-clip-mixer.js'
+      - 'tools/ai-sim-harness/fbx-clip-mixer-check.js'
+      - 'battle/modules/52-fbx-prepared-pack.js'
+      - 'tools/ai-sim-harness/fbx-prepared-pack-check.js'
+      - 'scripts/probe_clip_pack.cjs'
+      - 'battle/modules/52-fbx-model-retarget.js'
+      - 'tools/ai-sim-harness/fbx-model-retarget-check.js'
+      - 'battle/modules/52-fbx-retarget-quat.js'
+      - 'battle/modules/52-fbx-surface-damage.js'
+      - 'battle/modules/52-fbx-mesh-lod.js'
+      - 'battle/modules/52-fbx-render-lod.js'
+      - 'battle/modules/52-fbx-retarget-rest.js'
+      - 'tools/ai-sim-harness/fbx-retarget-rest-check.js'
+      - 'battle/modules/53-fbx-soldier-backend.js'
+      - 'tools/ai-sim-harness/fbx-retarget-quat-check.js'
+      - 'scripts/probe_retarget.cjs'
+      - 'scripts/probe_fbx_render_pose.cjs'
+      - '.github/workflows/fbx-retarget-browser-qa.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fbx-retarget-qa-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  retarget:
+    name: Retarget full assets / Chromium
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Validate actual retarget fixture
+        run: |
+          node --check scripts/probe_retarget.cjs
+          node tools/ai-sim-harness/fbx-animation-state-check.js
+          node tools/ai-sim-harness/fbx-render-pose-check.js
+          node tools/ai-sim-harness/fbx-library-lifecycle-check.js
+          node tools/ai-sim-harness/fbx-asset-import-check.js
+          node tools/ai-sim-harness/fbx-clip-converter-check.js
+          node tools/ai-sim-harness/fbx-clip-pack-integrity-check.js
+          node tools/ai-sim-harness/fbx-clip-mixer-check.js
+          node tools/ai-sim-harness/fbx-prepared-pack-check.js
+          node tools/ai-sim-harness/fbx-model-retarget-check.js
+          node tools/ai-sim-harness/fbx-retarget-quat-check.js
+          node tools/ai-sim-harness/fbx-retarget-rest-check.js
+          node tools/ai-sim-harness/fbx-presentation-lod-check.js
+          node tools/ai-sim-harness/fbx-surface-damage-check.js
+          php -l battle_sim_local.php
+      - name: Install Playwright Chromium
+        run: |
+          npm install --global playwright@1.56.1
+          playwright install --with-deps chromium
+      - name: Serve this exact checkout
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/qa-site"
+          ln -s "$GITHUB_WORKSPACE" "$RUNNER_TEMP/qa-site/grasstex"
+          php -S 127.0.0.1:8765 -t "$RUNNER_TEMP/qa-site" > "$RUNNER_TEMP/fbx-retarget-php.log" 2>&1 &
+          for attempt in {1..20}; do
+            if curl -fsS 'http://127.0.0.1:8765/grasstex/battle_sim_local.php?seed=retarget' -o /dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/fbx-retarget-php.log"
+          exit 1
+      - name: Compare real retargeted FBX bones, clips, grips and motion
+        env:
+          RT_URL: http://127.0.0.1:8765/grasstex/battle_sim_local.php
+        run: node scripts/probe_retarget.cjs
+      - name: Compare prepared-clip pack with real raw FBX conversion
+        env:
+          CLIPPACK_URL: http://127.0.0.1:8765/grasstex/battle_sim_local.php
+          CLIPPACK_OUT: closeups/clip-pack-ci/summary.json
+        run: |
+          mkdir -p closeups/clip-pack-ci
+          node scripts/probe_clip_pack.cjs
+
+      - name: Compare live render pose and IK with pre-extraction owner
+        env:
+          POSE_URL: http://127.0.0.1:8765/grasstex/battle_sim_local.php
+        run: node scripts/probe_fbx_render_pose.cjs
+
+      - name: Preserve render pose evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fbx-render-pose-evidence
+          if-no-files-found: warn
+          path: closeups/render-pose-ci/
+
+      - name: Preserve PHP loader diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fbx-retarget-php-evidence
+          if-no-files-found: warn
+          path: ${{ runner.temp }}/fbx-retarget-php.log
