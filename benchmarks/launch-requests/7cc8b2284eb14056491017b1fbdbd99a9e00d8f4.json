@@ -1,0 +1,21 @@
+{
+  "branch": "work/benchmark-launch/pacing2-usdef-20261030",
+  "launch_parent_sha": "f454d3739421823d3c2da731350937ba996f7437",
+  "launch_sha": "7cc8b2284eb14056491017b1fbdbd99a9e00d8f4",
+  "note": "Launch parent is preserved; the child's actual checkout SHA must be read from the child run.",
+  "parent_retention_ref": "main-ancestor",
+  "request": {
+    "battle_type": "us-defend",
+    "benchmark": "standard",
+    "purpose": "#662 pacing + defence yield flag pair",
+    "query_off": "strategicInterception=0",
+    "query_on": "strategicInterception=0&tacticalController=new",
+    "ref": "work/pin/pacing-7a4c33ee",
+    "seed": "controller-pacing2-20261030",
+    "seeds": 60,
+    "sim_seconds": 600
+  },
+  "schema_version": 1,
+  "source_ref": "work/pin/pacing-7a4c33ee",
+  "source_sha_at_archive": "7a4c33eee39841be213443200d16625b5957439c"
+}
