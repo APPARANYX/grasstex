@@ -1,0 +1,17 @@
+{
+  "branch": "work/benchmark-launch/pr683-ctl-causal-20261029",
+  "launch_parent_sha": "b913a7429d8cb4173c303a90e73a6c8be6958713",
+  "launch_sha": "997455b31623b13796ddf6cae4a91e1ba2ab3058",
+  "note": "Launch parent is preserved; the child's actual checkout SHA must be read from the child run.",
+  "parent_retention_ref": "main-ancestor",
+  "request": {
+    "benchmark": "causal",
+    "query": "strategicInterception=0&tacticalController=new",
+    "ref": "work/pin/pr683-f845a2d6",
+    "seconds": 600,
+    "seeds": 20
+  },
+  "schema_version": 1,
+  "source_ref": "work/pin/pr683-f845a2d6",
+  "source_sha_at_archive": "f845a2d64e12ac7062ca59b8aaee360be81c6ae5"
+}
