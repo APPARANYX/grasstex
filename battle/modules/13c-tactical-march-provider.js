@@ -378,6 +378,7 @@
         if (root.BattleTacticalCoveredManeuver)
           row.maneuver = root.BattleTacticalCoveredManeuver.summary(a[i]);
         if (root.BattleTacticalAmbushSkill) row.ambush = root.BattleTacticalAmbushSkill.summary(a[i]);
+        if (root.BattleTacticalFlankAssault) row.flank = root.BattleTacticalFlankAssault.summary(a[i]);
         st.men.forEach(function (cur) {
           var l = byId[cur.actionId],
             key = cur.kind + ':' + (l ? l.stage : 'gone');
@@ -429,6 +430,8 @@
       commanderTick: noop,
       fireAndMovement: function (ctx) {
         root.BattleTacticalContactSkills.update(ctx);
+        /* The flank decision runs first: the covered-bound skill reads its goal on the same step. */
+        if (root.BattleTacticalFlankAssault) root.BattleTacticalFlankAssault.update(ctx);
         if (root.BattleTacticalCoveredManeuver) root.BattleTacticalCoveredManeuver.update(ctx);
         if (root.BattleTacticalAmbushSkill) root.BattleTacticalAmbushSkill.update(ctx);
       },
