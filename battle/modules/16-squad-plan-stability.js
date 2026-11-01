@@ -1065,11 +1065,12 @@
       return commitPersonalMovement(s, next, publishKey, battle, urgent, stats);
     }
 
+    /* Settle through the canonical adopted view before reading the one pending
+       movement receipt. A diagnostic snapshot copies every command slot and
+       every adopted slot; carrying one personal move does not need those DTOs. */
     var scope = movementScope(s),
-      slot = 'movement|' + scope,
-      view = CR.snapshot && CR.snapshot(s, battle),
-      pending = view && view.records && view.records[slot],
       adopted = CR.adoptedView && CR.adoptedView(s, battle, 'movement', scope),
+      pending = CR.peek && CR.peek(s, battle, 'movement', scope),
       samePending =
         pending &&
         pending.phase !== 'adopted' &&
