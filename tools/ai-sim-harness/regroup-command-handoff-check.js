@@ -4,9 +4,11 @@
    Native Command Reception owns delivery; Meso releases its own regroup. */
 const assert = require('node:assert/strict');
 const H = require('./harness');
+const { loadModule, quietConsole } = require('./module-loader');
 function world(options = {}) {
   H.resetIds();
   const r = H.bootstrap({ search: '?tacticalController=new' + (options.reachable ? '&commandRelay=0' : '') });
+  loadModule(r, 'battle/movement-resolver.js', { console: quietConsole });
   const b = H.makeBattle(r, { seed: 41 });
   const q = H.addSquad(r, b, { id: 'us-0', faction: 'us', x: 0, z: 0, objective: { x: 300, z: 0 } });
   q._macroMission = { version: 1 };
@@ -61,6 +63,53 @@ assert.equal(w.C.peek(w.distant[0], w.b, 'movement', 'soldier:' + w.distant[0].i
 const moving = world({ travelling: true });
 moving.r.BattleSquadStability.updateCohesion(moving.b, moving.q);
 assert(moving.L.get(moving.q, 'regroup'), 'finishing a prior order is still allowed');
+const mixed = world();
+mixed.distant[1]._movementStopReason = null;
+mixed.r.BattleSquadStability.updateCohesion(mixed.b, mixed.q);
+assert(mixed.L.get(mixed.q, 'regroup'), 'the whole blocked cohort must finish its prior orders');
+const holding = world();
+holding.distant[1].orderDestination.x += 20;
+holding.r.BattleSquadStability.updateCohesion(holding.b, holding.q);
+assert(holding.L.get(holding.q, 'regroup'), 'arrival at a temporary hold is not arrival at the old order');
+// A released failed cohort is not retried after the ordinary cooldown. New
+// movement publications may replace the receipt but do not improve delivery.
+for (const s of w.distant)
+  w.C.publish(w.q, w.b, 'movement', [s], {
+    scope: 'soldier:' + s.id,
+    action: 'controller',
+    signature: 'unheard-march',
+    spatial: true,
+    reference: 'point',
+    point: { x: -100, z: 0 },
+    data: { missionVersion: 1 }
+  });
+for (const time of [15, 17, 30, 60]) {
+  w.b.time = time;
+  w.r.BattleSquadStability.updateCohesion(w.b, w.q);
+  assert.equal(w.L.get(w.q, 'regroup'), null, 'unchanged delivery failure cannot restart regroup');
+}
+assert.deepEqual(
+  w.distant.map(s => s.orderDestination),
+  before
+);
+// Actual delivery changes invalidate the outcome; a new geometry problem may
+// then open another regroup through the ordinary owner path.
+w.r.SquadAI.leaderOf(w.q).root.position.x = 200;
+w.r.SquadAI.leaderOf(w.q).root.position.z = 80;
+for (const s of w.distant) {
+  w.C.publish(w.q, w.b, 'movement', [s], {
+    scope: 'soldier:' + s.id,
+    action: 'controller',
+    signature: 'reachable-march',
+    spatial: true,
+    reference: 'point',
+    point: { x: -100, z: 0 },
+    data: { missionVersion: 1 }
+  });
+}
+assert.equal(w.C.peek(w.distant[0], w.b, 'movement', 'soldier:' + w.distant[0].id).unreachable, false);
+w.r.BattleSquadStability.updateCohesion(w.b, w.q);
+assert.equal(w.q._regroupHysteresis.deliveryBlock, null, 'real link recovery ends the terminal block');
 const young = world();
 young.L.get(young.q, 'regroup').since = young.b.time - 3;
 young.r.BattleSquadStability.updateCohesion(young.b, young.q);

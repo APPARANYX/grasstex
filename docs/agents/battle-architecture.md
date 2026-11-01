@@ -211,11 +211,14 @@ retained recon task before dispatch: a current task holds the waypoint; a supers
 old task before selecting its new route. Recon handback then permits normal progression.
 
 The retained regroup owner also recognizes command-delivery blockage: after its existing
-escalation age, a missing rally quorum may release when an outside man has arrived at his
-previous order and Command Reception still reports this lease's regroup order unreachable.
+escalation age, a missing rally quorum may release when more than the allowed outlier count
+cannot receive this lease's regroup order and all have arrived at their previous orders.
 The receipt must belong to the current mission and have been issued since the lease began.
 The owner ends its own regroup and uses the existing bypass; it never delivers the unheard
 point. A man still travelling or processing a deliverable order keeps his ordinary handoff.
+The owner retains that failed cohort as an outcome and does not recommit the same rally
+while the same quorum-blocking men remain unreachable at their previous orders. Actual
+delivery, movement, roster or mission changes permit a new assessment; no retry timer is added.
 
 Ending an owned Meso movement proposal retires its `orderDestination` rather than retaining the man's
 release position as a command. With no remaining squad order, the resolver's formation fallback is
