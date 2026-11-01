@@ -1,0 +1,24 @@
+{
+  "branch": "work/benchmark-launch/contact-690-final-2km-ge-defend",
+  "launch_parent_sha": "bf0055391e387ebd7d1b3a9523b8eb5005d0cae2",
+  "launch_sha": "1710b713a2173c7e2b4525ca1e2794926358db10",
+  "note": "Launch parent is preserved; the child's actual checkout SHA must be read from the child run.",
+  "parent_retention_ref": "archive/benchmark-source/bf0055391e387ebd7d1b3a9523b8eb5005d0cae2",
+  "request": {
+    "battle_type": "ge-defend",
+    "benchmark": "standard",
+    "correlation_id": "pr-690-final-2km-ge-defend",
+    "origin_agent": "chatgpt",
+    "purpose": "Final contact repair vs legacy; same seeds as f541 baseline; native preflight 40997614517 at bf00553",
+    "query_off": "strategicInterception=0&pinBridge=1&pinNerve=1",
+    "query_on": "strategicInterception=0&pinBridge=1&pinNerve=1&tacticalController=new",
+    "ref": "work/contact-role-stability-20261030",
+    "seed": "contact-690-2km",
+    "seeds": "3",
+    "sim_seconds": "600",
+    "windows": "0+600"
+  },
+  "schema_version": 1,
+  "source_ref": "work/contact-role-stability-20261030",
+  "source_sha_at_archive": "bf0055391e387ebd7d1b3a9523b8eb5005d0cae2"
+}
