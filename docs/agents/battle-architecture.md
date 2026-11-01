@@ -226,6 +226,19 @@ ready and the contact skills fire on first-hand contact. The march and the stati
 holds. Contact before ready, pressure, a lost threat or masking, a retained skill, a retreat, an owner
 ending a man's action, or the 12 s preparation/observation budgets release every man through his owner.
 
+`13i-tactical-flank-assault.js` (`BattleTacticalFlankAssault`, `?controllerAssault=0` turns it off) is the
+Squad Leader's flank and assault decision. Legacy 15j only bounded a team frontally and labelled the
+fireteams' flank tasks (16 `tasksFor`). In contact on an assault or flank brief (approach, assault or flank
+phase), with the Squad Leader's own bound-threat reports between one covered hop and 160 m away, bravo
+(charlie if bravo cannot go; two movers and two supporters minimum) heads for a point 60 degrees round the
+reported enemy on its own side, at the squad's current range; at a 45 degree crossing angle (or on that
+point) it assaults the reported position. It moves nobody: the covered-bound skill (13e,
+execute-covered-bound) reads `goal()` for its hop goal and drafts only that team, so the rest of the squad
+is the base of fire, and Meso's `controllerBound` accepts the skill's goal as a forward window. Retreat, a
+retained skill, a mission change, lost contact, a depleted team or base of fire, a new 13e no-hop stall, the
+flank budget (its length at 0.6 m/s) or closing to 8 m ends it with a reason in `summary()` (also
+`BattleTacticalMarchProvider.summary()[].flank`), and the frontal hop is the answer again.
+
 `fire.control` asks `controllerFireControl.publish` in Meso to use 15a's existing publisher;
 `published` explicitly does not imply personal adoption. Engagement still uses each man's adopted
 order and retains immediate return fire. `combat.contact` holds locomotion/posture/weapon resources

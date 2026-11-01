@@ -1220,6 +1220,19 @@
       !(root.BattleAmmunition && !root.BattleAmmunition.available(s))
     );
   }
+  /* Where a forward controller window may open and stay open: an assault phase, a personal mover in a
+     defence or an assault approach, or a controller flank or assault (13i, ?controllerAssault=0 off) that
+     names its own team and goal. One rule for begin and for every later check. */
+  function controllerBoundForward(sq, p) {
+    var personal = !!(p.moverId || p.moverIds),
+      X = root.BattleTacticalFlankAssault;
+    return !!(
+      ASSAULT_PHASES[sq.commandPhase] ||
+      (personal && sq._macroMission.action === 'defend' && sq._macroMission.point) ||
+      (personal && sq.commandPhase === 'approach' && sq._macroMission.action === 'assault') ||
+      (personal && X && X.on && X.goal(sq))
+    );
+  }
   function currentControllerBound(sq, battle) {
     var h = sq && _controllerBounds.get(sq);
     if (!h) return null;
@@ -1248,15 +1261,7 @@
       boundRoster(sq).length < 4 ||
       !sq.inContact ||
       !!back !== (h.direction === 'back') ||
-      (back
-        ? A.isExtractionToHome(sq)
-        : !(
-            ASSAULT_PHASES[sq.commandPhase] ||
-            ((h.moverId || h.moverIds) && sq._macroMission.action === 'defend' && sq._macroMission.point) ||
-            ((h.moverId || h.moverIds) &&
-              sq.commandPhase === 'approach' &&
-              sq._macroMission.action === 'assault')
-          ))
+      (back ? A.isExtractionToHome(sq) : !controllerBoundForward(sq, h))
     )
       return null;
     /* A confirmed live shot arms the bounded movement window. Do not cancel
@@ -1348,17 +1353,7 @@
       !sq._macroMission ||
       sq._macroMission.status !== 'executing' ||
       !!back !== (params.direction === 'back') ||
-      (back
-        ? A.isExtractionToHome(sq)
-        : !(
-            ASSAULT_PHASES[sq.commandPhase] ||
-            ((params.moverId || params.moverIds) &&
-              sq._macroMission.action === 'defend' &&
-              sq._macroMission.point) ||
-            ((params.moverId || params.moverIds) &&
-              sq.commandPhase === 'approach' &&
-              sq._macroMission.action === 'assault')
-          )) ||
+      (back ? A.isExtractionToHome(sq) : !controllerBoundForward(sq, params)) ||
       ['alpha', 'bravo', 'charlie'].indexOf(params.team) < 0 ||
       currentControllerBound(sq, battle) ||
       !C ||
