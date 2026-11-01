@@ -249,4 +249,31 @@ test('a depleted flank team ends the flank with a reason and the frontal skill t
   assert.equal(w.X.goal(w.q), null);
 });
 
+test('a released frontal no-hop stall does not keep a new flank from searching its own goal', () => {
+  const w = world();
+  const route = w.r.BattleTacticalContactRoute,
+    pick = route.pick,
+    range = w.X.tuning.maximumRange;
+  route.pick = () => ({
+    point: null,
+    score: null,
+    exposure: 0,
+    stats: { total: 0, progressing: 0, safe: 0, rejected: {} }
+  });
+  w.X.tuning.maximumRange = 10; // the flank declines, so only the frontal skill searches
+  for (let i = 0; i < 120; i++) tick(w);
+  assert.equal(w.M.summary(w.q).reason, 'stall-released:no-hop', JSON.stringify(w.M.summary(w.q)));
+  assert.equal(w.X.summary(w.q).started, 0);
+  route.pick = pick;
+  w.X.tuning.maximumRange = range;
+  const moved = hops(w, 25);
+  assert.ok(w.X.summary(w.q).started >= 1, JSON.stringify(w.X.summary(w.q)));
+  assert.ok(
+    moved.some(m => m.team === w.X.summary(w.q).team || m.team === 'bravo'),
+    'the flank team hops toward its own goal: ' + JSON.stringify(w.M.summary(w.q).reason)
+  );
+  assert.ok(!w.X.summary(w.q).releases['flank-budget'], 'the flank is not left to burn its budget');
+  clean(w);
+});
+
 console.log(count + ' flank and assault checks passed');

@@ -799,6 +799,14 @@
        Leader asks the General for a new task where the mission allows one. */
     var tune = Q.tuning,
       cycle = Math.floor(ctx.sim.time / tune.boundCycle);
+    /* A stall belongs to the goal it was refused toward: a flank or assault goal (13i) that differs from the
+       one the stall was recorded under, or the frontal goal again, is a new question and is searched afresh,
+       even after a released stall. With 13i off the goal is always the frontal one and nothing changes. */
+    var goalKey = JSON.stringify(flankBasis(ctx.squad));
+    if (STALL_ON && st.stall && st.stall.goal !== goalKey) {
+      st.stall = null;
+      st.blocked = null;
+    }
     if (STALL_ON && st.stall && st.stall.released) {
       st.reason = 'stall-released:no-hop';
       return;
@@ -810,7 +818,14 @@
       st.reason = 'no-directional-covered-team';
       if (STALL_ON) {
         if (!st.stall)
-          st.stall = { since: ctx.sim.time, reason: st.reason, retries: 0, cycle: cycle, released: false };
+          st.stall = {
+            since: ctx.sim.time,
+            reason: st.reason,
+            retries: 0,
+            cycle: cycle,
+            released: false,
+            goal: goalKey
+          };
         st.stall.retries++;
         st.stall.cycle = cycle;
         if (ctx.sim.time - st.stall.since >= tune.lead.reviewAfter) {
