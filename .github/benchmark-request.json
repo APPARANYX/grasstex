@@ -1,0 +1,14 @@
+{
+  "benchmark": "standard",
+  "ref": "work/meso706-cover-slot-static-quality-20261101",
+  "seed": "controller-natural-20261026",
+  "seeds": "3",
+  "battle_type": "meeting",
+  "sim_seconds": "600",
+  "windows": "0+600",
+  "query_off": "strategicInterception=0",
+  "query_on": "strategicInterception=0&tacticalController=new",
+  "origin_agent": "chatgpt",
+  "correlation_id": "meso707-quality-cache-bbc217d8",
+  "purpose": "Exact-head after green CI41348409548 and native Skills Lab41348409546: measure static shelter quality reuse against existing 1.25 wall gate, preserve tactical ownership."
+}
