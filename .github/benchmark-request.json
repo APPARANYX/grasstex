@@ -1,0 +1,14 @@
+{
+  "benchmark": "standard",
+  "ref": "work/controller-meso-wrap-20261101",
+  "seed": "meso706-transport-20261101",
+  "seeds": "3",
+  "battle_type": "meeting",
+  "sim_seconds": "600",
+  "windows": "0+600",
+  "query_off": "strategicInterception=1&frontLines=1&motorTransport=1&truckAccess=1&truckCollision=1&truckVisual=1&aerialRecon=1&interception=1&reinforcements=1&reinforcementSortie=1",
+  "query_on": "strategicInterception=1&frontLines=1&motorTransport=1&truckAccess=1&truckCollision=1&truckVisual=1&aerialRecon=1&interception=1&reinforcements=1&reinforcementSortie=1&tacticalController=new",
+  "origin_agent": "codex",
+  "correlation_id": "meso706-final-transport-2e4086dc",
+  "purpose": "Final-head acceptance after Lab41311221688 and causal41311442887; inspect real owner receipts, lifecycle progress and cost without tactical tuning."
+}
