@@ -1,7 +1,6 @@
-/* Detached #602 contract spike. NOT loaded by the battle runtime and NOT an effector.
-   Callers supply current owner projections; validation cannot establish their truth. In particular,
-   a native export is not a complete capability adapter. No generic skill move/hold/fire API exists.
-   This module stores nothing, draws no RNG, dispatches nothing and grants no physical authority. */
+/* Detached #602 capability validation, shared by the runtime's owner adapters.
+   Callers supply current owner projections; validation cannot establish their truth.
+   This module owns no simulation state, draws no RNG, dispatches nothing and grants no physical authority. */
 (function (root) {
   'use strict';
   var TOKEN = [
@@ -15,7 +14,8 @@
       'mode'
     ],
     CORRELATION = TOKEN.concat(['actionId', 'actorId', 'capability']),
-    REQUEST = CORRELATION.concat(['params']);
+    REQUEST = CORRELATION.concat(['params']),
+    normalizedShapes = new WeakMap();
   function frozen(value) {
     if (value && typeof value === 'object') {
       Object.keys(value).forEach(function (key) {
@@ -195,6 +195,11 @@
     )
   });
   function shape(request) {
+    /* Only this module's detached, recursively frozen outputs are reusable.
+       Never trust a caller's frozen input or retain mutable owner projections.
+       Authority, actor availability and conflicts are still checked on every call. */
+    var known = normalizedShapes.get(request);
+    if (known) return known;
     if (!record(request, REQUEST) || !owns(request, REQUEST)) return fail('invalid-request');
     if (!text(request.capability) || !Object.hasOwn(CAPABILITIES, request.capability))
       return fail('unknown-capability');
@@ -283,7 +288,9 @@
       out.params[k] =
         k === 'moverIds' ? p[k].slice() : p[k] && typeof p[k] === 'object' ? { x: p[k].x, z: p[k].z } : p[k];
     });
-    return frozen({ ok: true, reason: 'valid-shape', request: out });
+    var normalized = frozen({ ok: true, reason: 'valid-shape', request: out });
+    normalizedShapes.set(out, normalized);
+    return normalized;
   }
   function contextShape(context) {
     if (

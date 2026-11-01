@@ -89,6 +89,32 @@
       }
       return true;
     }
+    function undeliverableMembers(sim, sq, anchor, radius, lease) {
+      var CR = root.BattleCommandReception;
+      if (!(CR && CR.movementEnabled && CR.movementEnabled() && CR.peek)) return [];
+      return alive(sq).filter(function (man) {
+        if (dist(man.root.position, anchor) <= radius) return false;
+        var rec = CR.peek(man, sim, 'movement', 'soldier:' + String(man.id));
+        return !!(
+          rec &&
+          rec.unreachable &&
+          rec.data &&
+          rec.data.missionVersion === missionVersion(sq) &&
+          (!lease || (rec.action === 'regroup' && rec.issuedAt >= lease.since))
+        );
+      });
+    }
+    function finishedOrders(men) {
+      var M = root.BattleMovementResolver;
+      if (!(M && Number.isFinite(M.arrival))) return false;
+      return men.every(function (man) {
+        return (
+          man._movementStopReason === 'arrived' &&
+          man.orderDestination &&
+          dist(man.root.position, man.orderDestination) <= M.arrival
+        );
+      });
+    }
     function updateCohesion(sim, sq) {
       if (!sq) return;
       var current = L.get(sq, 'regroup'),
@@ -213,25 +239,33 @@
          met for REGROUP_ESCALATION_SECS, the cohered majority is being held indefinitely
          on the stuck man's account. Release the squad back to mission execution with a
          regroup-bypass lease so rawSpread > operatingLimit does not immediately re-enter
-         regroup. The stuck men rejoin under STRAGGLER_BYPASS. Gated on actual stuck men
-         (not just time) so a stationary squad in a test fixture or a slowly-converging
-         squad is not escalated. */
+         regroup. Gated on a physical stall or an undeliverable rally whose recipient
+         has finished his previous order, never on age alone or slow convergence. */
         if (age >= REGROUP_ESCALATION_SECS && rallyInside < rallyRequired) {
           var hasStuckMan = alive(sq).some(function (man) {
             var p = man._movementProgress;
             return p && p.stuck && p.kind === 'regroup';
           });
-          if (hasStuckMan) {
+          /* A man can finish his previous order without ever hearing this rally.
+             He is not a navigation stall, but the current regroup cannot obtain
+             its quorum either. Read the actual unreachable receipt; never give
+             him the unheard point or cancel a still-travelling/delayed order. */
+          var unheard = undeliverableMembers(sim, sq, rallyAnchor, release, regroup),
+            undeliverable = unheard.length > ca.allowed && finishedOrders(unheard);
+          if (hasStuckMan || undeliverable) {
             st.escalations = (st.escalations || 0) + 1;
-            L.extend(
-              sq,
-              'regroup-bypass',
-              'squad-leader',
-              t,
-              t + STRAGGLER_BYPASS,
-              'regroup escalation: stuck straggler'
-            );
-            endRegroup(sim, sq, 'regroup escalation: stuck straggler');
+            if (undeliverable && !hasStuckMan)
+              st.deliveryBlock = {
+                missionVersion: missionVersion(sq),
+                anchor: copy(rallyAnchor),
+                radius: release,
+                ids: unheard.map(function (man) {
+                  return String(man.id);
+                })
+              };
+            var reason = 'regroup escalation: ' + (hasStuckMan ? 'stuck straggler' : 'undeliverable order');
+            L.extend(sq, 'regroup-bypass', 'squad-leader', t, t + STRAGGLER_BYPASS, reason);
+            endRegroup(sim, sq, reason);
             return;
           }
         }
@@ -254,6 +288,25 @@
         transitionPhase(sim, sq, 'regroup', 'regroup lease active', 'regroup');
         sq.objective = copy(regroup.data.anchor || ca.center);
         return;
+      }
+      /* Do not recommit the same failed rally while the same quorum-blocking
+         recipients remain unreachable at their old orders. This is an owner
+         outcome, not another cooldown: actual delivery, movement, roster or
+         mission changes permit a fresh assessment. */
+      var blocked = st.deliveryBlock;
+      if (blocked) {
+        var stillUnheard =
+          blocked.missionVersion === missionVersion(sq)
+            ? undeliverableMembers(sim, sq, blocked.anchor, blocked.radius, null).filter(function (man) {
+                return blocked.ids.indexOf(String(man.id)) >= 0;
+              })
+            : [];
+        if (stillUnheard.length > ca.allowed && finishedOrders(stillUnheard)) {
+          st.overSince = null;
+          st.suppressed++;
+          return;
+        }
+        st.deliveryBlock = null;
       }
       /* The Squad Leader, not the General, decides a squad is too scattered to keep executing. */
       var requested = !sq.inContact && !L.holds(sq, 'regroup-bypass', t) && ca.rawSpread > operatingLimit;

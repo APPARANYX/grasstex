@@ -184,6 +184,16 @@
       !(root.BattleGrenades && root.BattleGrenades.pendingOf(s, sim))
     );
   }
+  /* The flank and assault skill (13i) reuses this skill with a lateral axis: while it runs, it names the goal
+     to hop toward and the one fireteam that moves; the rest of the squad is the base of fire. */
+  function flank(sq) {
+    var X = root.BattleTacticalFlankAssault;
+    return X && X.on ? X.goal(sq) : null;
+  }
+  function flankBasis(sq) {
+    var X = root.BattleTacticalFlankAssault;
+    return X && X.on ? X.basis(sq) : null;
+  }
   function reports(ctx) {
     var leader = root.SquadAI.leaderOf(ctx.squad);
     return leader ? root.BattleCoverPositions.boundThreats(leader, ctx.sim) : [];
@@ -194,6 +204,7 @@
       ctx.squad.commandPhase,
       !!ctx.squad.inContact,
       root.BattleNavigation && root.BattleNavigation.version,
+      flankBasis(ctx.squad),
       rs.map(function (r) {
         return [Math.round(r.x), Math.round(r.z)];
       }),
@@ -359,16 +370,20 @@
       }),
       back = ctx.squad.state === 'retreat' || ctx.squad.commandPhase === 'retreat',
       defense = !back && defenseBrief(ctx, rs),
+      lateral = !back && !defense ? flank(ctx.squad) : null,
       goal = back
         ? A.retreatGoal(ctx.squad)
         : defense
           ? defense.center
-          : root.BattleTacticalMarchProvider.target(ctx.squad),
+          : lateral
+            ? lateral.point
+            : root.BattleTacticalMarchProvider.target(ctx.squad),
       leader = A.leaderOf(ctx.squad),
       audit = {
         at: ctx.sim.time,
         phase: ctx.squad.commandPhase,
-        direction: back ? 'back' : defense ? 'defensive-position' : 'forward',
+        direction: back ? 'back' : defense ? 'defensive-position' : lateral ? lateral.phase : 'forward',
+        flankTeam: lateral ? lateral.team : null,
         protectedObjective: defense ? defense.center : null,
         defenseRadius: defense ? defense.radius : null,
         contactReports: rs.length,
@@ -401,17 +416,20 @@
     }
     /* Only the assault approach may shift its support echelon. Ordinary
        defense and retreat keep their separate owner-defined posture. */
-    if (!back && !defense && ctx.squad._macroMission.action === 'assault') {
+    if (!back && !defense && !lateral && ctx.squad._macroMission.action === 'assault') {
       var shift = supportRelocation(ctx, st, ready, goal, audit);
       if (shift) return shift;
     }
     var choices = [];
     ready.forEach(function (s) {
       var retained = st.routes.get(String(s.id));
+      /* A committed hop may finish, but later checkpoints belong to the goal that planned them.
+         A flank or assault can change that goal without replacing the Macro mission. */
       var pending = !!(
         retained &&
         retained.cursor < retained.waypoints.length &&
-        retained.mission === ctx.squad._macroMission
+        retained.mission === ctx.squad._macroMission &&
+        retained.goalBasis === JSON.stringify(flankBasis(ctx.squad))
       );
       if (A.isMachineGun(s) || (st.lastMoverId === String(s.id) && ready.length > 2 && !pending)) return;
       var team = Q.teamKeyFor(s);
@@ -431,6 +449,8 @@
       /* The Meso covered-window owner accepts alpha/bravo/charlie, not the
          command element. Never choose a route it cannot lease. */
       if (teams.indexOf(team) < 0) return;
+      /* A flank drafts only its own team: every other man stays the base of fire. */
+      if (lateral && team !== lateral.team) return;
       /* The owner validates the mover's own received sector, not merely the
          Squad Leader's reports. Do not plan an order he cannot adopt. */
       var personalReports = C.boundThreats(s, ctx.sim);
@@ -619,7 +639,8 @@
           origin: { x: p.man.root.position.x, z: p.man.root.position.z },
           waypoints: route.waypoints,
           cursor: 0,
-          mission: ctx.squad._macroMission
+          mission: ctx.squad._macroMission,
+          goalBasis: JSON.stringify(flankBasis(ctx.squad))
         });
       st.byDirection[st.direction].started++;
       note(ctx, st, 'moving', 'replacement-native-mover:' + id);
@@ -658,7 +679,8 @@
             Q.boundPhases().indexOf(ctx.squad.commandPhase) >= 0 ||
             (ctx.squad.commandPhase === 'approach' &&
               ctx.squad._macroMission &&
-              ctx.squad._macroMission.action === 'assault'));
+              ctx.squad._macroMission.action === 'assault') ||
+            !!flank(ctx.squad));
     if (st.window) {
       var stage = ctx.stage(st.window);
       if (!eligible || !stage || stage.stage === 'cancelled') {
@@ -768,6 +790,13 @@
       note(ctx, st, 'moving', 'real-independent-support-discharge');
       return;
     }
+    /* No new covered bound while nobody commands the squad (succession, 15d): the reason says so. */
+    if (Q.controllerSuccession && Q.controllerSuccession(ctx.sim, ctx.squad)) {
+      st.reason = 'succession';
+      st.blocked = null;
+      st.stall = null;
+      return;
+    }
     if (!eligible) {
       st.reason = back ? 'ordinary-retreat' : 'no-authorized-contact';
       st.blocked = null;
@@ -781,7 +810,17 @@
        Leader asks the General for a new task where the mission allows one. */
     var tune = Q.tuning,
       cycle = Math.floor(ctx.sim.time / tune.boundCycle);
-    if (STALL_ON && st.stall && st.stall.released) {
+    /* A stall is one continuous no-hop contact, whatever goal it was refused toward. A flank or assault goal
+       (13i) that differs from the one last searched is searched once afresh, even after the stall was
+       released, but the stall keeps its clock, so the Squad Leader's review still comes after reviewAfter.
+       With 13i off the goal is always the frontal one and nothing changes. */
+    var goalKey = JSON.stringify(flankBasis(ctx.squad)),
+      newGoal = !!(STALL_ON && st.stall && st.stall.goal !== goalKey);
+    if (newGoal) {
+      st.stall.goal = goalKey;
+      st.blocked = null;
+    }
+    if (STALL_ON && st.stall && st.stall.released && !newGoal) {
       st.reason = 'stall-released:no-hop';
       return;
     }
@@ -792,10 +831,18 @@
       st.reason = 'no-directional-covered-team';
       if (STALL_ON) {
         if (!st.stall)
-          st.stall = { since: ctx.sim.time, reason: st.reason, retries: 0, cycle: cycle, released: false };
+          st.stall = {
+            since: ctx.sim.time,
+            reason: st.reason,
+            retries: 0,
+            cycle: cycle,
+            released: false,
+            goal: goalKey
+          };
         st.stall.retries++;
         st.stall.cycle = cycle;
-        if (ctx.sim.time - st.stall.since >= tune.lead.reviewAfter) {
+        if (st.stall.released) st.reason = 'stall-released:no-hop';
+        else if (ctx.sim.time - st.stall.since >= tune.lead.reviewAfter) {
           st.stall.released = true;
           st.stall.reason = 'no-hop-after-' + tune.lead.reviewAfter + 's';
           st.reason = 'stall-released:no-hop';
@@ -838,7 +885,8 @@
           origin: { x: mover.man.root.position.x, z: mover.man.root.position.z },
           waypoints: route.waypoints,
           cursor: 0,
-          mission: ctx.squad._macroMission
+          mission: ctx.squad._macroMission,
+          goalBasis: JSON.stringify(flankBasis(ctx.squad))
         });
     });
     st.arrived.clear();

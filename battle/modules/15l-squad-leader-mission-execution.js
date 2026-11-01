@@ -296,6 +296,16 @@
       if (m.intent === 'defend') return m.requestKey || inside ? 'defend' : 'assault';
       return inside ? 'capture' : 'assault';
     }
+    /* One read-only gate for both route selection and mission publication. Retained lifecycle skills
+       keep the committed leg as well as its physical orders; refusing only the publication would let
+       the provider's private route advance behind that owner and skip the leg on handback. */
+    function controllerMissionHeldBy(sq) {
+      if (sq.state === 'retreat' || sq.commandPhase === 'retreat') return 'retreat';
+      if (leaderlessActive(sq)) return 'succession';
+      if (L.get(sq, 'regroup')) return 'regroup';
+      if (L.get(sq, 'recon')) return 'recon';
+      return null;
+    }
     /* Controller policy supplies a selected phase/point; only this owner publishes mission state.
        Acceptance and transport adoption still run before controller dispatch in executeMission. */
     function publishControllerMission(sim, sq, version, p) {
@@ -305,9 +315,7 @@
         !TC ||
         !TC.controls(sim, sq) ||
         missionVersion(sq) !== version ||
-        sq.state === 'retreat' ||
-        L.get(sq, 'regroup') ||
-        leaderlessActive(sq) ||
+        controllerMissionHeldBy(sq) ||
         !p ||
         !Number.isInteger(p.leg) ||
         p.leg < 0 ||
@@ -457,6 +465,15 @@
       var TC = root.BattleTacticalController;
       if (TC && TC.controls(sim, sq)) {
         adoptTransportArrival(sim, sq, m, ex, sq.route || []);
+        /* Reconcile the retained scout task before any route choice. An old brief ends it through
+           its owner; a live one holds the committed waypoint even if the squad centre reaches it. */
+        var heldLegs = sq.route || [],
+          heldIndex = Math.max(0, Math.min(heldLegs.length - 1, +sq.routeIndex || 0));
+        if (
+          heldLegs.length &&
+          reconHeld(sim, sq, m, heldLegs[heldIndex], heldIndex === heldLegs.length - 1, pos, c)
+        )
+          return;
         /* The leg this owner had before the provider's mission.execute publishes the new one below. */
         var legBefore = +sq.routeIndex || 0;
         /* Not a mission hold: the replacement executes the brief. Loop Watch keeps judging its progress,
@@ -505,7 +522,7 @@
         }
         if (leg && MP.structure && LPC && LPC.structuresOn && pos && +sq.routeIndex === leg.index)
           resumeContactLeg(sim, sq, m, ex, leg.index, leg.point, pos, +c.routeArrivalRadius || 8);
-        if (leg && !reconHeld(sim, sq, m, leg.point, leg.final, pos, c)) {
+        if (leg) {
           var started = plain && reconStart(sim, sq, m, leg.point, leg.final, pos, c);
           if (
             !started &&
@@ -706,6 +723,7 @@
       objectivePhase: objectivePhase,
       controllerMission: {
         publish: publishControllerMission,
+        heldBy: controllerMissionHeldBy,
         objectivePhase: objectivePhase,
         assaultCommitted: assaultCommitted
       },

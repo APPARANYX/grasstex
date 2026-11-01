@@ -296,6 +296,19 @@
   var UNREACHABLE_ANCHOR_ON = !/[?&]unreachableAnchor=(?:0|off|false)(?:&|#|$)/i.test(
     typeof location !== 'undefined' ? location.search || '' : ''
   );
+  /* Retreat movement is a retained Squad Leader service under any controller (13a handoff matrix:
+     retreat-anchor and rally-recovery stay with their owners). Its urgent fireteam orders take the men to
+     the retreat anchor, to the morale rally point a recovering squad must physically reform on, and to a
+     reconstitution rally. Without them each man fell back to `sq.home`: rally recovery never found its
+     squad reformed and a reconstitution group never converged (#339). A controller covered bound keeps
+     a retreat in contact. Only read under ?tacticalController=new; ?controllerRetreat=0 restores the old
+     controlled path. */
+  var CONTROLLER_RETREAT_ON = !/[?&]controllerRetreat=(?:0|off|false)(?:&|#|$)/i.test(
+    typeof location !== 'undefined' ? location.search || '' : ''
+  );
+  function retainedRetreat(sq) {
+    return CONTROLLER_RETREAT_ON && sq.state === 'retreat' && !L.get(sq, 'bound');
+  }
   var ORDER_STRIDE = 13,
     ORDER_ARRIVAL_RADIUS = 8,
     ORDER_COHESION = 0.55,
@@ -652,6 +665,11 @@
       ? _ll.endLeaderlessIntent
       : function () {
           return null;
+        },
+    controllerSuccession = _ll
+      ? _ll.controllerSuccession
+      : function () {
+          return false;
         };
   /* Morale + COA functions are extracted to 15e-squad-leader-morale-coa.js.
      The factory is called after the flags and the declared tables are in scope.
@@ -1047,11 +1065,12 @@
       return commitPersonalMovement(s, next, publishKey, battle, urgent, stats);
     }
 
+    /* Settle through the canonical adopted view before reading the one pending
+       movement receipt. A diagnostic snapshot copies every command slot and
+       every adopted slot; carrying one personal move does not need those DTOs. */
     var scope = movementScope(s),
-      slot = 'movement|' + scope,
-      view = CR.snapshot && CR.snapshot(s, battle),
-      pending = view && view.records && view.records[slot],
       adopted = CR.adoptedView && CR.adoptedView(s, battle, 'movement', scope),
+      pending = CR.peek && CR.peek(s, battle, 'movement', scope),
       samePending =
         pending &&
         pending.phase !== 'adopted' &&
@@ -1220,6 +1239,19 @@
       !(root.BattleAmmunition && !root.BattleAmmunition.available(s))
     );
   }
+  /* Where a forward controller window may open and stay open: an assault phase, a personal mover in a
+     defence or an assault approach, or a controller flank or assault (13i, ?controllerAssault=0 off) that
+     names its own team and goal. One rule for begin and for every later check. */
+  function controllerBoundForward(sq, p) {
+    var personal = !!(p.moverId || p.moverIds),
+      X = root.BattleTacticalFlankAssault;
+    return !!(
+      ASSAULT_PHASES[sq.commandPhase] ||
+      (personal && sq._macroMission.action === 'defend' && sq._macroMission.point) ||
+      (personal && sq.commandPhase === 'approach' && sq._macroMission.action === 'assault') ||
+      (personal && X && X.on && X.goal(sq))
+    );
+  }
   function currentControllerBound(sq, battle) {
     var h = sq && _controllerBounds.get(sq);
     if (!h) return null;
@@ -1248,15 +1280,7 @@
       boundRoster(sq).length < 4 ||
       !sq.inContact ||
       !!back !== (h.direction === 'back') ||
-      (back
-        ? A.isExtractionToHome(sq)
-        : !(
-            ASSAULT_PHASES[sq.commandPhase] ||
-            ((h.moverId || h.moverIds) && sq._macroMission.action === 'defend' && sq._macroMission.point) ||
-            ((h.moverId || h.moverIds) &&
-              sq.commandPhase === 'approach' &&
-              sq._macroMission.action === 'assault')
-          ))
+      (back ? A.isExtractionToHome(sq) : !controllerBoundForward(sq, h))
     )
       return null;
     /* A confirmed live shot arms the bounded movement window. Do not cancel
@@ -1348,17 +1372,7 @@
       !sq._macroMission ||
       sq._macroMission.status !== 'executing' ||
       !!back !== (params.direction === 'back') ||
-      (back
-        ? A.isExtractionToHome(sq)
-        : !(
-            ASSAULT_PHASES[sq.commandPhase] ||
-            ((params.moverId || params.moverIds) &&
-              sq._macroMission.action === 'defend' &&
-              sq._macroMission.point) ||
-            ((params.moverId || params.moverIds) &&
-              sq.commandPhase === 'approach' &&
-              sq._macroMission.action === 'assault')
-          )) ||
+      (back ? A.isExtractionToHome(sq) : !controllerBoundForward(sq, params)) ||
       ['alpha', 'bravo', 'charlie'].indexOf(params.team) < 0 ||
       currentControllerBound(sq, battle) ||
       !C ||
@@ -2463,6 +2477,7 @@
         leaderlessActive: leaderlessActive,
         noteLeaderlessAction: noteLeaderlessAction,
         updateLeaderlessLocalTask: updateLeaderlessLocalTask,
+        controllerSuccession: controllerSuccession,
         updateClearContact: updateClearContact,
         updateCOA: updateCOA,
         updateFireControl: updateFireControl,
@@ -2553,8 +2568,9 @@
     if (TC && TC.dispatch(battle, sq, 'squadCommand')) {
       carryControllerMoves(sq, battle);
       /* Recon and regroup are retained Squad Leader skills: while either lease holds, the provider
-         has stood down and this skill's own fireteam orders are the squad's only movement. */
-      if (!retainedSkill(sq, battle)) {
+         has stood down and this skill's own fireteam orders are the squad's only movement. So is
+         retreat movement (the provider stands down on retreat): see retainedRetreat. */
+      if (!retainedSkill(sq, battle) && !retainedRetreat(sq)) {
         /* The march is paced by the Squad Leader's own anchor stride (advanceSquadAnchor), as on any
            legacy march: men follow an anchor that waits for the squad, not the far end of the leg. */
         var MP = root.BattleTacticalMarchProvider,
@@ -2753,6 +2769,13 @@
     parseLeaderlessIntent: parseLeaderlessIntent,
     leaderlessActive: leaderlessActive,
     leaderlessTelemetry: leaderlessTelemetry,
+    /* A controlled squad in succession: its skills start no new Meso command (15d). */
+    controllerSuccession: controllerSuccession,
+    noteControllerSuccession: _ll
+      ? _ll.noteControllerSuccession
+      : function () {
+          return null;
+        },
     scoutsForwardOn: function () {
       return SCOUTS_FORWARD_ON;
     },

@@ -76,8 +76,10 @@ defended perimeter; only the last checked-in post stabilizes that defender. Cove
 are revalidated against detached perceived threats; no exposed/objective-rush fallback.
 
 Close assault finishes with an explicit `combat.contact` `grenade` drill, selected by the
-contact skill for one eligible non-moving rifleman per squad. The grenade owner's read-only
-`assaultOpportunity` checks personally known fresh contact, 30 m range, inventory/cooldown,
+contact skill for one eligible non-moving rifleman per squad. A fresh personal report behind cover
+remains eligible after the squad's visual contact clears; the report never becomes a rifle target
+or a new shared contact. The grenade owner's read-only
+`assaultOpportunity` checks personally known fresh contact, 35 m range, inventory/cooldown,
 fire permission, a clear physical throw arc and native friendly clearance. Engagement calls
 `assaultThrow` to revalidate and commit; the native grenade clock alone releases and detonates.
 A usable rifle line does not veto this explicitly requested finisher. Legacy opportunistic
@@ -202,6 +204,22 @@ still precede dispatch. On the owner's once-only transport handoff, the provider
 route index, ends its own old move/hold actions and republishes through normal personal adoption,
 including when the carrier finishes on the same leg. Other cancelled actions remain terminal.
 
+`controllerMission.heldBy` is the mission owner's read-only gate for both controller route selection
+and publication. Retreat, succession, regroup and recon preserve the committed leg, so a refused
+publication cannot leave the provider's private route ahead of the squad. The owner reconciles a
+retained recon task before dispatch: a current task holds the waypoint; a superseding brief ends the
+old task before selecting its new route. Recon handback then permits normal progression.
+
+The retained regroup owner also recognizes command-delivery blockage: after its existing
+escalation age, a missing rally quorum may release when more than the allowed outlier count
+cannot receive this lease's regroup order and all have arrived at their previous orders.
+The receipt must belong to the current mission and have been issued since the lease began.
+The owner ends its own regroup and uses the existing bypass; it never delivers the unheard
+point. A man still travelling or processing a deliverable order keeps his ordinary handoff.
+The owner retains that failed cohort as an outcome and does not recommit the same rally
+while the same quorum-blocking men remain unreachable at their previous orders. Actual
+delivery, movement, roster or mission changes permit a new assessment; no retry timer is added.
+
 Ending an owned Meso movement proposal retires its `orderDestination` rather than retaining the man's
 release position as a command. With no remaining squad order, the resolver's formation fallback is
 the current physical position; a later combat bound therefore cannot revive that released point.
@@ -225,6 +243,19 @@ uncommitted rifleman takes the first post that `BattleCoverPositions.maskedPost`
 ready and the contact skills fire on first-hand contact. The march and the station skill yield to a man it
 holds. Contact before ready, pressure, a lost threat or masking, a retained skill, a retreat, an owner
 ending a man's action, or the 12 s preparation/observation budgets release every man through his owner.
+
+`13i-tactical-flank-assault.js` (`BattleTacticalFlankAssault`, `?controllerAssault=0` turns it off) is the
+Squad Leader's flank and assault decision. Legacy 15j only bounded a team frontally and labelled the
+fireteams' flank tasks (16 `tasksFor`). In contact on an assault or flank brief (approach, assault or flank
+phase), with the Squad Leader's own bound-threat reports between one covered hop and 160 m away, bravo
+(charlie if bravo cannot go; two movers and two supporters minimum) heads for a point 60 degrees round the
+reported enemy on its own side, at the squad's current range; at a 45 degree crossing angle (or on that
+point) it assaults the reported position. It moves nobody: the covered-bound skill (13e,
+execute-covered-bound) reads `goal()` for its hop goal and drafts only that team, so the rest of the squad
+is the base of fire, and Meso's `controllerBound` accepts the skill's goal as a forward window. Retreat, a
+retained skill, a mission change, lost contact, a depleted team or base of fire, a new 13e no-hop stall, the
+flank budget (its length at 0.6 m/s) or closing to 8 m ends it with a reason in `summary()` (also
+`BattleTacticalMarchProvider.summary()[].flank`), and the frontal hop is the answer again.
 
 `fire.control` asks `controllerFireControl.publish` in Meso to use 15a's existing publisher;
 `published` explicitly does not imply personal adoption. Engagement still uses each man's adopted
@@ -259,6 +290,7 @@ Capture zones count deployed infantry only: boarding/embarked passengers cannot
 capture, neutralize, or contest a flag while a truck crosses it. Screen transport
 keeps the secured objective as an explicit road junction before the forward post.
 `BattleSquadTransport` owns journey occupancy reads: `isPassenger(s)` is the active boarding/ride/dismount commitment used by movement and capture; `carrierId(s)` grants own-carrier LOS exclusion only to admitted, unexited occupants (or the legacy fully embarked task); `seatedIds(squad)` is a detached presentation projection of admitted minus exited IDs, retaining the historical boarding-prefix fallback. These queries read the current task without a cache. Fleet/journey mutation, positions and boarding policy retain their existing owner.
+Controller actor requests use that same `isPassenger` commitment and are refused as `transport-owned` until the journey releases the squad, including a man already outside during serial dismount.
 
 Boarding requests an upright stance through Engagement before physically walking;
 Engagement retains HOLD/PRECISION preparation posture when another movement plan

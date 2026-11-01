@@ -161,6 +161,56 @@
     });
     return out;
   }
+  function selectGrenadier(ctx, st) {
+    /* One native grenade at a time per squad. This is a controller decision;
+       the grenade owner supplies the read-only personal-intel/arc/safety query
+       and revalidates at execution. A mover finishes his physical hop first. */
+    var sq = ctx.squad,
+      sim = ctx.sim,
+      A = root.SquadAI,
+      Q = root.BattleSquadStability,
+      G = root.BattleGrenades,
+      pendingGrenadier =
+        G &&
+        members(sq).find(function (s) {
+          return G.pendingOf(s, sim);
+        });
+    st.grenadier = pendingGrenadier ? String(pendingGrenadier.id) : null;
+    st.grenadeDiagnostic = {
+      at: +sim.time.toFixed(2),
+      considered: 0,
+      reasons: {},
+      selectedId: st.grenadier
+    };
+    if (
+      G &&
+      G.assaultAssessment &&
+      !st.grenadier &&
+      !retreat(sq) &&
+      !G.projectiles(sim).some(function (g) {
+        return g.byRef && g.byRef.squad === sq;
+      })
+    ) {
+      var grenadier = members(sq).find(function (s) {
+        if (A.isMachineGun(s)) return false;
+        if (Q.controllerBound && Q.controllerBound.role(s, sim) === 'move') {
+          st.grenadeDiagnostic.reasons['assigned-covered-mover'] =
+            (st.grenadeDiagnostic.reasons['assigned-covered-mover'] || 0) + 1;
+          return false;
+        }
+        var decision = G.assaultAssessment(s, sim);
+        st.grenadeDiagnostic.considered++;
+        if (!decision.ok)
+          st.grenadeDiagnostic.reasons[decision.reason] =
+            (st.grenadeDiagnostic.reasons[decision.reason] || 0) + 1;
+        return decision.ok;
+      });
+      if (grenadier) {
+        st.grenadier = String(grenadier.id);
+        st.grenadeDiagnostic.selectedId = st.grenadier;
+      }
+    }
+  }
   function update(ctx) {
     var st = state(ctx),
       sq = ctx.squad,
@@ -185,7 +235,10 @@
       st.startedAt = null;
       st.roles.clear();
       st.points.clear();
-      st.grenadier = null;
+      /* A personally received report can remain actionable behind cover after
+         the squad loses visual contact. Reuse the same native grenade query;
+         absence of a shared visual picture must not erase a man's own intel. */
+      selectGrenadier(ctx, st);
       st.reason = 'contact-clear';
       /* A gap in sightings is not a new engagement: the discipline the squad reached is kept, and a
          re-sighting inside RESUME_MEMORIES of the last sighting resumes OPEN (below) instead of restarting HOLD. */
@@ -256,6 +309,23 @@
     if (!Q.fireControlOn() || underFire || !threat || elapsed >= T.maxHold) {
       desired = 'open';
       reason = underFire ? 'return-fire' : elapsed >= T.maxHold ? 'preparation-deadline' : 'no-visual-hold';
+    } else if (Q.controllerSuccession && Q.controllerSuccession(sim, sq)) {
+      /* Succession (15d): the dead leader's discipline stands until its own deadline or return fire;
+         nobody is there to order a new HOLD, name a new marksman or judge the line ready. Without
+         an inherited discipline (or with its marksman gone) the men fire on their own. */
+      var heir =
+        st.discipline === 'precision' &&
+        men.find(function (s) {
+          return String(s.id) === st.shooterId;
+        });
+      if (st.discipline === 'hold' || heir) {
+        desired = st.discipline;
+        shooter = heir || null;
+        reason = 'succession-inherited';
+      } else {
+        desired = 'open';
+        reason = st.discipline === 'open' ? 'succession-inherited' : 'succession-no-command';
+      }
     } else if (desired !== 'open' && elapsed >= T.prepMin) {
       if (range >= T.longRange && shooter) {
         desired = 'precision';
@@ -340,50 +410,7 @@
         return id;
       })
     );
-    /* One native grenade at a time per squad. This is a controller decision;
-       the grenade owner supplies the read-only personal-intel/arc/safety query
-       and revalidates at execution. A mover finishes his physical hop first. */
-    var G = root.BattleGrenades,
-      pendingGrenadier =
-        G &&
-        members(sq).find(function (s) {
-          return G.pendingOf(s, sim);
-        });
-    st.grenadier = pendingGrenadier ? String(pendingGrenadier.id) : null;
-    st.grenadeDiagnostic = {
-      at: +sim.time.toFixed(2),
-      considered: 0,
-      reasons: {},
-      selectedId: st.grenadier
-    };
-    if (
-      G &&
-      G.assaultAssessment &&
-      !st.grenadier &&
-      !retreat(sq) &&
-      !G.projectiles(sim).some(function (g) {
-        return g.byRef && g.byRef.squad === sq;
-      })
-    ) {
-      var grenadier = members(sq).find(function (s) {
-        if (A.isMachineGun(s)) return false;
-        if (Q.controllerBound && Q.controllerBound.role(s, sim) === 'move') {
-          st.grenadeDiagnostic.reasons['assigned-covered-mover'] =
-            (st.grenadeDiagnostic.reasons['assigned-covered-mover'] || 0) + 1;
-          return false;
-        }
-        var decision = G.assaultAssessment(s, sim);
-        st.grenadeDiagnostic.considered++;
-        if (!decision.ok)
-          st.grenadeDiagnostic.reasons[decision.reason] =
-            (st.grenadeDiagnostic.reasons[decision.reason] || 0) + 1;
-        return decision.ok;
-      });
-      if (grenadier) {
-        st.grenadier = String(grenadier.id);
-        st.grenadeDiagnostic.selectedId = st.grenadier;
-      }
-    }
+    selectGrenadier(ctx, st);
     reconcile(ctx, st);
   }
   /* No shared report becomes a personal target or a permission to shoot. A man without a usable

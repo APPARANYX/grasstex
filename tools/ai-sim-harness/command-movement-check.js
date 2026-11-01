@@ -77,6 +77,43 @@ test('movement adoption is default-on after Phase 0E benchmark validation', () =
   assert.equal(world('?stressAct=0&commandMovement=1').C.movementEnabled(), true);
 });
 
+test('Meso movement reads only its personal receipt while preserving settlement and adoption', () => {
+  const w = world(),
+    man = w.q.members[4],
+    scope = 'soldier:' + String(man.id);
+  // Unrelated command slots must not be copied just to carry this movement.
+  w.C.publish(w.q, w.b, 'posture', allLive(w), { action: 'crouch', data: { posture: 'crouch' } });
+  w.C.publish(w.q, w.b, 'fire-control', allLive(w), { action: 'open', data: { mode: 'open' } });
+  let snapshots = 0;
+  const diagnostic = w.C.snapshot;
+  w.C.snapshot = function (...args) {
+    snapshots++;
+    return diagnostic.apply(this, args);
+  };
+  issue(w);
+  const read = () => w.C.peek(man, w.b, 'movement', scope);
+  const first = read();
+  assert.ok(first && first.adoptedAt > w.b.time);
+  for (let i = 0; i < 20; i++) issue(w);
+  assert.equal(read().envelopeId, first.envelopeId, 'pending processing is not restarted');
+  assert.equal(man._fireteamDestination == null, true, 'pending command grants no movement');
+  w.b.time = first.adoptedAt + 0.001;
+  issue(w);
+  assert.equal(read().phase, 'adopted');
+  assert.equal(man._fireteamAdoptedEnvelope, first.envelopeId);
+  assert.ok(distance(man._fireteamDestination, first.point) < 1e-9);
+  assert.ok(
+    w.calls.some(c => c.id === String(man.id)),
+    'owner still publishes adopted movement'
+  );
+  assert.equal(w.b._commandReception.settledAt, w.b.time, 'read still settles command lifecycle');
+  assert.equal(snapshots, 0, 'gameplay must not construct full diagnostic snapshots');
+  const external = w.C.snapshot(man, w.b);
+  assert.ok(external.records['posture|squad'] && external.records['fire-control|squad']);
+  external.records[slot(man)].point.x = 999;
+  assert.equal(read().point.x, first.point.x, 'diagnostic callers still receive detached copies');
+});
+
 test('a fresh Meso slot is pending information, not a personal destination, until adoption', () => {
   const w = world(),
     man = w.q.members[4];

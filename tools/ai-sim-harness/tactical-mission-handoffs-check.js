@@ -43,7 +43,7 @@ function world(intent = 'capture', flags = '', controller = true) {
     })
   };
   r.BattleObjectiveSystem = { get: () => ({ def: { radius: 30 } }) };
-  const b = H.makeBattle(r, { seed: 57 });
+  const b = H.makeBattle(r, { seed: +(process.env.HARNESS_SEED || 57) });
   b.time = 10;
   const q = H.addSquad(r, b, { id: 'us-0', faction: 'us', x: 0, z: 0, objective: { x: 0, z: 300 } });
   q.commandPhase = 'reserve';
@@ -200,6 +200,38 @@ test('dismount and abort consume Meso route adoption once and physically resume 
       w.q.members.every(s => s.root.position.z > 202),
       'real infantry movement continues forward'
     );
+  }
+});
+
+test('transport release retires controlled foot intent without a new position order', () => {
+  const w = world('screen', '&commandMovement=0');
+  w.r.BattleModules.listSystems = () => [];
+  loadModule(w.r, 'battle/modules/36-order-provenance.js', { location: w.r.location });
+  const P = w.r.BattleOrderProvenance,
+    movement = w.Q.controllerMovement,
+    s = w.q.members[4];
+  P.instrument(w.b);
+  const order = movement.publish(w.q, w.b, s, { x: 20, z: 100 }, 'before-boarding');
+  assert.ok(order);
+  movement.end(s, order);
+  w.b.time += 0.15;
+  const physical = { x: s.root.position.x, z: s.root.position.z };
+  w.R.restoreAfterTransport(s);
+  assert.equal(s.orderDestination, null, 'a release is not a fresh squad movement command');
+  assert.deepEqual(s.destination, physical, 'the physical destination stays at the actual release position');
+  w.b.time += 0.45;
+  assert.ok(movement.publish(w.q, w.b, s, { x: 25, z: 110 }, 'after-boarding-abort'));
+  assert.equal(P.conflicts(w.b).length, 0, 'release then resumed Meso movement has no intervening publisher');
+  P.withOwner('building-hardpoints', 'genuine foreign movement', () => {
+    s.orderDestination = { x: -30, z: -20 };
+  });
+  movement.publish(w.q, w.b, s, { x: 26, z: 111 }, 'after-foreign-write');
+  assert.ok(P.conflicts(w.b).length > 0, 'real foreign movement remains detectable');
+  for (const controller of [false, true]) {
+    const legacy = world('screen', controller ? '&releasedOrder=0' : '', controller),
+      man = legacy.q.members[4];
+    legacy.R.restoreAfterTransport(man);
+    assert.deepEqual(man.orderDestination, { x: man.root.position.x, z: man.root.position.z });
   }
 });
 
@@ -364,6 +396,90 @@ test('a support squad is released early when another squad of its side has commi
   tick(w);
   tick(w);
   assert.notEqual(w.q.commandPhase, 'support-hold');
+});
+
+test('retained recon keeps the committed route leg until its own owner releases it', () => {
+  const w = world();
+  w.q._macroMission.route = [
+    { x: 0, z: 40 },
+    { x: 0, z: 120 }
+  ];
+  tick(w);
+  const before = { ...w.q.objective };
+  assert.equal(
+    w.Q.startRecon(w.q, w.b, {
+      signature: 'route-owner-recon',
+      reason: 'unknown-approach',
+      from: { x: 0, z: 0 },
+      goal: { x: 0, z: 120 },
+      point: { x: 0, z: 70 },
+      axis: { x: 0, z: 1 },
+      goalDistance: 120
+    }),
+    true
+  );
+  placeAll(w, 40);
+  w.b.time += 0.45;
+  tick(w);
+  assert.equal(w.q.routeIndex, 0, 'centroid arrival cannot overrule the active scouting task');
+  assert.equal(w.r.BattleTacticalMarchProvider.leg(w.q).index, 0, 'selection and committed leg agree');
+  assert.deepEqual(w.q.objective, before, 'the route objective is not rewritten behind the scouts');
+  assert.equal(w.q._missionHold, 'recon');
+  assert.equal(
+    w.Q.controllerMission.publish(w.b, w.q, 1, {
+      leg: 1,
+      phase: 'approach',
+      point: { x: 0, z: 120 }
+    }),
+    false,
+    'owner refuses a competing mission write while recon holds it'
+  );
+  w.Q.endRecon(w.q, w.b, 'test complete');
+  w.b.time += 0.45;
+  tick(w);
+  assert.equal(w.q.routeIndex, 1, 'the same reached leg advances after explicit handback');
+});
+
+test('direct mission dispatch cannot advance a route while the retained owner holds regroup or retreat', () => {
+  for (const reason of ['regroup', 'retreat']) {
+    const w = world();
+    w.q._macroMission.route = [
+      { x: 0, z: 40 },
+      { x: 0, z: 120 }
+    ];
+    tick(w);
+    placeAll(w, 40);
+    if (reason === 'regroup')
+      w.r.BattleLeases.grant(w.q, 'regroup', 'squad-leader', w.b.time, w.b.time + 30, 'test', 'test', {});
+    else w.q.state = 'retreat';
+    w.TC.dispatch(w.b, w.q, 'executeMission');
+    assert.equal(w.q.routeIndex, 0, reason + ' keeps its committed route');
+    assert.equal(w.r.BattleTacticalMarchProvider.leg(w.q).index, 0, reason + ' keeps selection in sync');
+  }
+});
+
+test('a superseding brief ends the old recon before selecting its new route', () => {
+  const w = world();
+  tick(w);
+  assert.equal(
+    w.Q.startRecon(w.q, w.b, {
+      signature: 'old-route-recon',
+      reason: 'unknown-approach',
+      from: { x: 0, z: 0 },
+      goal: { x: 0, z: 300 },
+      point: { x: 0, z: 70 },
+      axis: { x: 0, z: 1 },
+      goalDistance: 300
+    }),
+    true
+  );
+  w.q._macroMission = { ...w.q._macroMission, version: 2, point: { x: 100, z: 400 } };
+  w.b.time += 0.45;
+  tick(w);
+  assert.equal(w.q._reconTask, null, 'the old task was ended at its owner');
+  assert.equal(w.q._reconLast.reason, 'mission-change');
+  assert.deepEqual(w.q.objective, { x: 100, z: 400 }, 'new brief is applied in this mission tick');
+  assert.deepEqual(w.r.BattleTacticalMarchProvider.leg(w.q).point, w.q.objective);
 });
 
 console.log(checks + ' tactical mission handoff checks passed');
