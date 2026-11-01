@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 'use strict';
 /* Retreat is a retained Squad Leader service under the tactical controller (13a handoff matrix; 16
-   squadCommand, `?controllerReconstitute=0` the control). A controlled squad in retreat keeps the Squad
+   squadCommand, `?controllerRetreat=0` the control). A controlled squad in retreat keeps the Squad
    Leader's retreat anchor and urgent fireteam orders, so a remnant briefed to a reconstitution rally
-   walks to the rally (#339: the group converges on its assembly point) instead of each man falling back
-   to his squad's home. */
+   walks to the rally (#339: the group converges on its assembly point), and a squad whose morale has
+   recovered reforms on its rally point and leaves retreat, instead of each man falling back to his
+   squad's home. */
 const assert = require('node:assert/strict'),
   H = require('./harness'),
   { loadModule } = require('./module-loader');
@@ -122,8 +123,8 @@ test('a controlled remnant briefed to a reconstitution rally is ordered to the r
   assert.equal(w.TC.summary(w.b).actions, 0, 'the provider stays stood down: no second mover');
 });
 
-test('?controllerReconstitute=0 is the control: no fireteam orders, every man falls back to home', () => {
-  const w = world('&controllerReconstitute=0');
+test('?controllerRetreat=0 is the control: no fireteam orders, every man falls back to home', () => {
+  const w = world('&controllerRetreat=0');
   run(w, 90, true);
   assert.equal(w.q._assembly.phase, 'to-rally');
   const g = goals(w);
@@ -131,6 +132,35 @@ test('?controllerReconstitute=0 is the control: no fireteam orders, every man fa
     assert.equal(x.kind, 'retreat');
     assert.ok(d(x.point, HOME) < 30, 'goal ' + JSON.stringify(x.point) + ' is home');
   });
+});
+
+function rallyWorld(extra) {
+  const w = world(extra);
+  /* Seven men out of contact, calm, 60 m short of home: morale recovery picks their spot as the rally point. */
+  w.q.members.forEach((s, i) => {
+    s.dead = i >= 7;
+    s.root.position.x = 60 + (i % 3) * 2;
+    s.root.position.z = Math.floor(i / 3) * 2;
+  });
+  w.q._assembly = null;
+  w.q._macroMission = { owner: 'force-command', intent: 'capture', status: 'executing', version: 2 };
+  return w;
+}
+test('a controlled squad whose morale recovered reforms on its rally point and leaves retreat', () => {
+  const w = rallyWorld();
+  let leased = false;
+  for (let i = 0; i < 120 && w.q.state === 'retreat'; i++) {
+    run(w, 0.5, true);
+    leased = leased || !!w.r.BattleLeases.get(w.q, 'rally-recovery');
+  }
+  assert.ok(leased, 'morale recovery started');
+  assert.notEqual(w.q.state, 'retreat', 'the squad rallied');
+});
+test('?controllerRetreat=0: the men walk home past their rally point and the squad stays in retreat', () => {
+  const w = rallyWorld('&controllerRetreat=0');
+  run(w, 60, true);
+  assert.equal(w.q.state, 'retreat');
+  assert.ok(w.r.BattleLeases.get(w.q, 'rally-recovery'), 'recovery still waits for a reform');
 });
 
 log(n + ' controlled retreat checks passed');
