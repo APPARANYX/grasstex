@@ -102,6 +102,13 @@
       st = stateOf(sq),
       legs = sq.route || [],
       m = sq._macroMission || null;
+    var Q = root.BattleSquadStability,
+      M = Q && Q.controllerMission,
+      held = M && M.heldBy && M.heldBy(sq);
+    if (held) {
+      st.idle = 'yield:' + held;
+      return;
+    }
     if (st.mission !== m) {
       st.mission = m;
       st.leg = 0;
@@ -378,6 +385,7 @@
         if (root.BattleTacticalCoveredManeuver)
           row.maneuver = root.BattleTacticalCoveredManeuver.summary(a[i]);
         if (root.BattleTacticalAmbushSkill) row.ambush = root.BattleTacticalAmbushSkill.summary(a[i]);
+        if (root.BattleTacticalFlankAssault) row.flank = root.BattleTacticalFlankAssault.summary(a[i]);
         st.men.forEach(function (cur) {
           var l = byId[cur.actionId],
             key = cur.kind + ':' + (l ? l.stage : 'gone');
@@ -428,7 +436,12 @@
       squadCommand: squadCommand,
       commanderTick: noop,
       fireAndMovement: function (ctx) {
+        /* Succession (15d) is noted once per dispatch; each skill below reads the same test itself. */
+        var Q = root.BattleSquadStability;
+        if (Q && Q.noteControllerSuccession) Q.noteControllerSuccession(ctx.sim, ctx.squad, ctx.facts);
         root.BattleTacticalContactSkills.update(ctx);
+        /* The flank decision runs first: the covered-bound skill reads its goal on the same step. */
+        if (root.BattleTacticalFlankAssault) root.BattleTacticalFlankAssault.update(ctx);
         if (root.BattleTacticalCoveredManeuver) root.BattleTacticalCoveredManeuver.update(ctx);
         if (root.BattleTacticalAmbushSkill) root.BattleTacticalAmbushSkill.update(ctx);
       },

@@ -162,6 +162,42 @@ test('transport exclusion: an embarked squad is skipped before any controller se
   assert.equal(count(w, 'executeMission', w.us), 0);
 });
 
+test('actor requests respect the transport owner through boarding, ride and the last dismount', () => {
+  for (const phase of ['boarding', 'embarked', 'disembarking']) {
+    const w = world();
+    load(w.r, 'battle/modules/58-strategic-abstract-transport.js');
+    owned(w);
+    const man = w.us.members[0],
+      ride = (w.us._transport = {
+        phase,
+        access: true,
+        vehicleId: 'truck-a',
+        boardedIds: [man.id],
+        exitedIds: phase === 'disembarking' ? [man.id] : []
+      });
+    w.TC.dispatch(w.b, w.us, 'engagement');
+    const ctx = w.P.calls.engagement[0];
+    assert.equal(w.r.BattleSquadTransport.isPassenger(man), true);
+    if (phase === 'disembarking')
+      assert.equal(w.r.BattleSquadTransport.carrierId(man), null, 'already outside, still committed');
+    assert.equal(
+      ctx.request('movement.move', man.id, { point: { x: 0, z: 40 } }).reason,
+      'transport-owned',
+      phase
+    );
+    assert.equal(ctx.request('combat.contact', man.id, { drill: 'fire' }).reason, 'transport-owned', phase);
+    assert.equal(w.TC.summary(w.b).actions, 0, 'no infantry action is accepted during the journey');
+    assert.equal(ride.phase, phase, 'the controller reads, never changes journey occupancy');
+    ride.phase = 'dismounted';
+    assert.equal(w.r.BattleSquadTransport.isPassenger(man), false);
+    assert.equal(
+      ctx.request('movement.move', man.id, { point: { x: 0, z: 40 } }).ok,
+      true,
+      'release is live'
+    );
+  }
+});
+
 test('fireAndMovement: contact reporting stays with Engagement; fire control and bounds go to the provider', () => {
   const w = world();
   owned(w);

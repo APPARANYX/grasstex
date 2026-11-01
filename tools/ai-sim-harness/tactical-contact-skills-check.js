@@ -163,6 +163,50 @@ test('grenade owner explains unavailable personal opportunities without creating
   assert.equal(w.TC.summary(w.b).actions, before, 'read-only assessment may not publish orders');
   clean(w);
 });
+test('a private remembered contact can select a grenade after the squad visual contact clears', () => {
+  const w = world(34),
+    systems = {};
+  w.r.BattleModules.registerSystem = (id, s) => (systems[id] = s);
+  loadModule(w.r, 'battle/modules/14-z-ballistic-raycast.js', { location: w.r.location });
+  delete w.r.BattleGrenades;
+  loadModule(w.r, 'battle/modules/23-grenades.js', { location: w.r.location });
+  const G = w.r.BattleGrenades,
+    s = w.q.members[4];
+  w.b.time += w.r.SquadAI.CONTACT_MEMORY + 1;
+  w.q.contact = null;
+  w.q.inContact = false;
+  w.q.members.forEach(man => w.r.SquadAI.clearTarget(man));
+  w.r.SquadAI.rememberReportedContact(s, w.b, {
+    x: 0,
+    z: 30,
+    observedAt: w.b.time,
+    confidence: 0.9,
+    sourceId: 'nearby-eyewitness',
+    reportId: 'private-grenade-contact',
+    otherFaction: 'ge'
+  });
+  w.b.obstacles = [{ shape: 'obb', x: 0, z: 15, hx: 40, hz: 0.35, y: 0, height: 2.5, type: 'wall' }];
+  assert.ok(G.assaultOpportunity(s, w.b), 'native owner accepts this fresh private report behind cover');
+  w.target.root.position.z = 120;
+  squad(w);
+  micro(w);
+  const plan = G.pendingOf(s, w.b);
+  assert.ok(plan, 'contact-clear must not discard an actionable personal grenade opportunity');
+  assert.deepEqual(
+    plan.aim,
+    { x: 0, z: 30 },
+    'the controller retains report coordinates, not hidden enemy truth'
+  );
+  assert.equal(w.E.stateOf(s).state, 'throw');
+  assert.equal(w.q.members.filter(man => G.pendingOf(man, w.b)).length, 1);
+  assert.ok(live(w, 'combat.contact').some(action => String(action.actorId) === String(s.id)));
+  const carried = G.count(s);
+  w.b.time = plan.releaseAt + 0.01;
+  systems.grenades.onSimulationStep(w.b, { dt: G.TUNING.WINDUP });
+  assert.equal(G.summary(w.b).throws, 1, 'the native simulation clock releases the selected grenade');
+  assert.equal(G.count(s), carried - 1);
+  clean(w);
+});
 test('controller publishes HOLD through Meso and the native per-man preparation keeps fire closed', () => {
   const w = world();
   squad(w);

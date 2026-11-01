@@ -134,7 +134,11 @@
           id: String(a[i].id),
           dead: !!a[i].dead,
           player: !!a[i].isPlayer,
-          transportLocked: !!(sq._transport && sq._transport.phase === 'embarked')
+          transportLocked: !!(
+            root.BattleSquadTransport &&
+            root.BattleSquadTransport.isPassenger &&
+            root.BattleSquadTransport.isPassenger(a[i])
+          )
         });
     return ctx;
   }
