@@ -213,25 +213,41 @@
          met for REGROUP_ESCALATION_SECS, the cohered majority is being held indefinitely
          on the stuck man's account. Release the squad back to mission execution with a
          regroup-bypass lease so rawSpread > operatingLimit does not immediately re-enter
-         regroup. The stuck men rejoin under STRAGGLER_BYPASS. Gated on actual stuck men
-         (not just time) so a stationary squad in a test fixture or a slowly-converging
-         squad is not escalated. */
+         regroup. Gated on a physical stall or an undeliverable rally whose recipient
+         has finished his previous order, never on age alone or slow convergence. */
         if (age >= REGROUP_ESCALATION_SECS && rallyInside < rallyRequired) {
           var hasStuckMan = alive(sq).some(function (man) {
             var p = man._movementProgress;
             return p && p.stuck && p.kind === 'regroup';
           });
-          if (hasStuckMan) {
+          /* A man can finish his previous order without ever hearing this rally.
+             He is not a navigation stall, but the current regroup cannot obtain
+             its quorum either. Read the actual unreachable receipt; never give
+             him the unheard point or cancel a still-travelling/delayed order. */
+          var CR = root.BattleCommandReception,
+            undeliverable =
+              CR &&
+              CR.movementEnabled &&
+              CR.movementEnabled() &&
+              CR.peek &&
+              alive(sq).some(function (man) {
+                if (man._movementStopReason !== 'arrived' || dist(man.root.position, rallyAnchor) <= release)
+                  return false;
+                var rec = CR.peek(man, sim, 'movement', 'soldier:' + String(man.id));
+                return !!(
+                  rec &&
+                  rec.unreachable &&
+                  rec.action === 'regroup' &&
+                  rec.issuedAt >= regroup.since &&
+                  rec.data &&
+                  rec.data.missionVersion === missionVersion(sq)
+                );
+              });
+          if (hasStuckMan || undeliverable) {
             st.escalations = (st.escalations || 0) + 1;
-            L.extend(
-              sq,
-              'regroup-bypass',
-              'squad-leader',
-              t,
-              t + STRAGGLER_BYPASS,
-              'regroup escalation: stuck straggler'
-            );
-            endRegroup(sim, sq, 'regroup escalation: stuck straggler');
+            var reason = 'regroup escalation: ' + (hasStuckMan ? 'stuck straggler' : 'undeliverable order');
+            L.extend(sq, 'regroup-bypass', 'squad-leader', t, t + STRAGGLER_BYPASS, reason);
+            endRegroup(sim, sq, reason);
             return;
           }
         }

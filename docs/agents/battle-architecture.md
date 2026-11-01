@@ -210,6 +210,13 @@ publication cannot leave the provider's private route ahead of the squad. The ow
 retained recon task before dispatch: a current task holds the waypoint; a superseding brief ends the
 old task before selecting its new route. Recon handback then permits normal progression.
 
+The retained regroup owner also recognizes command-delivery blockage: after its existing
+escalation age, a missing rally quorum may release when an outside man has arrived at his
+previous order and Command Reception still reports this lease's regroup order unreachable.
+The receipt must belong to the current mission and have been issued since the lease began.
+The owner ends its own regroup and uses the existing bypass; it never delivers the unheard
+point. A man still travelling or processing a deliverable order keeps his ordinary handoff.
+
 Ending an owned Meso movement proposal retires its `orderDestination` rather than retaining the man's
 release position as a command. With no remaining squad order, the resolver's formation fallback is
 the current physical position; a later combat bound therefore cannot revive that released point.
