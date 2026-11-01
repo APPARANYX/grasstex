@@ -296,6 +296,19 @@
   var UNREACHABLE_ANCHOR_ON = !/[?&]unreachableAnchor=(?:0|off|false)(?:&|#|$)/i.test(
     typeof location !== 'undefined' ? location.search || '' : ''
   );
+  /* Retreat movement is a retained Squad Leader service under any controller (13a handoff matrix:
+     retreat-anchor and rally-recovery stay with their owners). Its urgent fireteam orders take the men to
+     the retreat anchor, to the morale rally point a recovering squad must physically reform on, and to a
+     reconstitution rally. Without them each man fell back to `sq.home`: rally recovery never found its
+     squad reformed and a reconstitution group never converged (#339). A controller covered bound keeps
+     a retreat in contact. Only read under ?tacticalController=new; ?controllerRetreat=0 restores the old
+     controlled path. */
+  var CONTROLLER_RETREAT_ON = !/[?&]controllerRetreat=(?:0|off|false)(?:&|#|$)/i.test(
+    typeof location !== 'undefined' ? location.search || '' : ''
+  );
+  function retainedRetreat(sq) {
+    return CONTROLLER_RETREAT_ON && sq.state === 'retreat' && !L.get(sq, 'bound');
+  }
   var ORDER_STRIDE = 13,
     ORDER_ARRIVAL_RADIUS = 8,
     ORDER_COHESION = 0.55,
@@ -2553,8 +2566,9 @@
     if (TC && TC.dispatch(battle, sq, 'squadCommand')) {
       carryControllerMoves(sq, battle);
       /* Recon and regroup are retained Squad Leader skills: while either lease holds, the provider
-         has stood down and this skill's own fireteam orders are the squad's only movement. */
-      if (!retainedSkill(sq, battle)) {
+         has stood down and this skill's own fireteam orders are the squad's only movement. So is
+         retreat movement (the provider stands down on retreat): see retainedRetreat. */
+      if (!retainedSkill(sq, battle) && !retainedRetreat(sq)) {
         /* The march is paced by the Squad Leader's own anchor stride (advanceSquadAnchor), as on any
            legacy march: men follow an anchor that waits for the squad, not the far end of the leg. */
         var MP = root.BattleTacticalMarchProvider,
