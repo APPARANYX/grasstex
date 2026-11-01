@@ -711,7 +711,10 @@
     };
     resetSoldier(soldier);
     soldier.destination = { x: pos.x, z: pos.z };
-    soldier.orderDestination = { x: pos.x, z: pos.z };
+    /* A carrier release is not a new infantry order. Under the controller,
+       retire intent just as endOrder does; the physical destination still
+       holds here until Meso publishes the resumed personally adopted move. */
+    soldier.orderDestination = RELEASE_RETIRES ? null : { x: pos.x, z: pos.z };
     soldier._destinationCommitUntil = 0;
     if (root.BattleNavigation && root.BattleNavigation.invalidateNavPath)
       root.BattleNavigation.invalidateNavPath(soldier);

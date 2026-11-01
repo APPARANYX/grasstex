@@ -203,6 +203,38 @@ test('dismount and abort consume Meso route adoption once and physically resume 
   }
 });
 
+test('transport release retires controlled foot intent without a new position order', () => {
+  const w = world('screen', '&commandMovement=0');
+  w.r.BattleModules.listSystems = () => [];
+  loadModule(w.r, 'battle/modules/36-order-provenance.js', { location: w.r.location });
+  const P = w.r.BattleOrderProvenance,
+    movement = w.Q.controllerMovement,
+    s = w.q.members[4];
+  P.instrument(w.b);
+  const order = movement.publish(w.q, w.b, s, { x: 20, z: 100 }, 'before-boarding');
+  assert.ok(order);
+  movement.end(s, order);
+  w.b.time += 0.15;
+  const physical = { x: s.root.position.x, z: s.root.position.z };
+  w.R.restoreAfterTransport(s);
+  assert.equal(s.orderDestination, null, 'a release is not a fresh squad movement command');
+  assert.deepEqual(s.destination, physical, 'the physical destination stays at the actual release position');
+  w.b.time += 0.45;
+  assert.ok(movement.publish(w.q, w.b, s, { x: 25, z: 110 }, 'after-boarding-abort'));
+  assert.equal(P.conflicts(w.b).length, 0, 'release then resumed Meso movement has no intervening publisher');
+  P.withOwner('building-hardpoints', 'genuine foreign movement', () => {
+    s.orderDestination = { x: -30, z: -20 };
+  });
+  movement.publish(w.q, w.b, s, { x: 26, z: 111 }, 'after-foreign-write');
+  assert.ok(P.conflicts(w.b).length > 0, 'real foreign movement remains detectable');
+  for (const controller of [false, true]) {
+    const legacy = world('screen', controller ? '&releasedOrder=0' : '', controller),
+      man = legacy.q.members[4];
+    legacy.R.restoreAfterTransport(man);
+    assert.deepEqual(man.orderDestination, { x: man.root.position.x, z: man.root.position.z });
+  }
+});
+
 test('a transport reset of a final-leg hold gets a fresh move after native adoption on that same leg', () => {
   const w = world();
   // A route-only endpoint uses controller hold; an objective capture yields to prepared posts (#662).
