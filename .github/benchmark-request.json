@@ -1,0 +1,8 @@
+{
+  "benchmark": "hotpath",
+  "ref": "work/controller-meso-wrap-20261101",
+  "sim_seconds": "600",
+  "battle_type": "us-defend",
+  "seed": "controller-natural-20261026-0002",
+  "query": "strategicInterception=0&tacticalController=new"
+}
