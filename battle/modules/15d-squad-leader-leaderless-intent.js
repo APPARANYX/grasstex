@@ -26,6 +26,58 @@
     function leaderlessActive(sq) {
       return !!(LEADERLESS_INTENT_ON && sq && !leaderAlive(sq) && alive(sq).length);
     }
+    /* Succession under the tactical controller (`?tacticalController=new`; `?controllerLeaderless=0`
+       turns it off). The rule is the one above: while nobody commands the squad no new Meso command
+       is started; what the dead leader already set (fire discipline, a clearing order, a mission leg)
+       stands, the men fight through Engagement and a retreat is never held. This is the one test the
+       controller's skills read, and the one place the episode's actions are noted, so the leaderless
+       telemetry covers controlled squads as it does legacy ones. Read-only: it writes no order. */
+    var SEARCH = typeof location !== 'undefined' ? location.search || '' : '',
+      CONTROLLER_LEADERLESS =
+        /[?&]tacticalController=new(?:&|#|$)/i.test(SEARCH) &&
+        !/[?&]controllerLeaderless=(?:0|off|false)(?:&|#|$)/i.test(SEARCH);
+    function controllerSuccession(sim, sq) {
+      var TC = root.BattleTacticalController;
+      return !!(
+        CONTROLLER_LEADERLESS &&
+        sim &&
+        sq &&
+        TC &&
+        TC.controls(sim, sq) &&
+        sq.state !== 'retreat' &&
+        sq.commandPhase !== 'retreat' &&
+        leaderlessActive(sq)
+      );
+    }
+    /* Called once per fire-and-movement dispatch of a controlled squad. Same action names as legacy. */
+    function noteControllerSuccession(sim, sq, report) {
+      if (!controllerSuccession(sim, sq)) return null;
+      var M = root.BattleTacticalCoveredManeuver,
+        K = root.BattleTacticalAmbushSkill,
+        cover = M && M.summary(sq),
+        ambush = K && K.summary(sq),
+        r = report || {},
+        action =
+          r.contactStarted || r.underFire > 0
+            ? 'immediate-contact'
+            : (cover && cover.pendingCover) || (ambush && ambush.phase !== 'idle')
+              ? 'finish-committed-move'
+              : sq.inContact
+                ? 'hold-and-fight'
+                : 'hold-intent',
+        why =
+          action === 'immediate-contact'
+            ? r.underFire > 0
+              ? 'under fire'
+              : 'contact acquired'
+            : action === 'finish-committed-move'
+              ? 'inherited controller move remains live'
+              : action === 'hold-and-fight'
+                ? 'existing contact under inherited intent'
+                : 'no new Meso command during succession';
+      noteLeaderlessAction(sq, sim, action, why);
+      return action;
+    }
     function leaderlessStats(battle) {
       if (!LEADERLESS_INTENT_ON || !battle) return null;
       return (
@@ -201,7 +253,9 @@
       captureLeaderlessIntent: captureLeaderlessIntent,
       updateLeaderlessLocalTask: updateLeaderlessLocalTask,
       noteLeaderlessAction: noteLeaderlessAction,
-      endLeaderlessIntent: endLeaderlessIntent
+      endLeaderlessIntent: endLeaderlessIntent,
+      controllerSuccession: controllerSuccession,
+      noteControllerSuccession: noteControllerSuccession
     };
   };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -428,6 +428,9 @@
       squadCommand: squadCommand,
       commanderTick: noop,
       fireAndMovement: function (ctx) {
+        /* Succession (15d) is noted once per dispatch; each skill below reads the same test itself. */
+        var Q = root.BattleSquadStability;
+        if (Q && Q.noteControllerSuccession) Q.noteControllerSuccession(ctx.sim, ctx.squad, ctx.facts);
         root.BattleTacticalContactSkills.update(ctx);
         if (root.BattleTacticalCoveredManeuver) root.BattleTacticalCoveredManeuver.update(ctx);
         if (root.BattleTacticalAmbushSkill) root.BattleTacticalAmbushSkill.update(ctx);

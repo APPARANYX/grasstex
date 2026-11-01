@@ -768,6 +768,13 @@
       note(ctx, st, 'moving', 'real-independent-support-discharge');
       return;
     }
+    /* No new covered bound while nobody commands the squad (succession, 15d): the reason says so. */
+    if (Q.controllerSuccession && Q.controllerSuccession(ctx.sim, ctx.squad)) {
+      st.reason = 'succession';
+      st.blocked = null;
+      st.stall = null;
+      return;
+    }
     if (!eligible) {
       st.reason = back ? 'ordinary-retreat' : 'no-authorized-contact';
       st.blocked = null;

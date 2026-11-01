@@ -249,6 +249,12 @@
       now = sim.time,
       facts = ctx.facts;
     if (st.phase === 'idle') {
+      /* Laying an ambush is the Squad Leader's call: a squad in succession (15d) lays none. */
+      var Q = root.BattleSquadStability;
+      if (Q && Q.controllerSuccession && Q.controllerSuccession(sim, sq)) {
+        st.reason = 'succession';
+        return;
+      }
       if (
         now < st.until ||
         !missionRunning(sq) ||

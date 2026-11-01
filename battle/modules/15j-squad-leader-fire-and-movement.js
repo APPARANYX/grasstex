@@ -29,6 +29,11 @@
       leaderlessActive = ctx.leaderlessActive,
       noteLeaderlessAction = ctx.noteLeaderlessAction,
       updateLeaderlessLocalTask = ctx.updateLeaderlessLocalTask,
+      controllerSuccession =
+        ctx.controllerSuccession ||
+        function () {
+          return false;
+        },
       updateClearContact = ctx.updateClearContact,
       updateCOA = ctx.updateCOA,
       updateFireControl = ctx.updateFireControl,
@@ -95,12 +100,14 @@
       )
         localPlan.update(battle, sq, r);
       /* Clearing the last contact is Squad Leader intent (a point for the anchor to advance on), not a tactical
-         skill: a controlled squad gets the same order, and the march follows the anchor. */
+         skill: a controlled squad gets the same order, and the march follows the anchor. With no leader
+         (succession, 15d) nobody may start, move or end one: the inherited order stands as it was. */
       if (
         TC &&
         root.BattleTacticalMarchProvider &&
         root.BattleTacticalMarchProvider.clear &&
-        TC.controls(battle, sq)
+        TC.controls(battle, sq) &&
+        !controllerSuccession(battle, sq)
       )
         updateClearContact(sq, battle, r);
       if (TC && TC.dispatch(battle, sq, 'fireAndMovement', r)) return;
