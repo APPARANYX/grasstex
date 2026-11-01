@@ -454,6 +454,7 @@
         all = [],
         seen = new Set();
       c.slots = new Map();
+      c.slotQuality = new Map();
       var outsideMargins = F
         ? marginIndex(F, c, slotPad())
         : function () {
@@ -479,7 +480,11 @@
         for (var j = 0; j < raw.length; j++) {
           var slot = raw[j];
           if (!outsideMargins(slot.x, slot.z) || !standable(slot)) continue;
-          if (F.coverPotentialAt(c.source, slot.x, slot.z) > USEFUL_COVER) continue;
+          // The slot's shelter quality depends only on the versioned obstacle geometry.
+          // Keep it alongside the slots; claims and moving bodies are still checked live.
+          var quality = F.coverPotentialAt(c.source, slot.x, slot.z);
+          if (quality > USEFUL_COVER) continue;
+          c.slotQuality.set(slot, quality);
           all.push(slot);
         }
       }
@@ -607,7 +612,7 @@
           // The sheltering physical volume must actually lie between this slot and the threat.
           if (P && P.shapeHit && !P.shapeHit(slot, t, slot.shape, 0)) continue;
           if (!coverAvailable(c, slot, s, battle)) continue;
-          var quality = F.coverPotentialAt(battle.obstacles, slot.x, slot.z);
+          var quality = c.slotQuality.get(slot);
           if (quality > USEFUL_COVER) continue;
           out.push({
             x: slot.x,
