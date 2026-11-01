@@ -1,0 +1,14 @@
+{
+  "benchmark": "standard",
+  "ref": "work/controller-meso-wrap-20261101",
+  "seed": "controller-natural-20261026",
+  "seeds": "3",
+  "battle_type": "us-defend",
+  "sim_seconds": "600",
+  "windows": "0+600",
+  "query_off": "strategicInterception=0",
+  "query_on": "strategicInterception=0&tacticalController=new",
+  "origin_agent": "chatgpt",
+  "correlation_id": "meso706-us-defend-902f8708",
+  "purpose": "PR706 final acceptance; exact-head Lab 41288471857 passed; inspect real behavior/owner conflicts and transport receipts. Controller rebuild: legacy deltas diagnostic."
+}
