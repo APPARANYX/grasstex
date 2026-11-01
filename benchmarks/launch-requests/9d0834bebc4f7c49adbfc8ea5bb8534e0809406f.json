@@ -1,0 +1,21 @@
+{
+  "branch": "work/benchmark-launch/pacing3-gedef-20261030",
+  "launch_parent_sha": "f454d3739421823d3c2da731350937ba996f7437",
+  "launch_sha": "9d0834bebc4f7c49adbfc8ea5bb8534e0809406f",
+  "note": "Launch parent is preserved; the child's actual checkout SHA must be read from the child run.",
+  "parent_retention_ref": "main-ancestor",
+  "request": {
+    "battle_type": "ge-defend",
+    "benchmark": "standard",
+    "purpose": "#662 defender recon + posted-man fix flag pair",
+    "query_off": "strategicInterception=0",
+    "query_on": "strategicInterception=0&tacticalController=new",
+    "ref": "work/pin/pacing-c75d7825",
+    "seed": "controller-pacing3-20261030",
+    "seeds": 60,
+    "sim_seconds": 600
+  },
+  "schema_version": 1,
+  "source_ref": "work/pin/pacing-c75d7825",
+  "source_sha_at_archive": "c75d782562f0c1384e5079f90f42d0663208d030"
+}
