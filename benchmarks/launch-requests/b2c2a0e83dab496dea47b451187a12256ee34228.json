@@ -1,0 +1,21 @@
+{
+  "branch": "work/benchmark-launch/pacing-gedef-20261030",
+  "launch_parent_sha": "0ba1881ded3d19fcdd4acd9e48c96b7237e7c1df",
+  "launch_sha": "b2c2a0e83dab496dea47b451187a12256ee34228",
+  "note": "Launch parent is preserved; the child's actual checkout SHA must be read from the child run.",
+  "parent_retention_ref": "main-ancestor",
+  "request": {
+    "battle_type": "ge-defend",
+    "benchmark": "standard",
+    "purpose": "#662 march pacing flag pair",
+    "query_off": "strategicInterception=0",
+    "query_on": "strategicInterception=0&tacticalController=new",
+    "ref": "work/pin/pacing-f4174a32",
+    "seed": "controller-pacing-20261030",
+    "seeds": 60,
+    "sim_seconds": 600
+  },
+  "schema_version": 1,
+  "source_ref": "work/pin/pacing-f4174a32",
+  "source_sha_at_archive": "f4174a32563114c019f1c66efd5c9d715c3f3dcb"
+}
