@@ -1,0 +1,22 @@
+{
+  "branch": "work/benchmark-launch/pr683-std-cand-meeting-20261029",
+  "launch_parent_sha": "b913a7429d8cb4173c303a90e73a6c8be6958713",
+  "launch_sha": "fea60f3c7191ae54023e0c51996dc9460d265a24",
+  "note": "Launch parent is preserved; the child's actual checkout SHA must be read from the child run.",
+  "parent_retention_ref": "main-ancestor",
+  "request": {
+    "battle_type": "meeting",
+    "benchmark": "standard",
+    "origin_agent": "claude-code",
+    "purpose": "#683 bundle vs main b913a74, rule A standard (cand)",
+    "query_off": "strategicInterception=0",
+    "query_on": "strategicInterception=0",
+    "ref": "work/pin/pr683-f845a2d6",
+    "seed": "pr683-gate-20261029",
+    "seeds": 60,
+    "sim_seconds": 600
+  },
+  "schema_version": 1,
+  "source_ref": "work/pin/pr683-f845a2d6",
+  "source_sha_at_archive": "f845a2d64e12ac7062ca59b8aaee360be81c6ae5"
+}
