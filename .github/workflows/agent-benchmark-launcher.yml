@@ -40,6 +40,7 @@ jobs:
               'matrix-smoke': 'matrix-diagnostics-smoke.yml',
               'matrix-full': 'battle-benchmark.yml',
               'probe-pack': 'playtester-probe-pack.yml',
+              'hotpath': 'battle-hotpath-profile.yml',
           }
           kind = req.get('benchmark')
           if kind not in names:
@@ -59,6 +60,7 @@ jobs:
               'matrix-smoke': (),
               'matrix-full': ('seed', 'battles_per_worker', 'worker_minutes_cutoff'),
               'probe-pack': ('seed', 'seeds', 'map', 'sim_seconds', 'query_off', 'query_on', 'probes', 'origin_agent', 'purpose'),
+              'hotpath': ('battle_type', 'seed', 'sim_seconds', 'query'),
           }[kind]
           extras = set(req) - set(allowed) - {'benchmark', 'ref', 'confirm_full_matrix'}
           if extras:

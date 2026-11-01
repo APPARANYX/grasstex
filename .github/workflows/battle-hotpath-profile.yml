@@ -20,6 +20,10 @@ on:
         description: Simulated seconds to profile
         required: false
         default: '120'
+      query:
+        description: Additional page flags (for example strategicInterception=0&tacticalController=new)
+        required: false
+        default: ''
   push:
     branches:
       - main
@@ -136,14 +140,29 @@ jobs:
           cat /tmp/battle-profile-php.log
           exit 1
       - name: Resolve scenario URL
+        env:
+          PROFILE_QUERY: ${{ inputs.query }}
         run: |
-          case "${BATTLE_PROFILE_TYPE}" in
-            meeting) url='http://127.0.0.1:8765/grasstex/battle_sim_local.php' ;;
-            us-defend) url='http://127.0.0.1:8765/grasstex/battle_sim_local.php?defender=us' ;;
-            ge-defend) url='http://127.0.0.1:8765/grasstex/battle_sim_local.php?defender=ge' ;;
-            *) echo "Unknown battle type: ${BATTLE_PROFILE_TYPE}" >&2; exit 2 ;;
-          esac
-          echo "BATTLE_PROFILE_URL=$url" >> "$GITHUB_ENV"
+          python3 - <<'PY'
+          import os
+          from urllib.parse import parse_qsl
+
+          kind = os.environ['BATTLE_PROFILE_TYPE']
+          suffix = {'meeting': '', 'us-defend': '?defender=us', 'ge-defend': '?defender=ge'}
+          if kind not in suffix:
+              raise SystemExit('Unknown battle type: ' + kind)
+          query = os.environ.get('PROFILE_QUERY', '')
+          if len(query) > 500 or any(c in query for c in '\r\n#'):
+              raise SystemExit('Profile query must be one bounded URL query without a fragment')
+          query = query.lstrip('?&')
+          if any(key in ('defender', 'seed') for key, _ in parse_qsl(query, keep_blank_values=True)):
+              raise SystemExit('Profile query cannot override the scenario type or seed')
+          url = 'http://127.0.0.1:8765/grasstex/battle_sim_local.php' + suffix[kind]
+          if query:
+              url += ('&' if '?' in url else '?') + query
+          with open(os.environ['GITHUB_ENV'], 'a') as output:
+              output.write('BATTLE_PROFILE_URL=' + url + '\n')
+          PY
       - name: Profile deterministic battle
         run: node scripts/profile_battle_hotpaths.mjs
       - name: Publish profile summary
