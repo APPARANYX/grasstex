@@ -1,0 +1,24 @@
+{
+  "branch": "work/benchmark-launch/contact-690-5km-us-defend",
+  "launch_parent_sha": "f541b2d3ef8c28a3282c0c01113393278916ff88",
+  "launch_sha": "29983faa07d1f2d42e149a0dc836ec62b0de3b22",
+  "note": "Launch parent is preserved; the child's actual checkout SHA must be read from the child run.",
+  "parent_retention_ref": "archive/benchmark-source/f541b2d3ef8c28a3282c0c01113393278916ff88",
+  "request": {
+    "battle_type": "us-defend",
+    "benchmark": "standard",
+    "correlation_id": "pr-690-5km-us-defend",
+    "origin_agent": "chatgpt",
+    "purpose": "Initial contact-action stability acceptance; legacy vs new; native preflight 40996267528 at f541b2d",
+    "query_off": "strategicInterception=1&pinBridge=1&pinNerve=1",
+    "query_on": "strategicInterception=1&pinBridge=1&pinNerve=1&tacticalController=new",
+    "ref": "work/contact-role-stability-20261030",
+    "seed": "contact-690-5km",
+    "seeds": "3",
+    "sim_seconds": "1800",
+    "windows": "0+1800"
+  },
+  "schema_version": 1,
+  "source_ref": "work/contact-role-stability-20261030",
+  "source_sha_at_archive": "bf0055391e387ebd7d1b3a9523b8eb5005d0cae2"
+}
