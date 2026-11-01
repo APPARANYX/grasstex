@@ -256,6 +256,23 @@
     if (!Q.fireControlOn() || underFire || !threat || elapsed >= T.maxHold) {
       desired = 'open';
       reason = underFire ? 'return-fire' : elapsed >= T.maxHold ? 'preparation-deadline' : 'no-visual-hold';
+    } else if (Q.controllerSuccession && Q.controllerSuccession(sim, sq)) {
+      /* Succession (15d): the dead leader's discipline stands until its own deadline or return fire;
+         nobody is there to order a new HOLD, name a new marksman or judge the line ready. Without
+         an inherited discipline (or with its marksman gone) the men fire on their own. */
+      var heir =
+        st.discipline === 'precision' &&
+        men.find(function (s) {
+          return String(s.id) === st.shooterId;
+        });
+      if (st.discipline === 'hold' || heir) {
+        desired = st.discipline;
+        shooter = heir || null;
+        reason = 'succession-inherited';
+      } else {
+        desired = 'open';
+        reason = st.discipline === 'open' ? 'succession-inherited' : 'succession-no-command';
+      }
     } else if (desired !== 'open' && elapsed >= T.prepMin) {
       if (range >= T.longRange && shooter) {
         desired = 'precision';

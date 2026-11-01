@@ -652,6 +652,11 @@
       ? _ll.endLeaderlessIntent
       : function () {
           return null;
+        },
+    controllerSuccession = _ll
+      ? _ll.controllerSuccession
+      : function () {
+          return false;
         };
   /* Morale + COA functions are extracted to 15e-squad-leader-morale-coa.js.
      The factory is called after the flags and the declared tables are in scope.
@@ -2463,6 +2468,7 @@
         leaderlessActive: leaderlessActive,
         noteLeaderlessAction: noteLeaderlessAction,
         updateLeaderlessLocalTask: updateLeaderlessLocalTask,
+        controllerSuccession: controllerSuccession,
         updateClearContact: updateClearContact,
         updateCOA: updateCOA,
         updateFireControl: updateFireControl,
@@ -2753,6 +2759,13 @@
     parseLeaderlessIntent: parseLeaderlessIntent,
     leaderlessActive: leaderlessActive,
     leaderlessTelemetry: leaderlessTelemetry,
+    /* A controlled squad in succession: its skills start no new Meso command (15d). */
+    controllerSuccession: controllerSuccession,
+    noteControllerSuccession: _ll
+      ? _ll.noteControllerSuccession
+      : function () {
+          return null;
+        },
     scoutsForwardOn: function () {
       return SCOUTS_FORWARD_ON;
     },
