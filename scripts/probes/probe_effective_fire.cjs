@@ -99,10 +99,11 @@ const { requestPreview } = require('./preview_request.cjs');
       E.updateSoldier(rifle, b);
       b.onFire = onFire;
       // Sound-ready seam proves the actual shipping scheduler rechecks state.
-      const NativeSound = BABYLON.Sound,
+      const soundOwner = window.BattleAudioBackend || BABYLON,
+        NativeSound = soundOwner.Sound,
         readyCallbacks = [];
       let played = 0;
-      BABYLON.Sound = class {
+      soundOwner.Sound = class {
         constructor(name, url, scene, ready) {
           readyCallbacks.push(ready);
           this.onEndedObservable = { addOnce() {} };
@@ -120,6 +121,7 @@ const { requestPreview } = require('./preview_request.cjs');
       ev.engage = ['voices/ge/c3-queued-order-fixture.mp3'];
       const handle = BattleVoiceScheduler.enqueue(leader, 'engage', null);
       if (!handle) throw Error('fresh staged leader order was not accepted');
+      if (readyCallbacks.length !== 1) throw Error('fixture must intercept the active audio backend');
       leader.eng.state = 'freeze';
       readyCallbacks.forEach(fn => fn());
       const voice = {
@@ -131,7 +133,7 @@ const { requestPreview } = require('./preview_request.cjs');
         contactAllowed: BattleVoiceEligibility.allows(leader, 'contactFront')
       };
       ev.engage = oldFiles;
-      BABYLON.Sound = NativeSound;
+      soundOwner.Sound = NativeSound;
       b.restart();
       b.pause();
       const recovered = b.factions.ge.squads[0].members.find(s => s.role === 'sergeant');
