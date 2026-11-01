@@ -1,0 +1,11 @@
+{
+  "benchmark": "hotpath",
+  "ref": "work/controller-meso-wrap-20261101",
+  "battle_type": "us-defend",
+  "seed": "controller-natural-20261026-0002",
+  "sim_seconds": "600",
+  "query": "strategicInterception=0&tacticalController=new",
+  "origin_agent": "codex",
+  "correlation_id": "meso706-final-cost-2e4086dc",
+  "purpose": "Profile final-head acceptance wall gate after Lab41311221688 and natural41312012606; preserve behavior and exact owner lifecycles."
+}
