@@ -1,0 +1,14 @@
+{
+  "benchmark": "standard",
+  "ref": "work/controller-meso-wrap-20261101",
+  "sim_seconds": "600",
+  "seed": "meso706-transport-20261101",
+  "seeds": "3",
+  "battle_type": "meeting",
+  "windows": "0+600",
+  "query_off": "strategicInterception=1&frontLines=1&motorTransport=1&truckAccess=1&truckCollision=1&truckVisual=1&aerialRecon=1&interception=1&reinforcements=1&reinforcementSortie=1",
+  "query_on": "strategicInterception=1&frontLines=1&motorTransport=1&truckAccess=1&truckCollision=1&truckVisual=1&aerialRecon=1&interception=1&reinforcements=1&reinforcementSortie=1&tacticalController=new",
+  "origin_agent": "chatgpt",
+  "correlation_id": "meso706-transport-2838555a",
+  "purpose": "PR706 final-source acceptance after exact-head CI and Native Lab 41296050524 passed; inspect actual ownership, lifecycle, physical movement and fire. Legacy behavior deltas are diagnostic."
+}
