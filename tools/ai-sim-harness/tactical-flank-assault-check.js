@@ -276,4 +276,32 @@ test('a released frontal no-hop stall does not keep a new flank from searching i
   clean(w);
 });
 
+test('with no hop toward either goal the stall keeps one clock and the Squad Leader review still comes', () => {
+  const w = world();
+  const Q = w.Q,
+    review = Q.requestReview,
+    calls = [];
+  Q.requestReview = (sim, sq, why) => {
+    calls.push({ at: sim.time, why });
+    return review.call(Q, sim, sq, why);
+  };
+  w.r.BattleTacticalContactRoute.pick = () => ({
+    point: null,
+    score: null,
+    exposure: 0,
+    stats: { total: 0, progressing: 0, safe: 0, rejected: {} }
+  });
+  const start = w.b.time;
+  for (let i = 0; i < 25 / 0.15; i++) tick(w);
+  Q.requestReview = review;
+  const after = Q.tuning.lead.reviewAfter;
+  assert.ok(w.X.summary(w.q).releases['no-covered-flank-route'] >= 1, JSON.stringify(w.X.summary(w.q)));
+  assert.equal(calls.length, 1, 'one review for one continuous no-hop contact: ' + JSON.stringify(calls));
+  assert.ok(
+    calls[0].at - start <= after + Q.tuning.boundCycle + 1,
+    'the review is not reset by a goal change'
+  );
+  clean(w);
+});
+
 console.log(count + ' flank and assault checks passed');

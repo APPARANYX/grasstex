@@ -799,15 +799,17 @@
        Leader asks the General for a new task where the mission allows one. */
     var tune = Q.tuning,
       cycle = Math.floor(ctx.sim.time / tune.boundCycle);
-    /* A stall belongs to the goal it was refused toward: a flank or assault goal (13i) that differs from the
-       one the stall was recorded under, or the frontal goal again, is a new question and is searched afresh,
-       even after a released stall. With 13i off the goal is always the frontal one and nothing changes. */
-    var goalKey = JSON.stringify(flankBasis(ctx.squad));
-    if (STALL_ON && st.stall && st.stall.goal !== goalKey) {
-      st.stall = null;
+    /* A stall is one continuous no-hop contact, whatever goal it was refused toward. A flank or assault goal
+       (13i) that differs from the one last searched is searched once afresh, even after the stall was
+       released, but the stall keeps its clock, so the Squad Leader's review still comes after reviewAfter.
+       With 13i off the goal is always the frontal one and nothing changes. */
+    var goalKey = JSON.stringify(flankBasis(ctx.squad)),
+      newGoal = !!(STALL_ON && st.stall && st.stall.goal !== goalKey);
+    if (newGoal) {
+      st.stall.goal = goalKey;
       st.blocked = null;
     }
-    if (STALL_ON && st.stall && st.stall.released) {
+    if (STALL_ON && st.stall && st.stall.released && !newGoal) {
       st.reason = 'stall-released:no-hop';
       return;
     }
@@ -828,7 +830,8 @@
           };
         st.stall.retries++;
         st.stall.cycle = cycle;
-        if (ctx.sim.time - st.stall.since >= tune.lead.reviewAfter) {
+        if (st.stall.released) st.reason = 'stall-released:no-hop';
+        else if (ctx.sim.time - st.stall.since >= tune.lead.reviewAfter) {
           st.stall.released = true;
           st.stall.reason = 'no-hop-after-' + tune.lead.reviewAfter + 's';
           st.reason = 'stall-released:no-hop';
