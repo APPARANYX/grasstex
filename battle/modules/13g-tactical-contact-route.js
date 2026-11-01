@@ -90,7 +90,7 @@
     if (straight > MAX_HOP || total < MIN_HOP) return { ok: false, reason: 'outside-contact-hop' };
     return { ok: true, distance: total, points: points, detour: points.length > 2 };
   }
-  function edge(sim, from, to, reports, underFire, strict, budget, stance) {
+  function edge(sim, from, to, reports, underFire, strict, budget, stance, visibility) {
     var out = { eligible: false, reason: 'unknown', distance: distance(from, to), exposure: 1 };
     if (!reports || !reports.length) {
       out.reason = 'missing-reported-contact';
@@ -118,7 +118,7 @@
         var t = i / steps,
           at = { x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t };
         samples++;
-        if (threatVisible(sim, at, reports, stance)) exposed++;
+        if (visibility ? visibility(at) : threatVisible(sim, at, reports, stance)) exposed++;
       }
     }
     out.distance = transit.distance;
@@ -219,7 +219,20 @@
           root.BattleEngagement.underFireNow(s, sim)
         );
     d[0] = 0;
-    var detourBudget = { left: MAX_PHYSICAL_DETOURS, queries: 0 };
+    var detourBudget = { left: MAX_PHYSICAL_DETOURS, queries: 0 },
+      visibilitySamples = new Map();
+    /* One synchronous graph search has fixed reports, crouch height and world
+       geometry. Shared sample points need one exact sight query, not another
+       ray for every incident edge. No rounding, cross-search reuse or cache in
+       evaluate(): physical adoption and retained checkpoints always revalidate. */
+    function visibility(at) {
+      var column = visibilitySamples.get(at.x);
+      if (!column) visibilitySamples.set(at.x, (column = new Map()));
+      if (column.has(at.z)) return column.get(at.z);
+      var visible = threatVisible(sim, at, reports);
+      column.set(at.z, visible);
+      return visible;
+    }
     /* Positive edge costs permit detours/backtracking. A first edge must pass
        the same strict safety rule Engagement will enforce before adoption.
        Later edges are estimated using their own actual nav/LOS geometry and
@@ -236,7 +249,17 @@
         var leg = distance(nodes[from], nodes[k]);
         if (leg < MIN_HOP || leg > MAX_HOP) continue;
         if (++stats.evaluatedEdges > MAX_EDGE_QUERIES) break;
-        var result = edge(sim, nodes[from], nodes[k], reports, underFire, from === 0, detourBudget);
+        var result = edge(
+          sim,
+          nodes[from],
+          nodes[k],
+          reports,
+          underFire,
+          from === 0,
+          detourBudget,
+          undefined,
+          visibility
+        );
         if (result.detour && result.eligible) stats.admittedDetours++;
         if (!result.eligible) {
           stats.rejected[result.reason] = (stats.rejected[result.reason] || 0) + 1;
