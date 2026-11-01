@@ -1,0 +1,14 @@
+{
+  "benchmark": "standard",
+  "ref": "work/controller-meso-wrap-20261101",
+  "seed": "controller-natural-20261026",
+  "seeds": "3",
+  "battle_type": "us-defend",
+  "sim_seconds": "600",
+  "windows": "0+600",
+  "query_off": "strategicInterception=0",
+  "query_on": "strategicInterception=0&tacticalController=new",
+  "origin_agent": "codex",
+  "correlation_id": "meso706-final-us-defend-2e4086dc",
+  "purpose": "Final-head acceptance after Lab41311221688 and causal41311442887; inspect real owner receipts, lifecycle progress and cost without tactical tuning."
+}
