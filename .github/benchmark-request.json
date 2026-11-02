@@ -1,0 +1,8 @@
+{
+  "benchmark": "hotpath",
+  "ref": "work/meso708-physical-query-fastpath-20261102",
+  "battle_type": "meeting",
+  "seed": "controller-natural-20261026-0002",
+  "sim_seconds": "600",
+  "query": "strategicInterception=0&tacticalController=new"
+}
