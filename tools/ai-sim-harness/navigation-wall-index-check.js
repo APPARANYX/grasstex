@@ -22,7 +22,11 @@ function navigation(fullScan) {
   const root = {
     _wallVisits: 0,
     GTLog() {},
-    GTMath: { clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); } }
+    GTMath: {
+      clamp(v, lo, hi) {
+        return Math.max(lo, Math.min(hi, v));
+      }
+    }
   };
   new Function('window', 'globalThis', 'location', src)(root, root, { search: '' });
   return { root, nav: root.BattleNavigation };
@@ -65,7 +69,11 @@ function compare(a, b) {
     !!slow.nav.lineOfSightBlocked(a, b, 1.5, 1.5),
     'LOS still respects native window/door aperture rules'
   );
-  assert.deepEqual(fast.nav.resolveStep(a, b), slow.nav.resolveStep(a, b), 'same first blocking wall and slide');
+  assert.deepEqual(
+    fast.nav.resolveStep(a, b),
+    slow.nav.resolveStep(a, b),
+    'same first blocking wall and slide'
+  );
 }
 for (const offset of [0, 57, -85]) {
   const scenario = scene(offset);
@@ -74,7 +82,7 @@ for (const offset of [0, 57, -85]) {
   assert.equal(fast.nav.walls.length, slow.nav.walls.length);
   for (let i = 0; i < 2800; i++) {
     const a = { x: (rand() - 0.5) * 680, z: (rand() - 0.5) * 680 };
-    const length = i % 10 === 0 ? 1000 : (i % 7 === 0 ? 50 : 0.1 + rand() * 12);
+    const length = i % 10 === 0 ? 1000 : i % 7 === 0 ? 50 : 0.1 + rand() * 12;
     const angle = rand() * 2 * Math.PI;
     const b = { x: a.x + Math.cos(angle) * length, z: a.z + Math.sin(angle) * length };
     compare(a, b);
@@ -92,22 +100,16 @@ for (const offset of [0, 57, -85]) {
 fast.nav.installScenario({ buildings: [], profile: 'default' });
 slow.nav.installScenario({ buildings: [], profile: 'default' });
 for (let i = 0; i < 100; i++) compare({ x: i - 50, z: i }, { x: -i, z: -i });
-assert.ok(fast.root._wallVisits < slow.root._wallVisits * 0.45,
+assert.ok(
+  fast.root._wallVisits < slow.root._wallVisits * 0.45,
   'index must materially reduce visited walls on short, realistic movement queries: indexed=' +
-    fast.root._wallVisits + ' full=' + slow.root._wallVisits);
-console.log('PASS indexed wall scan matches unindexed native movement, LOS and wall slides across 8,000+ pairs and scenario resets; wall visits ' +
-  fast.root._wallVisits + '/' + slow.root._wallVisits);
-
-/* Temporary CI-only diagnostic to retrieve canonical Prettier 3.3.3 output.
-   Remove this block before acceptance; never modify repository files in CI. */
-if (process.env.GITHUB_ACTIONS) {
-  const child = require('node:child_process');
-  for (const relative of ['battle/battle-navigation.js', 'tools/ai-sim-harness/navigation-wall-index-check.js']) {
-    const file = path.resolve(__dirname, '../..', relative);
-    const output = child.execFileSync('npx', ['--yes', 'prettier@3.3.3', '--stdin-filepath', file], {
-      input: fs.readFileSync(file),
-      maxBuffer: 2 * 1024 * 1024
-    });
-    console.log('CANONICAL_PRETTIER_B64 ' + relative + ' ' + output.toString('base64'));
-  }
-}
+    fast.root._wallVisits +
+    ' full=' +
+    slow.root._wallVisits
+);
+console.log(
+  'PASS indexed wall scan matches unindexed native movement, LOS and wall slides across 8,000+ pairs and scenario resets; wall visits ' +
+    fast.root._wallVisits +
+    '/' +
+    slow.root._wallVisits
+);
