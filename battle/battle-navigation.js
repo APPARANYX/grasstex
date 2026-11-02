@@ -155,6 +155,7 @@
   function wallCandidates(minX, maxX, minZ, maxZ) {
     var idx = wallIndex;
     if (!idx) return null;
+    if (!Number.isFinite(minX + maxX + minZ + maxZ)) return null;
     var out = idx.scratch;
     out.length = 0;
     if (maxX < idx.minX || minX > idx.maxX || maxZ < idx.minZ || minZ > idx.maxZ) return out;
@@ -178,7 +179,10 @@
           out.push(id);
         }
       }
-    if (out.length > 1) out.sort(function (a, b) { return a - b; });
+    if (out.length > 1)
+      out.sort(function (a, b) {
+        return a - b;
+      });
     return out;
   }
   function blocked(a, b, mode, ay, by) {
