@@ -97,3 +97,17 @@ assert.ok(fast.root._wallVisits < slow.root._wallVisits * 0.45,
     fast.root._wallVisits + ' full=' + slow.root._wallVisits);
 console.log('PASS indexed wall scan matches unindexed native movement, LOS and wall slides across 8,000+ pairs and scenario resets; wall visits ' +
   fast.root._wallVisits + '/' + slow.root._wallVisits);
+
+/* Temporary CI-only diagnostic to retrieve canonical Prettier 3.3.3 output.
+   Remove this block before acceptance; never modify repository files in CI. */
+if (process.env.GITHUB_ACTIONS) {
+  const child = require('node:child_process');
+  for (const relative of ['battle/battle-navigation.js', 'tools/ai-sim-harness/navigation-wall-index-check.js']) {
+    const file = path.resolve(__dirname, '../..', relative);
+    const output = child.execFileSync('npx', ['--yes', 'prettier@3.3.3', '--stdin-filepath', file], {
+      input: fs.readFileSync(file),
+      maxBuffer: 2 * 1024 * 1024
+    });
+    console.log('CANONICAL_PRETTIER_B64 ' + relative + ' ' + output.toString('base64'));
+  }
+}
