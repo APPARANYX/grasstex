@@ -1,0 +1,14 @@
+{
+  "benchmark": "standard",
+  "ref": "work/meso707-wall-broadphase-20261101",
+  "seed": "controller-natural-20261026",
+  "seeds": "3",
+  "battle_type": "meeting",
+  "sim_seconds": "600",
+  "windows": "0+600",
+  "query_off": "strategicInterception=0",
+  "query_on": "strategicInterception=0&tacticalController=new",
+  "origin_agent": "chatgpt",
+  "correlation_id": "meso708-wall-index-28c2ffb3",
+  "purpose": "PR708 exact-head source 28c2ffb3: green CI 41367229395 and Native Skills Lab 41367229402. Compare 600s 3-seed ON/OFF with 707 benchmark #1592 baseline 2.028x under <=1.25x gate; verify actual child and avoid runner-noise attribution."
+}
