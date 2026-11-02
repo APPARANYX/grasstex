@@ -12,6 +12,7 @@
   'use strict';
   var scenario = null,
     walls = [],
+    wallIndex = null,
     nodes = [],
     edges = [],
     version = 0,
@@ -31,6 +32,10 @@
      straight line through the wall, physics refused every step of it, and the two disagreed
      forever. */
   var START_SKIN = 0.06;
+  /* Fixed building-wall geometry only. Preserve encounter order, exact intersection,
+     doorway/LOS decisions and short-segment start-skin semantics. */
+  var WALL_CELL = 32,
+    WALL_MAX_QUERY_CELLS = 64;
   var PORT = !(typeof location !== 'undefined' && /[?&]windowPort=0\b/.test(location.search || ''));
   /* Firing port (metres). The wall is drawn .32 thick around its plane, so its inner face is .16 behind
      it; a man's body is ~.25 in radius, so .45 is the closest anchor that keeps him off the wall. The old
@@ -104,6 +109,82 @@
     }
     return null;
   }
+
+  /* Rebuilt only when a scenario installs new building geometry. Buckets contain
+     original wall indices, not copies, and each wall covers every AABB cell it
+     touches (including the original EPS wall padding). */
+  function rebuildWallIndex() {
+    var buckets = new Map(),
+      minX = Infinity,
+      minZ = Infinity,
+      maxX = -Infinity,
+      maxZ = -Infinity;
+    for (var i = 0; i < walls.length; i++) {
+      var w = walls[i];
+      minX = Math.min(minX, w.minX);
+      minZ = Math.min(minZ, w.minZ);
+      maxX = Math.max(maxX, w.maxX);
+      maxZ = Math.max(maxZ, w.maxZ);
+      var c0 = Math.floor(w.minX / WALL_CELL),
+        c1 = Math.floor(w.maxX / WALL_CELL),
+        r0 = Math.floor(w.minZ / WALL_CELL),
+        r1 = Math.floor(w.maxZ / WALL_CELL);
+      for (var c = c0; c <= c1; c++)
+        for (var row = r0; row <= r1; row++) {
+          var key = c + ',' + row,
+            bucket = buckets.get(key);
+          if (!bucket) buckets.set(key, (bucket = []));
+          bucket.push(i);
+        }
+    }
+    wallIndex = {
+      buckets: buckets,
+      minX: minX,
+      minZ: minZ,
+      maxX: maxX,
+      maxZ: maxZ,
+      stamp: new Uint32Array(walls.length),
+      epoch: 0,
+      scratch: []
+    };
+  }
+  /* Returning null deliberately uses the original complete wall scan for long
+     or anomalous queries; never cap search distance or omit a safety check.
+     The scratch array cannot escape blocked(), and the final numeric sort
+     preserves which first blocking wall resolveStep() will use. */
+  function wallCandidates(minX, maxX, minZ, maxZ) {
+    var idx = wallIndex;
+    if (!idx) return null;
+    if (!Number.isFinite(minX + maxX + minZ + maxZ)) return null;
+    var out = idx.scratch;
+    out.length = 0;
+    if (maxX < idx.minX || minX > idx.maxX || maxZ < idx.minZ || minZ > idx.maxZ) return out;
+    var c0 = Math.floor(minX / WALL_CELL),
+      c1 = Math.floor(maxX / WALL_CELL),
+      r0 = Math.floor(minZ / WALL_CELL),
+      r1 = Math.floor(maxZ / WALL_CELL);
+    if ((c1 - c0 + 1) * (r1 - r0 + 1) > WALL_MAX_QUERY_CELLS) return null;
+    if (++idx.epoch >= 4294967295) {
+      idx.stamp.fill(0);
+      idx.epoch = 1;
+    }
+    for (var c = c0; c <= c1; c++)
+      for (var row = r0; row <= r1; row++) {
+        var bucket = idx.buckets.get(c + ',' + row);
+        if (!bucket) continue;
+        for (var k = 0; k < bucket.length; k++) {
+          var id = bucket[k];
+          if (idx.stamp[id] === idx.epoch) continue;
+          idx.stamp[id] = idx.epoch;
+          out.push(id);
+        }
+      }
+    if (out.length > 1)
+      out.sort(function (a, b) {
+        return a - b;
+      });
+    return out;
+  }
   function blocked(a, b, mode, ay, by) {
     var segLen = Math.hypot(b.x - a.x, b.z - a.z) || EPS,
       pad = EPS * segLen,
@@ -111,8 +192,10 @@
       maxX = Math.max(a.x, b.x) + pad,
       minZ = Math.min(a.z, b.z) - pad,
       maxZ = Math.max(a.z, b.z) + pad;
-    for (var i = 0; i < walls.length; i++) {
-      var w = walls[i];
+    var candidates = wallCandidates(minX, maxX, minZ, maxZ),
+      count = candidates ? candidates.length : walls.length;
+    for (var i = 0; i < count; i++) {
+      var w = walls[candidates ? candidates[i] : i];
       /* intersection() accepts parameters within EPS of each segment, so boxes padded by that much
          that do not overlap cannot intersect. */
       if (w.maxX < minX || w.minX > maxX || w.maxZ < minZ || w.minZ > maxZ) continue;
@@ -248,6 +331,7 @@
   function buildScenarioGeometry(s) {
     scenario = s;
     walls = [];
+    wallIndex = null;
     nodes = [];
     edges = [];
     firingStations = [];
@@ -356,6 +440,7 @@
         }
       });
     });
+    rebuildWallIndex();
     /* Widely separated 5 km hamlets cannot rely on a 300 m local corner
        graph to connect their approaches. Add public road junction anchors,
        then link only actual, building-clear road segments after the local graph.
