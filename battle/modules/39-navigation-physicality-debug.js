@@ -107,9 +107,9 @@
     var p = sim.obstacles.__physicalFootprints;
     return Array.isArray(p) && p.length ? p : legacyFootprints(sim);
   }
-  function physicalVersion(sim) {
+  function physicalVersion(sim, footprints) {
     var o = sim && sim.obstacles;
-    return N.version + '|' + ((o && o.__physicalVersion) || 0) + '|' + staticFootprints(sim).length;
+    return N.version + '|' + ((o && o.__physicalVersion) || 0) + '|' + (footprints || staticFootprints(sim)).length;
   }
   var PHYS_CELL = 28;
   function axes(fp) {
@@ -137,7 +137,7 @@
   }
   function physicalIndex(sim) {
     var list = staticFootprints(sim),
-      ver = physicalVersion(sim);
+      ver = physicalVersion(sim, list);
     if (physicalIndexCache && physicalIndexCache.source === list && physicalIndexCache.version === ver)
       return physicalIndexCache;
     if (!list.length)
@@ -196,18 +196,24 @@
     return idx;
   }
   function gatherStatic(sim, a, b, pad) {
-    var idx = physicalIndex(sim);
-    var dynamic = ((sim.obstacles && sim.obstacles.__dynamicFootprints) || []).filter(function (fp) {
-      var e = footprintExtents(fp),
-        p = pad || 0;
-      return (
-        fp.x + e.x + p >= Math.min(a.x, b.x) &&
-        fp.x - e.x - p <= Math.max(a.x, b.x) &&
-        fp.z + e.z + p >= Math.min(a.z, b.z) &&
-        fp.z - e.z - p <= Math.max(a.z, b.z)
-      );
-    });
-    if (!idx || idx.empty) return dynamic;
+    var idx = physicalIndex(sim),
+      dynamicSource = sim.obstacles && sim.obstacles.__dynamicFootprints,
+      /* Most infantry searches have no moving hulls. Avoid allocating an empty filtered
+         array for each clearance query, but inspect all live vehicle getters when present. */
+      dynamic =
+        dynamicSource && dynamicSource.length
+          ? dynamicSource.filter(function (fp) {
+              var e = footprintExtents(fp),
+                p = pad || 0;
+              return (
+                fp.x + e.x + p >= Math.min(a.x, b.x) &&
+                fp.x - e.x - p <= Math.max(a.x, b.x) &&
+                fp.z + e.z + p >= Math.min(a.z, b.z) &&
+                fp.z - e.z - p <= Math.max(a.z, b.z)
+              );
+            })
+          : null;
+    if (!idx || idx.empty) return dynamic || [];
     idx.epoch++;
     if (idx.epoch >= 2147483000) {
       idx.stamp.fill(0);
@@ -219,16 +225,11 @@
       maxX = Math.max(a.x, b.x) + pad,
       minZ = Math.min(a.z, b.z) - pad,
       maxZ = Math.max(a.z, b.z) + pad;
-    function col(x) {
-      return clamp(Math.floor((x - idx.minX) / PHYS_CELL), 0, idx.cols - 1);
-    }
-    function row(z) {
-      return clamp(Math.floor((z - idx.minZ) / PHYS_CELL), 0, idx.rows - 1);
-    }
-    var c0 = col(minX),
-      c1 = col(maxX),
-      r0 = row(minZ),
-      r1 = row(maxZ);
+    /* Inline four grid clamps; avoid creating two local closures on every clearance. */
+    var c0 = clamp(Math.floor((minX - idx.minX) / PHYS_CELL), 0, idx.cols - 1),
+      c1 = clamp(Math.floor((maxX - idx.minX) / PHYS_CELL), 0, idx.cols - 1),
+      r0 = clamp(Math.floor((minZ - idx.minZ) / PHYS_CELL), 0, idx.rows - 1),
+      r1 = clamp(Math.floor((maxZ - idx.minZ) / PHYS_CELL), 0, idx.rows - 1);
     for (var c = c0; c <= c1; c++)
       for (var r = r0; r <= r1; r++) {
         var bucket = idx.buckets[c + r * idx.cols];
@@ -240,7 +241,7 @@
           out.push(idx.list[id]);
         }
       }
-    return dynamic.length ? out.concat(dynamic) : out;
+    return dynamic && dynamic.length ? out.concat(dynamic) : out;
   }
   function refreshOccupied(sim, force) {
     if (!sim) return (occupied = []);
