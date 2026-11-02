@@ -1,0 +1,14 @@
+{
+  "benchmark": "standard",
+  "ref": "work/meso708-physical-query-fastpath-20261102",
+  "seed": "controller-natural-20261026",
+  "seeds": "3",
+  "battle_type": "meeting",
+  "sim_seconds": "600",
+  "windows": "0+600",
+  "query_off": "strategicInterception=0",
+  "query_on": "strategicInterception=0&tacticalController=new",
+  "origin_agent": "chatgpt",
+  "correlation_id": "meso709-physical-fastpath-2da5f5dd",
+  "purpose": "Exact head 2da5f5dd green CI 41383276273 and Native Skills Lab 41383276246; profile 41383536360. Compare 600s 3-seed ON/OFF acceptance gate <=1.25x; prior #708 #1593 1.939x; no runner-noise causal assumptions."
+}
