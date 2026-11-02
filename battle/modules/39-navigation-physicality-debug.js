@@ -109,7 +109,9 @@
   }
   function physicalVersion(sim, footprints) {
     var o = sim && sim.obstacles;
-    return N.version + '|' + ((o && o.__physicalVersion) || 0) + '|' + (footprints || staticFootprints(sim)).length;
+    return (
+      N.version + '|' + ((o && o.__physicalVersion) || 0) + '|' + (footprints || staticFootprints(sim)).length
+    );
   }
   var PHYS_CELL = 28;
   function axes(fp) {
@@ -196,10 +198,10 @@
     return idx;
   }
   function gatherStatic(sim, a, b, pad) {
+    /* Most infantry searches have no moving hulls. Avoid allocating an empty filtered
+       array for each clearance query, but inspect all live vehicle getters when present. */
     var idx = physicalIndex(sim),
       dynamicSource = sim.obstacles && sim.obstacles.__dynamicFootprints,
-      /* Most infantry searches have no moving hulls. Avoid allocating an empty filtered
-         array for each clearance query, but inspect all live vehicle getters when present. */
       dynamic =
         dynamicSource && dynamicSource.length
           ? dynamicSource.filter(function (fp) {
