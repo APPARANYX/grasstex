@@ -68,6 +68,22 @@ test('rotated OBB is tested as an oriented box, not its bounding box', () => {
   assert.equal(N.movementClear(P(3.6, -3.6), P(3.6, 3.6)), false, 'clips the OBB end inside the AABB corner');
 });
 
+test('empty dynamic list skips filtering while static and subsequently moving geometry stay live', () => {
+  const { N, obstacles } = world({ statics: [wall('static', 0, 0, 5, 0.3, 0)] }),
+    empty = [],
+    vehicle = { id: 'truck-late', position: { x: 10, z: 0 }, heading: { x: 0, z: 1 } };
+  empty.filter = () => {
+    throw new Error('an empty dynamic set must not be filtered for every query');
+  };
+  obstacles.__dynamicFootprints = empty;
+  assert.equal(N.movementClear(P(0, -4), P(0, 4)), false, 'static footprint still blocks');
+  assert.equal(N.movementClear(P(10, -4), P(10, 4)), true, 'empty dynamic set leaves free space');
+  obstacles.__dynamicFootprints = [truckFootprint(vehicle)];
+  assert.equal(N.movementClear(P(10, -4), P(10, 4)), false, 'newly attached truck blocks immediately');
+  vehicle.position.x = 20;
+  assert.equal(N.movementClear(P(10, -4), P(10, 4)), true, 'moving truck remains live');
+});
+
 test('moving truck OBB follows the live vehicle, with no stale cached volume', () => {
   const { N, obstacles } = world(),
     v = { id: 'truck-1', position: { x: 0, z: 0 }, heading: { x: 0, z: 1 } };
