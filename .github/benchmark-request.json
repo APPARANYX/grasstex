@@ -1,0 +1,11 @@
+{
+  "benchmark": "hotpath",
+  "ref": "work/meso739-route-rank-once-20261103",
+  "battle_type": "meeting",
+  "seed": "controller-natural-20261026-0002",
+  "sim_seconds": "600",
+  "query": "strategicInterception=0&tacticalController=new",
+  "origin_agent": "chatgpt",
+  "correlation_id": "meso740-rank-once-cefb1eb8",
+  "purpose": "One matched natural owner/GC profile of #740 exact cefb1eb856006081a29b4bde4e150a31b3cc030f after fullCI41614976832 and NativeLab41614976783/raw13220632484 reviewed/pass; compare all20states/final/fullroute/native receipts with parent739 profile41608052783/raw13218065844; no acceptance speedup claim or duplicate."
+}
