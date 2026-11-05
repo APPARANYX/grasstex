@@ -1,0 +1,13 @@
+{
+  "benchmark": "standard",
+  "ref": "work/contact-march-arrived-posture",
+  "seed": "controller-natural-20261026",
+  "seeds": "3",
+  "query_off": "strategicInterception=0",
+  "query_on": "strategicInterception=0&tacticalController=new",
+  "battle_type": "meeting",
+  "windows": "0+600",
+  "sim_seconds": "600",
+  "origin_agent": "human",
+  "purpose": "PR #766 validation: paired 600s comparison of the contact-march arrived-posture fix (keep a prone soldier down when a contact march has already arrived) against #763 counts; inspect GE soldier 97 seed 0002 and any vacant objective"
+}
