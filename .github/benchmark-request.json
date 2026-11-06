@@ -1,0 +1,1 @@
+{"benchmark":"probe-pack","ref":"claude/project-thread-a3p046","seed":"pack-768","map":"tactical","query_off":"tacticalController=new&strategicInterception=0&fastRouteChecks=0","query_on":"tacticalController=new&strategicInterception=0","origin_agent":"claude","purpose":"#768 inertness"}
