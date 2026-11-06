@@ -1,0 +1,13 @@
+{
+  "benchmark": "standard",
+  "ref": "work/pin/pr776-adfab042",
+  "seed": "pr776-recovery",
+  "seeds": "60",
+  "windows": "0+600",
+  "query_off": "tacticalController=new&strategicInterception=0&controllerTransportPassenger=0&releasedOrder=0&controllerMissionHold=0&regroupUndeliverable=0&reloadStanceHold=0&loopAbsentOrder=0&refugeHold=0&retreatObjectiveRelease=0&fledGoalKeep=0&arrivedProneDown=0&combatRebriefRenew=0",
+  "query_on": "tacticalController=new&strategicInterception=0",
+  "battle_type": "meeting",
+  "sim_seconds": "600",
+  "origin_agent": "human",
+  "purpose": "#776 flagged recovery gate: ON vs OFF-flags (all 11 off flags), meeting, 60 seeds, request PR776/head-after-this-comment/flagged-recovery-gate"
+}
