@@ -1,0 +1,1 @@
+{"benchmark":"standard","ref":"claude/project-thread-kg44fx","seed":"cover770","seeds":"60","battle_type":"ge-defend","query_off":"tacticalController=new&strategicInterception=0&controllerCoverCache=0","query_on":"tacticalController=new&strategicInterception=0","sim_seconds":"600","origin_agent":"claude-code","purpose":"#770 cover cache: expect identical gameplay, lower wall"}
