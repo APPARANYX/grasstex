@@ -1,0 +1,1 @@
+{"benchmark":"standard","ref":"work/pin/cover770-787b22f3","seed":"cover770b","seeds":"60","battle_type":"meeting","query_off":"tacticalController=new&strategicInterception=0&controllerCoverCache=0","query_on":"tacticalController=new&strategicInterception=0","sim_seconds":"600","origin_agent":"claude-code","purpose":"#770 on main 353a1e5: expect identical gameplay, lower wall"}
