@@ -1,1 +1,13 @@
-{"benchmark":"standard","ref":"d23479d7fa6a30f8c83d88fa797ce35292d19cec","seed":"controller-natural-20261026","seeds":"3","windows":"0+600","query_off":"strategicInterception=0","query_on":"strategicInterception=0&tacticalController=new","battle_type":"ge-defend","sim_seconds":"600","origin_agent":"human","purpose":"#771 deterministic: legacy vs new on baseline d23479d (ge-defend)"}
+{
+  "benchmark": "standard",
+  "ref": "work/pin/meso771-base-d23479d",
+  "seed": "controller-natural-20261026",
+  "seeds": "3",
+  "windows": "0+600",
+  "query_off": "strategicInterception=0",
+  "query_on": "strategicInterception=0&tacticalController=new",
+  "battle_type": "ge-defend",
+  "sim_seconds": "600",
+  "origin_agent": "human",
+  "purpose": "#771 deterministic: legacy vs new on baseline d23479d (ge-defend)"
+}
