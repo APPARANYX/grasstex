@@ -1,0 +1,13 @@
+{
+  "benchmark": "standard",
+  "ref": "main",
+  "seed": "controller-natural-20261026",
+  "seeds": "60",
+  "windows": "0+600",
+  "query_off": "strategicInterception=0",
+  "query_on": "strategicInterception=0&tacticalController=new",
+  "battle_type": "ge-defend",
+  "sim_seconds": "600",
+  "origin_agent": "human",
+  "purpose": "Baseline on main d036b3f (post-#772): fresh controller-vs-legacy 600s paired benchmark, ge-defend, 60 seeds, per request BASELINE/d036b3f0/post772-600s on PR #776"
+}
