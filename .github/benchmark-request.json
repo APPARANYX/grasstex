@@ -1,0 +1,1 @@
+{"benchmark":"standard","ref":"claude/project-thread-a3p046","seed":"fast768","seeds":"60","battle_type":"us-defend","query_off":"tacticalController=new&strategicInterception=0&fastRouteChecks=0","query_on":"tacticalController=new&strategicInterception=0","origin_agent":"claude","purpose":"#768 inertness: records must be identical"}
