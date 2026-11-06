@@ -1,0 +1,1 @@
+{"benchmark":"standard","ref":"work/benchmark-launch/fc769-meeting","seed":"fc769","seeds":"60","battle_type":"meeting","sim_seconds":"600","query_off":"tacticalController=new&strategicInterception=0&controllerFastChecks=0","query_on":"tacticalController=new&strategicInterception=0","purpose":"#769 flag pair: identical play expected, wall time only"}
