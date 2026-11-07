@@ -1,0 +1,1 @@
+{"benchmark":"probe-pack","ref":"work/pin/pr779-1e6f4bb","seed":"pack-779","seeds":"40","map":"tactical","query_off":"tacticalController=new&strategicInterception=0&controllerAmbushRelease=0","query_on":"tacticalController=new&strategicInterception=0","origin_agent":"human","purpose":"#779 ambush-release gate on 1e6f4bb: probe pack ON vs controllerAmbushRelease=0"}
