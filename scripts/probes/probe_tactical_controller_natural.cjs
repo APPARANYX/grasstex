@@ -32,6 +32,8 @@ const { chromium } = require('playwright');
     for (const arm of ['off', 'on']) {
       const query = new URLSearchParams(type === 'meeting' ? '' : 'defender=' + (type === 'us-defend' ? 'us' : 'ge'));
       if (arm === 'on') for (const [k, v] of new URLSearchParams(flags)) query.set(k, v);
+      // The controller is the page default since #785: the OFF arm names legacy explicitly.
+      else query.set('tacticalController', 'legacy');
       query.set('seed', prefix + '-bootstrap');
       query.set('pinSeed', '1');
       query.set('strategicInterception', '0');

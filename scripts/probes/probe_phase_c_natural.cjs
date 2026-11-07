@@ -24,6 +24,8 @@ const { chromium } = require('playwright');
     for (const arm of ['off', 'on']) {
       const query = new URLSearchParams(type === 'meeting' ? '' : 'defender=' + (type === 'us-defend' ? 'us' : 'ge'));
       if (arm === 'on') for (const [k, v] of new URLSearchParams(flags)) query.set(k, v);
+      // Phase C local plan runs on the legacy tactical path (the controller is the page default since #785).
+      query.set('tacticalController', 'legacy');
       query.set('seed', prefix + '-bootstrap');
       const page = await browser.newPage({ ignoreHTTPSErrors: true });
       page.setDefaultTimeout(120000);

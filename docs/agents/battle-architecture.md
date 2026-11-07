@@ -58,8 +58,9 @@ still unconfirmed at that point is an accepted loss, counted in `stats.restartDr
 logged. A controlled squad sets no `_missionHold`, so Loop Watch still judges its progress. Requests are
 validated by the contract below, so a stale tuple or an actor outside the squad is rejected.
 The page loads the contract beside the Commander. The only provider is the march provider
-(13c), registered only under `?tacticalController=new`, so a default battle never activates the
-controller; the controller keeps its state in WeakMaps and adds no squad or soldier field.
+(13c), registered only under `?tacticalController=new`. Since #785 the battle page adds that
+parameter when the URL names no controller (`?tacticalController=legacy` or `?controllerDefault=0` keeps
+legacy); module code still reads only the query, so Node checks without it run legacy. The controller keeps its state in WeakMaps and adds no squad or soldier field.
 
 
 Slice 4 (`13e-tactical-covered-maneuver.js`) chooses forward/back cover points and native

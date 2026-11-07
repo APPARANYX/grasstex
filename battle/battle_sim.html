@@ -2,6 +2,20 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<script id="tactical-controller-default">
+/* The guarded tactical controller is the default AI (?tacticalController=new). Runs before every other
+   script, so each module's own query read sees the same answer. Rollback: ?tacticalController=legacy
+   (any value other than "new" keeps legacy); ?controllerDefault=0 restores the old default (legacy
+   unless the page asks for the controller). */
+(function () {
+  try {
+    var q = new URLSearchParams(location.search);
+    if (q.has('tacticalController') || q.get('controllerDefault') === '0') return;
+    q.set('tacticalController', 'new');
+    history.replaceState(history.state, '', location.pathname + '?' + q.toString() + location.hash);
+  } catch (e) {}
+})();
+</script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>WW2FPS AI Lab</title>
 <style>

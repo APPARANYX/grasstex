@@ -1,12 +1,13 @@
 # GRASSTEX AI Skills V1 — Architecture Roadmap and Evidence Register
 
-**Status snapshot:** 2026-10-25 (America/New_York)  
-**Track:** [Issue #602 — AI Skills V1](https://github.com/APPARANYX/grasstex/issues/602)  
-**Integration candidate:** [Draft PR #630 — consolidated AI re-architecture](https://github.com/APPARANYX/grasstex/pull/630)  
-**Related tactical design:** [Draft PR #651 — coordinated advance and retreat](https://github.com/APPARANYX/grasstex/pull/651)  
-**Decision:** Do **not** merge, deploy, or enable new gameplay by default solely because an implementation or unit test exists. Separate *implemented*, *natural-battle validated*, *accepted*, and *merged*.
+**Status snapshot:** 2026-11-07. **Read sections 7 to 9 first.** Sections 2 to 6 are the 2026-10-25 record of the #630 integration attempt, kept as history; #630 was not merged.
 
-> This document is a point-in-time status and forward roadmap, not a claim that draft branches are deployed. Check linked PRs and benchmark artifacts when updating it. The architectural A/B/C phase names below are different from the older #299 tactical “Phase C” label.
+**Where we are:** the guarded tactical controller (Meso layer, `?tacticalController=new`) is on `main` with every pre-takeover item done, and the default switch is Draft #785 (rollback `?tacticalController=legacy`). Next phase: port the Macro and Micro layers onto the same controller so all three M3C layers have one owner per decision (section 8). Follow-ups and known issues parked for later: section 9.
+
+**Track:** [Issue #602 — AI Skills V1](https://github.com/APPARANYX/grasstex/issues/602) · tracker #786 (was PR #299, record in `docs/reference/AI_TACTICS_CAMPAIGN_V1_PR299_RECORD.md`) · switch #785.
+**Decision rule (unchanged):** do **not** merge, deploy, or enable new gameplay by default solely because an implementation or unit test exists. Separate *implemented*, *natural-battle validated*, *accepted*, and *merged*.
+
+> This document is a point-in-time status and forward roadmap. Check linked PRs and benchmark artifacts when updating it. The architectural A/B/C phase names in sections 2 to 6 are different from the older #299 tactical "Phase C" label.
 
 ## 1. Target architecture and non-negotiable boundaries
 
@@ -161,7 +162,7 @@ Update this document when a PR changes a **phase verdict**, closes a **gate**, o
 
 ## 7. Update 2026-11-06 — guarded tactical controller takeover (supersedes the stale D/E wording above)
 
-The #630 consolidation was not merged. The Meso controller reached `main` as a different, smaller path: the guarded tactical controller (`?tacticalController=new`, legacy by default) with Meso skills merged through #771, then speed work #767-#770 and #773. It stays opt-in. The default switch is a separate PR after the acceptance list below. Merge plan and open-PR dispositions: the 2026-11-06 consolidated merge plan (thread "Finish Meso controller merge plan").
+The #630 consolidation was not merged. The Meso controller reached `main` as a different, smaller path: the guarded tactical controller (`?tacticalController=new`, legacy by default until the switch below) with Meso skills merged through #771, then speed work #767-#770 and #773. The default switch is a separate PR after the acceptance list below (now #785). Merge plan and open-PR dispositions: the 2026-11-06 consolidated merge plan (thread "Finish Meso controller merge plan").
 
 **Required before default takeover** (a missing item blocks the switch):
 
@@ -171,4 +172,54 @@ The #630 consolidation was not merged. The Meso controller reached `main` as a d
 4. **Stress and casualty awareness in contact (gap found 2026-11-06).** Two legacy Squad Leader decisions never run for squads the controller owns: the course-of-action decision on contact (a shaken or depleted squad holds instead of bounding) and the stress review (a squad shaken too long asks the General for a new brief). The controller therefore ignores stress and casualties during a fight. A third default-on legacy decision is also skipped: engagement-plan upkeep (`updatePlan`, module 16), which asks the General for a review when contact clears or a lease expires; 13e only requests reviews for its own stall reasons. Confirm that in a battle first. Local plan (15n) and lease conflicts are opt-in in legacy, so they are not gaps. Plan: one Draft that feeds the existing scorer into the controller's contact skills and the existing General request path, behind its own off flag and `?tacticalController=new`. No new scorer, timer or order writer. Not started; needs the standard paired set before it counts.
 5. Explicit legacy rollback kept for an agreed transition period.
 
+**Status 2026-11-07 (default switch PR).** Item 1: baseline set by Ivan on wall ratio (main d036b3f: meeting x1.695, US defense x1.506, GE defense x1.435). Item 2: #776. Item 3: single writer #781, ambush strand #779, reconstitution and trucks checked by Muse on issue #780 (merges flat at 900 s, trucks board, ride and dismount with zero controller faults), desktop playtest on #299. Item 4: #778 (`?controllerSquadReviews=0`, `?controllerCoaGate=0`); plan upkeep has nothing to keep up because the controller stages no engagement plan. Item 5: the switch keeps `?tacticalController=legacy`.
+
+**The switch.** `battle/battle_sim.html` opens with one script that adds `?tacticalController=new` to a battle URL that names no controller, before any module reads its query, so every existing `?tacticalController=new` test sees the same answer. Rollback for one battle: `?tacticalController=legacy`. Old default: `?controllerDefault=0`. Check: `tools/ai-sim-harness/tactical-controller-default-check.js`. Benchmark arms meant as legacy must now pass `tacticalController=legacy`. Node harness checks are unchanged: they set their own query. Follow-ups found on the way, not blockers: more men flee under the controller (Muse #780: flee acts +40%, shorter each), the `order-handoff-churn` detector counts a firing line as "no progress", one seed of `writer-ping-pong` between squad-stability and prepared-defense at battle end, and the fled-man reload fix (#784).
+
 Phase E (legacy retirement) stays blocked on this list. #299 is a separate product track; its phase status against the controller is in the comment on that PR.
+
+## 8. Next phase 2026-11-07 — port Macro and Micro onto the controller
+
+The controller today owns the **Meso** layer: squad decisions through 13 capabilities (`mission.accept`, `mission.execute`, `movement.move`, `movement.hold`, `combat.march`, `combat.contact`, `combat.bound`, `fire.control`, `maneuver.cover`, `posture.lower`, `station.claim`, `transport.consider`, `transport.cancel`) with providers 13c to 13i. Macro (the General) and Micro (each soldier) still run their legacy decision code, which the controller calls into. Architecture porting is complete when all three layers decide through the controller, one owner per decision, and legacy decision code can be retired.
+
+Same rules as the Meso phase: reuse the existing skill logic, no new timers or movement writers, every change behind `?tacticalController=new` with its own off flag, controller-off identical to `main`, the three-part gate per PR, new architecture rather than legacy parity.
+
+**Order:**
+1. **Switch the default (#785)** and hold the legacy rollback for the transition period.
+2. **Macro, starting with reconstitution** (M3C advice 2026-10-31). General decisions in `commander-ai.js`, `commander-doctrine.js` and `22a` become controller capabilities that publish briefs through the existing Command Reception path: reconstitution and rally, then objective choice and main effort, reserves and reinforcement commitment, then strategic recovery and transport planning. Macro keeps reading only relayed reports (nothing omniscient).
+3. **Micro, the soldier.** Engagement (`engagement.js`, `19a`, `19b`) still decides stance, personal cover, fire permission and stress reactions on its own state machine. Port these as soldier skills under the controller: stance and cover choice, personal fire and reload, then the stress reactions (cower, flee, freeze, rage). The Movement Resolver stays the sole destination writer. The open soldier-level reads in section 9 (flee rate, contact/march flip, fled reload) belong here.
+4. **Phase E, legacy retirement.** Only after both layers pass their gates and Ivan agrees the transition period is over: delete legacy decision paths and their off flags in measured steps, each with a rollback ledger entry.
+
+Each layer starts with a short scoping note (which decisions, which owner, which existing code is reused) before the first PR.
+
+## 9. Follow-ups and known issues (parked 2026-11-07)
+
+Not blockers for the default switch. Each needs a confirmed failure before a fix, then the usual small guarded PR.
+
+**Soldier behaviour (Micro):**
+- **More men flee under the controller.** Muse on #780: flee acts +40% (1,181 to 1,652), each a little shorter; retreat samples +25%. `?pinNerve` (17-soldier-mind) caps stress per *unbroken* pin spell at 1.625 s, but the controller's heavier suppression gives many short spells that each bill again. Candidate: cap suppression stress over a time window, own off flag. Keep the controller's suppression saturation (Ivan likes it).
+- **Contact/march flip.** In contact, men without a firing line and no incoming fire for 3 s drop from `combat.contact` to `combat.march` and back every 2 to 5 s, in sync (13d `drill`). Confirm whether this is the intended advance-until-you-find-a-line behaviour before touching it.
+- **Fled man keeps reloading** after dropping his rifle: Draft #784 (`?fledReloadClear=0`).
+- **Retreated squads stuck at the map edge** to battle end (desktop playtest on #299, all three controller battles). Waits on Ivan's design call on what a rallied or stranded squad should do.
+- Meeting grenade casualties 14 to 39 with throws flat after #778 (meeting only).
+- Engineer `states.rage` +129% (likely multiple-comparison noise); sergeant rage drop under #776 judged benign.
+
+**Command and writers:**
+- `writer-ping-pong` on one us-defend seed (#780 run 1704, seed -0020): two men flip `orderDestination` between squad-stability and prepared-defense at 580 to 598 s, controller on only.
+- Four pre-existing causal stalls (`requires-command-or-route-review`, attackers idle 45 s at an interim waypoint).
+- #701: unexplained GE fire-silence rise.
+- Probe `contacts-cleared` 44 to 23 after #772 (more under-fire endings).
+
+**Diagnostics and benchmark harness:**
+- `order-handoff-churn` (32-ai-loop-watch) counts a firing line holding ground as "no progress" (6 to 594 alerts). Fix the detector only after the contact/march flip above is judged valid.
+- Benchmark records carry `winReason: null` for time-limit battles; `movementGoals` counters accumulate across battles in one shard worker.
+- Controller stats (faults, rejected, stale requests) are not in CI benchmark records.
+- Local runs fall back to policy revision 0 while CI uses the live revision, so local traces do not reproduce CI alert times.
+- A second battle in the same page differs from the first.
+- Preview slug URLs 404 for some branches; the `ref-<sha>` path works.
+
+**Speed:** wall ratio baseline x1.695 / x1.506 / x1.435 (meeting / us-defend / ge-defend). The 1.25x target is not met. Biggest known cost: 13g `findRoute` (about 2.8 s per meeting battle, parked); no speedup with a truck on the map.
+
+**Player and UI (not AI):** pressing P gives `Unhandled promise rejection: {}` once per press; Esc does not release possession and P cycles to another soldier.
+
+**Other open decisions:** #608 `?ballisticFailClosed=0` question; #685 Howler audio buses parked; the tactics campaign phases C to J (tracker #786, formerly PR #299) need a reuse audit against controller skills before any port.

@@ -10,12 +10,17 @@ Grasstex should feel like a procedurally generated WWII battle against an opposi
 
 ## Immediate sequencing
 
-1. Finish and stabilize #299 tactical planning.
-2. Complete tactical-map and presentation work that exposes existing state without changing tactical authority.
-3. Formation-completeness pass for specialist capabilities.
-4. Playable commander and pre-battle planning.
-5. Logistics/economy and reconnaissance layers.
-6. Revisit Genome and learned tactical reasoning only after the deterministic tactical baseline is stable.
+Updated 2026-11-07. The AI architecture order lives in `docs/architecture/AI_SKILLS_ROADMAP.md` sections 7 to 9.
+
+1. Turn the guarded tactical controller (Meso) on by default (#785), legacy rollback kept.
+2. Port the Macro (General) and Micro (soldier) layers onto the controller, then retire legacy decision code.
+3. Complete tactical-map and presentation work that exposes existing state without changing tactical authority.
+4. Formation-completeness pass for specialist capabilities.
+5. Playable commander and pre-battle planning.
+6. Logistics/economy and reconnaissance layers.
+7. Revisit Genome and learned tactical reasoning only after the deterministic tactical baseline is stable.
+
+The tactics campaign tracker is issue #786 (formerly PR #299, record in `docs/reference/AI_TACTICS_CAMPAIGN_V1_PR299_RECORD.md`); its remaining phases are audited for reuse against controller skills, not merged wholesale.
 
 ## Tactical map and battlefield presentation
 

@@ -23,6 +23,8 @@ const { requestPreview } = require('./preview_request.cjs');
     assert.ok(url.pathname.includes('ref-' + process.env.TACTICAL_SHA.slice(0, 12)));
     // These seeded urban/cover fixtures belong to the original 2 km scenario.
     url.searchParams.set('strategicInterception', '0');
+    // Legacy tactical path features (the controller is the page default since #785).
+    url.searchParams.set('tacticalController', 'legacy');
     url.searchParams.set('seed', 'live-mv5apwx1-djrk');
     url.searchParams.set('pinSeed', '1');
     url.searchParams.set('commandPosture', '0');

@@ -39,7 +39,9 @@ const { chromium } = require('playwright');
         combatLab: '1', labPreset: preset, labRange: String(rangeScale),
         labMove: mode, defender: 'ge',
         seed: 'phase-c-natural-20261012-0015', localPlan: '1', localAmbush: '1',
-        localManeuver: '1', coveredBounds: '1', fireCoverCycle: '1', squadReturnFire: '1'
+        localManeuver: '1', coveredBounds: '1', fireCoverCycle: '1', squadReturnFire: '1',
+        // Phase C local features run on the legacy tactical path (the controller is the page default since #785).
+        tacticalController: 'legacy'
       });
       // 50webs occasionally refuses a connection between consecutive preview page loads.
       // Retry only navigation-level transport failures, never a simulation assertion.

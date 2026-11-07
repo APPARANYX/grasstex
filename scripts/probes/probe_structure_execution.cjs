@@ -31,6 +31,8 @@ const { requestPreview } = require('./preview_request.cjs');
     );
     // These seeded urban/cover fixtures belong to the original 2 km scenario.
     url.searchParams.set('strategicInterception', '0');
+    // Legacy tactical path features (the controller is the page default since #785).
+    url.searchParams.set('tacticalController', 'legacy');
     url.searchParams.set('seed', 'phase-c-building-security');
     for (const flag of [
       'localPlan',
