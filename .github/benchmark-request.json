@@ -1,0 +1,1 @@
+{"benchmark":"probe-pack","ref":"work/pin/pr785-aac9720a","seed":"pack-785","seeds":"40","map":"tactical","query_off":"strategicInterception=0&tacticalController=legacy","query_on":"strategicInterception=0","origin_agent":"human","purpose":"#785 controller-default gate on aac9720a: probe pack default-ON vs explicit legacy"}
