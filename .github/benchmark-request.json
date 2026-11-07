@@ -1,0 +1,1 @@
+{"benchmark":"probe-pack","ref":"work/pin/pr784-0586e42","seed":"pack-784","seeds":"40","map":"tactical","query_off":"strategicInterception=0&tacticalController=new&fledReloadClear=0","query_on":"strategicInterception=0&tacticalController=new","origin_agent":"human","purpose":"#784 fled-man reload gate on 0586e42: probe pack ON vs fledReloadClear=0"}
