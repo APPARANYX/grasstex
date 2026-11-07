@@ -1,0 +1,1 @@
+{"benchmark":"probe-pack","ref":"work/pin/pr782-8ebb4df","seed":"pack-782","seeds":"40","map":"tactical","query_off":"strategicInterception=0&tacticalController=new&defendMajorityWin=0","query_on":"strategicInterception=0&tacticalController=new","origin_agent":"human","purpose":"#782 defend-majority gate on 8ebb4df: probe pack ON vs defendMajorityWin=0"}
