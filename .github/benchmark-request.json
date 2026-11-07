@@ -1,1 +1,1 @@
-{"benchmark":"causal","ref":"work/pin/pr781-2d641e38","seeds":"20","seconds":"600","query":"strategicInterception=0&tacticalController=new&controllerSingleWriter=0","origin_agent":"human","purpose":"#781 causal-inaction, flag OFF (controllerSingleWriter=0), 2d641e38"}
+{"benchmark":"causal","ref":"work/pin/pr781-2d641e38","seeds":"20","seconds":"600","query":"strategicInterception=0&tacticalController=new&controllerSingleWriter=0"}
