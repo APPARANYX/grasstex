@@ -1,0 +1,1 @@
+{"benchmark":"standard","ref":"main","seed":"pr781-single-writer","seeds":"60","windows":"0+600","query_off":"strategicInterception=0","query_on":"strategicInterception=0&tacticalController=new","battle_type":"ge-defend","sim_seconds":"600","origin_agent":"human","purpose":"#781 head-vs-main: main 9e6866bc arms on seed pr781-single-writer for the before/after read, ge-defend"}
